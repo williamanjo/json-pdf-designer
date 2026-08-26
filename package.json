@@ -1,6 +1,6 @@
 {
   "name": "json-pdf-designer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "description": "Editor visual simples de relatórios em PDF (canvas drag/resize + vínculo de dados JSON) — enxuto e pensado pra ser modificado.",
   "keywords": [
