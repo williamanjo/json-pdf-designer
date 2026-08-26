@@ -1,7 +1,21 @@
-import get from "lodash.get";
 import type { Binding, TableColumn } from "../types";
 import { splitDelimited } from "./splitDelimited";
 import { CHART_COLORS, CHART_OTHER_COLOR } from "../chartColors";
+
+function ciGet(obj: unknown, path: string): unknown {
+  if (!path) return obj;
+  const parts = path.split(".");
+  let cur = obj;
+  for (const part of parts) {
+    if (cur === null || cur === undefined || typeof cur !== "object" || Array.isArray(cur)) return undefined;
+    const rec = cur as Record<string, unknown>;
+    const lo = part.toLowerCase();
+    const key = Object.keys(rec).find(k => k.toLowerCase() === lo);
+    if (key === undefined) return undefined;
+    cur = rec[key];
+  }
+  return cur;
+}
 
 export function columnLabel(col: TableColumn): string {
   return typeof col === "string" ? col : col.label;
@@ -76,7 +90,7 @@ function resolveArg(arg: string, data: unknown): string {
   // de path olharia pra string inteira "SUM(...)"/"qtd * preco" como se
   // fosse uma chave, e não achando nada, ficava vazio).
   if (/\(.*\)/.test(arg) || /\s[+\-*/]\s/.test(arg)) return resolveToken(arg, data);
-  const v = get(data, arg);
+  const v = ciGet(data, arg);
   return v === undefined || v === null ? "" : String(v);
 }
 
@@ -86,7 +100,7 @@ function numbersFromArrayPath(data: unknown, rawPath: string): number[] {
   const lastDot = rawPath.lastIndexOf(".");
   const arrayPath = lastDot === -1 ? rawPath : rawPath.slice(0, lastDot);
   const column = lastDot === -1 ? "" : rawPath.slice(lastDot + 1);
-  const arr = get(data, arrayPath);
+  const arr = ciGet(data, arrayPath);
   if (!Array.isArray(arr)) return [];
   return arr
     .map((item) => Number(column ? item?.[column] : item))
@@ -206,7 +220,7 @@ export function resolveToken(token: string, data: unknown): string {
       const rawPath = args[0] ?? "";
       const lastDot = rawPath.lastIndexOf(".");
       const arrayPath = lastDot === -1 ? rawPath : rawPath.slice(0, lastDot);
-      const arr = get(data, arrayPath);
+      const arr = ciGet(data, arrayPath);
       return String(Array.isArray(arr) ? arr.length : 0);
     }
     case "AVG": {
@@ -298,7 +312,7 @@ export function buildInputs(data: unknown, bindings: Binding[]): Record<string, 
 
   for (const b of bindings) {
     if (b.type === "scalar") {
-      const value = get(data, b.path);
+      const value = ciGet(data, b.path);
       input[b.schemaName] = value === undefined || value === null ? "" : String(value);
       continue;
     }
@@ -312,7 +326,7 @@ export function buildInputs(data: unknown, bindings: Binding[]): Record<string, 
       // Tabela "campo / valor": cada linha é um path escolhido manualmente,
       // não um item de array.
       const rows2d = b.paths.map((path) => {
-        const v = get(data, path);
+        const v = ciGet(data, path);
         return [path, v === undefined || v === null ? "" : String(v)];
       });
       input[b.schemaName] = JSON.stringify(rows2d);
@@ -333,7 +347,7 @@ export function buildInputs(data: unknown, bindings: Binding[]): Record<string, 
 
     // "array": transforma o array de objetos em array de arrays (uma
     // linha por item, uma coluna por chave).
-    const arr = get(data, b.path);
+    const arr = ciGet(data, b.path);
     const list = Array.isArray(arr) ? arr : [];
     input[b.schemaName] = JSON.stringify(rowsFromArrayBinding(list, b.columns));
   }
@@ -346,7 +360,7 @@ export type ChartItem = { label: string; value: number; color: string };
 // Lê o array bruto do vínculo "chart" e extrai {label, value} de cada item
 // (labelColumn/valueColumn, ver types/binding.ts) — sem agregar ainda.
 export function resolveChartItems(binding: Extract<Binding, { type: "chart" }>, data: unknown): { label: string; value: number }[] {
-  const arr = get(data, binding.path);
+  const arr = ciGet(data, binding.path);
   if (!Array.isArray(arr)) return [];
   return arr.map((item) => {
     const obj = item && typeof item === "object" ? (item as Record<string, unknown>) : {};

@@ -6,6 +6,23 @@ import { splitDelimited } from "../bindings/splitDelimited";
 import { Button, Input, Select } from "./ui";
 import { IconLink } from "./ui/icons";
 
+type DroppedField = {
+  path: string;
+  kind: "scalar" | "arraySource" | "arrayColumn" | "native";
+  sourcePath?: string;
+  column?: string;
+};
+
+function readDroppedField(e: React.DragEvent): DroppedField | null {
+  const raw = e.dataTransfer.getData("application/json");
+  if (!raw) return null;
+  try { return JSON.parse(raw) as DroppedField; } catch { return null; }
+}
+
+const allowDrop = (e: React.DragEvent) => {
+  if (e.dataTransfer.types.includes("application/json")) e.preventDefault();
+};
+
 type Props = {
   schema: Schema;
   binding: Binding | undefined;
@@ -84,6 +101,35 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
     applyBinding({ cols: next });
   }
 
+  // Drag-and-drop do FieldTree externo para o input de valor
+  function handleDropOnDraft(e: React.DragEvent) {
+    const field = readDroppedField(e);
+    if (!field) return;
+    e.preventDefault();
+    // Para seção/tabela/gráfico: insere o path do array (sem chaves)
+    // Para texto: insere {path}
+    let next: string;
+    if (schema.type === "section" || schema.type === "table" || schema.type === "chart") {
+      next = field.kind === "arrayColumn" ? (field.sourcePath ?? field.path) : field.path;
+    } else {
+      next = bindingDraft
+        ? `${bindingDraft} {${field.path}}`
+        : `{${field.path}}`;
+    }
+    setBindingDraft(next);
+    applyBinding({ draft: next });
+  }
+
+  function handleDropOnCols(e: React.DragEvent) {
+    const field = readDroppedField(e);
+    if (!field) return;
+    e.preventDefault();
+    const colName = field.kind === "arrayColumn" ? (field.column ?? field.path) : field.path;
+    const next = colsDraft ? `${colsDraft}, ${colName}` : colName;
+    setColsDraft(next);
+    applyBinding({ cols: next });
+  }
+
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-dashed border-sky-300 bg-sky-50/40 p-2.5">
       <span className="flex items-center gap-1 text-[11px] font-medium text-slate-600">
@@ -96,10 +142,9 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
           <Input
             placeholder="path do array a repetir — ex: Services"
             value={bindingDraft}
-            onChange={(e) => {
-              setBindingDraft(e.target.value);
-              applyBinding({ draft: e.target.value });
-            }}
+            onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
+            onDragOver={allowDrop}
+            onDrop={handleDropOnDraft}
           />
           <p className="text-[10px] text-slate-400">
             A seção inteira repete uma vez por item deste array. Dentro
@@ -136,10 +181,9 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             <Input
               placeholder="path do array — ex: agentes"
               value={bindingDraft}
-              onChange={(e) => {
-                setBindingDraft(e.target.value);
-                applyBinding({ draft: e.target.value });
-              }}
+              onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
+              onDragOver={allowDrop}
+              onDrop={handleDropOnDraft}
             />
           )}
           {(() => {
@@ -164,10 +208,9 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
                   <Input
                     placeholder="coluna do rótulo — ex: label"
                     value={labelColumn}
-                    onChange={(e) => {
-                      setLabelColumn(e.target.value);
-                      applyBinding({ label: e.target.value });
-                    }}
+                    onChange={(e) => { setLabelColumn(e.target.value); applyBinding({ label: e.target.value }); }}
+                    onDragOver={allowDrop}
+                    onDrop={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setLabelColumn(col); applyBinding({ label: col }); }}
                   />
                 )}
                 {columns.length > 0 ? (
@@ -190,10 +233,9 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
                   <Input
                     placeholder="coluna numérica — ex: value"
                     value={valueColumn}
-                    onChange={(e) => {
-                      setValueColumn(e.target.value);
-                      applyBinding({ value: e.target.value });
-                    }}
+                    onChange={(e) => { setValueColumn(e.target.value); applyBinding({ value: e.target.value }); }}
+                    onDragOver={allowDrop}
+                    onDrop={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setValueColumn(col); applyBinding({ value: col }); }}
                   />
                 )}
               </div>
@@ -231,10 +273,9 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             <Input
               placeholder="path do array — ex: rows (vazio = modo chave/valor)"
               value={bindingDraft}
-              onChange={(e) => {
-                setBindingDraft(e.target.value);
-                applyBinding({ draft: e.target.value });
-              }}
+              onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
+              onDragOver={allowDrop}
+              onDrop={handleDropOnDraft}
             />
           )}
           <p className="text-[10px] text-slate-400">
@@ -256,10 +297,9 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
                     : "paths soltos do JSON — ex: pagination.page, pagination.total"
                 }
                 value={colsDraft}
-                onChange={(e) => {
-                  setColsDraft(e.target.value);
-                  applyBinding({ cols: e.target.value });
-                }}
+                onChange={(e) => { setColsDraft(e.target.value); applyBinding({ cols: e.target.value }); }}
+                onDragOver={allowDrop}
+                onDrop={handleDropOnCols}
               />
               {tableMode === "array" && (
                 <Select
@@ -284,10 +324,9 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
           <Input
             placeholder='path ou {FUNÇÃO(...)} — ex: {CURRENCY(total, "R$")}'
             value={bindingDraft}
-            onChange={(e) => {
-              setBindingDraft(e.target.value);
-              applyBinding({ draft: e.target.value });
-            }}
+            onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
+            onDragOver={allowDrop}
+            onDrop={handleDropOnDraft}
           />
           <Select
             value=""
