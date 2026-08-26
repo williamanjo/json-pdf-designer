@@ -49,7 +49,8 @@ export { PAGE_SIZE_PRESETS, orientationOf, applyOrientation, matchPreset, type O
 export { classifyZone, isRedZone, clampToZone, type Zone, type Bands } from "./zones";
 export { normalizeFontBytes } from "./pdf/fontUtils";
 export { default as Designer } from "./Designer";
-export { PdfPreview, configurePdfWorker } from "./components/PdfPreview";
+export { PdfPreview } from "./components/PdfPreview";
+export { configurePdfWorker } from "./pdf/pdfWorker";
 export { default as PdfPreviewModal } from "./components/PdfPreviewModal";
 
 // Componentes de UI prontos (Tailwind, mesmo estilo usado pelo próprio

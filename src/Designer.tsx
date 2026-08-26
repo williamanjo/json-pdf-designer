@@ -264,7 +264,7 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedIds, template.schemas]);
+  }, [selectedIds, template.schemas, onChangeTemplate, onChangeBindings]);
 
   // Copiar/colar (Ctrl+C / Ctrl+V) — clipboard próprio guardado num ref
   // (não usa o clipboard do sistema, sem pedir permissão de navegador).
@@ -343,7 +343,7 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedIds, template.schemas, bindings]);
+  }, [selectedIds, template.schemas, template.page.width, template.page.height, bindings, onChangeTemplate, onChangeBindings]);
 
   function setBinding(schemaName: string, binding: Binding | null) {
     onChangeBindings((prev) => {

@@ -3,8 +3,6 @@ import * as pdfjsLib from "pdfjs-dist";
 import { ensureWorker } from "../pdf/pdfWorker";
 import { toErrorMessage } from "../errorUtils";
 
-export { configurePdfWorker } from "../pdf/pdfWorker";
-
 type Props = {
   bytes: Uint8Array | null;
   // px por pt do PDF — 1 = tamanho real a 72dpi, ~1.33 ≈ 96dpi (escala de
