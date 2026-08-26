@@ -10,15 +10,9 @@ type Props = {
   schema: Schema;
   binding: Binding | undefined;
   onChangeBinding: (b: Binding | null) => void;
-  // Arrays conhecidos do JSON de exemplo — quando informado, a tabela
-  // ganha um dropdown "Data Source" em vez de path digitado livre (ver
-  // types.ts). Sem isso, cai no campo de texto de sempre.
   dataSources?: DataSourceOption[];
 };
 
-// Editor de vínculo — texto livre com {path}/{FUNÇÃO(...)} pra campos
-// simples, ou path + colunas (array/chave-valor/coluna calculada) pra
-// tabela. Guarda o próprio rascunho (só aplica de verdade no "Vincular").
 export function BindingEditor({ schema, binding, onChangeBinding, dataSources }: Props) {
   const [bindingDraft, setBindingDraft] = useState(() => {
     if (binding?.type === "template") return binding.template;
@@ -36,51 +30,58 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
   const [labelColumn, setLabelColumn] = useState(() => (binding?.type === "chart" ? binding.labelColumn : ""));
   const [valueColumn, setValueColumn] = useState(() => (binding?.type === "chart" ? binding.valueColumn : ""));
 
-  // Modo da tabela é implícito: path preenchido = array (1 linha por item);
-  // vazio = chave/valor (paths soltos, cada um vira 1 linha).
   const tableMode = bindingDraft.trim() ? "array" : "keyvalue";
-  // Fonte de dados conhecida (array do JSON já detectado) — dropdown
-  // substitui o path digitado à mão, e as colunas (já preenchidas pelo
-  // próprio dropdown) dispensam o texto livre de colunas.
   const knownSources = dataSources && dataSources.length > 0 ? dataSources : null;
 
-  function insertFunctionIntoBinding(snippet: string) {
-    setBindingDraft((prev) => (prev ? `${prev} {${snippet}}` : `{${snippet}}`));
-  }
-
-  function insertFunctionAsColumn(snippet: string) {
-    const entry = `Nova coluna={${snippet}}`;
-    setColsDraft((prev) => (prev ? `${prev}, ${entry}` : entry));
-  }
-
-  function handleVincular() {
+  function applyBinding({
+    draft = bindingDraft,
+    cols = colsDraft,
+    label = labelColumn,
+    value = valueColumn,
+  }: {
+    draft?: string;
+    cols?: string;
+    label?: string;
+    value?: string;
+  } = {}) {
     if (schema.type === "section") {
-      const path = bindingDraft.trim();
-      if (!path) return;
-      onChangeBinding({ schemaName: schema.name, type: "section", path });
+      if (!draft.trim()) return;
+      onChangeBinding({ schemaName: schema.name, type: "section", path: draft.trim() });
       return;
     }
     if (schema.type === "chart") {
-      const path = bindingDraft.trim();
-      if (!path || !labelColumn || !valueColumn) return;
-      onChangeBinding({ schemaName: schema.name, type: "chart", path, labelColumn, valueColumn });
+      if (!draft.trim() || !label || !value) return;
+      onChangeBinding({ schemaName: schema.name, type: "chart", path: draft.trim(), labelColumn: label, valueColumn: value });
       return;
     }
     if (schema.type === "table") {
-      const path = bindingDraft.trim();
+      const path = draft.trim();
       if (path) {
-        const columns = parseColumnsInput(colsDraft);
+        const columns = parseColumnsInput(cols);
         if (columns.length === 0) return;
         onChangeBinding({ schemaName: schema.name, type: "array", path, columns });
       } else {
-        const paths = splitDelimited(colsDraft);
+        const paths = splitDelimited(cols);
         if (paths.length === 0) return;
         onChangeBinding({ schemaName: schema.name, type: "keyvalue", paths });
       }
       return;
     }
-    if (!bindingDraft.trim()) return;
-    onChangeBinding({ schemaName: schema.name, type: "template", template: bindingDraft });
+    if (!draft.trim()) return;
+    onChangeBinding({ schemaName: schema.name, type: "template", template: draft });
+  }
+
+  function insertFunctionIntoBinding(snippet: string) {
+    const next = bindingDraft ? `${bindingDraft} {${snippet}}` : `{${snippet}}`;
+    setBindingDraft(next);
+    applyBinding({ draft: next });
+  }
+
+  function insertFunctionAsColumn(snippet: string) {
+    const entry = `Nova coluna={${snippet}}`;
+    const next = colsDraft ? `${colsDraft}, ${entry}` : entry;
+    setColsDraft(next);
+    applyBinding({ cols: next });
   }
 
   return (
@@ -95,7 +96,10 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
           <Input
             placeholder="path do array a repetir — ex: Services"
             value={bindingDraft}
-            onChange={(e) => setBindingDraft(e.target.value)}
+            onChange={(e) => {
+              setBindingDraft(e.target.value);
+              applyBinding({ draft: e.target.value });
+            }}
           />
           <p className="text-[10px] text-slate-400">
             A seção inteira repete uma vez por item deste array. Dentro
@@ -112,11 +116,13 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
               onChange={(e) => {
                 const source = knownSources.find((d) => d.path === e.target.value);
                 if (!source) return;
-                setBindingDraft(source.path);
-                const numberCol = source.columns?.find((c) => source.columnTypes?.[c] === "number");
-                const textCol = source.columns?.find((c) => source.columnTypes?.[c] !== "number");
-                setValueColumn(numberCol ?? "");
-                setLabelColumn(textCol ?? source.columns?.[0] ?? "");
+                const newDraft = source.path;
+                const numberCol = source.columns?.find((c) => source.columnTypes?.[c] === "number") ?? "";
+                const textCol = source.columns?.find((c) => source.columnTypes?.[c] !== "number") ?? source.columns?.[0] ?? "";
+                setBindingDraft(newDraft);
+                setValueColumn(numberCol);
+                setLabelColumn(textCol);
+                applyBinding({ draft: newDraft, label: textCol, value: numberCol });
               }}
             >
               <option value="">Data Source — escolha um array do JSON</option>
@@ -130,7 +136,10 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             <Input
               placeholder="path do array — ex: agentes"
               value={bindingDraft}
-              onChange={(e) => setBindingDraft(e.target.value)}
+              onChange={(e) => {
+                setBindingDraft(e.target.value);
+                applyBinding({ draft: e.target.value });
+              }}
             />
           )}
           {(() => {
@@ -139,19 +148,36 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             return (
               <div className="grid grid-cols-2 gap-2">
                 {columns.length > 0 ? (
-                  <Select value={labelColumn} onChange={(e) => setLabelColumn(e.target.value)}>
+                  <Select
+                    value={labelColumn}
+                    onChange={(e) => {
+                      setLabelColumn(e.target.value);
+                      applyBinding({ label: e.target.value });
+                    }}
+                  >
                     <option value="">Coluna do rótulo</option>
                     {columns.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
+                      <option key={c} value={c}>{c}</option>
                     ))}
                   </Select>
                 ) : (
-                  <Input placeholder="coluna do rótulo — ex: label" value={labelColumn} onChange={(e) => setLabelColumn(e.target.value)} />
+                  <Input
+                    placeholder="coluna do rótulo — ex: label"
+                    value={labelColumn}
+                    onChange={(e) => {
+                      setLabelColumn(e.target.value);
+                      applyBinding({ label: e.target.value });
+                    }}
+                  />
                 )}
                 {columns.length > 0 ? (
-                  <Select value={valueColumn} onChange={(e) => setValueColumn(e.target.value)}>
+                  <Select
+                    value={valueColumn}
+                    onChange={(e) => {
+                      setValueColumn(e.target.value);
+                      applyBinding({ value: e.target.value });
+                    }}
+                  >
                     <option value="">Coluna numérica</option>
                     {columns.map((c) => (
                       <option key={c} value={c}>
@@ -164,7 +190,10 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
                   <Input
                     placeholder="coluna numérica — ex: value"
                     value={valueColumn}
-                    onChange={(e) => setValueColumn(e.target.value)}
+                    onChange={(e) => {
+                      setValueColumn(e.target.value);
+                      applyBinding({ value: e.target.value });
+                    }}
                   />
                 )}
               </div>
@@ -184,8 +213,11 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
               onChange={(e) => {
                 const source = knownSources.find((d) => d.path === e.target.value);
                 if (!source) return;
-                setBindingDraft(source.path);
-                setColsDraft(source.columns?.join(", ") ?? "");
+                const newDraft = source.path;
+                const newCols = source.columns?.join(", ") ?? "";
+                setBindingDraft(newDraft);
+                setColsDraft(newCols);
+                applyBinding({ draft: newDraft, cols: newCols });
               }}
             >
               <option value="">Data Source — escolha um array do JSON</option>
@@ -199,7 +231,10 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             <Input
               placeholder="path do array — ex: rows (vazio = modo chave/valor)"
               value={bindingDraft}
-              onChange={(e) => setBindingDraft(e.target.value)}
+              onChange={(e) => {
+                setBindingDraft(e.target.value);
+                applyBinding({ draft: e.target.value });
+              }}
             />
           )}
           <p className="text-[10px] text-slate-400">
@@ -211,12 +246,6 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
               documento inteiro), e a seção cresce de altura pra caber as linhas de cada registro.
             </p>
           )}
-          {/* Com Data Source conhecida, as colunas já vêm prontas do
-              dropdown (source.columns) e dá pra ajustar depois na lista
-              "Colunas atuais da tabela" do painel (+ adicionar/remover/
-              reordenar) — esse texto livre só some quando NÃO tem fonte
-              conhecida (path digitado à mão, único jeito de dizer as
-              colunas nesse caso). */}
           {!knownSources && (
             <>
               <Input
@@ -227,7 +256,10 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
                     : "paths soltos do JSON — ex: pagination.page, pagination.total"
                 }
                 value={colsDraft}
-                onChange={(e) => setColsDraft(e.target.value)}
+                onChange={(e) => {
+                  setColsDraft(e.target.value);
+                  applyBinding({ cols: e.target.value });
+                }}
               />
               {tableMode === "array" && (
                 <Select
@@ -252,7 +284,10 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
           <Input
             placeholder='path ou {FUNÇÃO(...)} — ex: {CURRENCY(total, "R$")}'
             value={bindingDraft}
-            onChange={(e) => setBindingDraft(e.target.value)}
+            onChange={(e) => {
+              setBindingDraft(e.target.value);
+              applyBinding({ draft: e.target.value });
+            }}
           />
           <Select
             value=""
@@ -270,15 +305,14 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
         </>
       )}
 
-      <div className="flex gap-2">
-        <Button onClick={handleVincular}>Vincular</Button>
-        {binding && (
+      {binding && (
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] text-slate-500">Vinculado: {describeBindingShort(binding)}</p>
           <Button variant="danger" onClick={() => onChangeBinding(null)}>
             Remover vínculo
           </Button>
-        )}
-      </div>
-      {binding && <p className="text-[10px] text-slate-500">Vinculado: {describeBindingShort(binding)}</p>}
+        </div>
+      )}
     </div>
   );
 }
