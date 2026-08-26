@@ -1,5 +1,9 @@
 # json-pdf-designer
 
+[![npm version](https://img.shields.io/npm/v/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
+[![npm downloads](https://img.shields.io/npm/dm/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
+[![CI](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml/badge.svg)](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml)
+
 Editor visual de relatórios em PDF para React — canvas de arrastar/
 redimensionar campos, vínculo de campos a um JSON de dados, seção repetida
 (data band/mestre-detalhe, tipo Stimulsoft), gráficos, cartões de
