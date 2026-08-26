@@ -3,6 +3,16 @@ import type { KpiSchema } from "../types";
 import { MATERIAL_ICON_GRID, MATERIAL_ICON_LABELS, MATERIAL_ICON_NAMES, MATERIAL_ICON_PATHS } from "../materialIcons";
 import { ColorInput, Input } from "./ui";
 
+type DroppedField = { path: string; kind: string };
+function readDroppedField(e: React.DragEvent): DroppedField | null {
+  const raw = e.dataTransfer.getData("application/json");
+  if (!raw) return null;
+  try { return JSON.parse(raw) as DroppedField; } catch { return null; }
+}
+const allowDrop = (e: React.DragEvent) => {
+  if (e.dataTransfer.types.includes("application/json")) e.preventDefault();
+};
+
 type Props = {
   schema: KpiSchema;
   onChangeSchema: (patch: Partial<KpiSchema>) => void;
@@ -74,6 +84,14 @@ export function PropertyPanelKpi({ schema, onChangeSchema }: Props) {
         label='Valor — ex: {caminho} ou {SUM(rows.total)}'
         value={schema.value}
         onChange={(e) => onChangeSchema({ value: e.target.value })}
+        onDragOver={allowDrop}
+        onDrop={(e) => {
+          const f = readDroppedField(e);
+          if (!f) return;
+          e.preventDefault();
+          const token = `{${f.path}}`;
+          onChangeSchema({ value: schema.value ? `${schema.value} ${token}` : token });
+        }}
       />
       <Input label="Legenda" value={schema.subtitle} onChange={(e) => onChangeSchema({ subtitle: e.target.value })} />
       <div className="flex flex-col gap-1">

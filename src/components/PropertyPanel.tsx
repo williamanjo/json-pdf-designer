@@ -106,7 +106,7 @@ export function PropertyPanel({
 
       {schema.type === "kpi" && <PropertyPanelKpi schema={schema} onChangeSchema={onChangeSchema} />}
 
-      {schema.type !== "table" && schema.type !== "kpi" && (
+      {schema.type !== "table" && schema.type !== "kpi" && schema.type !== "text" && (
         <BindingEditor schema={schema} binding={binding} onChangeBinding={onChangeBinding} dataSources={dataSources} />
       )}
     </div>

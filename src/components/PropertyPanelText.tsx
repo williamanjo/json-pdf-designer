@@ -2,6 +2,16 @@ import type { TextSchema } from "../types";
 import { Button, ColorInput, Input, Select, Textarea } from "./ui";
 import { IconX } from "./ui/icons";
 
+type DroppedField = { path: string; kind: string };
+function readDroppedField(e: React.DragEvent): DroppedField | null {
+  const raw = e.dataTransfer.getData("application/json");
+  if (!raw) return null;
+  try { return JSON.parse(raw) as DroppedField; } catch { return null; }
+}
+const allowDrop = (e: React.DragEvent) => {
+  if (e.dataTransfer.types.includes("application/json")) e.preventDefault();
+};
+
 type Props = {
   schema: TextSchema;
   onChangeSchema: (patch: Partial<TextSchema>) => void;
@@ -10,7 +20,19 @@ type Props = {
 export function PropertyPanelText({ schema, onChangeSchema }: Props) {
   return (
     <>
-      <Textarea label="Texto (design)" value={schema.content} onChange={(e) => onChangeSchema({ content: e.target.value })} />
+      <Textarea
+        label="Texto (design)"
+        value={schema.content}
+        onChange={(e) => onChangeSchema({ content: e.target.value })}
+        onDragOver={allowDrop}
+        onDrop={(e) => {
+          const f = readDroppedField(e);
+          if (!f) return;
+          e.preventDefault();
+          const token = `{${f.path}}`;
+          onChangeSchema({ content: schema.content ? `${schema.content} ${token}` : token });
+        }}
+      />
       <div className="grid grid-cols-2 gap-2">
         <Input
           label="Tam. fonte"
