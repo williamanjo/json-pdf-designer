@@ -7,7 +7,7 @@ arquitetura internas, veja [ARCHITECTURE.md](./ARCHITECTURE.md).
 ## Instalação
 
 ```bash
-npm install williamanjo/json-pdf-designer
+npm install json-pdf-designer
 ```
 
 Peer deps: `react` e `react-dom` (18 ou 19). Importe o CSS do pacote **uma
