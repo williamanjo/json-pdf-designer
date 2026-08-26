@@ -95,12 +95,14 @@ export function PropertyPanelTable({
 
   return (
     <>
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-slate-200 dark:border-gray-700">
         <button
           type="button"
           onClick={() => setTableTab("dados")}
           className={`px-3 py-1.5 text-xs font-medium ${
-            tableTab === "dados" ? "border-b-2 border-sky-500 text-sky-600" : "text-slate-500 hover:text-slate-700"
+            tableTab === "dados"
+              ? "border-b-2 border-sky-500 text-sky-600 dark:border-blue-400 dark:text-blue-400"
+              : "text-slate-500 hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-200"
           }`}
         >
           Dados
@@ -109,7 +111,9 @@ export function PropertyPanelTable({
           type="button"
           onClick={() => setTableTab("estilo")}
           className={`px-3 py-1.5 text-xs font-medium ${
-            tableTab === "estilo" ? "border-b-2 border-sky-500 text-sky-600" : "text-slate-500 hover:text-slate-700"
+            tableTab === "estilo"
+              ? "border-b-2 border-sky-500 text-sky-600 dark:border-blue-400 dark:text-blue-400"
+              : "text-slate-500 hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-200"
           }`}
         >
           Estilo
@@ -129,7 +133,7 @@ export function PropertyPanelTable({
           />
           {schema.head.length > 0 && (
             <div className="flex flex-col gap-1">
-              <p className="text-[10px] font-medium text-slate-500">Colunas atuais da tabela (arraste pra reordenar):</p>
+              <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">Colunas atuais da tabela (arraste pra reordenar):</p>
               <ul className="flex flex-col gap-1">
                 {schema.head.map((col, i) => {
                   const colStyle = schema.columnStyles?.[i];
@@ -159,7 +163,7 @@ export function PropertyPanelTable({
                           setDragIndex(null);
                         }}
                         onDragEnd={() => setDragIndex(null)}
-                        className={`flex cursor-grab items-center gap-1 rounded border border-slate-300 bg-slate-50 px-1.5 py-1 font-mono text-[10px] text-slate-600 active:cursor-grabbing ${
+                        className={`flex cursor-grab items-center gap-1 rounded border border-slate-300 bg-slate-50 px-1.5 py-1 font-mono text-[10px] text-slate-600 active:cursor-grabbing dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 ${
                           dragIndex === i ? "opacity-40" : ""
                         }`}
                       >
@@ -171,7 +175,7 @@ export function PropertyPanelTable({
                             onClick={() => setFormulaColIndex(formulaOpen ? null : i)}
                             aria-label={`Fórmula da coluna ${col}`}
                             title="Editar fórmula da coluna (SUM/CURRENCY/CONCAT/aritmética...)"
-                            className={`font-serif italic ${formulaOpen || currentFormula ? "text-sky-600" : "text-slate-400 hover:text-sky-600"}`}
+                            className={`font-serif italic ${formulaOpen || currentFormula ? "text-sky-600 dark:text-blue-400" : "text-slate-400 hover:text-sky-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
                           >
                             ƒx
                           </button>
@@ -181,7 +185,7 @@ export function PropertyPanelTable({
                           onClick={() => setStyleColIndex(styleOpen ? null : i)}
                           aria-label={`Estilo da coluna ${col}`}
                           title="Cor, fundo e tamanho (cabeçalho e valor)"
-                          className={styleOpen ? "text-sky-600" : "text-slate-400 hover:text-sky-600"}
+                          className={styleOpen ? "text-sky-600 dark:text-blue-400" : "text-slate-400 hover:text-sky-600 dark:text-gray-400 dark:hover:text-blue-400"}
                         >
                           <IconDots />
                         </button>
@@ -190,15 +194,15 @@ export function PropertyPanelTable({
                           onClick={() => onRemoveTableColumn?.(i)}
                           aria-label={`Remover coluna ${col}`}
                           title="Remover coluna"
-                          className="text-slate-400 hover:text-red-500"
+                          className="text-slate-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                         >
                           <IconX />
                         </button>
                       </div>
                       {styleOpen && (
-                        <div className="flex flex-col gap-2 rounded border border-sky-200 bg-sky-50/60 p-2">
+                        <div className="flex flex-col gap-2 rounded border border-sky-200 bg-sky-50/60 p-2 dark:border-blue-800 dark:bg-blue-900/20">
                           <div>
-                            <p className="mb-1 text-[10px] font-medium text-slate-500">Cabeçalho</p>
+                            <p className="mb-1 text-[10px] font-medium text-slate-500 dark:text-gray-400">Cabeçalho</p>
                             <div className="grid grid-cols-2 gap-2">
                               <ColorInput
                                 label="Fundo"
@@ -223,7 +227,7 @@ export function PropertyPanelTable({
                             />
                           </div>
                           <div>
-                            <p className="mb-1 text-[10px] font-medium text-slate-500">Valor</p>
+                            <p className="mb-1 text-[10px] font-medium text-slate-500 dark:text-gray-400">Valor</p>
                             <div className="grid grid-cols-2 gap-2">
                               <ColorInput
                                 label="Fundo"
@@ -259,16 +263,16 @@ export function PropertyPanelTable({
                                 cellFontSize: undefined,
                               })
                             }
-                            className="self-start text-[10px] text-slate-400 hover:text-red-500"
+                            className="self-start text-[10px] text-slate-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                           >
                             Limpar estilo da coluna
                           </button>
                         </div>
                       )}
                       {formulaOpen && (
-                        <div className="flex flex-col gap-2 rounded border border-sky-200 bg-sky-50/60 p-2">
+                        <div className="flex flex-col gap-2 rounded border border-sky-200 bg-sky-50/60 p-2 dark:border-blue-800 dark:bg-blue-900/20">
                           {parsedFormula.kind !== "raw" && (
-                            <div className="flex flex-col gap-1.5 rounded border border-slate-200 bg-white p-1.5">
+                            <div className="flex flex-col gap-1.5 rounded border border-slate-200 bg-white p-1.5 dark:border-gray-600 dark:bg-gray-800">
                               <div className="grid grid-cols-2 gap-2">
                                 <Select
                                   label="Tipo de dado"
@@ -357,7 +361,7 @@ export function PropertyPanelTable({
                               )}
                             </div>
                           )}
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-[10px] text-slate-400 dark:text-gray-400">
                             Texto fixo e/ou <code>{"{token}"}</code>/<code>{"{FUNÇÃO(...)}"}</code>, resolvido por
                             linha (path relativo ao item) — ex: <code>{"FAT-{fatura}"}</code>,{" "}
                             <code>{'{CURRENCY(total, "R$")}'}</code>. Vazio volta a ser só o nome da coluna crua.
@@ -385,7 +389,7 @@ export function PropertyPanelTable({
                             <button
                               type="button"
                               onClick={() => onSetColumnFormula?.(i, "")}
-                              className="self-start text-[10px] text-slate-400 hover:text-red-500"
+                              className="self-start text-[10px] text-slate-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                             >
                               Limpar fórmula (volta a ser só a coluna crua)
                             </button>
@@ -399,8 +403,8 @@ export function PropertyPanelTable({
             </div>
           )}
           {tableDataSource && (
-            <div className="flex flex-col gap-1 rounded-lg border border-dashed border-purple-300 bg-purple-50/40 p-2">
-              <p className="text-[10px] font-medium text-purple-700">
+            <div className="flex flex-col gap-1 rounded-lg border border-dashed border-purple-300 bg-purple-50/40 p-2 dark:border-purple-700 dark:bg-purple-900/20">
+              <p className="text-[10px] font-medium text-purple-700 dark:text-purple-300">
                 Campos de "{tableDataSource.path}" — clique + pra adicionar como coluna:
               </p>
               <ul className="flex max-h-32 flex-col gap-0.5 overflow-y-auto">
@@ -409,9 +413,9 @@ export function PropertyPanelTable({
                   return (
                     <li
                       key={col}
-                      className="flex items-center justify-between gap-1 rounded px-1 py-0.5 text-[11px] hover:bg-purple-100"
+                      className="flex items-center justify-between gap-1 rounded px-1 py-0.5 text-[11px] hover:bg-purple-100 dark:hover:bg-purple-900/40"
                     >
-                      <span className={`font-mono ${already ? "text-slate-300" : "text-slate-600"}`}>{col}</span>
+                      <span className={`font-mono ${already ? "text-slate-300 dark:text-gray-600" : "text-slate-600 dark:text-gray-300"}`}>{col}</span>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -435,7 +439,7 @@ export function PropertyPanelTable({
       {tableTab === "estilo" && (
         <>
           <PositionFields schema={schema} onChangeSchema={onChangeSchema} />
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">
             <input
               type="checkbox"
               checked={schema.repeatHeader ?? true}
@@ -443,8 +447,8 @@ export function PropertyPanelTable({
             />
             Repetir cabeçalho da tabela nas próximas páginas
           </label>
-          <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2">
-            <p className="text-[10px] font-medium text-slate-500">Linha do cabeçalho</p>
+          <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2 dark:border-gray-600">
+            <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">Linha do cabeçalho</p>
             <div className="grid grid-cols-2 gap-2">
               <ColorInput
                 label="Fundo"
@@ -467,8 +471,8 @@ export function PropertyPanelTable({
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2">
-            <p className="text-[10px] font-medium text-slate-500">Linha de valor (corpo, todas as linhas de dado)</p>
+          <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2 dark:border-gray-600">
+            <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">Linha de valor (corpo, todas as linhas de dado)</p>
             <div className="grid grid-cols-2 gap-2">
               <ColorInput
                 label="Fundo"
@@ -491,8 +495,8 @@ export function PropertyPanelTable({
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2">
-            <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+          <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2 dark:border-gray-600">
+            <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">
               <input
                 type="checkbox"
                 checked={Boolean(schema.footer && schema.footer.length > 0)}
@@ -502,7 +506,7 @@ export function PropertyPanelTable({
             </label>
             {schema.footer && schema.footer.length > 0 && (
               <>
-                <p className="text-[10px] text-slate-400">
+                <p className="text-[10px] text-slate-400 dark:text-gray-400">
                   Uma célula por coluna — texto fixo e/ou <code>{"{token}"}</code>/<code>{"{SUM(caminho.coluna)}"}</code>. Só
                   aparece uma vez, depois da última linha (não repete se a tabela paginar).
                 </p>

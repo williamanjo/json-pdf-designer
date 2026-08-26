@@ -41,8 +41,8 @@ function IconPicker({ value, onChange }: { value: string; onChange: (icon: strin
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-600">
-          {value && value !== "none" ? <IconGlyph name={value} /> : <span className="text-[9px] text-slate-400">—</span>}
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-600 dark:border-gray-600 dark:text-gray-300">
+          {value && value !== "none" ? <IconGlyph name={value} /> : <span className="text-[9px] text-slate-400 dark:text-gray-500">—</span>}
         </span>
         <Input
           placeholder="Buscar ícone — ex: dinheiro, alerta, check…"
@@ -50,21 +50,23 @@ function IconPicker({ value, onChange }: { value: string; onChange: (icon: strin
           onChange={(e) => setQuery(e.target.value)}
         />
         {value && value !== "none" && (
-          <button type="button" className="flex-shrink-0 text-[10px] text-slate-400 hover:text-slate-600" onClick={() => onChange("none")}>
+          <button type="button" className="flex-shrink-0 text-[10px] text-slate-400 hover:text-slate-600 dark:text-gray-400 dark:hover:text-gray-200" onClick={() => onChange("none")}>
             remover
           </button>
         )}
       </div>
-      <div className="grid max-h-32 grid-cols-6 gap-1 overflow-y-auto rounded-lg border border-slate-200 p-1.5">
-        {matches.length === 0 && <p className="col-span-6 py-2 text-center text-[10px] text-slate-400">Nenhum ícone encontrado.</p>}
+      <div className="grid max-h-32 grid-cols-6 gap-1 overflow-y-auto rounded-lg border border-slate-200 p-1.5 dark:border-gray-600">
+        {matches.length === 0 && <p className="col-span-6 py-2 text-center text-[10px] text-slate-400 dark:text-gray-400">Nenhum ícone encontrado.</p>}
         {matches.map((name) => (
           <button
             key={name}
             type="button"
             title={MATERIAL_ICON_LABELS[name]}
             onClick={() => onChange(name)}
-            className={`flex items-center justify-center rounded-md border p-1.5 text-slate-600 hover:border-sky-400 hover:bg-sky-50 ${
-              value === name ? "border-sky-500 bg-sky-50 text-sky-600" : "border-slate-200"
+            className={`flex items-center justify-center rounded-md border p-1.5 text-slate-600 hover:border-sky-400 hover:bg-sky-50 dark:text-gray-300 dark:hover:border-blue-400 dark:hover:bg-blue-400/10 ${
+              value === name
+                ? "border-sky-500 bg-sky-50 text-sky-600 dark:border-blue-400 dark:bg-blue-400/10 dark:text-blue-400"
+                : "border-slate-200 dark:border-gray-600"
             }`}
           >
             <IconGlyph name={name} />
@@ -95,14 +97,14 @@ export function PropertyPanelKpi({ schema, onChangeSchema }: Props) {
       />
       <Input label="Legenda" value={schema.subtitle} onChange={(e) => onChangeSchema({ subtitle: e.target.value })} />
       <div className="flex flex-col gap-1">
-        <span className="text-[11px] font-medium text-slate-600">Ícone (Material Symbols, Google)</span>
+        <span className="text-[11px] font-medium text-slate-600 dark:text-gray-400">Ícone (Material Symbols, Google)</span>
         <IconPicker value={schema.icon} onChange={(icon) => onChangeSchema({ icon })} />
       </div>
       <div className="grid grid-cols-2 gap-2">
         <ColorInput label="Fundo" value={schema.backgroundColor} onChange={(e) => onChangeSchema({ backgroundColor: e.target.value })} />
         <ColorInput label="Texto/ícone" value={schema.textColor} onChange={(e) => onChangeSchema({ textColor: e.target.value })} />
       </div>
-      <p className="text-[10px] text-slate-400">
+      <p className="text-[10px] text-slate-400 dark:text-gray-400">
         Título/valor/legenda são texto comum — pode usar <code>{"{path}"}</code> ou{" "}
         <code>{"{FUNÇÃO(...)}"}</code> direto, resolvido contra o documento inteiro na hora de gerar.
       </p>

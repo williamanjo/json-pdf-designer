@@ -663,7 +663,7 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
 
         <Card className="flex w-72 flex-shrink-0 flex-col gap-3 p-3.5">
           <div>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Campos</h3>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Campos</h3>
             <div className="max-h-48 overflow-y-auto">
               <FieldList
                 schemas={fieldListSchemas}
@@ -675,10 +675,10 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
             </div>
           </div>
 
-          <div className="border-t border-slate-200 pt-3">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Editar campo</h3>
+          <div className="border-t border-slate-200 pt-3 dark:border-gray-700">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Editar campo</h3>
             {selectedIds.length > 1 && (
-              <p className="mb-2 text-[11px] text-sky-600">
+              <p className="mb-2 text-[11px] text-sky-600 dark:text-blue-400">
                 {selectedIds.length} campos selecionados — arraste o de baixo pra mover todos junto. Editando: {selected?.name}.
               </p>
             )}
@@ -703,7 +703,7 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
               />
             ) : (
               <div className="flex flex-col gap-2">
-                <p className="text-xs text-slate-400">Selecione um campo na lista ou no canvas pra editar, ou adicione um novo:</p>
+                <p className="text-xs text-slate-400 dark:text-gray-400">Selecione um campo na lista ou no canvas pra editar, ou adicione um novo:</p>
                 <Toolbar
                   onAddText={() => addSchema(makeTextSchema(nextFreeY(template.schemas)))}
                   onAddTable={() => addSchema(makeTableSchema(nextFreeY(template.schemas)))}
@@ -713,8 +713,8 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
                   onAddKpi={() => addSchema(makeKpiSchema(nextFreeY(template.schemas)))}
                 />
                 {showSectionPicker && (
-                  <div className="flex flex-col gap-1.5 rounded-lg border border-purple-300 bg-purple-50/60 p-2.5">
-                    <p className="text-xs font-medium text-purple-800">Que tipo de seção?</p>
+                  <div className="flex flex-col gap-1.5 rounded-lg border border-purple-300 bg-purple-50/60 p-2.5 dark:border-purple-700 dark:bg-purple-900/30">
+                    <p className="text-xs font-medium text-purple-800 dark:text-purple-300">Que tipo de seção?</p>
                     <div className="flex flex-wrap gap-1.5">
                       <Button variant="outline" onClick={() => createSection()}>
                         Vazia (grupo livre)
@@ -726,14 +726,14 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
                       ))}
                     </div>
                     {(!dataSources || dataSources.length === 0) && (
-                      <p className="text-[10px] text-purple-600">Nenhuma fonte de dados (array) detectada no JSON ainda.</p>
+                      <p className="text-[10px] text-purple-600 dark:text-purple-400">Nenhuma fonte de dados (array) detectada no JSON ainda.</p>
                     )}
                     <Button variant="ghost" onClick={() => setShowSectionPicker(false)}>
                       Cancelar
                     </Button>
                   </div>
                 )}
-                <div className="flex flex-col gap-2 border-t border-slate-200 pt-2">
+                <div className="flex flex-col gap-2 border-t border-slate-200 pt-2 dark:border-gray-700">
                   <div className="grid grid-cols-2 gap-2">
                     <Select
                       label="Tamanho da página"
@@ -786,7 +786,7 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
                       onChange={(e) => updatePageBand({ marginRight: Number(e.target.value) || 0 })}
                     />
                   </div>
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-sky-600 px-2.5 py-1 text-xs font-medium text-sky-600 hover:bg-sky-50">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-sky-600 px-2.5 py-1 text-xs font-medium text-sky-600 hover:bg-sky-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-400/10">
                     <IconUpload /> PDF/imagem de fundo
                     <input type="file" accept="application/pdf,image/png,image/jpeg" onChange={handleBackgroundUpload} hidden />
                   </label>

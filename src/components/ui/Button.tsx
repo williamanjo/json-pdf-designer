@@ -15,10 +15,10 @@ const sizeCls: Record<Size, string> = {
 };
 
 const variantCls: Record<Variant, string> = {
-  primary: "bg-sky-600 text-white shadow-sm hover:bg-sky-700 focus-visible:ring-sky-300",
+  primary: "bg-sky-600 text-white shadow-sm hover:bg-sky-700 focus-visible:ring-sky-300 dark:bg-sky-700 dark:hover:bg-sky-600",
   danger: "bg-red-500 text-white shadow-sm hover:bg-red-600 focus-visible:ring-red-300",
-  outline: "border border-sky-600 text-sky-600 hover:bg-sky-50 focus-visible:ring-sky-300",
-  ghost: "text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus-visible:ring-slate-300",
+  outline: "border border-sky-600 text-sky-600 hover:bg-sky-50 focus-visible:ring-sky-300 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-400/10",
+  ghost: "text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus-visible:ring-slate-300 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200",
   // Pra usar em cima de fundo escuro (ex: header/toolbar), onde as outras
   // variantes (feitas pra fundo claro) ficam sem contraste.
   dark: "bg-white/10 text-white hover:bg-white/20 focus-visible:ring-white/30",

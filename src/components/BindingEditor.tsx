@@ -131,9 +131,9 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-sky-300 bg-sky-50/40 p-2.5">
-      <span className="flex items-center gap-1 text-[11px] font-medium text-slate-600">
-        <IconLink className="text-sky-500" />
+    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-sky-300 bg-sky-50/40 p-2.5 dark:border-blue-700 dark:bg-blue-900/20">
+      <span className="flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-gray-300">
+        <IconLink className="text-sky-500 dark:text-blue-400" />
         Vínculo com o JSON
       </span>
 
@@ -146,7 +146,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             onDragOver={allowDrop}
             onDrop={handleDropOnDraft}
           />
-          <p className="text-[10px] text-slate-400">
+          <p className="text-[10px] text-slate-400 dark:text-gray-400">
             A seção inteira repete uma vez por item deste array. Dentro
             dela, o vínculo de cada campo é resolvido contra o ITEM atual
             (não o documento todo) — use <code>{"{campo}"}</code> direto,
@@ -241,7 +241,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
               </div>
             );
           })()}
-          <p className="text-[10px] text-slate-400">
+          <p className="text-[10px] text-slate-400 dark:text-gray-400">
             O gráfico agrupa os itens desse array por <strong>{labelColumn || "rótulo"}</strong>, somando{" "}
             <strong>{valueColumn || "a coluna numérica"}</strong> — os maiores viram fatias/barras próprias, o resto
             vira "Outros" (ver painel de estilo pra trocar quantos).
@@ -278,11 +278,11 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
               onDrop={handleDropOnDraft}
             />
           )}
-          <p className="text-[10px] text-slate-400">
+          <p className="text-[10px] text-slate-400 dark:text-gray-400">
             Modo: <strong>{tableMode === "array" ? "array (1 linha por item)" : "chave/valor"}</strong>
           </p>
           {schema.sectionId && tableMode === "array" && (
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[10px] text-slate-400 dark:text-gray-400">
               Dentro de uma seção — mestre-detalhe: o path acima é resolvido contra o ITEM atual da seção (não o
               documento inteiro), e a seção cresce de altura pra caber as linhas de cada registro.
             </p>
@@ -346,7 +346,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
 
       {binding && (
         <div className="flex items-center justify-between">
-          <p className="text-[10px] text-slate-500">Vinculado: {describeBindingShort(binding)}</p>
+          <p className="text-[10px] text-slate-500 dark:text-gray-400">Vinculado: {describeBindingShort(binding)}</p>
           <Button variant="danger" onClick={() => onChangeBinding(null)}>
             Remover vínculo
           </Button>

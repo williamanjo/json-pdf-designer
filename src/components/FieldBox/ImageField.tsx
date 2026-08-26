@@ -35,7 +35,7 @@ export function ImageField({ schema, onUpdate }: { schema: Schema; onUpdate?: (p
         e.stopPropagation();
         pickFile();
       }}
-      className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-slate-300 text-[11px] text-slate-400"
+      className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-slate-300 text-[11px] text-slate-400 dark:border-gray-500 dark:text-gray-500"
     >
       imagem (duplo clique pra escolher)
     </div>

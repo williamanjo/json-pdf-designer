@@ -69,7 +69,7 @@ export function Ruler({ lengthMm, orientation, thickness = 16 }: Props) {
     <svg
       width={width}
       height={height}
-      className="select-none bg-slate-50"
+      className="select-none bg-slate-50 dark:bg-gray-800"
       style={{ display: "block", flexShrink: 0 }}
     >
       {ticks}
