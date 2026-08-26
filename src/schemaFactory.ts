@@ -1,0 +1,155 @@
+import type { Binding, ChartSchema, ImageSchema, KpiSchema, Schema, SectionSchema, TableSchema, TextSchema } from "./types";
+import { snapToGrid } from "./units";
+
+// Mime custom do drag interno "chip de coluna da seção" -> canvas (ver
+// PropertyPanel.tsx/PageCanvas.tsx) — distinto do drop externo genérico
+// (onCanvasDrop), que o app consumidor pode usar pra qualquer outra coisa.
+export const SECTION_COLUMN_MIME = "application/x-json-pdf-designer-section-column";
+
+export function uid(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+}
+
+export function makeTextSchema(nextY: number): TextSchema {
+  return {
+    id: uid(),
+    name: `texto_${Math.random().toString(36).slice(2, 6)}`,
+    type: "text",
+    x: 10,
+    y: nextY,
+    width: 80,
+    height: 10,
+    content: "Texto",
+    fontSize: 11,
+    fontColor: "#000000",
+    alignment: "left",
+  };
+}
+
+export function makeTableSchema(nextY: number): TableSchema {
+  return {
+    id: uid(),
+    name: `tabela_${Math.random().toString(36).slice(2, 6)}`,
+    type: "table",
+    x: 10,
+    y: nextY,
+    width: 150,
+    height: 30,
+    head: ["Coluna 1", "Coluna 2"],
+    content: [["valor 1", "valor 2"]],
+  };
+}
+
+export function makeImageSchema(nextY: number): ImageSchema {
+  return {
+    id: uid(),
+    name: `imagem_${Math.random().toString(36).slice(2, 6)}`,
+    type: "image",
+    x: 10,
+    y: nextY,
+    width: 40,
+    height: 40,
+    content: "",
+  };
+}
+
+export function makeSectionSchema(nextY: number): SectionSchema {
+  return {
+    id: uid(),
+    name: `secao_${Math.random().toString(36).slice(2, 6)}`,
+    type: "section",
+    x: 10,
+    y: nextY,
+    width: 190,
+    height: 20,
+  };
+}
+
+// Soltar uma coluna da seção no canvas cria DOIS campos membros dela
+// (mesmo padrão do Header/Data do Stimulsoft, só que como par de campos
+// livres em vez de linha de tabela): um rótulo estático (nome da coluna) e
+// um valor já vinculado por template ({coluna}), lado a lado. x/y já
+// chegam prontos de quem chama (PageCanvas.tsx já decide se cai na grade
+// ou não, conforme Shift) — não arredonda de novo aqui.
+export function makeSectionColumnPair(
+  sectionId: string,
+  column: string,
+  x: number,
+  y: number
+): { header: TextSchema; value: TextSchema; valueBinding: Binding } {
+  const safeCol = column.replace(/[^a-zA-Z0-9]/g, "_");
+  const suffix = Math.random().toString(36).slice(2, 6);
+  const fieldWidth = 45;
+  const gap = 5;
+  const header: TextSchema = {
+    id: uid(),
+    name: `header_${safeCol}_${suffix}`,
+    type: "text",
+    x,
+    y,
+    width: fieldWidth,
+    height: 10,
+    content: column,
+    fontSize: 9,
+    fontColor: "#64748b",
+    alignment: "left",
+    sectionId,
+  };
+  const value: TextSchema = {
+    id: uid(),
+    name: `valor_${safeCol}_${suffix}`,
+    type: "text",
+    x: x + fieldWidth + gap,
+    y,
+    width: fieldWidth,
+    height: 10,
+    content: `{${column}}`,
+    fontSize: 10,
+    fontColor: "#000000",
+    alignment: "left",
+    sectionId,
+  };
+  return { header, value, valueBinding: { schemaName: value.name, type: "template", template: `{${column}}` } };
+}
+
+export function makeChartSchema(nextY: number): ChartSchema {
+  return {
+    id: uid(),
+    name: `grafico_${Math.random().toString(36).slice(2, 6)}`,
+    type: "chart",
+    x: 10,
+    y: nextY,
+    width: 100,
+    height: 70,
+    chartType: "pie",
+    pieStyle: "donut",
+    legendPosition: "right",
+    displayMode: "percent",
+    topN: 7,
+  };
+}
+
+export function makeKpiSchema(nextY: number): KpiSchema {
+  return {
+    id: uid(),
+    name: `indicador_${Math.random().toString(36).slice(2, 6)}`,
+    type: "kpi",
+    x: 10,
+    y: nextY,
+    width: 55,
+    height: 35,
+    icon: "bar_chart",
+    title: "Título",
+    value: "{caminho}",
+    subtitle: "descrição",
+    backgroundColor: "#2563eb",
+    textColor: "#ffffff",
+  };
+}
+
+export function nextFreeY(schemas: Schema[]): number {
+  if (schemas.length === 0) return 10;
+  return snapToGrid(Math.max(...schemas.map((s) => s.y + s.height)) + 5);
+}

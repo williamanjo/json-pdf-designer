@@ -1,0 +1,85 @@
+{
+  "name": "json-pdf-designer",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Editor visual simples de relatórios em PDF (canvas drag/resize + vínculo de dados JSON) — enxuto e pensado pra ser modificado.",
+  "keywords": [
+    "pdf",
+    "pdf-generator",
+    "report-designer",
+    "drag-and-drop",
+    "react",
+    "pdf-lib",
+    "wysiwyg",
+    "data-binding"
+  ],
+  "license": "MIT",
+  "author": "William Anjo (https://github.com/williamanjo)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/williamanjo/json-pdf-designer.git"
+  },
+  "homepage": "https://github.com/williamanjo/json-pdf-designer#readme",
+  "bugs": {
+    "url": "https://github.com/williamanjo/json-pdf-designer/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./style.css": "./dist/style.css",
+    "./dist/style.css": "./dist/style.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup && npm run build:css",
+    "build:css": "tailwindcss -i ./src/style.css -o ./dist/style.css --minify",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint .",
+    "test": "vitest run",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run test && npm run build"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "fontkit": "^2.0.4",
+    "lodash.get": "^4.4.2",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.2.108",
+    "react-rnd": "^10.4.13",
+    "tiny-inflate": "^1.0.3",
+    "wawoff2": "^2.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/fontkit": "^2.0.9",
+    "@types/lodash.get": "^4.4.9",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "oxlint": "^1.77.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwindcss": "^4.3.3",
+    "tsup": "^8.3.5",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

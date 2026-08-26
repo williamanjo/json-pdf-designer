@@ -1,0 +1,39 @@
+# Dependências (cada workspace tem a própria, node_modules pode aparecer
+# em vários níveis por causa do hoisting do npm workspaces)
+node_modules
+
+# Build output (regenerado por `npm run build` em cada pacote)
+dist
+dist-ssr
+*.tsbuildinfo
+
+# Cache do Vite
+.vite
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Variáveis de ambiente — nunca commitar segredo/chave
+.env
+.env.*
+!.env.example
+
+# Editor/OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Config local de tooling (dev server preview) — não faz sentido no pacote público
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db

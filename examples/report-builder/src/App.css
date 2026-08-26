@@ -1,0 +1,10 @@
+/* Resets globais — o resto da UI usa Tailwind direto nos componentes
+   (ver src/components/ui/). */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}

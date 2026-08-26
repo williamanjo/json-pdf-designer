@@ -1,0 +1,10 @@
+{
+  "turma": { "nome": "3º Ano B — Ensino Médio", "professor": "Profa. Ana Beatriz Lima", "periodo": "1º Bimestre 2026" },
+  "alunos": [
+    { "nome": "Carlos Eduardo Mendes", "matricula": "2026-0341", "nota": 8.5, "frequencia": 95 },
+    { "nome": "Juliana Ferreira Costa", "matricula": "2026-0342", "nota": 9.2, "frequencia": 98 },
+    { "nome": "Pedro Henrique Alves", "matricula": "2026-0343", "nota": 6.8, "frequencia": 82 },
+    { "nome": "Beatriz Souza Ramos", "matricula": "2026-0344", "nota": 7.4, "frequencia": 90 },
+    { "nome": "Rafael Nogueira Dias", "matricula": "2026-0345", "nota": 5.9, "frequencia": 76 }
+  ]
+}
