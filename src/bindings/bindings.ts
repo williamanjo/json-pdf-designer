@@ -203,7 +203,10 @@ export function resolveToken(token: string, data: unknown): string {
     case "SUM":
       return String(numbersFromArrayPath(data, args[0] ?? "").reduce((a, b) => a + b, 0));
     case "COUNT": {
-      const arr = get(data, args[0] ?? "");
+      const rawPath = args[0] ?? "";
+      const lastDot = rawPath.lastIndexOf(".");
+      const arrayPath = lastDot === -1 ? rawPath : rawPath.slice(0, lastDot);
+      const arr = get(data, arrayPath);
       return String(Array.isArray(arr) ? arr.length : 0);
     }
     case "AVG": {
