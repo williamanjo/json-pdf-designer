@@ -15,6 +15,8 @@ export function ImageField({ schema, onUpdate }: { schema: Schema; onUpdate?: (p
       reader.readAsDataURL(file);
     };
     input.click();
+    // File dialog consumes the mouseup, leaving react-rnd in drag state. Release it.
+    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
   }
 
   return schema.content ? (
