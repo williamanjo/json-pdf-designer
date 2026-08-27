@@ -286,6 +286,7 @@ export const en = {
   pdfPreviewModal: {
     title: "PDF preview",
     download: "Download",
+    defaultFileName: "report",
   },
   warnings: {
     missingBinding: "Missing JSON binding",

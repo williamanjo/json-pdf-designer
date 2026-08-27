@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { Template, Binding, Locale } from "json-pdf-designer";
-import { generatePdf, downloadPdf, PdfPreviewModal, Button, IconDownload, IconFolderUp } from "json-pdf-designer";
+import { generatePdf, PdfPreviewModal, Button, IconDownload, IconFolderUp } from "json-pdf-designer";
 import FieldTree from "./components/FieldTree";
 import DesignerPanel from "./components/DesignerPanel";
 import DataSourcePanel, { type JsonSource } from "./components/DataSourcePanel";
@@ -172,8 +172,8 @@ export default function App() {
       {previewBytes && (
         <PdfPreviewModal
           bytes={previewBytes}
+          page={template.page}
           onClose={() => setPreviewBytes(null)}
-          onDownload={() => downloadPdf(previewBytes)}
         />
       )}
     </div>

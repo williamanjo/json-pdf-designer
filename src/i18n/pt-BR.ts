@@ -284,6 +284,7 @@ export const ptBR: Dict = {
   pdfPreviewModal: {
     title: "Prévia do PDF",
     download: "Baixar",
+    defaultFileName: "relatorio",
   },
   warnings: {
     missingBinding: "Sem vínculo com o JSON",
