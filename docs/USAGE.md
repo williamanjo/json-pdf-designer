@@ -66,10 +66,32 @@ same time just duplicates the same utility rules.
 > avoids this entirely: your build never touches our CSS, so only
 > **your** Preflight ever runs — nothing to import, nothing to conflict.
 
-## Basic usage
+### Server-only usage (no React needed)
 
-```tsx
-import { useState } from "react";
+Only need `generatePdf` in a backend/Node API and don't want `react`/
+`react-dom` involved at all? Import from the `/server` subpath instead
+of the package root — same PDF-generation logic, but built as a
+separate, React-free bundle:
+
+```ts
+import { generatePdf, type Template, type Binding } from "json-pdf-designer/server";
+
+const bytes = await generatePdf(template, data, bindings);
+```
+
+It exports everything data/PDF-related — types, `generatePdf`,
+binding-resolution helpers (`renderTemplate`, `buildInputs`, …), chart
+color palettes, schema factories, `normalizeFontBytes` — but not
+`Designer`/`PdfPreview`/`PdfPreviewModal`/the ready-made UI components
+(all React), nor `downloadPdf` (uses the browser's `document`/`Blob` —
+doesn't apply on a server; write `bytes` to a file or an HTTP response
+instead).
+
+The package root (`.`) still exports the full set for apps that use
+both the editor and generation together — `react`/`react-dom` stay
+listed as peer dependencies there, but marked optional
+(`peerDependenciesMeta`), so a backend-only `npm install` doesn't force
+them on you either way.
 
 ## Basic usage
 
@@ -504,6 +526,11 @@ below) builds its entire shell with its own CSS, without importing any
 of these components, to prove `<Designer>` works either way.
 
 ## Public API
+
+Everything below comes from `json-pdf-designer`. The `generatePdf`
+subtree (Generation/Bindings/Chart color palettes and the plain types)
+is also available React-free from `json-pdf-designer/server` — see
+"Server-only usage" above.
 
 ```ts
 // Component

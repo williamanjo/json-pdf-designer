@@ -66,6 +66,33 @@ seu próprio Tailwind ao mesmo tempo só duplica as mesmas regras.
 > (como acima) evita isso de vez: seu build nunca toca no nosso CSS,
 > então só o SEU Preflight roda — nada pra importar, nada pra colidir.
 
+### Uso só no servidor (sem precisar de React)
+
+Só precisa do `generatePdf` num backend/API Node e não quer nem
+`react`/`react-dom` no meio? Importe do subpath `/server` em vez da raiz
+do pacote — mesma lógica de geração de PDF, só que num build separado,
+sem React nenhum:
+
+```ts
+import { generatePdf, type Template, type Binding } from "json-pdf-designer/server";
+
+const bytes = await generatePdf(template, data, bindings);
+```
+
+Ele exporta tudo que é dado/PDF — tipos, `generatePdf`, os helpers de
+vínculo (`renderTemplate`, `buildInputs`, …), paletas de cor de gráfico,
+as fábricas de schema, `normalizeFontBytes` — mas não
+`Designer`/`PdfPreview`/`PdfPreviewModal`/os componentes de UI prontos
+(todos React), nem `downloadPdf` (usa `document`/`Blob` do navegador —
+não se aplica num servidor; escreva `bytes` num arquivo ou numa resposta
+HTTP em vez disso).
+
+A raiz do pacote (`.`) continua exportando o conjunto completo pra quem
+usa o editor e a geração juntos no mesmo código — `react`/`react-dom`
+continuam listados como peer dependencies lá, mas marcados como
+opcionais (`peerDependenciesMeta`), então um `npm install` só de backend
+não força a instalação deles de qualquer jeito.
+
 ## Uso básico
 
 ```tsx
@@ -495,6 +522,11 @@ monta a casca inteira com CSS próprio, sem importar nenhum desses
 componentes, pra provar que o `<Designer>` funciona igual dos dois jeitos.
 
 ## API pública
+
+Tudo abaixo vem de `json-pdf-designer`. A árvore do `generatePdf`
+(Geração/Vínculos/Paletas de cor de gráfico e os tipos puros) também
+está disponível sem React em `json-pdf-designer/server` — veja "Uso só
+no servidor" acima.
 
 ```ts
 // Componente

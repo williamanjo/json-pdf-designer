@@ -84,6 +84,11 @@ gere as classes do Designer em vez de carregar uma segunda folha de
 estilo — ex: pra evitar Preflight/reset duplicado — veja
 [Usando sua própria instalação do Tailwind](docs/USAGE.pt-BR.md#usando-sua-própria-instalação-do-tailwind).
 
+Só gera PDF num backend/API Node, sem UI de editor? Importe de
+`json-pdf-designer/server` em vez disso — um build do `generatePdf` e
+companhia sem React nenhum, sem precisar de `react`/`react-dom`. Veja
+[Uso só no servidor](docs/USAGE.pt-BR.md#uso-só-no-servidor-sem-precisar-de-react).
+
 ## Uso básico
 
 ```tsx

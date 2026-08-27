@@ -1,7 +1,10 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  // `server.ts` é o subconjunto sem React de `index.ts` (ver comentário lá)
+  // — build separado pra quem importa "json-pdf-designer/server" nunca
+  // puxar react/react-dom (nem como import solto no arquivo compilado).
+  entry: ["src/index.ts", "src/server.ts"],
   format: ["esm", "cjs"],
   dts: true,
   sourcemap: true,
