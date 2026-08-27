@@ -29,10 +29,18 @@ type Props = {
 
 // Depois de gerar, mostra o PDF de verdade (pdf.js, canvas) antes de
 // baixar — dá pra conferir margens/tamanho reais sem depender do viewer
-// nativo do navegador. Zoom sempre ajustado pra caber a folha inteira no
-// modal (ResizeObserver reage a redimensionar a janela); múltiplas
-// páginas rolam verticalmente, alinhadas ao topo — nunca corta o começo
-// da primeira página pra "centralizar" o conjunto.
+// nativo do navegador. Zoom ajustado a partir do resize da JANELA — não
+// um ResizeObserver no container: esse entra num loop de feedback com
+// PdfPreview (que faz `container.innerHTML = ""` toda vez que `scale`
+// muda) — 3+ páginas criam scroll vertical, o scroll encolhe o
+// clientWidth, o observer recalcula scale, o innerHTML limpo faz o
+// scroll sumir, o clientWidth volta a crescer, o observer dispara de
+// novo, e o ciclo vira flicker infinito. O modal é 92vw×92vh: só muda de
+// tamanho quando a JANELA redimensiona, nunca por causa do próprio
+// conteúdo interno — então ouvir o resize da window já cobre 100% dos
+// casos reais sem cair nesse loop. Múltiplas páginas rolam verticalmente,
+// alinhadas ao topo — nunca corta o começo da primeira página pra
+// "centralizar" o conjunto.
 export default function PdfPreviewModal({ bytes, page, name, onClose }: Props) {
   const t = useT();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -54,9 +62,8 @@ export default function PdfPreviewModal({ bytes, page, name, onClose }: Props) {
     }
 
     update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, [pageWidthPt, pageHeightPt]);
 
   return (
