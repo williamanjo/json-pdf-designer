@@ -1,4 +1,5 @@
 import type { ImageSchema } from "../types";
+import { useT } from "../i18n";
 import { Textarea } from "./ui";
 
 type Props = {
@@ -7,9 +8,10 @@ type Props = {
 };
 
 export function PropertyPanelImage({ schema, onChangeSchema }: Props) {
+  const t = useT();
   return (
     <Textarea
-      label="Imagem (data URI)"
+      label={t.image.label}
       mono
       placeholder="data:image/png;base64,..."
       value={schema.content}

@@ -168,11 +168,108 @@ export const MATERIAL_ICON_PATHS = {
     "M280-80v-366q-51-14-85.5-56T160-600v-280h80v280h40v-280h80v280h40v-280h80v280q0 56-34.5 98T360-446v366h-80Zm400 0v-320H560v-280q0-83 58.5-141.5T760-880v800h-80Z",
 } as const;
 
+import type { Locale } from "./i18n";
+
 export type MaterialIconName = keyof typeof MATERIAL_ICON_PATHS;
+
+// Rótulo em inglês pra busca no seletor (ver PropertyPanelKpi.tsx) — o
+// nome técnico (chave acima) é o que fica salvo no schema, alheio a
+// idioma.
+export const MATERIAL_ICON_LABELS_EN: Record<MaterialIconName, string> = {
+  search: "Search",
+  check_circle: "Success / confirmed",
+  cancel: "Cancelled",
+  warning: "Warning / attention",
+  error: "Error",
+  info: "Information",
+  help: "Help / question",
+  block: "Blocked",
+  trending_up: "Upward trend",
+  trending_down: "Downward trend",
+  attach_money: "Money",
+  payments: "Payments",
+  shopping_cart: "Shopping cart",
+  receipt_long: "Receipt / invoice",
+  percent: "Percentage",
+  savings: "Savings",
+  account_balance_wallet: "Wallet",
+  point_of_sale: "Point of sale",
+  person: "Person",
+  group: "Group",
+  groups: "Groups",
+  description: "Document",
+  folder: "Folder",
+  inventory_2: "Inventory",
+  local_shipping: "Delivery / shipping",
+  calendar_month: "Calendar",
+  schedule: "Schedule",
+  timer: "Timer",
+  mail: "Mail",
+  notifications: "Notifications",
+  star: "Star / featured",
+  favorite: "Favorite",
+  thumb_up: "Positive",
+  thumb_down: "Negative",
+  flag: "Goal / marker",
+  location_on: "Location",
+  home: "Home",
+  work: "Work",
+  bar_chart: "Bar chart",
+  pie_chart: "Pie chart",
+  track_changes: "Goal / target",
+  verified: "Verified",
+  rocket_launch: "Launch",
+  lightbulb: "Idea",
+  settings: "Settings",
+  task_alt: "Completed",
+  assignment_turned_in: "Task completed",
+  domain: "Company",
+  search_off: "No results found",
+  visibility: "Visible",
+  visibility_off: "Hidden",
+  edit: "Edit",
+  delete: "Delete",
+  add_circle: "Add",
+  arrow_upward: "Up arrow",
+  arrow_downward: "Down arrow",
+  swap_horiz: "Swap / conversion",
+  refresh: "Refresh",
+  sync: "Sync",
+  filter_alt: "Filter",
+  sort: "Sort",
+  download: "Download",
+  upload: "Upload file",
+  share: "Share",
+  print: "Print",
+  qr_code_2: "QR code",
+  language: "Language / global",
+  public: "Public / world",
+  security: "Security",
+  lock: "Locked (padlock)",
+  lock_open: "Unlocked",
+  key: "Key / access",
+  sell: "Promotion / sale",
+  storefront: "Store",
+  apartment: "Building / condo",
+  factory: "Factory / industry",
+  support_agent: "Support",
+  headset_mic: "Call center",
+  chat: "Chat",
+  forum: "Forum / discussion",
+  campaign: "Campaign / ad",
+  celebration: "Celebration",
+  emoji_events: "Trophy / achievement",
+  military_tech: "Medal",
+  workspace_premium: "Certificate / premium",
+  directions_car: "Car / transport",
+  flight: "Flight / travel",
+  hotel: "Hotel / lodging",
+  restaurant: "Restaurant",
+};
 
 // Rótulo em PT-BR pra busca no seletor (ver PropertyPanelKpi.tsx) — o nome
 // técnico (chave acima) é o que fica salvo no schema.
-export const MATERIAL_ICON_LABELS: Record<MaterialIconName, string> = {
+export const MATERIAL_ICON_LABELS_PT_BR: Record<MaterialIconName, string> = {
   search: "Busca",
   check_circle: "Sucesso / confirmado",
   cancel: "Cancelado",
@@ -265,3 +362,12 @@ export const MATERIAL_ICON_LABELS: Record<MaterialIconName, string> = {
 };
 
 export const MATERIAL_ICON_NAMES = Object.keys(MATERIAL_ICON_PATHS) as MaterialIconName[];
+
+// Mantido pra compatibilidade — quem já importava MATERIAL_ICON_LABELS
+// direto (sem passar por materialIconLabels(locale)) continua vendo
+// PT-BR, igual sempre foi.
+export const MATERIAL_ICON_LABELS = MATERIAL_ICON_LABELS_PT_BR;
+
+export function materialIconLabels(locale: Locale): Record<MaterialIconName, string> {
+  return locale === "pt-BR" ? MATERIAL_ICON_LABELS_PT_BR : MATERIAL_ICON_LABELS_EN;
+}

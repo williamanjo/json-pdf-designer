@@ -1,5 +1,7 @@
 import type { Binding, ChartSchema, ImageSchema, KpiSchema, Schema, SectionSchema, TableSchema, TextSchema } from "./types";
 import { snapToGrid } from "./units";
+import { en } from "./i18n/en";
+import type { Dict } from "./i18n";
 
 // Mime custom do drag interno "chip de coluna da seção" -> canvas (ver
 // PropertyPanel.tsx/PageCanvas.tsx) — distinto do drop externo genérico
@@ -12,40 +14,40 @@ export function uid(): string {
     : Math.random().toString(36).slice(2);
 }
 
-export function makeTextSchema(nextY: number): TextSchema {
+export function makeTextSchema(nextY: number, t: Dict = en): TextSchema {
   return {
     id: uid(),
-    name: `texto_${Math.random().toString(36).slice(2, 6)}`,
+    name: `${t.schemaDefaults.textNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
     type: "text",
     x: 10,
     y: nextY,
     width: 80,
     height: 10,
-    content: "Texto",
+    content: t.schemaDefaults.textContent,
     fontSize: 11,
     fontColor: "#000000",
     alignment: "left",
   };
 }
 
-export function makeTableSchema(nextY: number): TableSchema {
+export function makeTableSchema(nextY: number, t: Dict = en): TableSchema {
   return {
     id: uid(),
-    name: `tabela_${Math.random().toString(36).slice(2, 6)}`,
+    name: `${t.schemaDefaults.tableNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
     type: "table",
     x: 10,
     y: nextY,
     width: 150,
     height: 30,
-    head: ["Coluna 1", "Coluna 2"],
-    content: [["valor 1", "valor 2"]],
+    head: [t.schemaDefaults.column1, t.schemaDefaults.column2],
+    content: [[t.schemaDefaults.value1, t.schemaDefaults.value2]],
   };
 }
 
-export function makeImageSchema(nextY: number): ImageSchema {
+export function makeImageSchema(nextY: number, t: Dict = en): ImageSchema {
   return {
     id: uid(),
-    name: `imagem_${Math.random().toString(36).slice(2, 6)}`,
+    name: `${t.schemaDefaults.imageNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
     type: "image",
     x: 10,
     y: nextY,
@@ -55,10 +57,10 @@ export function makeImageSchema(nextY: number): ImageSchema {
   };
 }
 
-export function makeSectionSchema(nextY: number): SectionSchema {
+export function makeSectionSchema(nextY: number, t: Dict = en): SectionSchema {
   return {
     id: uid(),
-    name: `secao_${Math.random().toString(36).slice(2, 6)}`,
+    name: `${t.schemaDefaults.sectionNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
     type: "section",
     x: 10,
     y: nextY,
@@ -68,7 +70,7 @@ export function makeSectionSchema(nextY: number): SectionSchema {
 }
 
 // Soltar uma coluna da seção no canvas cria DOIS campos membros dela
-// (mesmo padrão do Header/Data do Stimulsoft, só que como par de campos
+// (mesmo padrão clássico de cabeçalho+dado, só que como par de campos
 // livres em vez de linha de tabela): um rótulo estático (nome da coluna) e
 // um valor já vinculado por template ({coluna}), lado a lado. x/y já
 // chegam prontos de quem chama (PageCanvas.tsx já decide se cai na grade
@@ -77,7 +79,8 @@ export function makeSectionColumnPair(
   sectionId: string,
   column: string,
   x: number,
-  y: number
+  y: number,
+  t: Dict = en
 ): { header: TextSchema; value: TextSchema; valueBinding: Binding } {
   const safeCol = column.replace(/[^a-zA-Z0-9]/g, "_");
   const suffix = Math.random().toString(36).slice(2, 6);
@@ -85,7 +88,7 @@ export function makeSectionColumnPair(
   const gap = 5;
   const header: TextSchema = {
     id: uid(),
-    name: `header_${safeCol}_${suffix}`,
+    name: `${t.schemaDefaults.headerNamePrefix}_${safeCol}_${suffix}`,
     type: "text",
     x,
     y,
@@ -99,7 +102,7 @@ export function makeSectionColumnPair(
   };
   const value: TextSchema = {
     id: uid(),
-    name: `valor_${safeCol}_${suffix}`,
+    name: `${t.schemaDefaults.valueNamePrefix}_${safeCol}_${suffix}`,
     type: "text",
     x: x + fieldWidth + gap,
     y,
@@ -114,10 +117,10 @@ export function makeSectionColumnPair(
   return { header, value, valueBinding: { schemaName: value.name, type: "template", template: `{${column}}` } };
 }
 
-export function makeChartSchema(nextY: number): ChartSchema {
+export function makeChartSchema(nextY: number, t: Dict = en): ChartSchema {
   return {
     id: uid(),
-    name: `grafico_${Math.random().toString(36).slice(2, 6)}`,
+    name: `${t.schemaDefaults.chartNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
     type: "chart",
     x: 10,
     y: nextY,
@@ -131,19 +134,19 @@ export function makeChartSchema(nextY: number): ChartSchema {
   };
 }
 
-export function makeKpiSchema(nextY: number): KpiSchema {
+export function makeKpiSchema(nextY: number, t: Dict = en): KpiSchema {
   return {
     id: uid(),
-    name: `indicador_${Math.random().toString(36).slice(2, 6)}`,
+    name: `${t.schemaDefaults.kpiNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
     type: "kpi",
     x: 10,
     y: nextY,
     width: 55,
     height: 35,
     icon: "bar_chart",
-    title: "Título",
-    value: "{caminho}",
-    subtitle: "descrição",
+    title: t.schemaDefaults.kpiTitle,
+    value: t.schemaDefaults.kpiValue,
+    subtitle: t.schemaDefaults.kpiSubtitle,
     backgroundColor: "#2563eb",
     textColor: "#ffffff",
   };

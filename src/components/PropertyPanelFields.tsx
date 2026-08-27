@@ -1,4 +1,5 @@
 import type { Schema } from "../types";
+import { useT } from "../i18n";
 import { Input } from "./ui";
 
 type Props<S extends Schema> = {
@@ -10,28 +11,29 @@ type Props<S extends Schema> = {
 // "Estilo" própria e mostra esses campos lá dentro, junto do resto da
 // aparência, em vez de deixá-los soltos acima das abas (ver PropertyPanel).
 export function PositionFields<S extends Schema>({ schema, onChangeSchema }: Props<S>) {
+  const t = useT();
   return (
     <div className="grid grid-cols-2 gap-2">
       <Input
-        label="X (mm)"
+        label={t.position.x}
         type="number"
         value={schema.x}
         onChange={(e) => onChangeSchema({ x: Number(e.target.value) } as Partial<S>)}
       />
       <Input
-        label="Y (mm)"
+        label={t.position.y}
         type="number"
         value={schema.y}
         onChange={(e) => onChangeSchema({ y: Number(e.target.value) } as Partial<S>)}
       />
       <Input
-        label="Largura (mm)"
+        label={t.position.width}
         type="number"
         value={schema.width}
         onChange={(e) => onChangeSchema({ width: Number(e.target.value) } as Partial<S>)}
       />
       <Input
-        label="Altura (mm)"
+        label={t.position.height}
         type="number"
         value={schema.height}
         onChange={(e) => onChangeSchema({ height: Number(e.target.value) } as Partial<S>)}

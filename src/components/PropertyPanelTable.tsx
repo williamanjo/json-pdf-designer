@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { Binding, DataSourceOption, TableColumnStyle, TableSchema } from "../types";
 import { CUSTOM_FIELD_FUNCTIONS } from "../bindings/bindings";
 import { splitDelimited } from "../bindings/splitDelimited";
+import { useT, withInlineCode } from "../i18n";
 import { BindingEditor } from "./BindingEditor";
-import { PositionFields } from "./PropertyPanelFields";
 import { Button, ColorInput, Input, Select } from "./ui";
 import { IconDots, IconGrip, IconPlus, IconX } from "./ui/icons";
 
@@ -61,6 +61,7 @@ function buildColumnFormula(fn: string, path: string, symbol: string, decimals: 
 type Props = {
   schema: TableSchema;
   binding: Binding | undefined;
+  activeTab: "dados" | "estilo";
   onChangeSchema: (patch: Partial<TableSchema>) => void;
   onChangeBinding: (b: Binding | null) => void;
   dataSources?: DataSourceOption[];
@@ -76,6 +77,7 @@ type Props = {
 export function PropertyPanelTable({
   schema,
   binding,
+  activeTab,
   onChangeSchema,
   onChangeBinding,
   dataSources,
@@ -87,43 +89,18 @@ export function PropertyPanelTable({
   onSetColumnStyle,
   onSetColumnFormula,
 }: Props) {
+  const t = useT();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [styleColIndex, setStyleColIndex] = useState<number | null>(null);
   const [formulaColIndex, setFormulaColIndex] = useState<number | null>(null);
-  const [tableTab, setTableTab] = useState<"dados" | "estilo">("dados");
   const bindingColumns = binding?.type === "array" ? binding.columns : null;
 
   return (
     <>
-      <div className="flex gap-1 border-b border-slate-200 dark:border-gray-700">
-        <button
-          type="button"
-          onClick={() => setTableTab("dados")}
-          className={`px-3 py-1.5 text-xs font-medium ${
-            tableTab === "dados"
-              ? "border-b-2 border-sky-500 text-sky-600 dark:border-blue-400 dark:text-blue-400"
-              : "text-slate-500 hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
-        >
-          Dados
-        </button>
-        <button
-          type="button"
-          onClick={() => setTableTab("estilo")}
-          className={`px-3 py-1.5 text-xs font-medium ${
-            tableTab === "estilo"
-              ? "border-b-2 border-sky-500 text-sky-600 dark:border-blue-400 dark:text-blue-400"
-              : "text-slate-500 hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
-        >
-          Estilo
-        </button>
-      </div>
-
-      {tableTab === "dados" && (
+      {activeTab === "dados" && (
         <>
           <Input
-            label="Colunas (cabeçalho, vírgula)"
+            label={t.table.columnsHeaderLabel}
             value={schema.head.join(", ")}
             onChange={(e) => {
               const heads = e.target.value.split(",").map((c) => c.trim()).filter(Boolean);
@@ -133,7 +110,7 @@ export function PropertyPanelTable({
           />
           {schema.head.length > 0 && (
             <div className="flex flex-col gap-1">
-              <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">Colunas atuais da tabela (arraste pra reordenar):</p>
+              <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">{t.table.currentColumnsHint}</p>
               <ul className="flex flex-col gap-1">
                 {schema.head.map((col, i) => {
                   const colStyle = schema.columnStyles?.[i];
@@ -173,8 +150,8 @@ export function PropertyPanelTable({
                           <button
                             type="button"
                             onClick={() => setFormulaColIndex(formulaOpen ? null : i)}
-                            aria-label={`Fórmula da coluna ${col}`}
-                            title="Editar fórmula da coluna (SUM/CURRENCY/CONCAT/aritmética...)"
+                            aria-label={t.table.formulaAria(col)}
+                            title={t.table.formulaTitle}
                             className={`font-serif italic ${formulaOpen || currentFormula ? "text-sky-600 dark:text-blue-400" : "text-slate-400 hover:text-sky-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
                           >
                             ƒx
@@ -183,8 +160,8 @@ export function PropertyPanelTable({
                         <button
                           type="button"
                           onClick={() => setStyleColIndex(styleOpen ? null : i)}
-                          aria-label={`Estilo da coluna ${col}`}
-                          title="Cor, fundo e tamanho (cabeçalho e valor)"
+                          aria-label={t.table.styleAria(col)}
+                          title={t.table.styleTitle}
                           className={styleOpen ? "text-sky-600 dark:text-blue-400" : "text-slate-400 hover:text-sky-600 dark:text-gray-400 dark:hover:text-blue-400"}
                         >
                           <IconDots />
@@ -192,8 +169,8 @@ export function PropertyPanelTable({
                         <button
                           type="button"
                           onClick={() => onRemoveTableColumn?.(i)}
-                          aria-label={`Remover coluna ${col}`}
-                          title="Remover coluna"
+                          aria-label={t.table.removeColAria(col)}
+                          title={t.table.removeColTitle}
                           className="text-slate-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                         >
                           <IconX />
@@ -202,21 +179,21 @@ export function PropertyPanelTable({
                       {styleOpen && (
                         <div className="flex flex-col gap-2 rounded border border-sky-200 bg-sky-50/60 p-2 dark:border-blue-800 dark:bg-blue-900/20">
                           <div>
-                            <p className="mb-1 text-[10px] font-medium text-slate-500 dark:text-gray-400">Cabeçalho</p>
+                            <p className="mb-1 text-[10px] font-medium text-slate-500 dark:text-gray-400">{t.table.header}</p>
                             <div className="grid grid-cols-2 gap-2">
                               <ColorInput
-                                label="Fundo"
+                                label={t.table.background}
                                 value={colStyle?.headBackgroundColor ?? schema.headBackgroundColor ?? "#0284c7"}
                                 onChange={(e) => onSetColumnStyle?.(i, { headBackgroundColor: e.target.value })}
                               />
                               <ColorInput
-                                label="Texto"
+                                label={t.table.text}
                                 value={colStyle?.headTextColor ?? schema.headTextColor ?? "#ffffff"}
                                 onChange={(e) => onSetColumnStyle?.(i, { headTextColor: e.target.value })}
                               />
                             </div>
                             <Input
-                              label="Tamanho da fonte (pt)"
+                              label={t.table.fontSize}
                               type="number"
                               step={0.5}
                               value={colStyle?.headFontSize ?? ""}
@@ -227,21 +204,21 @@ export function PropertyPanelTable({
                             />
                           </div>
                           <div>
-                            <p className="mb-1 text-[10px] font-medium text-slate-500 dark:text-gray-400">Valor</p>
+                            <p className="mb-1 text-[10px] font-medium text-slate-500 dark:text-gray-400">{t.table.value}</p>
                             <div className="grid grid-cols-2 gap-2">
                               <ColorInput
-                                label="Fundo"
+                                label={t.table.background}
                                 value={colStyle?.cellBackgroundColor ?? schema.bodyBackgroundColor ?? "#ffffff"}
                                 onChange={(e) => onSetColumnStyle?.(i, { cellBackgroundColor: e.target.value })}
                               />
                               <ColorInput
-                                label="Texto"
+                                label={t.table.text}
                                 value={colStyle?.cellTextColor ?? schema.bodyTextColor ?? "#000000"}
                                 onChange={(e) => onSetColumnStyle?.(i, { cellTextColor: e.target.value })}
                               />
                             </div>
                             <Input
-                              label="Tamanho da fonte (pt)"
+                              label={t.table.fontSize}
                               type="number"
                               step={0.5}
                               value={colStyle?.cellFontSize ?? ""}
@@ -265,7 +242,7 @@ export function PropertyPanelTable({
                             }
                             className="self-start text-[10px] text-slate-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                           >
-                            Limpar estilo da coluna
+                            {t.table.clearColumnStyle}
                           </button>
                         </div>
                       )}
@@ -275,7 +252,7 @@ export function PropertyPanelTable({
                             <div className="flex flex-col gap-1.5 rounded border border-slate-200 bg-white p-1.5 dark:border-gray-600 dark:bg-gray-800">
                               <div className="grid grid-cols-2 gap-2">
                                 <Select
-                                  label="Tipo de dado"
+                                  label={t.table.dataType}
                                   value={parsedFormula.kind === "func" ? parsedFormula.fn : ""}
                                   onChange={(e) => {
                                     const fn = e.target.value;
@@ -286,16 +263,16 @@ export function PropertyPanelTable({
                                     onSetColumnFormula?.(i, buildColumnFormula(fn, formulaPath, symbol, decimals, outFormat, inFormat));
                                   }}
                                 >
-                                  <option value="">Texto (token simples)</option>
-                                  <option value="NUMBER">Número (casas decimais)</option>
-                                  <option value="CURRENCY">Moeda (Currency)</option>
-                                  <option value="DATE">Data</option>
-                                  <option value="UPPER">Maiúsculas</option>
-                                  <option value="LOWER">Minúsculas</option>
-                                  <option value="TRIM">Sem espaço nas pontas</option>
+                                  <option value="">{t.table.plainText}</option>
+                                  <option value="NUMBER">{t.table.number}</option>
+                                  <option value="CURRENCY">{t.table.currency}</option>
+                                  <option value="DATE">{t.table.date}</option>
+                                  <option value="UPPER">{t.table.uppercase}</option>
+                                  <option value="LOWER">{t.table.lowercase}</option>
+                                  <option value="TRIM">{t.table.trimEdges}</option>
                                 </Select>
                                 <Input
-                                  label="Campo (path)"
+                                  label={t.table.fieldPath}
                                   mono
                                   placeholder={col}
                                   value={formulaPath}
@@ -312,14 +289,14 @@ export function PropertyPanelTable({
                               {parsedFormula.kind === "func" && parsedFormula.fn === "CURRENCY" && (
                                 <div className="grid grid-cols-2 gap-2">
                                   <Input
-                                    label="Símbolo"
+                                    label={t.table.symbol}
                                     value={parsedFormula.symbol}
                                     onChange={(e) =>
                                       onSetColumnFormula?.(i, buildColumnFormula("CURRENCY", formulaPath, e.target.value, parsedFormula.decimals, "", ""))
                                     }
                                   />
                                   <Input
-                                    label="Casas decimais"
+                                    label={t.table.decimalPlaces}
                                     type="number"
                                     min={0}
                                     value={parsedFormula.decimals}
@@ -331,7 +308,7 @@ export function PropertyPanelTable({
                               )}
                               {parsedFormula.kind === "func" && parsedFormula.fn === "NUMBER" && (
                                 <Input
-                                  label="Casas decimais"
+                                  label={t.table.decimalPlaces}
                                   type="number"
                                   min={0}
                                   value={parsedFormula.decimals}
@@ -341,7 +318,7 @@ export function PropertyPanelTable({
                               {parsedFormula.kind === "func" && parsedFormula.fn === "DATE" && (
                                 <div className="grid grid-cols-2 gap-2">
                                   <Input
-                                    label="Formato saída"
+                                    label={t.table.outputFormat}
                                     mono
                                     value={parsedFormula.outFormat}
                                     onChange={(e) =>
@@ -349,9 +326,9 @@ export function PropertyPanelTable({
                                     }
                                   />
                                   <Input
-                                    label="Formato entrada"
+                                    label={t.table.inputFormat}
                                     mono
-                                    placeholder="(deixa o JS adivinhar)"
+                                    placeholder={t.table.inputFormatPlaceholder}
                                     value={parsedFormula.inFormat}
                                     onChange={(e) =>
                                       onSetColumnFormula?.(i, buildColumnFormula("DATE", formulaPath, "", "", parsedFormula.outFormat, e.target.value))
@@ -361,11 +338,7 @@ export function PropertyPanelTable({
                               )}
                             </div>
                           )}
-                          <p className="text-[10px] text-slate-400 dark:text-gray-400">
-                            Texto fixo e/ou <code>{"{token}"}</code>/<code>{"{FUNÇÃO(...)}"}</code>, resolvido por
-                            linha (path relativo ao item) — ex: <code>{"FAT-{fatura}"}</code>,{" "}
-                            <code>{'{CURRENCY(total, "R$")}'}</code>. Vazio volta a ser só o nome da coluna crua.
-                          </p>
+                          <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.table.formulaHelp)}</p>
                           <Input
                             mono
                             placeholder={col}
@@ -378,10 +351,10 @@ export function PropertyPanelTable({
                               if (e.target.value) onSetColumnFormula?.(i, `${currentFormula}{${e.target.value}}`);
                             }}
                           >
-                            <option value="">+ inserir função</option>
+                            <option value="">{t.table.insertFunction}</option>
                             {CUSTOM_FIELD_FUNCTIONS.map((fn) => (
-                              <option key={fn.name} value={fn.snippet} title={fn.hint}>
-                                {fn.name} — {fn.hint}
+                              <option key={fn.name} value={fn.snippet} title={t.fieldFunctions[fn.hintKey]}>
+                                {fn.name} — {t.fieldFunctions[fn.hintKey]}
                               </option>
                             ))}
                           </Select>
@@ -391,7 +364,7 @@ export function PropertyPanelTable({
                               onClick={() => onSetColumnFormula?.(i, "")}
                               className="self-start text-[10px] text-slate-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
                             >
-                              Limpar fórmula (volta a ser só a coluna crua)
+                              {t.table.clearFormula}
                             </button>
                           )}
                         </div>
@@ -405,7 +378,7 @@ export function PropertyPanelTable({
           {tableDataSource && (
             <div className="flex flex-col gap-1 rounded-lg border border-dashed border-purple-300 bg-purple-50/40 p-2 dark:border-purple-700 dark:bg-purple-900/20">
               <p className="text-[10px] font-medium text-purple-700 dark:text-purple-300">
-                Campos de "{tableDataSource.path}" — clique + pra adicionar como coluna:
+                {t.table.fieldsFromSource(tableDataSource.path)}
               </p>
               <ul className="flex max-h-32 flex-col gap-0.5 overflow-y-auto">
                 {tableDataSource.columns.map((col) => {
@@ -421,8 +394,8 @@ export function PropertyPanelTable({
                         size="icon"
                         disabled={already}
                         onClick={() => onAddTableColumn?.(col)}
-                        aria-label={`Adicionar coluna ${col}`}
-                        title={already ? "Já é coluna da tabela" : `Adicionar ${col} como coluna`}
+                        aria-label={t.table.addColumnAria(col)}
+                        title={already ? t.table.alreadyColumn : t.table.addColumnTitle(col)}
                       >
                         <IconPlus />
                       </Button>
@@ -436,33 +409,32 @@ export function PropertyPanelTable({
         </>
       )}
 
-      {tableTab === "estilo" && (
+      {activeTab === "estilo" && (
         <>
-          <PositionFields schema={schema} onChangeSchema={onChangeSchema} />
           <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">
             <input
               type="checkbox"
               checked={schema.repeatHeader ?? true}
               onChange={(e) => onChangeSchema({ repeatHeader: e.target.checked })}
             />
-            Repetir cabeçalho da tabela nas próximas páginas
+            {t.table.repeatHeader}
           </label>
           <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2 dark:border-gray-600">
-            <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">Linha do cabeçalho</p>
+            <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">{t.table.headerRow}</p>
             <div className="grid grid-cols-2 gap-2">
               <ColorInput
-                label="Fundo"
+                label={t.table.background}
                 value={schema.headBackgroundColor ?? "#0284c7"}
                 onChange={(e) => onChangeSchema({ headBackgroundColor: e.target.value })}
               />
               <ColorInput
-                label="Texto"
+                label={t.table.text}
                 value={schema.headTextColor ?? "#ffffff"}
                 onChange={(e) => onChangeSchema({ headTextColor: e.target.value })}
               />
             </div>
             <Input
-              label="Tamanho da fonte (pt)"
+              label={t.table.fontSize}
               type="number"
               step={0.5}
               value={schema.headFontSize ?? ""}
@@ -472,21 +444,21 @@ export function PropertyPanelTable({
           </div>
 
           <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2 dark:border-gray-600">
-            <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">Linha de valor (corpo, todas as linhas de dado)</p>
+            <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">{t.table.bodyRow}</p>
             <div className="grid grid-cols-2 gap-2">
               <ColorInput
-                label="Fundo"
+                label={t.table.background}
                 value={schema.bodyBackgroundColor ?? "#ffffff"}
                 onChange={(e) => onChangeSchema({ bodyBackgroundColor: e.target.value })}
               />
               <ColorInput
-                label="Texto"
+                label={t.table.text}
                 value={schema.bodyTextColor ?? "#000000"}
                 onChange={(e) => onChangeSchema({ bodyTextColor: e.target.value })}
               />
             </div>
             <Input
-              label="Tamanho da fonte (pt)"
+              label={t.table.fontSize}
               type="number"
               step={0.5}
               value={schema.bodyFontSize ?? ""}
@@ -502,20 +474,17 @@ export function PropertyPanelTable({
                 checked={Boolean(schema.footer && schema.footer.length > 0)}
                 onChange={(e) => onChangeSchema({ footer: e.target.checked ? schema.head.map(() => "") : undefined })}
               />
-              Linha de totais (rodapé da tabela)
+              {t.table.totalsRow}
             </label>
             {schema.footer && schema.footer.length > 0 && (
               <>
-                <p className="text-[10px] text-slate-400 dark:text-gray-400">
-                  Uma célula por coluna — texto fixo e/ou <code>{"{token}"}</code>/<code>{"{SUM(caminho.coluna)}"}</code>. Só
-                  aparece uma vez, depois da última linha (não repete se a tabela paginar).
-                </p>
+                <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.table.footerHelp)}</p>
                 <div className="flex flex-col gap-1">
                   {schema.footer.map((cell, i) => (
                     <Input
                       key={i}
                       mono
-                      placeholder={schema.head[i] ?? `coluna ${i + 1}`}
+                      placeholder={schema.head[i] ?? t.table.footerCellPlaceholder(i + 1)}
                       value={cell}
                       onChange={(e) => {
                         const footer = schema.footer!.slice();
@@ -527,18 +496,18 @@ export function PropertyPanelTable({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <ColorInput
-                    label="Fundo do rodapé"
+                    label={t.table.footerBackground}
                     value={schema.footerBackgroundColor ?? "#e5e7eb"}
                     onChange={(e) => onChangeSchema({ footerBackgroundColor: e.target.value })}
                   />
                   <ColorInput
-                    label="Texto do rodapé"
+                    label={t.table.footerText}
                     value={schema.footerTextColor ?? "#000000"}
                     onChange={(e) => onChangeSchema({ footerTextColor: e.target.value })}
                   />
                 </div>
                 <Input
-                  label="Tamanho da fonte (pt)"
+                  label={t.table.fontSize}
                   type="number"
                   step={0.5}
                   value={schema.footerFontSize ?? ""}

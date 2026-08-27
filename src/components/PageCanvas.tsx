@@ -4,6 +4,7 @@ import type { PageSize, Schema, SectionColumnDragPayload } from "../types";
 import { SECTION_COLUMN_MIME } from "../schemaFactory";
 import { GRID_SIZE_MM, mmToPx, pxToMm, snapToGrid } from "../units";
 import { classifyZone, clampToZone, isRedZone } from "../zones";
+import { useT } from "../i18n";
 import { FieldBox } from "./FieldBox";
 import { Ruler } from "./Ruler";
 import { IconArrowsHorizontal, IconArrowsVertical, IconDots, IconMinus, IconPlus } from "./ui/icons";
@@ -44,9 +45,9 @@ type Props = {
   // vinculada a um array com colunas conhecidas) — cria o par header+valor
   // na posição solta (ver PropertyPanel.tsx/schemaFactory.ts).
   onDropSectionColumn?: (payload: SectionColumnDragPayload, xMm: number, yMm: number) => void;
-  // Tamanho (mm) da grade — desenha o quadriculado de fundo (igual o
-  // Stimulsoft) e trava arrastar/redimensionar nesse passo. 0/negativo
-  // desliga a grade (posição livre, sem quadriculado). Default 5mm.
+  // Tamanho (mm) da grade — desenha o quadriculado de fundo e trava
+  // arrastar/redimensionar nesse passo. 0/negativo desliga a grade
+  // (posição livre, sem quadriculado). Default 5mm.
   gridSizeMm?: number;
 };
 
@@ -84,6 +85,7 @@ export function PageCanvas({
   onDropSectionColumn,
   gridSizeMm = GRID_SIZE_MM,
 }: Props) {
+  const t = useT();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const bands = { headerHeight, footerHeight, marginLeft, marginRight };
@@ -285,7 +287,7 @@ export function PageCanvas({
                 style={{ height: mmToPx(headerHeight) }}
               >
                 <span className="absolute left-1 top-0.5 rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white">
-                  Cabeçalho — repete em toda página
+                  {t.pageCanvas.headerBand}
                 </span>
               </div>
             )}
@@ -295,7 +297,7 @@ export function PageCanvas({
                 style={{ height: mmToPx(footerHeight) }}
               >
                 <span className="absolute left-1 top-0.5 rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white">
-                  Rodapé — repete em toda página
+                  {t.pageCanvas.footerBand}
                 </span>
               </div>
             )}
@@ -308,7 +310,7 @@ export function PageCanvas({
                   className="absolute left-0.5 top-1 whitespace-nowrap rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white"
                   style={{ transform: "rotate(90deg)", transformOrigin: "left top" }}
                 >
-                  Margem esquerda
+                  {t.pageCanvas.marginLeftBand}
                 </span>
               </div>
             )}
@@ -321,7 +323,7 @@ export function PageCanvas({
                   className="absolute right-0.5 top-1 whitespace-nowrap rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white"
                   style={{ transform: "rotate(90deg)", transformOrigin: "right top" }}
                 >
-                  Margem direita
+                  {t.pageCanvas.marginRightBand}
                 </span>
               </div>
             )}
@@ -399,6 +401,16 @@ export function PageCanvas({
                     if (updates.length > 0) onMoveGroup(updates);
                   }}
                   onDragStop={(_e, d) => {
+                    // react-rnd dispara onDragStop mesmo num clique sem
+                    // arrastar (mousedown+mouseup no mesmo lugar conta como
+                    // "drag" de 0px) — sem esse corte, um campo que nasceu
+                    // fora da grade (colado ou com Shift) voltava pra grade
+                    // sozinho só por ter sido CLICADO/selecionado, sem o
+                    // usuário ter arrastado nada.
+                    if (Math.abs(pxToMm(d.x) - schema.x) < 0.01 && Math.abs(pxToMm(d.y) - schema.y) < 0.01) {
+                      dragSnapshotRef.current = null;
+                      return;
+                    }
                     // dragGrid do react-rnd só trava o PASSO do arrasto (delta
                     // relativo ao ponto onde o gesto começou) — um campo que
                     // nasceu fora da grade (posicionado com Shift) continua
@@ -499,7 +511,7 @@ export function PageCanvas({
       >
         <button
           type="button"
-          aria-label="Diminuir zoom"
+          aria-label={t.pageCanvas.zoomOut}
           className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
           onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
         >
@@ -508,7 +520,7 @@ export function PageCanvas({
         <span className="w-10 text-center text-xs font-medium tabular-nums">{Math.round(zoom * 100)}%</span>
         <button
           type="button"
-          aria-label="Aumentar zoom"
+          aria-label={t.pageCanvas.zoomIn}
           className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
           onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
         >
@@ -517,7 +529,7 @@ export function PageCanvas({
         <div className="mx-1 h-4 w-px bg-white/20" />
         <button
           type="button"
-          aria-label="Ajustar à largura"
+          aria-label={t.pageCanvas.fitWidth}
           className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
           onClick={(e) => fitTo("width", e.currentTarget)}
         >
@@ -525,7 +537,7 @@ export function PageCanvas({
         </button>
         <button
           type="button"
-          aria-label="Ajustar à altura"
+          aria-label={t.pageCanvas.fitHeight}
           className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
           onClick={(e) => fitTo("height", e.currentTarget)}
         >
@@ -534,8 +546,8 @@ export function PageCanvas({
         <div className="mx-1 h-4 w-px bg-white/20" />
         <button
           type="button"
-          aria-label="Redefinir zoom"
-          title="Redefinir zoom (100%)"
+          aria-label={t.pageCanvas.resetZoom}
+          title={t.pageCanvas.resetZoomTitle}
           className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
           onClick={() => setZoom(1)}
         >

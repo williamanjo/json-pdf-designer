@@ -87,7 +87,7 @@ export type ImageSchema = BaseSchema & {
   content: string;
 };
 
-// Seção repetida — tipo o "data band" do Stimulsoft: um retângulo que
+// Seção repetida — um "data band": retângulo que
 // repete uma vez por item de um array vinculado, empilhando na vertical e
 // paginando junto com o resto do corpo. Não guarda filhos — é só um grupo:
 // qualquer campo (texto/imagem) largado em cima dela no canvas vira membro
@@ -121,6 +121,24 @@ export type ChartSchema = BaseSchema & {
   // Binding "chart"): trocar o vínculo pra "quantidade" já muda o que a %
   // representa, sem precisar de campo à parte pra isso.
   displayMode: "number" | "percent" | "both";
+  // Nome de uma paleta pronta (ver CHART_PALETTE_NAMES em chartColors.ts —
+  // "default"/"classic"/"modern"/"vibrant"/"pastel"/"grayscale"/"custom").
+  // String solta (não união fechada) pelo mesmo motivo do KpiIcon: nome de
+  // paleta removida num template antigo cai pra "default" sozinho, sem
+  // quebrar. "custom" usa `customPaletteColors` no lugar de cor fixa.
+  colorPalette?: string;
+  // Cores escolhidas à mão — só usadas quando colorPalette === "custom"
+  // (ver resolveChartColors em chartColors.ts). Ausente/vazio com
+  // "custom" selecionado cai pra paleta "default" até o usuário escolher
+  // pelo menos 1 cor.
+  customPaletteColors?: string[];
+  // Formato do valor bruto (não mexe na porcentagem) — "number" (default
+  // ausente) é o de sempre (toLocaleString pt-BR, sem símbolo); "currency"
+  // aplica `currencySymbol` (default "R$" ausente) + `decimals` (default 2
+  // ausente), mesma cara do CURRENCY(...) de texto/tabela (ver drawChart.ts).
+  valueFormat?: "number" | "currency";
+  currencySymbol?: string;
+  decimals?: number;
   // Critério de ordenação ANTES de cortar em topN — default (ausente) é
   // "value_desc" (maior primeiro), igual sempre foi.
   sortBy?: "value_desc" | "value_asc" | "label_asc" | "label_desc";

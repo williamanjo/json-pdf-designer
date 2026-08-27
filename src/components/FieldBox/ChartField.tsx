@@ -1,20 +1,20 @@
 import type { ReactNode } from "react";
 import type { ChartSchema } from "../../types";
-import { CHART_COLORS } from "../../chartColors";
+import { resolveChartColors } from "../../chartColors";
 import { pieSlicePath, pointOnCircle } from "../../pieGeometry";
 
 // Preview de design só — 4 fatias/barras fixas de exemplo, só pra mostrar
-// que o campo é um gráfico e qual tipo. O dado (e a agregação em cima do
+// que o campo é um gráfico, qual tipo e (agora) qual paleta de cor foi
+// escolhida (pronta ou personalizada). O dado (e a agregação em cima do
 // vínculo real) só entra na hora de gerar o PDF (ver pdf/drawChart.ts).
-const CHART_PREVIEW = [
-  { value: 40, color: CHART_COLORS[0] },
-  { value: 25, color: CHART_COLORS[1] },
-  { value: 20, color: CHART_COLORS[2] },
-  { value: 15, color: CHART_COLORS[3] },
-];
+function chartPreview(colorPalette: string | undefined, customPaletteColors: string[] | undefined) {
+  const palette = resolveChartColors(colorPalette, customPaletteColors);
+  const values = [40, 25, 20, 15];
+  return values.map((value, i) => ({ value, color: palette[i % palette.length] }));
+}
 
-function PiePreview({ pieStyle, withSliceLabels }: { pieStyle: ChartSchema["pieStyle"]; withSliceLabels: boolean }) {
-  const total = CHART_PREVIEW.reduce((s, p) => s + p.value, 0);
+function PiePreview({ pieStyle, withSliceLabels, preview }: { pieStyle: ChartSchema["pieStyle"]; withSliceLabels: boolean; preview: { value: number; color: string }[] }) {
+  const total = preview.reduce((s, p) => s + p.value, 0);
   const r = 26;
   const cx = 32;
   const cy = 32;
@@ -23,7 +23,7 @@ function PiePreview({ pieStyle, withSliceLabels }: { pieStyle: ChartSchema["pieS
 
   return (
     <svg width="56" height="56" viewBox="0 0 64 64" className="flex-shrink-0">
-      {CHART_PREVIEW.map((p, i) => {
+      {preview.map((p, i) => {
         const sweepDeg = (p.value / total) * 360;
         const path = pieSlicePath(cx, cy, r, innerR, cumulativeDeg, sweepDeg - 1.5);
         const midDeg = cumulativeDeg + sweepDeg / 2;
@@ -47,10 +47,10 @@ function PiePreview({ pieStyle, withSliceLabels }: { pieStyle: ChartSchema["pieS
 // Exemplo de legenda (rótulo + cor) — só pra mostrar ONDE ela vai ficar
 // (right/left/top/bottom); "slices" não tem legenda separada, o rótulo
 // já vai escrito em cima de cada fatia (ver PiePreview).
-function LegendPreview() {
+function LegendPreview({ preview }: { preview: { value: number; color: string }[] }) {
   return (
     <ul className="flex flex-col gap-1 text-[7px] leading-none text-slate-600">
-      {CHART_PREVIEW.map((p, i) => (
+      {preview.map((p, i) => (
         <li key={i} className="flex items-center gap-1">
           <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
           <span>Fatia {i + 1}</span>
@@ -99,10 +99,12 @@ function pieLayout(legendPosition: NonNullable<ChartSchema["legendPosition"]>, d
 }
 
 export function ChartField({ schema }: { schema: ChartSchema }) {
+  const preview = chartPreview(schema.colorPalette, schema.customPaletteColors);
+
   if (schema.chartType === "bar") {
     return (
       <div className="flex h-full w-full flex-col justify-center gap-1.5 rounded-md border border-slate-200 bg-white p-2">
-        {CHART_PREVIEW.map((p, i) => (
+        {preview.map((p, i) => (
           <div key={i} className="h-2 rounded-sm" style={{ width: `${p.value * 2}%`, backgroundColor: p.color }} />
         ))}
       </div>
@@ -110,8 +112,8 @@ export function ChartField({ schema }: { schema: ChartSchema }) {
   }
 
   const legendPosition = schema.legendPosition ?? "right";
-  const donut = <PiePreview pieStyle={schema.pieStyle} withSliceLabels={legendPosition === "slices"} />;
-  const layout = pieLayout(legendPosition, donut, <LegendPreview />);
+  const donut = <PiePreview pieStyle={schema.pieStyle} withSliceLabels={legendPosition === "slices"} preview={preview} />;
+  const layout = pieLayout(legendPosition, donut, <LegendPreview preview={preview} />);
 
   return (
     <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white p-1.5">

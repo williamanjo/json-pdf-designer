@@ -1,23 +1,21 @@
 import type { Binding, DataSourceOption, Schema, TableColumnStyle } from "../types";
 import { BindingEditor } from "./BindingEditor";
-import { PositionFields } from "./PropertyPanelFields";
 import { PropertyPanelChart } from "./PropertyPanelChart";
 import { PropertyPanelImage } from "./PropertyPanelImage";
 import { PropertyPanelKpi } from "./PropertyPanelKpi";
 import { PropertyPanelSection } from "./PropertyPanelSection";
 import { PropertyPanelTable } from "./PropertyPanelTable";
 import { PropertyPanelText } from "./PropertyPanelText";
-import { Badge, Button, CardHeader } from "./ui";
-import { IconBringToFront, IconSendToBack } from "./ui/icons";
 
 type Props = {
   schema: Schema;
   binding: Binding | undefined;
+  // Qual das abas de nível superior (Designer.tsx) tá ativa — este
+  // componente só desenha o CONTEÚDO certo pro tipo de campo, a barra de
+  // abas em si (e a aba "Filtro", só de gráfico) vive no Designer.
+  activeTab: "dados" | "estilo";
   onChangeSchema: (patch: Partial<Schema>) => void;
   onChangeBinding: (b: Binding | null) => void;
-  onRemove: () => void;
-  onBringToFront: () => void;
-  onSendToBack: () => void;
   dataSources?: DataSourceOption[];
   // Fonte de dados conhecida da tabela (membro de seção OU vínculo próprio
   // batendo com um dataSources) — lista de colunas pra adicionar com "+"
@@ -39,18 +37,20 @@ type Props = {
   onSetColumnFormula?: (index: number, formula: string) => void;
 };
 
-// Painel do campo selecionado — posição/tamanho, propriedades específicas
-// do tipo (texto/tabela/imagem/seção, cada uma no seu próprio componente) e
-// o vínculo com o JSON, tudo React normal (sem ponte de módulo, sem
-// propPanel declarativo).
+// Conteúdo do campo selecionado pra aba "Dados"/"Estilo" ativa — cada tipo
+// no seu próprio componente (texto/tabela/imagem/seção/gráfico/KPI), sem
+// propPanel declarativo, React normal. Image/Section não têm divisão
+// Dados/Estilo própria (conteúdo simples demais pra precisar) — tudo delas
+// aparece em "Dados"; o vínculo genérico (BindingEditor) só serve a esses
+// dois tipos, os outros já embutem o vínculo certo dentro do próprio
+// componente (chart) ou nem precisam de um (kpi/texto usam template
+// direto no campo, tabela tem o próprio dentro de "Dados").
 export function PropertyPanel({
   schema,
   binding,
+  activeTab,
   onChangeSchema,
   onChangeBinding,
-  onRemove,
-  onBringToFront,
-  onSendToBack,
   dataSources,
   tableDataSource,
   onSetHeadList,
@@ -60,55 +60,61 @@ export function PropertyPanel({
   onSetColumnStyle,
   onSetColumnFormula,
 }: Props) {
-  return (
-    <div className="flex flex-col gap-3">
-      <CardHeader>
-        <Badge>{schema.name}</Badge>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={onSendToBack} title="Enviar para trás" aria-label="Enviar para trás">
-            <IconSendToBack />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={onBringToFront} title="Trazer para frente" aria-label="Trazer para frente">
-            <IconBringToFront />
-          </Button>
-          <Button variant="danger" onClick={onRemove}>
-            Remover
-          </Button>
-        </div>
-      </CardHeader>
+  if (schema.type === "text") {
+    return <PropertyPanelText schema={schema} activeTab={activeTab} onChangeSchema={onChangeSchema} />;
+  }
 
-      {schema.type !== "table" && <PositionFields schema={schema} onChangeSchema={onChangeSchema} />}
+  if (schema.type === "table") {
+    return (
+      <PropertyPanelTable
+        schema={schema}
+        binding={binding}
+        activeTab={activeTab}
+        onChangeSchema={onChangeSchema}
+        onChangeBinding={onChangeBinding}
+        dataSources={dataSources}
+        tableDataSource={tableDataSource}
+        onSetHeadList={onSetHeadList}
+        onAddTableColumn={onAddTableColumn}
+        onRemoveTableColumn={onRemoveTableColumn}
+        onReorderTableColumn={onReorderTableColumn}
+        onSetColumnStyle={onSetColumnStyle}
+        onSetColumnFormula={onSetColumnFormula}
+      />
+    );
+  }
 
-      {schema.type === "text" && <PropertyPanelText schema={schema} onChangeSchema={onChangeSchema} />}
-
-      {schema.type === "table" && (
-        <PropertyPanelTable
-          schema={schema}
-          binding={binding}
-          onChangeSchema={onChangeSchema}
-          onChangeBinding={onChangeBinding}
-          dataSources={dataSources}
-          tableDataSource={tableDataSource}
-          onSetHeadList={onSetHeadList}
-          onAddTableColumn={onAddTableColumn}
-          onRemoveTableColumn={onRemoveTableColumn}
-          onReorderTableColumn={onReorderTableColumn}
-          onSetColumnStyle={onSetColumnStyle}
-          onSetColumnFormula={onSetColumnFormula}
-        />
-      )}
-
-      {schema.type === "image" && <PropertyPanelImage schema={schema} onChangeSchema={onChangeSchema} />}
-
-      {schema.type === "section" && <PropertyPanelSection schema={schema} binding={binding} dataSources={dataSources} />}
-
-      {schema.type === "chart" && <PropertyPanelChart schema={schema} onChangeSchema={onChangeSchema} />}
-
-      {schema.type === "kpi" && <PropertyPanelKpi schema={schema} onChangeSchema={onChangeSchema} />}
-
-      {schema.type !== "table" && schema.type !== "kpi" && schema.type !== "text" && (
+  if (schema.type === "image") {
+    return activeTab === "dados" ? (
+      <>
+        <PropertyPanelImage schema={schema} onChangeSchema={onChangeSchema} />
         <BindingEditor schema={schema} binding={binding} onChangeBinding={onChangeBinding} dataSources={dataSources} />
-      )}
-    </div>
-  );
+      </>
+    ) : null;
+  }
+
+  if (schema.type === "section") {
+    return activeTab === "dados" ? (
+      <>
+        <PropertyPanelSection schema={schema} binding={binding} dataSources={dataSources} />
+        <BindingEditor schema={schema} binding={binding} onChangeBinding={onChangeBinding} dataSources={dataSources} />
+      </>
+    ) : null;
+  }
+
+  if (schema.type === "chart") {
+    return (
+      <PropertyPanelChart
+        schema={schema}
+        activeTab={activeTab}
+        onChangeSchema={onChangeSchema}
+        binding={binding}
+        onChangeBinding={onChangeBinding}
+        dataSources={dataSources}
+      />
+    );
+  }
+
+  // "kpi"
+  return <PropertyPanelKpi schema={schema} activeTab={activeTab} onChangeSchema={onChangeSchema} />;
 }

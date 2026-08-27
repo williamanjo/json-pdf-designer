@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { PdfPreview } from "./PdfPreview";
 import { Button } from "./ui";
 import { IconDownload, IconX } from "./ui/icons";
@@ -12,6 +13,7 @@ type Props = {
 // baixar — dá pra conferir margens/tamanho reais sem depender do viewer
 // nativo do navegador.
 export default function PdfPreviewModal({ bytes, onClose, onDownload }: Props) {
+  const t = useT();
   return (
     <div
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 p-4"
@@ -22,10 +24,10 @@ export default function PdfPreviewModal({ bytes, onClose, onDownload }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-slate-800 dark:text-gray-100">Prévia do PDF</h3>
+          <h3 className="text-base font-semibold text-slate-800 dark:text-gray-100">{t.pdfPreviewModal.title}</h3>
           <div className="flex gap-2">
             <Button onClick={onDownload}>
-              <IconDownload /> Baixar
+              <IconDownload /> {t.pdfPreviewModal.download}
             </Button>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <IconX />

@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { Button } from "./ui";
 import { IconPlus } from "./ui/icons";
 
@@ -11,32 +12,33 @@ type Props = {
 };
 
 export function Toolbar({ onAddText, onAddTable, onAddImage, onAddSection, onAddChart, onAddKpi }: Props) {
+  const t = useT();
   return (
     <div className="flex flex-wrap gap-2">
       <Button onClick={onAddText}>
-        <IconPlus /> texto
+        <IconPlus /> {t.toolbar.text}
       </Button>
       {onAddTable && (
         <Button onClick={onAddTable}>
-          <IconPlus /> tabela
+          <IconPlus /> {t.toolbar.table}
         </Button>
       )}
       <Button onClick={onAddImage}>
-        <IconPlus /> imagem
+        <IconPlus /> {t.toolbar.image}
       </Button>
       {onAddSection && (
         <Button variant="outline" onClick={onAddSection}>
-          <IconPlus /> seção
+          <IconPlus /> {t.toolbar.section}
         </Button>
       )}
       {onAddChart && (
         <Button onClick={onAddChart}>
-          <IconPlus /> gráfico
+          <IconPlus /> {t.toolbar.chart}
         </Button>
       )}
       {onAddKpi && (
         <Button onClick={onAddKpi}>
-          <IconPlus /> indicador
+          <IconPlus /> {t.toolbar.kpi}
         </Button>
       )}
     </div>

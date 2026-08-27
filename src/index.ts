@@ -34,16 +34,29 @@ export {
   CUSTOM_FIELD_FUNCTIONS,
 } from "./bindings/bindings";
 
-export { CHART_COLORS, CHART_OTHER_COLOR } from "./chartColors";
+export {
+  CHART_COLORS,
+  CHART_OTHER_COLOR,
+  CHART_PALETTES,
+  CHART_PALETTE_LABELS,
+  CHART_PALETTE_NAMES,
+  CHART_PALETTE_SIZE,
+  resolveChartPalette,
+  resolveChartColors,
+  type ChartPaletteName,
+  type ChartPresetName,
+} from "./chartColors";
 export {
   MATERIAL_ICON_GRID,
   MATERIAL_ICON_PATHS,
   MATERIAL_ICON_LABELS,
   MATERIAL_ICON_NAMES,
+  materialIconLabels,
   type MaterialIconName,
 } from "./materialIcons";
 export { generatePdf, downloadPdf, type GeneratePdfOptions } from "./pdf/generate";
 export { makeChartSchema, makeKpiSchema, makeSectionColumnPair } from "./schemaFactory";
+export { I18nProvider, useT, useLocale, withInlineCode, type Locale, type Dict } from "./i18n";
 export { mmToPx, pxToMm, mmToPt } from "./units";
 export { PAGE_SIZE_PRESETS, orientationOf, applyOrientation, matchPreset, type Orientation } from "./pageSizes";
 export { classifyZone, isRedZone, clampToZone, type Zone, type Bands } from "./zones";
@@ -62,6 +75,7 @@ export {
   CardHeader,
   CardTitle,
   Badge,
+  TabPanel,
   Input,
   ColorInput,
   Textarea,
@@ -83,4 +97,5 @@ export {
   IconRefresh,
   IconDownload,
   IconFolderUp,
+  IconAlertTriangle,
 } from "./components/ui";

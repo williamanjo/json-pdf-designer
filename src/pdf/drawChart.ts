@@ -31,11 +31,23 @@ function colorOf(hex: string) {
   return c ? rgb(c.r, c.g, c.b) : rgb(0.6, 0.6, 0.6);
 }
 
-function formatValue(item: ChartItem, total: number, displayMode: ChartSchema["displayMode"]): string {
-  const raw = item.value.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
-  if (displayMode === "number") return raw;
+function formatChartValue(value: number, schema: ChartSchema): string {
+  const decimals = schema.decimals ?? 2;
+  // "currency" sempre fixa as casas (padrão de dinheiro); "number" (default,
+  // sem valueFormat) mantém o comportamento de sempre — só limita casas
+  // quando existem, sem forçar ".00" num valor inteiro.
+  if (schema.valueFormat === "currency") {
+    const formatted = value.toLocaleString("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return `${schema.currencySymbol ?? "R$"} ${formatted}`;
+  }
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: decimals });
+}
+
+function formatValue(item: ChartItem, total: number, schema: ChartSchema): string {
+  const raw = formatChartValue(item.value, schema);
+  if (schema.displayMode === "number") return raw;
   const pct = `${(total > 0 ? (item.value / total) * 100 : 0).toFixed(1).replace(".", ",")}%`;
-  if (displayMode === "percent") return pct;
+  if (schema.displayMode === "percent") return pct;
   return `${raw} (${pct})`; // "both"
 }
 
@@ -81,7 +93,7 @@ function drawPieSlices(
     if (directLabels && sweepDeg >= SLICE_LABEL_MIN_SWEEP_DEG) {
       const midDeg = cumulativeDeg + sweepDeg / 2;
       const labelR = innerR > 0 ? (innerR + r) / 2 : r * 0.65;
-      const text = formatValue(item, total, schema.displayMode);
+      const text = formatValue(item, total, schema);
       const textWidth = font.widthOfTextAtSize(text, SLICE_LABEL_FONT_SIZE);
       const point = toPage(pointOnCircle(cx, cy, labelR, midDeg));
       page.drawText(text, {
@@ -105,7 +117,7 @@ function drawLegend(
   font: PDFFont,
   items: ChartItem[],
   total: number,
-  displayMode: ChartSchema["displayMode"],
+  schema: ChartSchema,
   xPt: number,
   topYPt: number,
   widthPt: number,
@@ -116,7 +128,7 @@ function drawLegend(
   let y = topYPt - Math.max(0, (heightPt - rowsHeight) / 2) - LEGEND_ROW_HEIGHT / 2 - LEGEND_SWATCH_PT / 2;
   for (const item of items) {
     page.drawRectangle({ x: xPt, y, width: LEGEND_SWATCH_PT, height: LEGEND_SWATCH_PT, color: colorOf(item.color) });
-    const label = `${item.label}  ${formatValue(item, total, displayMode)}`;
+    const label = `${item.label}  ${formatValue(item, total, schema)}`;
     page.drawText(truncateToWidth(label, font, LEGEND_FONT_SIZE, maxLabelWidth), {
       x: xPt + LEGEND_SWATCH_PT + LEGEND_GAP_PT,
       y: y + 0.5,
@@ -137,7 +149,7 @@ function drawBars(page: PDFPage, font: PDFFont, schema: ChartSchema, items: Char
     const rowTopY = topYPt - i * rowHeight;
     const labelY = rowTopY - labelLineHeight + 2;
     const trackY = rowTopY - rowHeight + Math.max(1, (rowHeight - labelLineHeight - BAR_TRACK_HEIGHT) / 2);
-    const valueText = formatValue(item, total, schema.displayMode);
+    const valueText = formatValue(item, total, schema);
     const valueWidth = font.widthOfTextAtSize(valueText, BAR_FONT_SIZE);
     const trackWidth = Math.max(0, widthPt - valueWidth - 6);
     const fillWidth = max > 0 ? (item.value / max) * trackWidth : 0;
@@ -186,11 +198,11 @@ export function drawChart(page: PDFPage, font: PDFFont, schema: ChartSchema, ite
     const legendHeightPt = Math.min(items.length * LEGEND_ROW_HEIGHT, heightPt * 0.5);
     const pieHeightPt = heightPt - legendHeightPt;
     if (legendPosition === "top") {
-      drawLegend(page, font, items, total, schema.displayMode, xPt, topYPt, widthPt, legendHeightPt);
+      drawLegend(page, font, items, total, schema, xPt, topYPt, widthPt, legendHeightPt);
       drawPieSlices(page, font, schema, items, total, xPt, topYPt - legendHeightPt, widthPt, pieHeightPt, false);
     } else {
       drawPieSlices(page, font, schema, items, total, xPt, topYPt, widthPt, pieHeightPt, false);
-      drawLegend(page, font, items, total, schema.displayMode, xPt, topYPt - pieHeightPt, widthPt, legendHeightPt);
+      drawLegend(page, font, items, total, schema, xPt, topYPt - pieHeightPt, widthPt, legendHeightPt);
     }
     return;
   }
@@ -199,12 +211,12 @@ export function drawChart(page: PDFPage, font: PDFFont, schema: ChartSchema, ite
   const pieAreaWidthPt = Math.max(0, widthPt - legendWidthPt);
 
   if (legendPosition === "left") {
-    drawLegend(page, font, items, total, schema.displayMode, xPt, topYPt, legendWidthPt, heightPt);
+    drawLegend(page, font, items, total, schema, xPt, topYPt, legendWidthPt, heightPt);
     drawPieSlices(page, font, schema, items, total, xPt + legendWidthPt, topYPt, pieAreaWidthPt, heightPt, false);
     return;
   }
 
   // "right" (default)
   drawPieSlices(page, font, schema, items, total, xPt, topYPt, pieAreaWidthPt, heightPt, false);
-  drawLegend(page, font, items, total, schema.displayMode, xPt + pieAreaWidthPt, topYPt, legendWidthPt, heightPt);
+  drawLegend(page, font, items, total, schema, xPt + pieAreaWidthPt, topYPt, legendWidthPt, heightPt);
 }

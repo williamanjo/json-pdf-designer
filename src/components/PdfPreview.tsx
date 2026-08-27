@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { ensureWorker } from "../pdf/pdfWorker";
 import { toErrorMessage } from "../errorUtils";
+import { useT } from "../i18n";
 
 type Props = {
   bytes: Uint8Array | null;
@@ -15,6 +16,7 @@ type Props = {
 // tamanho e as margens reais do arquivo exportado (não é o canvas de
 // edição, é o PDF de verdade, byte a byte).
 export function PdfPreview({ bytes, scale = 1.4, className = "" }: Props) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -66,10 +68,10 @@ export function PdfPreview({ bytes, scale = 1.4, className = "" }: Props) {
   }, [bytes, scale]);
 
   if (!bytes) return null;
-  if (error) return <p className="text-xs text-red-600">Erro ao renderizar preview: {error}</p>;
+  if (error) return <p className="text-xs text-red-600">{t.pdfPreview.renderError(error)}</p>;
   return (
     <div className={className}>
-      {pageCount > 1 && <p className="mb-2 text-[11px] text-slate-500">{pageCount} página(s)</p>}
+      {pageCount > 1 && <p className="mb-2 text-[11px] text-slate-500">{t.pdfPreview.pageCount(pageCount)}</p>}
       <div ref={containerRef} />
     </div>
   );

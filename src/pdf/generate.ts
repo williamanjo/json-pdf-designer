@@ -5,6 +5,7 @@ import type { PDFFont, PDFImage, PDFPage } from "pdf-lib";
 import * as fontkit from "fontkit";
 import type { Binding, ImageSchema, Schema, SectionSchema, TableSchema, Template, TextSchema } from "../types";
 import { aggregateChartItems, buildInputs, renderTemplate, resolveChartItems } from "../bindings/bindings";
+import { resolveChartColors } from "../chartColors";
 import { drawChart } from "./drawChart";
 import { drawKpi } from "./drawKpi";
 import { drawSectionInstance, resolveSectionItems, sectionInstanceHeight, type SectionDrawContext } from "./drawSection";
@@ -265,7 +266,7 @@ export async function generatePdf(
       );
       if (binding) {
         const raw = resolveChartItems(binding, data);
-        const { items, total } = aggregateChartItems(raw, schema.topN ?? 7, schema.sortBy ?? "value_desc");
+        const { items, total } = aggregateChartItems(raw, schema.topN ?? 7, schema.sortBy ?? "value_desc", resolveChartColors(schema.colorPalette, schema.customPaletteColors));
         drawChart(page, font, schema, items, total, xPt, yPt + heightPt, widthPt, heightPt);
       }
       return;

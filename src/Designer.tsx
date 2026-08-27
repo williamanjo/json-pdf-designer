@@ -30,13 +30,67 @@ import { classifyZone, isRedZone } from "./zones";
 import { GRID_SIZE_MM, snapToGrid } from "./units";
 import { fileToBackgroundImage } from "./pdf/backgroundImage";
 import { toErrorMessage } from "./errorUtils";
+import { chartFilterIncomplete } from "./fieldWarnings";
+import { I18nProvider, useT, type Locale } from "./i18n";
 import { applyOrientation, matchPreset, orientationOf, PAGE_SIZE_PRESETS } from "./pageSizes";
 import { PageCanvas } from "./components/PageCanvas";
 import { PropertyPanel } from "./components/PropertyPanel";
+import { ChartFilterTab } from "./components/PropertyPanelChart";
+import { PositionFields } from "./components/PropertyPanelFields";
 import { FieldList } from "./components/FieldList";
 import { Toolbar } from "./components/Toolbar";
-import { Button, Card, Input, Select } from "./components/ui";
-import { IconUpload } from "./components/ui/icons";
+import { Badge, Button, Card, CardHeader, Input, Select, TabPanel } from "./components/ui";
+import { IconAlertTriangle, IconPlus, IconUpload, IconX } from "./components/ui/icons";
+
+// Tipo do campo selecionado tem aba "Estilo" própria? Texto/tabela/
+// gráfico/KPI têm conteúdo visual pra separar de "Dados" — imagem (só um
+// data URI) e seção (só um grupo + vínculo) não têm nada pra pôr lá.
+function hasEstiloTab(type: Schema["type"]): boolean {
+  return type === "text" || type === "table" || type === "chart" || type === "kpi";
+}
+
+type OptionalTab = "dados" | "estilo" | "filtro";
+type TabKey = "campos" | OptionalTab | "pagina";
+// Abas fixáveis/escondíveis no "×" — as três de edição de campo mais
+// "Página". "Campos" fica de fora (sempre precisa de um jeito de
+// selecionar/adicionar campo, senão não tem como reabrir nada).
+type HideableTab = OptionalTab | "pagina";
+
+// Ordem das abas e quais estão fixadas/escondidas — preferência do
+// usuário, sobrevive a reload (localStorage). Tenta ler; se o navegador
+// bloquear (modo privado) ou não existir `localStorage` (SSR), cai pro
+// padrão sem quebrar — é só uma preferência de UI, não dado do relatório.
+const ALL_TAB_KEYS: TabKey[] = ["campos", "dados", "estilo", "filtro", "pagina"];
+const TAB_ORDER_STORAGE_KEY = "json-pdf-designer:tab-order";
+const HIDDEN_TABS_STORAGE_KEY = "json-pdf-designer:hidden-tabs";
+
+function loadTabOrder(): TabKey[] {
+  try {
+    const raw = localStorage.getItem(TAB_ORDER_STORAGE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (!Array.isArray(parsed)) return [...ALL_TAB_KEYS];
+    const valid = parsed.filter((k): k is TabKey => ALL_TAB_KEYS.includes(k));
+    // Chave nova que uma versão futura adicione entra no fim, em vez de
+    // sumir porque a ordem salva é de antes dela existir.
+    const missing = ALL_TAB_KEYS.filter((k) => !valid.includes(k));
+    return [...valid, ...missing];
+  } catch {
+    return [...ALL_TAB_KEYS];
+  }
+}
+
+function loadHiddenTabs(): ReadonlySet<HideableTab> {
+  try {
+    const raw = localStorage.getItem(HIDDEN_TABS_STORAGE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(
+      parsed.filter((k): k is HideableTab => k === "dados" || k === "estilo" || k === "filtro" || k === "pagina")
+    );
+  } catch {
+    return new Set();
+  }
+}
 
 type Props = {
   template: Template;
@@ -53,23 +107,53 @@ type Props = {
   // Arrays conhecidos do JSON de exemplo — vira dropdown "Data Source" no
   // vínculo de tabela (ver BindingEditor). Sem isso, path digitado livre.
   dataSources?: DataSourceOption[];
+  // Idioma da UI do designer (botões, abas, avisos) — default "en". Só
+  // afeta o que este componente FALA com quem monta o relatório; não
+  // muda como o PDF gerado formata data/moeda (isso é {DATE(...)}/
+  // {CURRENCY(...)} escrito no próprio template, ver bindings.ts).
+  locale?: Locale;
 };
 
 // Canvas do editor: página em mm, cada campo arrasta/redimensiona livre
 // (react-rnd). Seleção abre o painel de propriedades — que já inclui o
-// vínculo com o JSON, sem ponte nenhuma (tudo é React normal).
-export default function Designer({ template, onChangeTemplate, bindings, onChangeBindings, onCanvasDrop, dataSources }: Props) {
+// vínculo com o JSON, sem ponte nenhuma (tudo é React normal). Provider
+// de i18n fica AQUI FORA (não dá pra um componente consumir o contexto
+// que ele mesmo declara) — a lógica de verdade mora em DesignerInner.
+export default function Designer({ locale = "en", ...props }: Props) {
+  return (
+    <I18nProvider locale={locale}>
+      <DesignerInner {...props} />
+    </I18nProvider>
+  );
+}
+
+function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings, onCanvasDrop, dataSources }: Omit<Props, "locale">) {
+  const t = useT();
   // Seleção múltipla (Ctrl/Cmd+clique) — o último clicado é o "principal"
   // (quem aparece no painel de propriedades); os demais só ganham
   // destaque no canvas e movem junto quando o principal é arrastado.
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const selectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
+  // Abas "Dados"/"Estilo"/"Filtro" que o usuário fechou no "×" (ver botão
+  // na própria aba) — fica fora da barra até ele reabrir pelo "+", mesmo
+  // pra outros campos cujo tipo normalmente mostraria essa aba. É um
+  // "fixar/desafixar" simples: não é por campo, é global pro designer
+  // inteiro (uma preferência de "eu não uso a aba Estilo", não uma
+  // memória por campo).
+  const [hiddenOptionalTabs, setHiddenOptionalTabs] = useState<ReadonlySet<HideableTab>>(loadHiddenTabs);
 
   function handleSelect(id: string | null, additive?: boolean) {
     if (id === null) {
       setSelectedIds([]);
       return;
     }
+    // Não força troca de aba — fica onde o usuário já estava (Campos
+    // continua Campos, Estilo continua Estilo se o novo campo também tem
+    // Estilo, etc.). Só reabre se a aba tava fechada (duplo clique). A
+    // guarda mais abaixo (useEffect) cuida de sair de uma aba que não faz
+    // mais sentido pro tipo do novo campo (ex: tava em "Filtro" e
+    // selecionou uma seção).
+    setSidebarCollapsed(false);
     if (!additive) {
       setSelectedIds([id]);
       return;
@@ -80,6 +164,9 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
   // Caixa de seleção (arrastar no fundo do canvas) — substitui a seleção
   // pelos ids que caíram dentro da caixa, ou soma (Ctrl/Cmd segurado).
   function handleSelectMany(ids: string[], additive?: boolean) {
+    if (ids.length > 0) {
+      setSidebarCollapsed(false);
+    }
     setSelectedIds((prev) => {
       if (!additive) return ids;
       const merged = new Set(prev);
@@ -98,6 +185,47 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
   // rejeitar — sem isso a promise quebrava em silêncio (console only),
   // upload "sumia" sem o usuário entender por quê.
   const [backgroundUploadError, setBackgroundUploadError] = useState<string | null>(null);
+  // Aba do painel lateral direito — "Campos" (lista) e "Página"
+  // (tamanho/orientação/margem/fundo) sempre acessíveis; "Dados"/"Estilo"/
+  // "Filtro" só existem enquanto um campo está selecionado (ver guarda
+  // logo abaixo, que troca de volta pra "campos" quando a seleção some).
+  const [sidebarTab, setSidebarTab] = useState<TabKey>("campos");
+  // Duplo clique na aba ativa fecha (encolhe) o conteúdo; clique simples
+  // reabre — ver TabPanel/comentário equivalente em PropertyPanelChart.tsx.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Ordem de exibição das 5 abas — arrastar uma em cima da outra troca de
+  // posição (ver reorderTabs), independente de estar visível ou não no
+  // momento (uma aba escondida guarda o lugar dela pra quando reaparecer).
+  const [tabOrder, setTabOrder] = useState<TabKey[]>(loadTabOrder);
+  const [draggedTab, setDraggedTab] = useState<TabKey | null>(null);
+  // Aba sobrevoada durante o arraste — mostra a barrinha indicadora (a
+  // arrastada vai parar ANTES dela, ver reorderTabs).
+  const [dragOverTab, setDragOverTab] = useState<TabKey | null>(null);
+
+  function reorderTabs(from: TabKey, to: TabKey) {
+    if (from === to) return;
+    setTabOrder((prev) => {
+      const next = prev.filter((k) => k !== from);
+      next.splice(next.indexOf(to), 0, from);
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(tabOrder));
+    } catch {
+      // Modo privado, storage cheio, ou sem localStorage (SSR) — a
+      // preferência simplesmente não persiste, sem quebrar o designer.
+    }
+  }, [tabOrder]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(HIDDEN_TABS_STORAGE_KEY, JSON.stringify([...hiddenOptionalTabs]));
+    } catch {
+      // Idem.
+    }
+  }, [hiddenOptionalTabs]);
 
   function updateSchema(id: string, patch: Partial<Schema>) {
     onChangeTemplate((prev) => ({
@@ -201,7 +329,7 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
   // conhecida (dataSources) — nesse caso o binding "section" já nasce
   // pronto, sem precisar digitar o path no BindingEditor depois.
   function createSection(sourcePath?: string) {
-    const section = addSchema(makeSectionSchema(nextFreeY(template.schemas))) as SectionSchema;
+    const section = addSchema(makeSectionSchema(nextFreeY(template.schemas), t)) as SectionSchema;
     if (sourcePath) {
       onChangeBindings((prev) => [...prev, { schemaName: section.name, type: "section", path: sourcePath }]);
     }
@@ -211,7 +339,7 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
   // Soltar um "chip" de coluna (arrastado do PropertyPanel de uma seção
   // vinculada) no canvas — cria o par header+valor, já membros da seção.
   function dropSectionColumn(payload: SectionColumnDragPayload, xMm: number, yMm: number) {
-    const { header, value, valueBinding } = makeSectionColumnPair(payload.sectionId, payload.column, xMm, yMm);
+    const { header, value, valueBinding } = makeSectionColumnPair(payload.sectionId, payload.column, xMm, yMm, t);
     onChangeTemplate((prev) => ({ ...prev, schemas: [...prev.schemas, header, value] }));
     onChangeBindings((prev) => [...prev, valueBinding]);
   }
@@ -306,8 +434,8 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
       clip.schemas.forEach((s) => idMap.set(s.id, uid()));
       const usedNames = new Set(template.schemas.map((s) => s.name));
       function freshName(base: string): string {
-        let candidate = `${base}_copia`;
-        while (usedNames.has(candidate)) candidate = `${base}_copia_${Math.random().toString(36).slice(2, 5)}`;
+        let candidate = `${base}_${t.schemaDefaults.pasteSuffix}`;
+        while (usedNames.has(candidate)) candidate = `${base}_${t.schemaDefaults.pasteSuffix}_${Math.random().toString(36).slice(2, 5)}`;
         usedNames.add(candidate);
         return candidate;
       }
@@ -343,7 +471,7 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedIds, template.schemas, template.page.width, template.page.height, bindings, onChangeTemplate, onChangeBindings]);
+  }, [selectedIds, template.schemas, template.page.width, template.page.height, bindings, onChangeTemplate, onChangeBindings, t]);
 
   function setBinding(schemaName: string, binding: Binding | null) {
     onChangeBindings((prev) => {
@@ -376,6 +504,58 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
   }
 
   const selected = template.schemas.find((s) => s.id === selectedId) ?? null;
+  const selectedBinding = selected ? bindings.find((b) => b.schemaName === selected.name) : undefined;
+  // Ícone de alerta na própria aba — mesma regra de FieldList.tsx
+  // (fieldWarnings.ts), só que dividida por aba: falta vínculo aparece em
+  // "Dados", filtro incompleto aparece em "Filtro".
+  const dadosWarning = !!selected && (selected.type === "section" || selected.type === "chart") && !selectedBinding;
+  const filtroWarning = selected?.type === "chart" && chartFilterIncomplete(selectedBinding);
+  const chartColumns =
+    selected?.type === "chart" && selectedBinding?.type === "chart"
+      ? dataSources?.find((d) => d.path === selectedBinding.path)?.columns ?? []
+      : [];
+
+  // Menu "+" (lista as abas escondidas que caberiam pro campo atual).
+  const [tabMenuOpen, setTabMenuOpen] = useState(false);
+  // "×" na própria aba — fixa ela como escondida (guarda logo acima tira
+  // o usuário de cima dela se for a ativa). "+" reabre (ver JSX da barra
+  // de abas) chamando de volta com o mesmo nome.
+  function hideOptionalTab(tab: HideableTab) {
+    setHiddenOptionalTabs((prev) => new Set(prev).add(tab));
+  }
+  function showOptionalTab(tab: HideableTab) {
+    setHiddenOptionalTabs((prev) => {
+      const next = new Set(prev);
+      next.delete(tab);
+      return next;
+    });
+    setSidebarTab(tab);
+    setSidebarCollapsed(false);
+    setTabMenuOpen(false);
+  }
+
+  // Guarda contra aba órfã — "Campos" sempre existe, nunca precisa de
+  // guarda; "Página" só precisa checar se o usuário não a escondeu;
+  // "Dados"/"Estilo"/"Filtro" também dependem de ter campo selecionado
+  // do tipo certo. Qualquer aba que deixe de valer pra situação atual
+  // (seleção sumiu, mudou de tipo, ou o usuário fechou a ativa no "×")
+  // cai pra "Campos" — nunca fica sem nenhuma aba marcada.
+  useEffect(() => {
+    if (sidebarTab === "campos") return;
+    if (sidebarTab === "pagina") {
+      if (hiddenOptionalTabs.has("pagina")) setSidebarTab("campos");
+      return;
+    }
+    if (!selected) {
+      setSidebarTab("campos");
+      return;
+    }
+    const stillEligible =
+      (sidebarTab === "dados" && !hiddenOptionalTabs.has("dados")) ||
+      (sidebarTab === "estilo" && hasEstiloTab(selected.type) && !hiddenOptionalTabs.has("estilo")) ||
+      (sidebarTab === "filtro" && selected.type === "chart" && !hiddenOptionalTabs.has("filtro"));
+    if (!stillEligible) setSidebarTab("campos");
+  }, [selected, sidebarTab, hiddenOptionalTabs]);
 
   // Fonte de dados conhecida da tabela, pra mostrar a lista de colunas
   // disponíveis pra adicionar com "+" (ver PropertyPanel.tsx) — dois casos:
@@ -636,8 +816,34 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
       const backgroundImage = await fileToBackgroundImage(file);
       onChangeTemplate((prev) => ({ ...prev, backgroundImage }));
     } catch (err) {
-      setBackgroundUploadError(toErrorMessage(err, "Não deu pra carregar esse arquivo como fundo."));
+      setBackgroundUploadError(toErrorMessage(err, t.pageSettings.backgroundUploadError));
     }
+  }
+
+  // "Campos" é a única fixa de verdade (sem "×") — precisa de um jeito
+  // sempre disponível de selecionar/adicionar campo. As outras quatro
+  // entram e saem conforme o tipo do campo selecionado (Dados/Estilo/
+  // Filtro) e o que o usuário já escondeu (hiddenOptionalTabs, inclui
+  // "Página"). "removable" só marca quem pode ganhar o "×" quando ativa.
+  const tabDefs: Record<TabKey, { label: string; eligible: boolean; warning: boolean; removable: boolean }> = {
+    campos: { label: t.tabBar.fields, eligible: true, warning: false, removable: false },
+    dados: { label: t.tabBar.data, eligible: !!selected, warning: dadosWarning, removable: true },
+    estilo: { label: t.tabBar.style, eligible: !!selected && hasEstiloTab(selected.type), warning: false, removable: true },
+    filtro: { label: t.tabBar.filter, eligible: selected?.type === "chart", warning: filtroWarning, removable: true },
+    pagina: { label: t.tabBar.page, eligible: true, warning: false, removable: true },
+  };
+  const orderedVisibleTabs = tabOrder
+    .map((key) => ({ key, ...tabDefs[key] }))
+    .filter((t) => t.eligible && !(t.removable && hiddenOptionalTabs.has(t.key as HideableTab)));
+  const addableOptionalTabs = (["dados", "estilo", "filtro", "pagina"] as const)
+    .map((key) => ({ key, ...tabDefs[key] }))
+    .filter((t) => t.eligible && hiddenOptionalTabs.has(t.key));
+  const tabsCustomized = hiddenOptionalTabs.size > 0 || tabOrder.some((k, i) => k !== ALL_TAB_KEYS[i]);
+
+  function restoreDefaultTabs() {
+    setTabOrder([...ALL_TAB_KEYS]);
+    setHiddenOptionalTabs(new Set());
+    setTabMenuOpen(false);
   }
 
   return (
@@ -661,63 +867,135 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
           onDropSectionColumn={dropSectionColumn}
         />
 
-        <Card className="flex w-72 flex-shrink-0 flex-col gap-3 p-3.5">
-          <div>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Campos</h3>
-            <div className="max-h-48 overflow-y-auto">
-              <FieldList
-                schemas={fieldListSchemas}
-                selectedIds={selectedIds}
-                onSelect={handleSelect}
-                onRemove={removeSchema}
-                onToggleLock={(id) => updateSchema(id, { locked: !template.schemas.find((s) => s.id === id)?.locked })}
-              />
-            </div>
+        <Card className="flex w-80 flex-shrink-0 flex-col gap-3 p-3.5">
+          <div className="flex flex-nowrap items-center gap-0.5 border-b border-slate-200 dark:border-gray-700">
+            {orderedVisibleTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                draggable
+                onDragStart={(e) => { setDraggedTab(tab.key); e.dataTransfer.effectAllowed = "move"; }}
+                onDragOver={(e) => { e.preventDefault(); if (draggedTab && draggedTab !== tab.key) setDragOverTab(tab.key); }}
+                onDragLeave={() => setDragOverTab((cur) => (cur === tab.key ? null : cur))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (draggedTab) reorderTabs(draggedTab, tab.key);
+                  setDraggedTab(null);
+                  setDragOverTab(null);
+                }}
+                onDragEnd={() => { setDraggedTab(null); setDragOverTab(null); }}
+                onClick={() => { setSidebarTab(tab.key); setSidebarCollapsed(false); }}
+                onDoubleClick={() => setSidebarCollapsed((c) => !c)}
+                title={t.tabBar.dragToReorder}
+                className={`relative flex flex-shrink-0 cursor-grab items-center gap-0.5 whitespace-nowrap px-2 py-1.5 text-xs font-medium active:cursor-grabbing ${
+                  draggedTab === tab.key ? "opacity-40" : ""
+                } ${
+                  sidebarTab === tab.key
+                    ? "border-b-2 border-sky-500 text-sky-600 dark:border-blue-400 dark:text-blue-400"
+                    : "text-slate-500 hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
+              >
+                {/* Indicador de onde a aba arrastada vai parar (antes desta). */}
+                {dragOverTab === tab.key && draggedTab && draggedTab !== tab.key && (
+                  <span className="absolute -left-0.5 top-0.5 bottom-0.5 w-0.5 rounded bg-sky-500 dark:bg-blue-400" />
+                )}
+                {tab.label}
+                {tab.warning && <IconAlertTriangle className="h-3 w-3 flex-shrink-0 text-amber-500 dark:text-amber-400" />}
+                {/* Fixar/esconder — só na aba ativa (senão não cabe todo mundo
+                    junto na barra) — some pra todo campo até reabrir no "+". */}
+                {tab.removable && sidebarTab === tab.key && (
+                  <span
+                    role="button"
+                    aria-label={t.tabBar.pinAria(tab.label)}
+                    title={t.tabBar.pinTitle(tab.label)}
+                    onClick={(e) => { e.stopPropagation(); hideOptionalTab(tab.key as HideableTab); }}
+                    className="-mr-1 cursor-pointer rounded p-0.5 text-current opacity-60 hover:bg-slate-200 hover:opacity-100 dark:hover:bg-gray-600"
+                  >
+                    <IconX className="h-2.5 w-2.5" />
+                  </span>
+                )}
+              </button>
+            ))}
+
+            {/* "+" sempre no final da barra — reabre aba escondida e/ou
+                restaura ordem/visibilidade padrão. Só aparece quando há
+                algo pra mexer (aba escondida ou ordem já alterada). */}
+            {(addableOptionalTabs.length > 0 || tabsCustomized) && (
+              <div className="relative ml-auto flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTabMenuOpen((o) => !o)}
+                  title={t.tabBar.reopenOrRestoreTitle}
+                  aria-label={t.tabBar.reopenOrRestoreTitle}
+                  className="flex items-center justify-center rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-gray-500 dark:hover:bg-gray-700"
+                >
+                  <IconPlus className="h-3.5 w-3.5" />
+                </button>
+                {tabMenuOpen && (
+                  <div className="absolute right-0 top-full z-10 mt-1 flex flex-col gap-0.5 rounded-lg border border-slate-200 bg-white p-1 shadow-md dark:border-gray-600 dark:bg-gray-800">
+                    {addableOptionalTabs.map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => showOptionalTab(tab.key)}
+                        className="whitespace-nowrap rounded-md px-2 py-1 text-left text-xs text-slate-700 hover:bg-sky-50 dark:text-gray-200 dark:hover:bg-blue-400/10"
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                    {tabsCustomized && (
+                      <>
+                        {addableOptionalTabs.length > 0 && <div className="my-0.5 border-t border-slate-200 dark:border-gray-600" />}
+                        <button
+                          type="button"
+                          onClick={restoreDefaultTabs}
+                          className="whitespace-nowrap rounded-md px-2 py-1 text-left text-xs text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                        >
+                          {t.tabBar.restoreDefault}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="border-t border-slate-200 pt-3 dark:border-gray-700">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Editar campo</h3>
-            {selectedIds.length > 1 && (
-              <p className="mb-2 text-[11px] text-sky-600 dark:text-blue-400">
-                {selectedIds.length} campos selecionados — arraste o de baixo pra mover todos junto. Editando: {selected?.name}.
-              </p>
-            )}
-            {selected ? (
-              <PropertyPanel
-                key={selected.id}
-                schema={selected}
-                binding={bindings.find((b) => b.schemaName === selected.name)}
-                onChangeSchema={(patch) => updateSchema(selected.id, patch)}
-                onChangeBinding={(b) => handleChangeBinding(selected.name, b)}
-                onRemove={() => removeSchema(selected.id)}
-                onBringToFront={() => bringToFront(selected.id)}
-                onSendToBack={() => sendToBack(selected.id)}
-                dataSources={dataSources}
-                tableDataSource={findTableDataSource(selected)}
-                onSetHeadList={setTableHead}
-                onAddTableColumn={addTableColumn}
-                onRemoveTableColumn={removeTableColumn}
-                onReorderTableColumn={reorderTableColumn}
-                onSetColumnStyle={setColumnStyle}
-                onSetColumnFormula={setColumnFormula}
-              />
-            ) : (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-slate-400 dark:text-gray-400">Selecione um campo na lista ou no canvas pra editar, ou adicione um novo:</p>
+          <TabPanel collapsed={sidebarCollapsed}>
+          {sidebarTab === "campos" && (
+            <>
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t.fieldsPanel.heading}</h3>
+                <div className="max-h-48 overflow-y-auto">
+                  <FieldList
+                    schemas={fieldListSchemas}
+                    selectedIds={selectedIds}
+                    onSelect={handleSelect}
+                    onRemove={removeSchema}
+                    onToggleLock={(id) => updateSchema(id, { locked: !template.schemas.find((s) => s.id === id)?.locked })}
+                    onBringToFront={bringToFront}
+                    onSendToBack={sendToBack}
+                    bindings={bindings}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-slate-200 pt-3 dark:border-gray-700">
+                <p className="text-xs text-slate-400 dark:text-gray-400">{t.fieldsPanel.selectHint}</p>
                 <Toolbar
-                  onAddText={() => addSchema(makeTextSchema(nextFreeY(template.schemas)))}
-                  onAddTable={() => addSchema(makeTableSchema(nextFreeY(template.schemas)))}
-                  onAddImage={() => addSchema(makeImageSchema(nextFreeY(template.schemas)))}
+                  onAddText={() => addSchema(makeTextSchema(nextFreeY(template.schemas), t))}
+                  onAddTable={() => addSchema(makeTableSchema(nextFreeY(template.schemas), t))}
+                  onAddImage={() => addSchema(makeImageSchema(nextFreeY(template.schemas), t))}
                   onAddSection={() => setShowSectionPicker(true)}
-                  onAddChart={() => addSchema(makeChartSchema(nextFreeY(template.schemas)))}
-                  onAddKpi={() => addSchema(makeKpiSchema(nextFreeY(template.schemas)))}
+                  onAddChart={() => addSchema(makeChartSchema(nextFreeY(template.schemas), t))}
+                  onAddKpi={() => addSchema(makeKpiSchema(nextFreeY(template.schemas), t))}
                 />
                 {showSectionPicker && (
                   <div className="flex flex-col gap-1.5 rounded-lg border border-purple-300 bg-purple-50/60 p-2.5 dark:border-purple-700 dark:bg-purple-900/30">
-                    <p className="text-xs font-medium text-purple-800 dark:text-purple-300">Que tipo de seção?</p>
+                    <p className="text-xs font-medium text-purple-800 dark:text-purple-300">{t.fieldsPanel.sectionTypeQuestion}</p>
                     <div className="flex flex-wrap gap-1.5">
                       <Button variant="outline" onClick={() => createSection()}>
-                        Vazia (grupo livre)
+                        {t.fieldsPanel.sectionEmpty}
                       </Button>
                       {(dataSources ?? []).map((d) => (
                         <Button key={d.path} variant="outline" onClick={() => createSection(d.path)}>
@@ -726,87 +1004,141 @@ export default function Designer({ template, onChangeTemplate, bindings, onChang
                       ))}
                     </div>
                     {(!dataSources || dataSources.length === 0) && (
-                      <p className="text-[10px] text-purple-600 dark:text-purple-400">Nenhuma fonte de dados (array) detectada no JSON ainda.</p>
+                      <p className="text-[10px] text-purple-600 dark:text-purple-400">{t.fieldsPanel.noDataSource}</p>
                     )}
                     <Button variant="ghost" onClick={() => setShowSectionPicker(false)}>
-                      Cancelar
+                      {t.fieldsPanel.cancel}
                     </Button>
                   </div>
                 )}
-                <div className="flex flex-col gap-2 border-t border-slate-200 pt-2 dark:border-gray-700">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Select
-                      label="Tamanho da página"
-                      value={matchPreset(template.page) ?? ""}
-                      onChange={(e) => setPagePreset(e.target.value)}
-                    >
-                      {!matchPreset(template.page) && <option value="">Personalizado</option>}
-                      {PAGE_SIZE_PRESETS.map((p) => (
-                        <option key={p.name} value={p.name}>
-                          {p.label}
-                        </option>
-                      ))}
-                    </Select>
-                    <Select
-                      label="Orientação"
-                      value={orientationOf(template.page)}
-                      onChange={(e) => setPageOrientation(e.target.value as "portrait" | "landscape")}
-                    >
-                      <option value="portrait">Retrato</option>
-                      <option value="landscape">Paisagem</option>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      label="Cabeçalho (mm)"
-                      type="number"
-                      min={0}
-                      value={template.headerHeight ?? 0}
-                      onChange={(e) => updatePageBand({ headerHeight: Number(e.target.value) || 0 })}
-                    />
-                    <Input
-                      label="Rodapé (mm)"
-                      type="number"
-                      min={0}
-                      value={template.footerHeight ?? 0}
-                      onChange={(e) => updatePageBand({ footerHeight: Number(e.target.value) || 0 })}
-                    />
-                    <Input
-                      label="Margem esq. (mm)"
-                      type="number"
-                      min={0}
-                      value={template.marginLeft ?? 0}
-                      onChange={(e) => updatePageBand({ marginLeft: Number(e.target.value) || 0 })}
-                    />
-                    <Input
-                      label="Margem dir. (mm)"
-                      type="number"
-                      min={0}
-                      value={template.marginRight ?? 0}
-                      onChange={(e) => updatePageBand({ marginRight: Number(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-sky-600 px-2.5 py-1 text-xs font-medium text-sky-600 hover:bg-sky-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-400/10">
-                    <IconUpload /> PDF/imagem de fundo
-                    <input type="file" accept="application/pdf,image/png,image/jpeg" onChange={handleBackgroundUpload} hidden />
-                  </label>
-                  {template.backgroundImage && (
-                    <Button variant="ghost" onClick={() => onChangeTemplate((prev) => ({ ...prev, backgroundImage: undefined }))}>
-                      remover fundo
-                    </Button>
-                  )}
-                  {backgroundUploadError && <span className="text-xs text-red-600">{backgroundUploadError}</span>}
-                  <Button
-                    variant={isolateBands ? "primary" : "outline"}
-                    onClick={toggleIsolateBands}
-                    title="Mostra só os campos do cabeçalho/rodapé/margem, esconde o resto da página"
-                  >
-                    {isolateBands ? "Editando cabeçalho/rodapé/margem" : "Editar cabeçalho/rodapé/margem"}
-                  </Button>
-                </div>
               </div>
-            )}
-          </div>
+            </>
+          )}
+
+          {(sidebarTab === "dados" || sidebarTab === "estilo" || sidebarTab === "filtro") && selected && (
+            <div className="flex flex-col gap-3">
+              {/* Enviar/trazer e remover já vivem na linha selecionada da
+                  lista (aba "Campos") — sem duplicar aqui. */}
+              <CardHeader>
+                <Badge>{selected.name}</Badge>
+              </CardHeader>
+              {selectedIds.length > 1 && (
+                <p className="text-[11px] text-sky-600 dark:text-blue-400">
+                  {t.fieldsPanel.multiSelected(selectedIds.length, selected.name)}
+                </p>
+              )}
+
+              {sidebarTab === "dados" && (
+                <PositionFields schema={selected} onChangeSchema={(patch) => updateSchema(selected.id, patch)} />
+              )}
+
+              {(sidebarTab === "dados" || sidebarTab === "estilo") && (
+                <PropertyPanel
+                  key={selected.id}
+                  schema={selected}
+                  binding={selectedBinding}
+                  activeTab={sidebarTab}
+                  onChangeSchema={(patch) => updateSchema(selected.id, patch)}
+                  onChangeBinding={(b) => handleChangeBinding(selected.name, b)}
+                  dataSources={dataSources}
+                  tableDataSource={findTableDataSource(selected)}
+                  onSetHeadList={setTableHead}
+                  onAddTableColumn={addTableColumn}
+                  onRemoveTableColumn={removeTableColumn}
+                  onReorderTableColumn={reorderTableColumn}
+                  onSetColumnStyle={setColumnStyle}
+                  onSetColumnFormula={setColumnFormula}
+                />
+              )}
+
+              {sidebarTab === "filtro" && selected.type === "chart" && (
+                selectedBinding?.type === "chart" ? (
+                  <ChartFilterTab
+                    binding={selectedBinding}
+                    onChangeBinding={(b) => handleChangeBinding(selected.name, b)}
+                    columns={chartColumns}
+                  />
+                ) : (
+                  <p className="text-xs text-slate-400 dark:text-gray-400">{t.fieldsPanel.filterNeedsBinding}</p>
+                )
+              )}
+            </div>
+          )}
+
+          {sidebarTab === "pagina" && (
+            <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  label={t.pageSettings.pageSize}
+                  value={matchPreset(template.page) ?? ""}
+                  onChange={(e) => setPagePreset(e.target.value)}
+                >
+                  {!matchPreset(template.page) && <option value="">{t.pageSettings.customSize}</option>}
+                  {PAGE_SIZE_PRESETS.map((p) => (
+                    <option key={p.name} value={p.name}>
+                      {t.pageSizeLabels[p.name as keyof typeof t.pageSizeLabels] ?? p.label}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  label={t.pageSettings.orientation}
+                  value={orientationOf(template.page)}
+                  onChange={(e) => setPageOrientation(e.target.value as "portrait" | "landscape")}
+                >
+                  <option value="portrait">{t.pageSettings.portrait}</option>
+                  <option value="landscape">{t.pageSettings.landscape}</option>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label={t.pageSettings.header}
+                  type="number"
+                  min={0}
+                  value={template.headerHeight ?? 0}
+                  onChange={(e) => updatePageBand({ headerHeight: Number(e.target.value) || 0 })}
+                />
+                <Input
+                  label={t.pageSettings.footer}
+                  type="number"
+                  min={0}
+                  value={template.footerHeight ?? 0}
+                  onChange={(e) => updatePageBand({ footerHeight: Number(e.target.value) || 0 })}
+                />
+                <Input
+                  label={t.pageSettings.marginLeft}
+                  type="number"
+                  min={0}
+                  value={template.marginLeft ?? 0}
+                  onChange={(e) => updatePageBand({ marginLeft: Number(e.target.value) || 0 })}
+                />
+                <Input
+                  label={t.pageSettings.marginRight}
+                  type="number"
+                  min={0}
+                  value={template.marginRight ?? 0}
+                  onChange={(e) => updatePageBand({ marginRight: Number(e.target.value) || 0 })}
+                />
+              </div>
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-sky-600 px-2.5 py-1 text-xs font-medium text-sky-600 hover:bg-sky-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-400/10">
+                <IconUpload /> {t.pageSettings.backgroundUpload}
+                <input type="file" accept="application/pdf,image/png,image/jpeg" onChange={handleBackgroundUpload} hidden />
+              </label>
+              {template.backgroundImage && (
+                <Button variant="ghost" onClick={() => onChangeTemplate((prev) => ({ ...prev, backgroundImage: undefined }))}>
+                  {t.pageSettings.removeBackground}
+                </Button>
+              )}
+              {backgroundUploadError && <span className="text-xs text-red-600">{backgroundUploadError}</span>}
+              <Button
+                variant={isolateBands ? "primary" : "outline"}
+                onClick={toggleIsolateBands}
+                title={t.pageSettings.isolateTitle}
+              >
+                {isolateBands ? t.pageSettings.isolateOn : t.pageSettings.isolateOff}
+              </Button>
+            </div>
+          )}
+          </TabPanel>
         </Card>
       </div>
     </div>

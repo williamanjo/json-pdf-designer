@@ -3,6 +3,7 @@ import type { Binding, DataSourceOption, Schema } from "../types";
 import { CUSTOM_FIELD_FUNCTIONS, describeBindingShort } from "../bindings/bindings";
 import { parseColumnsInput, stringifyColumns } from "../bindings/columnParsing";
 import { splitDelimited } from "../bindings/splitDelimited";
+import { useT, withInlineCode } from "../i18n";
 import { Button, Input, Select } from "./ui";
 import { IconLink } from "./ui/icons";
 
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export function BindingEditor({ schema, binding, onChangeBinding, dataSources }: Props) {
+  const t = useT();
   const [bindingDraft, setBindingDraft] = useState(() => {
     if (binding?.type === "template") return binding.template;
     if (binding?.type === "array") return binding.path;
@@ -68,7 +70,17 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
     }
     if (schema.type === "chart") {
       if (!draft.trim() || !label || !value) return;
-      onChangeBinding({ schemaName: schema.name, type: "chart", path: draft.trim(), labelColumn: label, valueColumn: value });
+      // Filtro (aba própria "Filtro" no painel do gráfico, ver
+      // PropertyPanelChart.tsx) não é editado aqui — só preserva o que já
+      // tava salvo quando o resto do vínculo muda (fonte/coluna).
+      onChangeBinding({
+        schemaName: schema.name,
+        type: "chart",
+        path: draft.trim(),
+        labelColumn: label,
+        valueColumn: value,
+        filters: binding?.type === "chart" ? binding.filters : undefined,
+      });
       return;
     }
     if (schema.type === "table") {
@@ -95,7 +107,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
   }
 
   function insertFunctionAsColumn(snippet: string) {
-    const entry = `Nova coluna={${snippet}}`;
+    const entry = `${t.bindingEditor.newColumnPrefix}={${snippet}}`;
     const next = colsDraft ? `${colsDraft}, ${entry}` : entry;
     setColsDraft(next);
     applyBinding({ cols: next });
@@ -134,24 +146,19 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
     <div className="flex flex-col gap-2 rounded-lg border border-dashed border-sky-300 bg-sky-50/40 p-2.5 dark:border-blue-700 dark:bg-blue-900/20">
       <span className="flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-gray-300">
         <IconLink className="text-sky-500 dark:text-blue-400" />
-        Vínculo com o JSON
+        {t.bindingEditor.title}
       </span>
 
       {schema.type === "section" ? (
         <>
           <Input
-            placeholder="path do array a repetir — ex: Services"
+            placeholder={t.bindingEditor.sectionPlaceholder}
             value={bindingDraft}
             onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
             onDragOver={allowDrop}
             onDrop={handleDropOnDraft}
           />
-          <p className="text-[10px] text-slate-400 dark:text-gray-400">
-            A seção inteira repete uma vez por item deste array. Dentro
-            dela, o vínculo de cada campo é resolvido contra o ITEM atual
-            (não o documento todo) — use <code>{"{campo}"}</code> direto,
-            ou <code>{"{Line}"}</code> pro número da repetição (1, 2, 3...).
-          </p>
+          <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.bindingEditor.sectionHelp)}</p>
         </>
       ) : schema.type === "chart" ? (
         <>
@@ -170,7 +177,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
                 applyBinding({ draft: newDraft, label: textCol, value: numberCol });
               }}
             >
-              <option value="">Data Source — escolha um array do JSON</option>
+              <option value="">{t.bindingEditor.dataSourcePlaceholder}</option>
               {knownSources.map((d) => (
                 <option key={d.path} value={d.path}>
                   {d.label}
@@ -179,7 +186,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             </Select>
           ) : (
             <Input
-              placeholder="path do array — ex: agentes"
+              placeholder={t.bindingEditor.chartPathPlaceholder}
               value={bindingDraft}
               onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
               onDragOver={allowDrop}
@@ -191,60 +198,61 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             const columns = source?.columns ?? [];
             return (
               <div className="grid grid-cols-2 gap-2">
-                {columns.length > 0 ? (
-                  <Select
-                    value={labelColumn}
-                    onChange={(e) => {
-                      setLabelColumn(e.target.value);
-                      applyBinding({ label: e.target.value });
-                    }}
-                  >
-                    <option value="">Coluna do rótulo</option>
-                    {columns.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </Select>
-                ) : (
-                  <Input
-                    placeholder="coluna do rótulo — ex: label"
-                    value={labelColumn}
-                    onChange={(e) => { setLabelColumn(e.target.value); applyBinding({ label: e.target.value }); }}
-                    onDragOver={allowDrop}
-                    onDrop={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setLabelColumn(col); applyBinding({ label: col }); }}
-                  />
-                )}
-                {columns.length > 0 ? (
-                  <Select
-                    value={valueColumn}
-                    onChange={(e) => {
-                      setValueColumn(e.target.value);
-                      applyBinding({ value: e.target.value });
-                    }}
-                  >
-                    <option value="">Coluna numérica</option>
-                    {columns.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                        {source?.columnTypes?.[c] === "number" ? "" : " (não-numérica)"}
-                      </option>
-                    ))}
-                  </Select>
-                ) : (
-                  <Input
-                    placeholder="coluna numérica — ex: value"
-                    value={valueColumn}
-                    onChange={(e) => { setValueColumn(e.target.value); applyBinding({ value: e.target.value }); }}
-                    onDragOver={allowDrop}
-                    onDrop={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setValueColumn(col); applyBinding({ value: col }); }}
-                  />
-                )}
-              </div>
+                  {columns.length > 0 ? (
+                    <Select
+                      value={labelColumn}
+                      onChange={(e) => {
+                        setLabelColumn(e.target.value);
+                        applyBinding({ label: e.target.value });
+                      }}
+                    >
+                      <option value="">{t.bindingEditor.labelColumnPlaceholder}</option>
+                      {columns.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Input
+                      placeholder={t.bindingEditor.labelColumnInputPlaceholder}
+                      value={labelColumn}
+                      onChange={(e) => { setLabelColumn(e.target.value); applyBinding({ label: e.target.value }); }}
+                      onDragOver={allowDrop}
+                      onDrop={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setLabelColumn(col); applyBinding({ label: col }); }}
+                    />
+                  )}
+                  {columns.length > 0 ? (
+                    <Select
+                      value={valueColumn}
+                      onChange={(e) => {
+                        setValueColumn(e.target.value);
+                        applyBinding({ value: e.target.value });
+                      }}
+                    >
+                      <option value="">{t.bindingEditor.valueColumnPlaceholder}</option>
+                      {columns.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                          {source?.columnTypes?.[c] === "number" ? "" : t.bindingEditor.notNumericSuffix}
+                        </option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Input
+                      placeholder={t.bindingEditor.valueColumnInputPlaceholder}
+                      value={valueColumn}
+                      onChange={(e) => { setValueColumn(e.target.value); applyBinding({ value: e.target.value }); }}
+                      onDragOver={allowDrop}
+                      onDrop={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setValueColumn(col); applyBinding({ value: col }); }}
+                    />
+                  )}
+                </div>
             );
           })()}
           <p className="text-[10px] text-slate-400 dark:text-gray-400">
-            O gráfico agrupa os itens desse array por <strong>{labelColumn || "rótulo"}</strong>, somando{" "}
-            <strong>{valueColumn || "a coluna numérica"}</strong> — os maiores viram fatias/barras próprias, o resto
-            vira "Outros" (ver painel de estilo pra trocar quantos).
+            {t.bindingEditor.chartHelp(
+              labelColumn || t.bindingEditor.chartHelpDefaultLabel,
+              valueColumn || t.bindingEditor.chartHelpDefaultValue
+            )}
           </p>
         </>
       ) : schema.type === "table" ? (
@@ -262,7 +270,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
                 applyBinding({ draft: newDraft, cols: newCols });
               }}
             >
-              <option value="">Data Source — escolha um array do JSON</option>
+              <option value="">{t.bindingEditor.dataSourcePlaceholder}</option>
               {knownSources.map((d) => (
                 <option key={d.path} value={d.path}>
                   {d.label}
@@ -271,7 +279,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             </Select>
           ) : (
             <Input
-              placeholder="path do array — ex: rows (vazio = modo chave/valor)"
+              placeholder={t.bindingEditor.tablePathPlaceholderFree}
               value={bindingDraft}
               onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
               onDragOver={allowDrop}
@@ -279,23 +287,16 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             />
           )}
           <p className="text-[10px] text-slate-400 dark:text-gray-400">
-            Modo: <strong>{tableMode === "array" ? "array (1 linha por item)" : "chave/valor"}</strong>
+            {t.bindingEditor.modeLabel(tableMode === "array" ? t.bindingEditor.modeArray : t.bindingEditor.modeKeyValue)}
           </p>
           {schema.sectionId && tableMode === "array" && (
-            <p className="text-[10px] text-slate-400 dark:text-gray-400">
-              Dentro de uma seção — mestre-detalhe: o path acima é resolvido contra o ITEM atual da seção (não o
-              documento inteiro), e a seção cresce de altura pra caber as linhas de cada registro.
-            </p>
+            <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.bindingEditor.nestedHelp}</p>
           )}
           {!knownSources && (
             <>
               <Input
                 mono
-                placeholder={
-                  tableMode === "array"
-                    ? 'colunas do item — ex: id, nome, Total (R$)={CURRENCY(total_amount, "R$")}'
-                    : "paths soltos do JSON — ex: pagination.page, pagination.total"
-                }
+                placeholder={tableMode === "array" ? t.bindingEditor.colsArrayPlaceholder : t.bindingEditor.colsFreePlaceholder}
                 value={colsDraft}
                 onChange={(e) => { setColsDraft(e.target.value); applyBinding({ cols: e.target.value }); }}
                 onDragOver={allowDrop}
@@ -308,10 +309,10 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
                     if (e.target.value) insertFunctionAsColumn(e.target.value);
                   }}
                 >
-                  <option value="">+ inserir coluna calculada</option>
+                  <option value="">{t.bindingEditor.insertCalculatedColumn}</option>
                   {CUSTOM_FIELD_FUNCTIONS.map((fn) => (
-                    <option key={fn.name} value={fn.snippet} title={fn.hint}>
-                      {fn.name} — {fn.hint}
+                    <option key={fn.name} value={fn.snippet} title={t.fieldFunctions[fn.hintKey]}>
+                      {fn.name} — {t.fieldFunctions[fn.hintKey]}
                     </option>
                   ))}
                 </Select>
@@ -322,7 +323,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
       ) : (
         <>
           <Input
-            placeholder='path ou {FUNÇÃO(...)} — ex: {CURRENCY(total, "R$")}'
+            placeholder={t.bindingEditor.genericPlaceholder}
             value={bindingDraft}
             onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
             onDragOver={allowDrop}
@@ -334,10 +335,10 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
               if (e.target.value) insertFunctionIntoBinding(e.target.value);
             }}
           >
-            <option value="">+ inserir função</option>
+            <option value="">{t.bindingEditor.insertFunction}</option>
             {CUSTOM_FIELD_FUNCTIONS.map((fn) => (
-              <option key={fn.name} value={fn.snippet} title={fn.hint}>
-                {fn.name} — {fn.hint}
+              <option key={fn.name} value={fn.snippet} title={t.fieldFunctions[fn.hintKey]}>
+                {fn.name} — {t.fieldFunctions[fn.hintKey]}
               </option>
             ))}
           </Select>
@@ -346,9 +347,9 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
 
       {binding && (
         <div className="flex items-center justify-between">
-          <p className="text-[10px] text-slate-500 dark:text-gray-400">Vinculado: {describeBindingShort(binding)}</p>
+          <p className="text-[10px] text-slate-500 dark:text-gray-400">{t.bindingEditor.boundLabel(describeBindingShort(binding, t))}</p>
           <Button variant="danger" onClick={() => onChangeBinding(null)}>
-            Remover vínculo
+            {t.bindingEditor.removeBinding}
           </Button>
         </div>
       )}

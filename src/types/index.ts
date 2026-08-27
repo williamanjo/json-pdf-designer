@@ -13,7 +13,7 @@ export type {
   Template,
 } from "./schema";
 
-export type { TableColumn, Binding } from "./binding";
+export type { TableColumn, Binding, ChartFilterOp, ChartFilterCondition, ChartFilterGroup } from "./binding";
 
 export type {
   DataSourceColumnType,

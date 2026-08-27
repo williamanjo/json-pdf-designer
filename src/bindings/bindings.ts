@@ -1,6 +1,8 @@
-import type { Binding, TableColumn } from "../types";
+import type { Binding, ChartFilterCondition, ChartFilterGroup, ChartFilterOp, TableColumn } from "../types";
 import { splitDelimited } from "./splitDelimited";
 import { CHART_COLORS, CHART_OTHER_COLOR } from "../chartColors";
+import { en } from "../i18n/en";
+import type { Dict } from "../i18n";
 
 function ciGet(obj: unknown, path: string): unknown {
   if (!path) return obj;
@@ -26,8 +28,10 @@ export function columnKey(col: TableColumn): string {
 }
 
 // Texto descrevendo o vínculo — pra listas/uso em UI (detalhe completo,
-// com colunas).
-export function describeBinding(b: Binding): string {
+// com colunas). `t` só entra pro rótulo genérico de "chave/valor"/"seção
+// repetida" — o resto (path, nomes de coluna) é o dado real, alheio a
+// idioma.
+export function describeBinding(b: Binding, t: Dict = en): string {
   switch (b.type) {
     case "scalar":
       return b.path;
@@ -36,16 +40,16 @@ export function describeBinding(b: Binding): string {
     case "array":
       return `${b.path} [${b.columns.map(columnLabel).join(", ")}]`;
     case "keyvalue":
-      return `chave/valor [${b.paths.join(", ")}]`;
+      return `${t.binding.keyValue} [${b.paths.join(", ")}]`;
     case "section":
-      return `${b.path} (seção repetida)`;
+      return `${b.path} ${t.binding.repeatedSection}`;
     case "chart":
       return `${b.path} [${b.labelColumn} / ${b.valueColumn}]`;
   }
 }
 
 // Versão curta — só a fonte do dado, sem listar colunas (pra espaço apertado).
-export function describeBindingShort(b: Binding): string {
+export function describeBindingShort(b: Binding, t: Dict = en): string {
   switch (b.type) {
     case "scalar":
       return b.path;
@@ -54,7 +58,7 @@ export function describeBindingShort(b: Binding): string {
     case "array":
       return b.path;
     case "keyvalue":
-      return "chave/valor";
+      return t.binding.keyValue;
     case "section":
       return b.path;
     case "chart":
@@ -64,18 +68,21 @@ export function describeBindingShort(b: Binding): string {
 
 // Funções disponíveis num campo personalizado, usadas dentro de {...} no
 // template — ex: "Total: {SUM(rows.total_amount)} em {COUNT(rows)} linhas".
+// `hintKey` aponta pro texto explicativo em `t.fieldFunctions` (ver
+// BindingEditor.tsx/PropertyPanelTable.tsx) — nome/snippet ficam fixos
+// (sintaxe da função, não texto de UI).
 export const CUSTOM_FIELD_FUNCTIONS = [
-  { name: "SUM", snippet: "SUM(caminho.coluna)", hint: "soma uma coluna de um array" },
-  { name: "COUNT", snippet: "COUNT(caminho)", hint: "conta itens de um array" },
-  { name: "AVG", snippet: "AVG(caminho.coluna)", hint: "média de uma coluna de um array" },
-  { name: "CONCAT", snippet: 'CONCAT(a, " ", b)', hint: "junta campos e textos fixos" },
-  { name: "UPPER", snippet: "UPPER(caminho)", hint: "deixa em MAIÚSCULAS" },
-  { name: "LOWER", snippet: "LOWER(caminho)", hint: "deixa em minúsculas" },
-  { name: "TRIM", snippet: "TRIM(caminho)", hint: "tira espaço do início/fim do valor" },
-  { name: "DATE", snippet: 'DATE(caminho, "DD/MM/YYYY", "DD/MM/YYYY")', hint: "formata data — 3º arg opcional diz o formato de entrada, evita americano '/' virar mês/dia trocado" },
-  { name: "CURRENCY", snippet: 'CURRENCY(caminho, "R$", 2)', hint: "formata valor monetário — 3º arg opcional, casas decimais (default 2)" },
-  { name: "NUMBER", snippet: "NUMBER(caminho, 2)", hint: "controla casas decimais, tipo %.2f do C" },
-] as const;
+  { name: "SUM", snippet: "SUM(caminho.coluna)", hintKey: "sum" },
+  { name: "COUNT", snippet: "COUNT(caminho)", hintKey: "count" },
+  { name: "AVG", snippet: "AVG(caminho.coluna)", hintKey: "avg" },
+  { name: "CONCAT", snippet: 'CONCAT(a, " ", b)', hintKey: "concat" },
+  { name: "UPPER", snippet: "UPPER(caminho)", hintKey: "upper" },
+  { name: "LOWER", snippet: "LOWER(caminho)", hintKey: "lower" },
+  { name: "TRIM", snippet: "TRIM(caminho)", hintKey: "trim" },
+  { name: "DATE", snippet: 'DATE(caminho, "DD/MM/YYYY", "DD/MM/YYYY")', hintKey: "date" },
+  { name: "CURRENCY", snippet: 'CURRENCY(caminho, "R$", 2)', hintKey: "currency" },
+  { name: "NUMBER", snippet: "NUMBER(caminho, 2)", hintKey: "number" },
+] as const satisfies readonly { name: string; snippet: string; hintKey: keyof Dict["fieldFunctions"] }[];
 
 function resolveArg(arg: string, data: unknown): string {
   const quoted = arg.match(/^"(.*)"$/);
@@ -357,20 +364,50 @@ export function buildInputs(data: unknown, bindings: Binding[]): Record<string, 
 
 export type ChartItem = { label: string; value: number; color: string };
 
-// Lê o array bruto do vínculo "chart" e extrai {label, value} de cada item
-// (labelColumn/valueColumn, ver types/binding.ts) — sem agregar ainda.
+// Compara o valor cru do item (`raw`) contra `value` (sempre string, vem do
+// input do painel) segundo `op`. Number(...) dos dois lados quando possível
+// (compara como número — "10" > "9" numérico, não lexicográfico); cai pra
+// texto case-insensitive quando um dos dois não é número, ou sempre pra
+// "contains". gt/gte/lt/lte exigem os dois lados numéricos — não bate se
+// não der (nunca filtra tudo por engano/tipo errado, só não bate).
+function matchesFilterCondition(raw: unknown, op: ChartFilterOp, value: string): boolean {
+  if (op === "contains") return String(raw ?? "").toLowerCase().includes(value.toLowerCase());
+  const numRaw = Number(raw);
+  const numValue = Number(value);
+  const bothNumeric = raw !== "" && raw !== null && raw !== undefined && value.trim() !== "" && !Number.isNaN(numRaw) && !Number.isNaN(numValue);
+  if (op === "eq" || op === "neq") {
+    const equal = bothNumeric ? numRaw === numValue : String(raw ?? "").toLowerCase() === value.toLowerCase();
+    return op === "eq" ? equal : !equal;
+  }
+  if (!bothNumeric) return false;
+  if (op === "gt") return numRaw > numValue;
+  if (op === "gte") return numRaw >= numValue;
+  if (op === "lt") return numRaw < numValue;
+  return numRaw <= numValue; // "lte"
+}
+
+function matchesFilterGroups(item: Record<string, unknown>, groups: ChartFilterGroup[] | undefined): boolean {
+  if (!groups || groups.length === 0) return true;
+  return groups.some((group) => group.every((cond: ChartFilterCondition) => matchesFilterCondition(item[cond.column], cond.op, cond.value)));
+}
+
+// Lê o array bruto do vínculo "chart", aplica `filters` (grupos OU de
+// condições E — ver types/binding.ts) e extrai {label, value} de cada item
+// restante (labelColumn/valueColumn) — sem agregar ainda.
 export function resolveChartItems(binding: Extract<Binding, { type: "chart" }>, data: unknown): { label: string; value: number }[] {
   const arr = ciGet(data, binding.path);
   if (!Array.isArray(arr)) return [];
-  return arr.map((item) => {
-    const obj = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-    const rawLabel = obj[binding.labelColumn];
-    const rawValue = Number(obj[binding.valueColumn]);
-    return {
-      label: rawLabel === undefined || rawLabel === null ? "" : String(rawLabel),
-      value: Number.isNaN(rawValue) ? 0 : rawValue,
-    };
-  });
+  return arr
+    .filter((item) => matchesFilterGroups(item && typeof item === "object" ? (item as Record<string, unknown>) : {}, binding.filters))
+    .map((item) => {
+      const obj = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const rawLabel = obj[binding.labelColumn];
+      const rawValue = Number(obj[binding.valueColumn]);
+      return {
+        label: rawLabel === undefined || rawLabel === null ? "" : String(rawLabel),
+        value: Number.isNaN(rawValue) ? 0 : rawValue,
+      };
+    });
 }
 
 export type ChartSortBy = "value_desc" | "value_asc" | "label_asc" | "label_desc";
@@ -392,14 +429,15 @@ function compareChartItems(sortBy: ChartSortBy) {
 export function aggregateChartItems(
   raw: { label: string; value: number }[],
   topN = 7,
-  sortBy: ChartSortBy = "value_desc"
+  sortBy: ChartSortBy = "value_desc",
+  palette: readonly string[] = CHART_COLORS
 ): { items: ChartItem[]; total: number } {
   const sorted = raw.slice().sort(compareChartItems(sortBy));
   const cutoff = topN > 0 ? topN : sorted.length;
   const top = sorted.slice(0, cutoff);
   const rest = sorted.slice(cutoff);
   const total = sorted.reduce((sum, d) => sum + d.value, 0);
-  const items: ChartItem[] = top.map((d, i) => ({ label: d.label, value: d.value, color: CHART_COLORS[i % CHART_COLORS.length] }));
+  const items: ChartItem[] = top.map((d, i) => ({ label: d.label, value: d.value, color: palette[i % palette.length] }));
   if (rest.length > 0) {
     const restSum = rest.reduce((sum, d) => sum + d.value, 0);
     items.push({ label: `Outros (${rest.length})`, value: restSum, color: CHART_OTHER_COLOR });

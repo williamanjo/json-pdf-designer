@@ -3,6 +3,7 @@ export { Input, ColorInput } from "./Input";
 export { Textarea } from "./Textarea";
 export { Select } from "./Select";
 export { Card, CardHeader, CardTitle, Badge } from "./Card";
+export { TabPanel } from "./TabPanel";
 export {
   IconPlus,
   IconX,
@@ -21,4 +22,5 @@ export {
   IconRefresh,
   IconDownload,
   IconFolderUp,
+  IconAlertTriangle,
 } from "./icons";

@@ -1,8 +1,8 @@
 // Fonte de dados conhecida (array detectado no JSON de exemplo) — quem
 // consome a lib pode passar essa lista (ver Designer/PropertyPanel) pra
-// trocar o campo de texto livre da tabela por um dropdown, tipo o
-// "Data Source" do Stimulsoft/FastReport. Sem essa lista, a tabela volta
-// a aceitar path digitado livre (comportamento de sempre).
+// trocar o campo de texto livre da tabela por um dropdown de "Data
+// Source", comum em editores de relatório visuais. Sem essa lista, a
+// tabela volta a aceitar path digitado livre (comportamento de sempre).
 // "number" (JS typeof number no JSON de exemplo) — usado pelo "+" de
 // adicionar coluna pra já nascer com formatação de moeda, sem precisar
 // abrir o seletor de tipo depois. Campo ausente/outro tipo = trata como
