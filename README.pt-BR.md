@@ -79,6 +79,11 @@ vez, no entrypoint do seu app:
 import "json-pdf-designer/style.css";
 ```
 
+Já tem seu próprio Tailwind (v3 ou v4) configurado e prefere que ELE
+gere as classes do Designer em vez de carregar uma segunda folha de
+estilo — ex: pra evitar Preflight/reset duplicado — veja
+[Usando sua própria instalação do Tailwind](docs/USAGE.pt-BR.md#usando-sua-própria-instalação-do-tailwind).
+
 ## Uso básico
 
 ```tsx

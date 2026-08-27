@@ -21,6 +21,56 @@ because your app's Tailwind doesn't scan this library's code):
 import "json-pdf-designer/style.css";
 ```
 
+### Using your own Tailwind installation
+
+`dist/style.css` is a pre-built, standalone stylesheet — it works no
+matter what Tailwind version (or none) your app uses, since it's plain
+compiled CSS, not source utility classes.
+
+If your app already has its own Tailwind pipeline (v3 or v4) and you'd
+rather have it generate the Designer's classes too — so they follow
+your own theme/dark-mode setup instead of shipping a second, separate
+stylesheet — skip the `style.css` import above and point your own
+Tailwind content scan at the package's build output instead:
+
+**Tailwind v4** (CSS-based config):
+
+```css
+@import "tailwindcss";
+@source "../node_modules/json-pdf-designer/dist/**/*.{js,cjs}";
+```
+
+**Tailwind v3** (`tailwind.config.js`):
+
+```js
+module.exports = {
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/json-pdf-designer/dist/**/*.{js,cjs}",
+  ],
+  // ...
+};
+```
+
+`dist/index.js`/`dist/index.cjs` aren't minified, so class name strings
+stay intact and either version's scanner can find every class the
+Designer's components use. Pick one path or the other — importing
+`style.css` **and** scanning the package with your own Tailwind at the
+same time just duplicates the same utility rules.
+
+> **Your app is on Tailwind v3 and already has its own Preflight (CSS
+> reset)?** `dist/style.css` bundles Tailwind **v4**'s own Preflight —
+> importing it alongside your v3 Preflight double-applies a CSS reset,
+> which can show up as small spacing/border differences wherever the two
+> disagree. Scanning the package with your own v3 Tailwind (as above)
+> avoids this entirely: your build never touches our CSS, so only
+> **your** Preflight ever runs — nothing to import, nothing to conflict.
+
+## Basic usage
+
+```tsx
+import { useState } from "react";
+
 ## Basic usage
 
 ```tsx

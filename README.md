@@ -80,6 +80,11 @@ once, in your app's entry point:
 import "json-pdf-designer/style.css";
 ```
 
+Already have your own Tailwind (v3 or v4) set up and want it to
+generate the Designer's classes instead of loading a second stylesheet
+— e.g. to avoid a duplicate Preflight/reset — see
+[Using your own Tailwind installation](docs/USAGE.md#using-your-own-tailwind-installation).
+
 ## Basic usage
 
 ```tsx
