@@ -2,6 +2,16 @@ import type { ReactNode } from "react";
 import type { ChartSchema } from "../../types";
 import { resolveChartColors } from "../../chartColors";
 import { pieSlicePath, pointOnCircle } from "../../pieGeometry";
+import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../../chartFormat";
+
+// Preview em miniatura (ícone fixo, não em escala real do PDF, ver
+// PiePreview) — escala o tamanho de fonte da legenda PROPORCIONALMENTE ao
+// default (8pt -> 7px, o tamanho fixo de sempre), em vez de converter
+// pt->px de verdade (que estouraria a caixinha pequena do preview).
+const LEGEND_PREVIEW_BASE_PX = 7;
+function legendPreviewFontSizePx(legendFontSize: number | undefined): number {
+  return ((legendFontSize ?? DEFAULT_CHART_LEGEND_FONT_SIZE) / DEFAULT_CHART_LEGEND_FONT_SIZE) * LEGEND_PREVIEW_BASE_PX;
+}
 
 // Preview de design só — 4 fatias/barras fixas de exemplo, só pra mostrar
 // que o campo é um gráfico, qual tipo e (agora) qual paleta de cor foi
@@ -47,9 +57,9 @@ function PiePreview({ pieStyle, withSliceLabels, preview }: { pieStyle: ChartSch
 // Exemplo de legenda (rótulo + cor) — só pra mostrar ONDE ela vai ficar
 // (right/left/top/bottom); "slices" não tem legenda separada, o rótulo
 // já vai escrito em cima de cada fatia (ver PiePreview).
-function LegendPreview({ preview }: { preview: { value: number; color: string }[] }) {
+function LegendPreview({ preview, fontSizePx }: { preview: { value: number; color: string }[]; fontSizePx: number }) {
   return (
-    <ul className="flex flex-col gap-1 text-[7px] leading-none text-slate-600">
+    <ul className="flex flex-col gap-1 leading-none text-slate-600" style={{ fontSize: fontSizePx }}>
       {preview.map((p, i) => (
         <li key={i} className="flex items-center gap-1">
           <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
@@ -113,7 +123,8 @@ export function ChartField({ schema }: { schema: ChartSchema }) {
 
   const legendPosition = schema.legendPosition ?? "right";
   const donut = <PiePreview pieStyle={schema.pieStyle} withSliceLabels={legendPosition === "slices"} preview={preview} />;
-  const layout = pieLayout(legendPosition, donut, <LegendPreview preview={preview} />);
+  const legend = <LegendPreview preview={preview} fontSizePx={legendPreviewFontSizePx(schema.legendFontSize)} />;
+  const layout = pieLayout(legendPosition, donut, legend);
 
   return (
     <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white p-1.5">

@@ -2,17 +2,19 @@ import type { Color, PDFFont, PDFPage } from "pdf-lib";
 import { rgb } from "pdf-lib";
 import type { KpiSchema } from "../types";
 import { MATERIAL_ICON_GRID, MATERIAL_ICON_PATHS } from "../materialIcons";
+import {
+  DEFAULT_KPI_BORDER_RADIUS_PERCENT,
+  DEFAULT_KPI_ICON_SIZE,
+  DEFAULT_KPI_SUBTITLE_FONT_SIZE,
+  DEFAULT_KPI_TITLE_FONT_SIZE,
+  DEFAULT_KPI_VALUE_FONT_SIZE,
+  formatKpiValue,
+  kpiBorderRadius,
+} from "../kpiFormat";
 import { parseHex } from "./color";
 import { truncateToWidth } from "./drawTable";
 
 const PADDING_PT = 8;
-const TITLE_SIZE = 8;
-const VALUE_SIZE = 20;
-const SUBTITLE_SIZE = 8;
-const ICON_SIZE_PT = 14;
-// Mesmo raio visual do "rounded-lg" do preview no canvas (ver components/FieldBox/KpiField.tsx)
-// — cantos arredondados de verdade no PDF, não só na tela.
-const CARD_RADIUS_PT = 8;
 
 function colorOf(hex: string, fallback: Color): Color {
   const c = parseHex(hex);
@@ -58,38 +60,45 @@ export function drawKpi(
   widthPt: number,
   heightPt: number
 ): void {
+  const titleSize = schema.titleFontSize ?? DEFAULT_KPI_TITLE_FONT_SIZE;
+  const valueSize = schema.valueFontSize ?? DEFAULT_KPI_VALUE_FONT_SIZE;
+  const subtitleSize = schema.subtitleFontSize ?? DEFAULT_KPI_SUBTITLE_FONT_SIZE;
+  const iconSize = schema.iconSize ?? DEFAULT_KPI_ICON_SIZE;
+  const radiusPt = kpiBorderRadius(schema.borderRadius ?? DEFAULT_KPI_BORDER_RADIUS_PERCENT, widthPt, heightPt);
+  const displayValue = formatKpiValue(value, schema.numberFormat);
+
   const bg = colorOf(schema.backgroundColor, rgb(0.15, 0.39, 0.92));
   const fg = colorOf(schema.textColor, rgb(1, 1, 1));
-  page.drawSvgPath(roundedRectPath(widthPt, heightPt, CARD_RADIUS_PT), { x: xPt, y: yPt + heightPt, color: bg });
+  page.drawSvgPath(roundedRectPath(widthPt, heightPt, radiusPt), { x: xPt, y: yPt + heightPt, color: bg });
 
   const hasIcon = Boolean(MATERIAL_ICON_PATHS[schema.icon as keyof typeof MATERIAL_ICON_PATHS]);
-  const innerWidth = widthPt - PADDING_PT * 2 - (hasIcon ? ICON_SIZE_PT + 4 : 0);
+  const innerWidth = widthPt - PADDING_PT * 2 - (hasIcon ? iconSize + 4 : 0);
   const topY = yPt + heightPt - PADDING_PT;
 
-  page.drawText(truncateToWidth(title.toUpperCase(), font, TITLE_SIZE, Math.max(innerWidth, 10)), {
+  page.drawText(truncateToWidth(title.toUpperCase(), font, titleSize, Math.max(innerWidth, 10)), {
     x: xPt + PADDING_PT,
-    y: topY - TITLE_SIZE,
-    size: TITLE_SIZE,
+    y: topY - titleSize,
+    size: titleSize,
     font,
     color: fg,
   });
 
   if (hasIcon) {
-    drawIcon(page, schema.icon, xPt + widthPt - PADDING_PT - ICON_SIZE_PT / 2, topY - TITLE_SIZE / 2, ICON_SIZE_PT, fg);
+    drawIcon(page, schema.icon, xPt + widthPt - PADDING_PT - iconSize / 2, topY - titleSize / 2, iconSize, fg);
   }
 
-  page.drawText(truncateToWidth(value, font, VALUE_SIZE, widthPt - PADDING_PT * 2), {
+  page.drawText(truncateToWidth(displayValue, font, valueSize, widthPt - PADDING_PT * 2), {
     x: xPt + PADDING_PT,
-    y: yPt + heightPt / 2 - VALUE_SIZE / 3,
-    size: VALUE_SIZE,
+    y: yPt + heightPt / 2 - valueSize / 3,
+    size: valueSize,
     font,
     color: fg,
   });
 
-  page.drawText(truncateToWidth(subtitle, font, SUBTITLE_SIZE, widthPt - PADDING_PT * 2), {
+  page.drawText(truncateToWidth(subtitle, font, subtitleSize, widthPt - PADDING_PT * 2), {
     x: xPt + PADDING_PT,
     y: yPt + PADDING_PT,
-    size: SUBTITLE_SIZE,
+    size: subtitleSize,
     font,
     color: fg,
   });

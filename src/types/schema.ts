@@ -139,6 +139,14 @@ export type ChartSchema = BaseSchema & {
   valueFormat?: "number" | "currency";
   currencySymbol?: string;
   decimals?: number;
+  // Separador de milhar no valor bruto — true/ausente (default) = "10.000,00"
+  // (comportamento de sempre), false = "10000,00" (só vírgula decimal, sem
+  // pontuar os milhares). Não mexe na porcentagem (sempre "42,5%").
+  thousandsSeparator?: boolean;
+  // Tamanho de fonte (pt) da legenda (swatch + rótulo + valor) — só usada
+  // quando chartType é "pie" e legendPosition não é "slices". Ausente cai
+  // no default (ver DEFAULT_CHART_LEGEND_FONT_SIZE em pdf/drawChart.ts).
+  legendFontSize?: number;
   // Critério de ordenação ANTES de cortar em topN — default (ausente) é
   // "value_desc" (maior primeiro), igual sempre foi.
   sortBy?: "value_desc" | "value_asc" | "label_asc" | "label_desc";
@@ -165,6 +173,23 @@ export type KpiSchema = BaseSchema & {
   subtitle: string;
   backgroundColor: string;
   textColor: string;
+  // Tamanho de fonte (pt) de cada texto do cartão — opcional; ausente cai
+  // no default (ver DEFAULT_KPI_*_FONT_SIZE em kpiFormat.ts), então schemas
+  // antigos continuam com a mesma aparência de sempre.
+  titleFontSize?: number;
+  valueFontSize?: number;
+  subtitleFontSize?: number;
+  // Tamanho do ícone (pt) — mesmo motivo do fontSize acima.
+  iconSize?: number;
+  // Arredondamento dos cantos do cartão, em % (0 = reto, 100 = "pílula",
+  // ver kpiBorderRadius em kpiFormat.ts) — opcional, ausente cai no default
+  // (schemas antigos continuam com a mesma aparência de sempre).
+  borderRadius?: number;
+  // Formata `value` como número pt-BR (2 casas) quando ele resolve pra um
+  // número puro — "none"/ausente (default) mantém o texto como está,
+  // "plain" = "10000,00", "grouped" = "10.000,00" (ver formatKpiValue em
+  // kpiFormat.ts). Texto com prefixo/sufixo passa direto, sem tocar.
+  numberFormat?: "none" | "plain" | "grouped";
 };
 
 export type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;

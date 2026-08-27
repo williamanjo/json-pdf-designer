@@ -1,14 +1,16 @@
 import { useState } from "react";
 import type { Binding, ChartFilterCondition, ChartFilterGroup, ChartFilterOp, ChartSchema, DataSourceOption } from "../types";
 import { CHART_PALETTE_NAMES, CHART_PALETTE_SIZE, resolveChartColors, resolveChartPalette, type ChartPaletteName } from "../chartColors";
+import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../chartFormat";
 import { useT, type Dict } from "../i18n";
 import { BindingEditor } from "./BindingEditor";
-import { Button, ColorInput, Input, Select } from "./ui";
+import { BulkLocked, Button, ColorInput, Input, Select } from "./ui";
 import { IconPlus, IconX } from "./ui/icons";
 
 type Props = {
   schema: ChartSchema;
   activeTab: "dados" | "estilo";
+  bulkEdit?: boolean;
   onChangeSchema: (patch: Partial<ChartSchema>) => void;
   binding: Binding | undefined;
   onChangeBinding: (b: Binding | null) => void;
@@ -214,22 +216,27 @@ export function ChartFilterTab({
   );
 }
 
-export function PropertyPanelChart({ schema, activeTab, onChangeSchema, binding, onChangeBinding, dataSources }: Props) {
+export function PropertyPanelChart({ schema, activeTab, bulkEdit, onChangeSchema, binding, onChangeBinding, dataSources }: Props) {
   const t = useT();
+  const sortAndBinding = (
+    <>
+      <Select
+        label={t.chart.sortBy}
+        value={schema.sortBy ?? "value_desc"}
+        onChange={(e) => onChangeSchema({ sortBy: e.target.value as ChartSchema["sortBy"] })}
+      >
+        <option value="value_desc">{t.chart.sortValueDesc}</option>
+        <option value="value_asc">{t.chart.sortValueAsc}</option>
+        <option value="label_asc">{t.chart.sortLabelAsc}</option>
+        <option value="label_desc">{t.chart.sortLabelDesc}</option>
+      </Select>
+      <BindingEditor schema={schema} binding={binding} onChangeBinding={onChangeBinding} dataSources={dataSources} />
+    </>
+  );
   return (
     <div className="flex flex-col gap-2">
       {activeTab === "dados" && (
         <>
-          <Select
-            label={t.chart.sortBy}
-            value={schema.sortBy ?? "value_desc"}
-            onChange={(e) => onChangeSchema({ sortBy: e.target.value as ChartSchema["sortBy"] })}
-          >
-            <option value="value_desc">{t.chart.sortValueDesc}</option>
-            <option value="value_asc">{t.chart.sortValueAsc}</option>
-            <option value="label_asc">{t.chart.sortLabelAsc}</option>
-            <option value="label_desc">{t.chart.sortLabelDesc}</option>
-          </Select>
           <Input
             label={t.chart.groupOthers}
             type="number"
@@ -238,7 +245,15 @@ export function PropertyPanelChart({ schema, activeTab, onChangeSchema, binding,
             value={schema.topN ?? 7}
             onChange={(e) => onChangeSchema({ topN: Math.max(0, Math.trunc(Number(e.target.value)) || 0) })}
           />
-          <BindingEditor schema={schema} binding={binding} onChangeBinding={onChangeBinding} dataSources={dataSources} />
+          <Select
+            label={t.chart.thousandsSeparator}
+            value={String(schema.thousandsSeparator ?? true)}
+            onChange={(e) => onChangeSchema({ thousandsSeparator: e.target.value === "true" })}
+          >
+            <option value="true">{t.chart.thousandsSeparatorOn}</option>
+            <option value="false">{t.chart.thousandsSeparatorOff}</option>
+          </Select>
+          {bulkEdit ? <BulkLocked hint={t.fieldsPanel.bulkDataLocked}>{sortAndBinding}</BulkLocked> : sortAndBinding}
         </>
       )}
 
@@ -274,6 +289,15 @@ export function PropertyPanelChart({ schema, activeTab, onChangeSchema, binding,
               <option value="bottom">{t.chart.bottom}</option>
               <option value="slices">{t.chart.onSlices}</option>
             </Select>
+          )}
+          {schema.chartType === "pie" && (
+            <Input
+              type="number"
+              min={1}
+              label={t.chart.legendFontSize}
+              value={schema.legendFontSize ?? DEFAULT_CHART_LEGEND_FONT_SIZE}
+              onChange={(e) => onChangeSchema({ legendFontSize: Number(e.target.value) })}
+            />
           )}
           <PalettePicker
             value={schema.colorPalette ?? "default"}

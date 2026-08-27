@@ -18,6 +18,13 @@ export function ptToMm(pt: number): number {
   return pt / PT_PER_MM;
 }
 
+// Tamanho em pt (mesma unidade do PDF, ver pdf/drawKpi.ts, pdf/drawChart.ts)
+// convertido pra px do canvas — usado pelo preview de campos com tamanho de
+// fonte/ícone configurável, pra bater com o tamanho real do PDF gerado.
+export function ptToPx(pt: number): number {
+  return mmToPx(ptToMm(pt));
+}
+
 // Tamanho (mm) da grade do canvas (PageCanvas.tsx desenha o quadriculado e
 // trava arrastar/redimensionar nesse passo) — mesmo valor usado aqui pra
 // QUALQUER posição calculada por código (soltar chip de coluna, próximo Y

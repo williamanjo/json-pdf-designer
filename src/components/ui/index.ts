@@ -4,6 +4,7 @@ export { Textarea } from "./Textarea";
 export { Select } from "./Select";
 export { Card, CardHeader, CardTitle, Badge } from "./Card";
 export { TabPanel } from "./TabPanel";
+export { BulkLocked } from "./BulkLocked";
 export {
   IconPlus,
   IconX,

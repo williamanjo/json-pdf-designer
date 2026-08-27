@@ -3,6 +3,7 @@ import { rgb } from "pdf-lib";
 import type { ChartItem } from "../bindings/bindings";
 import type { ChartSchema } from "../types";
 import { pieSlicePath, pointOnCircle } from "../pieGeometry";
+import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../chartFormat";
 import { parseHex } from "./color";
 import { truncateToWidth } from "./drawTable";
 
@@ -19,8 +20,10 @@ const DONUT_HOLE_RATIO = 0.55;
 
 const LEGEND_SWATCH_PT = 7;
 const LEGEND_GAP_PT = 4;
-const LEGEND_FONT_SIZE = 8;
-const LEGEND_ROW_HEIGHT = 12;
+// Altura de linha some no mesmo passo do tamanho de fonte (+4pt de folga,
+// mesma proporção do default 8pt/12pt de sempre) — sem isso, legenda com
+// fonte maior sobrepõe as linhas.
+const LEGEND_ROW_GAP_PT = 4;
 const BAR_FONT_SIZE = 8;
 const BAR_TRACK_HEIGHT = 7;
 const NEUTRAL_TEXT = rgb(0.1, 0.1, 0.1);
@@ -33,14 +36,17 @@ function colorOf(hex: string) {
 
 function formatChartValue(value: number, schema: ChartSchema): string {
   const decimals = schema.decimals ?? 2;
+  // true/ausente (default) = "10.000,00" (comportamento de sempre); false =
+  // "10000,00" (só vírgula decimal, sem pontuar milhar).
+  const useGrouping = schema.thousandsSeparator ?? true;
   // "currency" sempre fixa as casas (padrão de dinheiro); "number" (default,
   // sem valueFormat) mantém o comportamento de sempre — só limita casas
   // quando existem, sem forçar ".00" num valor inteiro.
   if (schema.valueFormat === "currency") {
-    const formatted = value.toLocaleString("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    const formatted = value.toLocaleString("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping });
     return `${schema.currencySymbol ?? "R$"} ${formatted}`;
   }
-  return value.toLocaleString("pt-BR", { maximumFractionDigits: decimals });
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: decimals, useGrouping });
 }
 
 function formatValue(item: ChartItem, total: number, schema: ChartSchema): string {
@@ -109,6 +115,15 @@ function drawPieSlices(
   }
 }
 
+// Tamanho de fonte + altura de linha da legenda — ausente cai no default
+// de sempre (8pt fonte / 12pt linha). Altura de linha some no mesmo passo
+// do tamanho de fonte (mesma folga de +4pt) pra fonte maior não sobrepor
+// as linhas.
+function legendMetrics(schema: ChartSchema): { fontSize: number; rowHeight: number } {
+  const fontSize = schema.legendFontSize ?? DEFAULT_CHART_LEGEND_FONT_SIZE;
+  return { fontSize, rowHeight: fontSize + LEGEND_ROW_GAP_PT };
+}
+
 // Legenda em lista (swatch + rótulo + valor), centralizada verticalmente
 // na caixa que recebeu — usada tanto na coluna à direita quanto na faixa
 // de cima/embaixo (só muda largura/altura de quem chama).
@@ -123,20 +138,21 @@ function drawLegend(
   widthPt: number,
   heightPt: number
 ) {
-  const rowsHeight = items.length * LEGEND_ROW_HEIGHT;
+  const { fontSize, rowHeight } = legendMetrics(schema);
+  const rowsHeight = items.length * rowHeight;
   const maxLabelWidth = Math.max(widthPt - LEGEND_SWATCH_PT - LEGEND_GAP_PT - 4, 20);
-  let y = topYPt - Math.max(0, (heightPt - rowsHeight) / 2) - LEGEND_ROW_HEIGHT / 2 - LEGEND_SWATCH_PT / 2;
+  let y = topYPt - Math.max(0, (heightPt - rowsHeight) / 2) - rowHeight / 2 - LEGEND_SWATCH_PT / 2;
   for (const item of items) {
     page.drawRectangle({ x: xPt, y, width: LEGEND_SWATCH_PT, height: LEGEND_SWATCH_PT, color: colorOf(item.color) });
     const label = `${item.label}  ${formatValue(item, total, schema)}`;
-    page.drawText(truncateToWidth(label, font, LEGEND_FONT_SIZE, maxLabelWidth), {
+    page.drawText(truncateToWidth(label, font, fontSize, maxLabelWidth), {
       x: xPt + LEGEND_SWATCH_PT + LEGEND_GAP_PT,
       y: y + 0.5,
-      size: LEGEND_FONT_SIZE,
+      size: fontSize,
       font,
       color: NEUTRAL_TEXT,
     });
-    y -= LEGEND_ROW_HEIGHT;
+    y -= rowHeight;
   }
 }
 
@@ -195,7 +211,7 @@ export function drawChart(page: PDFPage, font: PDFFont, schema: ChartSchema, ite
   }
 
   if (legendPosition === "top" || legendPosition === "bottom") {
-    const legendHeightPt = Math.min(items.length * LEGEND_ROW_HEIGHT, heightPt * 0.5);
+    const legendHeightPt = Math.min(items.length * legendMetrics(schema).rowHeight, heightPt * 0.5);
     const pieHeightPt = heightPt - legendHeightPt;
     if (legendPosition === "top") {
       drawLegend(page, font, items, total, schema, xPt, topYPt, widthPt, legendHeightPt);

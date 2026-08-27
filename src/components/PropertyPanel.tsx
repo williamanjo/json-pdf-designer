@@ -14,6 +14,11 @@ type Props = {
   // componente só desenha o CONTEÚDO certo pro tipo de campo, a barra de
   // abas em si (e a aba "Filtro", só de gráfico) vive no Designer.
   activeTab: "dados" | "estilo";
+  // Vários campos do MESMO tipo selecionados juntos (ver Designer.tsx
+  // `bulkEditActive`) — só texto/KPI/gráfico suportam; os outros tipos
+  // ignoram esse prop e continuam editando só o `schema` recebido (o
+  // último selecionado).
+  bulkEdit?: boolean;
   onChangeSchema: (patch: Partial<Schema>) => void;
   onChangeBinding: (b: Binding | null) => void;
   dataSources?: DataSourceOption[];
@@ -49,6 +54,7 @@ export function PropertyPanel({
   schema,
   binding,
   activeTab,
+  bulkEdit,
   onChangeSchema,
   onChangeBinding,
   dataSources,
@@ -61,7 +67,7 @@ export function PropertyPanel({
   onSetColumnFormula,
 }: Props) {
   if (schema.type === "text") {
-    return <PropertyPanelText schema={schema} activeTab={activeTab} onChangeSchema={onChangeSchema} />;
+    return <PropertyPanelText schema={schema} activeTab={activeTab} bulkEdit={bulkEdit} onChangeSchema={onChangeSchema} />;
   }
 
   if (schema.type === "table") {
@@ -107,6 +113,7 @@ export function PropertyPanel({
       <PropertyPanelChart
         schema={schema}
         activeTab={activeTab}
+        bulkEdit={bulkEdit}
         onChangeSchema={onChangeSchema}
         binding={binding}
         onChangeBinding={onChangeBinding}
@@ -116,5 +123,5 @@ export function PropertyPanel({
   }
 
   // "kpi"
-  return <PropertyPanelKpi schema={schema} activeTab={activeTab} onChangeSchema={onChangeSchema} />;
+  return <PropertyPanelKpi schema={schema} activeTab={activeTab} bulkEdit={bulkEdit} onChangeSchema={onChangeSchema} />;
 }

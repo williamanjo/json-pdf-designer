@@ -234,6 +234,17 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
     }));
   }
 
+  // Mesmo patch em TODOS os ids de uma vez — usado só na edição em bloco
+  // (ver BULK_EDIT_TYPES abaixo): mudar o estilo com vários campos do MESMO
+  // tipo selecionados aplica em todos juntos, não só no último clicado.
+  function updateSchemas(ids: string[], patch: Partial<Schema>) {
+    const idSet = new Set(ids);
+    onChangeTemplate((prev) => ({
+      ...prev,
+      schemas: prev.schemas.map((s) => (idSet.has(s.id) ? ({ ...s, ...patch } as Schema) : s)),
+    }));
+  }
+
   // Arrastar um campo que faz parte de uma seleção múltipla move os outros
   // selecionados ao vivo — posição ABSOLUTA (original + delta desde o
   // início do arrasto, calculado no PageCanvas via snapshot), não
@@ -505,6 +516,20 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
 
   const selected = template.schemas.find((s) => s.id === selectedId) ?? null;
   const selectedBinding = selected ? bindings.find((b) => b.schemaName === selected.name) : undefined;
+
+  // Edição em bloco: vários campos do MESMO tipo selecionados juntos (texto
+  // com texto, KPI com KPI, gráfico com gráfico) — só pra esses 3 tipos,
+  // que já têm uma separação clara de que campo é "estilo" (aplica em todos
+  // sem problema) e o que é "dados" (cada um tem o próprio conteúdo/vínculo,
+  // trava pra edição individual). Tipo misto ou tabela/imagem/seção
+  // continua no comportamento de sempre (só o último selecionado edita).
+  const BULK_EDIT_TYPES = ["text", "kpi", "chart"] as const;
+  const selectedSchemas = template.schemas.filter((s) => selectedIds.includes(s.id));
+  const bulkEditActive =
+    selectedIds.length > 1 &&
+    selectedSchemas.length > 1 &&
+    (BULK_EDIT_TYPES as readonly string[]).includes(selectedSchemas[0].type) &&
+    selectedSchemas.every((s) => s.type === selectedSchemas[0].type);
   // Ícone de alerta na própria aba — mesma regra de FieldList.tsx
   // (fieldWarnings.ts), só que dividida por aba: falta vínculo aparece em
   // "Dados", filtro incompleto aparece em "Filtro".
@@ -1024,7 +1049,7 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
               </CardHeader>
               {selectedIds.length > 1 && (
                 <p className="text-[11px] text-sky-600 dark:text-blue-400">
-                  {t.fieldsPanel.multiSelected(selectedIds.length, selected.name)}
+                  {bulkEditActive ? t.fieldsPanel.bulkEditBanner(selectedIds.length) : t.fieldsPanel.multiSelected(selectedIds.length, selected.name)}
                 </p>
               )}
 
@@ -1038,7 +1063,8 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
                   schema={selected}
                   binding={selectedBinding}
                   activeTab={sidebarTab}
-                  onChangeSchema={(patch) => updateSchema(selected.id, patch)}
+                  bulkEdit={bulkEditActive}
+                  onChangeSchema={(patch) => (bulkEditActive ? updateSchemas(selectedIds, patch) : updateSchema(selected.id, patch))}
                   onChangeBinding={(b) => handleChangeBinding(selected.name, b)}
                   dataSources={dataSources}
                   tableDataSource={findTableDataSource(selected)}

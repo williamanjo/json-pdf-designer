@@ -2,7 +2,14 @@ import { useState } from "react";
 import type { KpiSchema } from "../types";
 import { MATERIAL_ICON_GRID, MATERIAL_ICON_NAMES, MATERIAL_ICON_PATHS, materialIconLabels } from "../materialIcons";
 import { useLocale, useT, withInlineCode, type Locale } from "../i18n";
-import { ColorInput, Input } from "./ui";
+import {
+  DEFAULT_KPI_BORDER_RADIUS_PERCENT,
+  DEFAULT_KPI_ICON_SIZE,
+  DEFAULT_KPI_SUBTITLE_FONT_SIZE,
+  DEFAULT_KPI_TITLE_FONT_SIZE,
+  DEFAULT_KPI_VALUE_FONT_SIZE,
+} from "../kpiFormat";
+import { BulkLocked, ColorInput, Input, Select } from "./ui";
 
 type DroppedField = { path: string; kind: string };
 function readDroppedField(e: React.DragEvent): DroppedField | null {
@@ -17,6 +24,7 @@ const allowDrop = (e: React.DragEvent) => {
 type Props = {
   schema: KpiSchema;
   activeTab: "dados" | "estilo";
+  bulkEdit?: boolean;
   onChangeSchema: (patch: Partial<KpiSchema>) => void;
 };
 
@@ -87,29 +95,53 @@ function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, n
   );
 }
 
-export function PropertyPanelKpi({ schema, onChangeSchema, activeTab }: Props) {
+export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit }: Props) {
   const t = useT();
   const locale = useLocale();
+  const contentFields = (
+    <>
+      <Input label={t.kpi.title} value={schema.title} onChange={(e) => onChangeSchema({ title: e.target.value })} />
+      <Input
+        mono
+        label={t.kpi.valueLabel}
+        value={schema.value}
+        onChange={(e) => onChangeSchema({ value: e.target.value })}
+        onDragOver={allowDrop}
+        onDrop={(e) => {
+          const f = readDroppedField(e);
+          if (!f) return;
+          e.preventDefault();
+          const token = `{${f.path}}`;
+          onChangeSchema({ value: schema.value ? `${schema.value} ${token}` : token });
+        }}
+      />
+      <Input label={t.kpi.subtitle} value={schema.subtitle} onChange={(e) => onChangeSchema({ subtitle: e.target.value })} />
+      <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.kpi.hint)}</p>
+    </>
+  );
   return (
     <div className="flex flex-col gap-2">
       {activeTab === "dados" && (
         <>
-          <Input label={t.kpi.title} value={schema.title} onChange={(e) => onChangeSchema({ title: e.target.value })} />
-          <Input
-            mono
-            label={t.kpi.valueLabel}
-            value={schema.value}
-            onChange={(e) => onChangeSchema({ value: e.target.value })}
-            onDragOver={allowDrop}
-            onDrop={(e) => {
-              const f = readDroppedField(e);
-              if (!f) return;
-              e.preventDefault();
-              const token = `{${f.path}}`;
-              onChangeSchema({ value: schema.value ? `${schema.value} ${token}` : token });
-            }}
-          />
-          <Input label={t.kpi.subtitle} value={schema.subtitle} onChange={(e) => onChangeSchema({ subtitle: e.target.value })} />
+          {bulkEdit ? <BulkLocked hint={t.fieldsPanel.bulkDataLocked}>{contentFields}</BulkLocked> : contentFields}
+          <Select
+            label={t.kpi.numberFormat}
+            value={schema.numberFormat ?? "none"}
+            onChange={(e) => onChangeSchema({ numberFormat: e.target.value as KpiSchema["numberFormat"] })}
+          >
+            <option value="none">{t.kpi.numberFormatNone}</option>
+            <option value="plain">{t.kpi.numberFormatPlain}</option>
+            <option value="grouped">{t.kpi.numberFormatGrouped}</option>
+          </Select>
+        </>
+      )}
+
+      {activeTab === "estilo" && (
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <ColorInput label={t.kpi.background} value={schema.backgroundColor} onChange={(e) => onChangeSchema({ backgroundColor: e.target.value })} />
+            <ColorInput label={t.kpi.textIcon} value={schema.textColor} onChange={(e) => onChangeSchema({ textColor: e.target.value })} />
+          </div>
           <div className="flex flex-col gap-1">
             <span className="text-[11px] font-medium text-slate-600 dark:text-gray-400">{t.kpi.iconLabel}</span>
             <IconPicker
@@ -121,14 +153,40 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab }: Props) {
               noneFoundLabel={t.kpi.noIconFound}
             />
           </div>
-          <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.kpi.hint)}</p>
-        </>
-      )}
-
-      {activeTab === "estilo" && (
-        <div className="grid grid-cols-2 gap-2">
-          <ColorInput label={t.kpi.background} value={schema.backgroundColor} onChange={(e) => onChangeSchema({ backgroundColor: e.target.value })} />
-          <ColorInput label={t.kpi.textIcon} value={schema.textColor} onChange={(e) => onChangeSchema({ textColor: e.target.value })} />
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              type="number"
+              label={t.kpi.titleFontSize}
+              value={schema.titleFontSize ?? DEFAULT_KPI_TITLE_FONT_SIZE}
+              onChange={(e) => onChangeSchema({ titleFontSize: Number(e.target.value) })}
+            />
+            <Input
+              type="number"
+              label={t.kpi.valueFontSize}
+              value={schema.valueFontSize ?? DEFAULT_KPI_VALUE_FONT_SIZE}
+              onChange={(e) => onChangeSchema({ valueFontSize: Number(e.target.value) })}
+            />
+            <Input
+              type="number"
+              label={t.kpi.subtitleFontSize}
+              value={schema.subtitleFontSize ?? DEFAULT_KPI_SUBTITLE_FONT_SIZE}
+              onChange={(e) => onChangeSchema({ subtitleFontSize: Number(e.target.value) })}
+            />
+            <Input
+              type="number"
+              label={t.kpi.iconSize}
+              value={schema.iconSize ?? DEFAULT_KPI_ICON_SIZE}
+              onChange={(e) => onChangeSchema({ iconSize: Number(e.target.value) })}
+            />
+          </div>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            label={t.kpi.borderRadius}
+            value={schema.borderRadius ?? DEFAULT_KPI_BORDER_RADIUS_PERCENT}
+            onChange={(e) => onChangeSchema({ borderRadius: Number(e.target.value) })}
+          />
         </div>
       )}
     </div>

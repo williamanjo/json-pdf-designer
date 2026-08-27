@@ -1,6 +1,6 @@
 import type { TextSchema } from "../types";
 import { useT } from "../i18n";
-import { Button, ColorInput, Input, Select, Textarea } from "./ui";
+import { BulkLocked, Button, ColorInput, Input, Select, Textarea } from "./ui";
 import { IconX } from "./ui/icons";
 
 type DroppedField = { path: string; kind: string };
@@ -16,28 +16,31 @@ const allowDrop = (e: React.DragEvent) => {
 type Props = {
   schema: TextSchema;
   activeTab: "dados" | "estilo";
+  bulkEdit?: boolean;
   onChangeSchema: (patch: Partial<TextSchema>) => void;
 };
 
-export function PropertyPanelText({ schema, activeTab, onChangeSchema }: Props) {
+export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema }: Props) {
   const t = useT();
+  const textarea = (
+    <Textarea
+      label={t.text.designText}
+      value={schema.content}
+      onChange={(e) => onChangeSchema({ content: e.target.value })}
+      onDragOver={allowDrop}
+      onDrop={(e) => {
+        const f = readDroppedField(e);
+        if (!f) return;
+        e.preventDefault();
+        const token = `{${f.path}}`;
+        onChangeSchema({ content: schema.content ? `${schema.content} ${token}` : token });
+      }}
+    />
+  );
   return (
     <>
-      {activeTab === "dados" && (
-        <Textarea
-          label={t.text.designText}
-          value={schema.content}
-          onChange={(e) => onChangeSchema({ content: e.target.value })}
-          onDragOver={allowDrop}
-          onDrop={(e) => {
-            const f = readDroppedField(e);
-            if (!f) return;
-            e.preventDefault();
-            const token = `{${f.path}}`;
-            onChangeSchema({ content: schema.content ? `${schema.content} ${token}` : token });
-          }}
-        />
-      )}
+      {activeTab === "dados" &&
+        (bulkEdit ? <BulkLocked hint={t.fieldsPanel.bulkDataLockedNoShared}>{textarea}</BulkLocked> : textarea)}
       {activeTab === "estilo" && (
         <>
           <div className="grid grid-cols-2 gap-2">
