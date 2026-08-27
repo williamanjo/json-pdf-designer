@@ -1,25 +1,27 @@
-# Documentação
+**English** | [Português](USAGE.pt-BR.md)
 
-Guia completo de instalação, uso e API do `json-pdf-designer`. Pra visão
-geral do projeto, veja o [README](../README.md); pra decisões de
-arquitetura internas, veja [ARCHITECTURE.md](./ARCHITECTURE.md).
+# Documentation
 
-## Instalação
+Full install, usage, and API guide for `json-pdf-designer`. For a
+project overview, see the [README](../README.md); for internal
+architecture decisions, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## Install
 
 ```bash
 npm install json-pdf-designer
 ```
 
-Peer deps: `react` e `react-dom` (18 ou 19). Importe o CSS do pacote **uma
-vez**, no entrypoint do seu app (ele estiliza o próprio `<Designer>` —
-sem isso alguns elementos do editor ficam sem posição/cor certa, porque o
-Tailwind do seu app não escaneia o código desta lib):
+Peer deps: `react` and `react-dom` (18 or 19). Import the package's CSS
+**once**, in your app's entry point (it styles `<Designer>` itself —
+without it, some editor elements end up with the wrong position/color,
+because your app's Tailwind doesn't scan this library's code):
 
 ```ts
 import "json-pdf-designer/style.css";
 ```
 
-## Uso básico
+## Basic usage
 
 ```tsx
 import { useState } from "react";
@@ -27,7 +29,7 @@ import { Designer, generatePdf, downloadPdf, type Template, type Binding } from 
 import "json-pdf-designer/style.css";
 
 const initialTemplate: Template = {
-  page: { width: 210, height: 297 }, // A4 em mm
+  page: { width: 210, height: 297 }, // A4 in mm
   schemas: [],
 };
 
@@ -36,9 +38,9 @@ function Report() {
   const [bindings, setBindings] = useState<Binding[]>([]);
 
   async function handleGenerate() {
-    const data = await fetchMyData(); // o JSON de verdade que popula os campos
+    const data = await fetchMyData(); // the real JSON that fills the fields
     const pdfBytes = await generatePdf(template, data, bindings);
-    downloadPdf(pdfBytes, "relatorio.pdf");
+    downloadPdf(pdfBytes, "report.pdf");
   }
 
   return (
@@ -49,280 +51,390 @@ function Report() {
         bindings={bindings}
         onChangeBindings={setBindings}
       />
-      <button onClick={handleGenerate}>Gerar PDF</button>
+      <button onClick={handleGenerate}>Generate PDF</button>
     </>
   );
 }
 ```
 
-`onChangeTemplate`/`onChangeBindings` aceitam a forma funcional do
-`setState` do React (`(prev) => next`) — use direto o setter do
-`useState`, como no exemplo, pra não perder um campo se dois forem
-adicionados em sequência rápida.
+`onChangeTemplate`/`onChangeBindings` accept React's `setState`
+functional form (`(prev) => next`) — use the `useState` setter directly,
+as in the example, so you don't lose a field if two get added in quick
+succession.
 
-## O que tem
+## UI language
 
-**Campos**: texto, tabela, imagem, **seção** (data band repetido),
-**gráfico** (pizza/barra) e **indicador** (cartão de KPI) — arrasta/
-redimensiona livre (react-rnd), com **grade de 5mm** (Stimulsoft-style)
-travando posição/tamanho por padrão — segura **Shift** durante o
-arrasto/resize pra soltar da grade e mover livre (sem Shift o campo sempre
-volta pra grade, mesmo que tenha nascido torto). Botão "+ texto/tabela/
-imagem/seção/gráfico/indicador" sempre cria o campo novo **centrado** na
-área do corpo — não depende de onde os outros campos já estão, então
-nunca "empilha" pra fora da página. Duplo clique liga edição inline: texto/tabela viram
-input/textarea direto em cima do campo (Escape sai, e só a célula
-efetivamente clicada mostra a fórmula crua — as outras continuam com o
-token limpo); imagem abre o seletor de arquivo pra trocar. `Delete`/
-`Backspace` apaga TODOS os campos selecionados; `Ctrl`/`Cmd`+`C` copia,
-`Ctrl`/`Cmd`+`V` cola uma cópia deslocada (id/nome novos, já selecionada) —
-os três atalhos ficam desativados enquanto o foco tá num input/textarea,
-pra não comer a digitação normal.
+The `<Designer>` speaks English by default. Pass `locale="pt-BR"` to
+switch its own UI (buttons, tabs, warnings, placeholders) to Portuguese:
 
-**Seleção múltipla** — Ctrl/Cmd+clique soma/tira um campo da seleção
-(no canvas ou na lista lateral); arrastar no fundo vazio do canvas (ou
-dentro do corpo de uma seção, sem tocar na barra de arrastar dela) desenha
-uma caixa de seleção que pega todo campo que ela cruzar. Arrastar QUALQUER
-campo selecionado move o grupo inteiro junto, ao vivo. Arrastar uma seção
-sempre move os campos membros dela também, além do resto da seleção.
-
-**Painel lateral** — uma lista com todo campo já colocado (clique
-seleciona, ícone de cadeado trava/destrava mover/redimensionar, lixeira
-remove direto) e, logo abaixo, o editor do campo selecionado
-(posição/tamanho, propriedades do tipo, vínculo com o JSON). Tabela tem
-duas abas — **Dados** (colunas, vínculo, "+ adicionar coluna" a partir de
-uma fonte conhecida) e **Estilo** (posição/tamanho, cor/fundo/tamanho de
-fonte do cabeçalho/valor/rodapé, coluna a coluna se quiser).
-
-**Vínculo de dados** (`Binding`) — cada campo aponta pro JSON real:
-- `scalar` — um valor direto (`caminho.no.json`).
-- `template` — texto livre com `{token}`, ex:
-  `"Cliente: {nome} — Total: {SUM(rows.total)}"`.
-- `array` — uma tabela vinda de um array de objetos, coluna por coluna,
-  incluindo **coluna calculada** (rótulo fixo + fórmula avaliada por linha,
-  pode combinar texto fixo com mais de um token: `"{pnr} - {produto}"`).
-- `keyvalue` — tabela "campo / valor" a partir de uma lista de paths
-  escolhidos manualmente.
-- `section` — o array que uma **seção** (ver abaixo) repete, um item por
-  repetição.
-
-Dentro de `{...}` (texto, coluna calculada, célula de rodapé — em
-qualquer lugar): funções `SUM`, `COUNT`, `AVG`, `CONCAT`, `UPPER`,
-`LOWER`, `TRIM(caminho)` (tira espaço do início/fim — útil pra campo de
-sistema legado com largura fixa, tipo `"fatura": " 01156189"`; `{token}`/
-`CONCAT` preservam o valor exatamente como veio, de propósito, então o
-espaço só some se você pedir), `DATE(caminho, "saída"[, "entrada"])`, `CURRENCY(caminho, "R$")`,
-`NUMBER(caminho, casas)` (tipo `%.2f` do C — controla quantas casas
-decimais, sem separador de milhar/símbolo, que é o `CURRENCY`), e
-**aritmética simples** (`{qtd * preco}`, `{subtotal - desconto}` — da
-esquerda pra direita, sem precedência de operador). Uma função PODE
-receber outra função ou uma expressão aritmética como argumento (ex:
-`{CURRENCY(SUM(rows.total), "R$")}`), com uma exceção: **duas chamadas de
-função combinadas por operador na mesma expressão** (`{SUM(a) - SUM(b)}`)
-não resolve certo — nesse caso, pré-calcule o valor no JSON ou separe em
-dois tokens.
-
-`DATE`'s 3º argumento (opcional) diz o **formato de entrada** — sem ele,
-`new Date(raw)` do JS tenta adivinhar, e uma data tipo `"10/04/2025"`
-(dia 10) vira 10 de outubro (formato americano). Informando
-`DATE(vencto, "DD/MM/YYYY", "DD/MM/YYYY")`, lê exatamente como escrito,
-sem ambiguidade. As datas são sempre lidas/escritas em **UTC** (não no
-fuso do navegador/servidor que gera o PDF) — uma data só (`"2026-07-01"`,
-sem hora) sai igual ao que foi escrito não importa onde rodar; um
-datetime com fuso explícito (`"...T23:30:00-03:00"`) é convertido pro
-instante UTC equivalente.
-
-## Seção repetida (master-detail / data band)
-
-Uma `SectionSchema` é um retângulo puro — não guarda filhos, é só um
-**grupo**: qualquer campo (texto, imagem, tabela) largado em cima dela no
-canvas vira **membro** (via `BaseSchema.sectionId`), continuando um campo
-normal do array plano `template.schemas` — mesma posição absoluta,
-mesmo jeito de selecionar/editar/arrastar. Arrastar um campo pra FORA da
-seção limpa o vínculo de novo (bidirecional). Uma seção só arrasta pela
-**barra roxa no topo** ("Seção (repete) — arraste aqui pra mover") —
-clicar em qualquer outro lugar dela (ou de um campo por cima) seleciona
-normalmente, sem mover.
-
-Vinculada (`type: "section"`, path pro array), a seção **repete uma vez
-por item** do array — empilhando na vertical e paginando junto com o
-resto do corpo (uma seção grande vira página nova como qualquer tabela).
-Dentro dela:
-- Qualquer texto membro resolve `{campo}` contra o **ITEM atual** (não o
-  documento inteiro), e `{Line}`/`{index}` dá o número da repetição
-  (1, 2, 3...).
-- Uma **tabela membro sem vínculo próprio** mostra uma linha só, célula a
-  célula, contra o item atual — célula vazia cai no nome da coluna direto
-  (`head[i]` -> `{item[head[i]]}`), célula preenchida é um template de
-  verdade (mesma sintaxe de texto, pode combinar campos).
-- Uma **tabela membro COM vínculo `array`** (path relativo ao item, ex.
-  Pedido → ItensPedido) é mestre-detalhe de verdade — uma linha por item
-  do array aninhado, e a seção **cresce de altura** pra caber (o texto
-  abaixo da tabela, se houver, desloca junto, mesmo se mais de uma tabela
-  crescer na mesma seção).
-
-Uma seção também pode ter **zero tabelas** — só campos de texto membros
-já é um "boletim"/lista repetida válido.
-
-## Tabela — cabeçalho, valor e rodapé (totais)
-
-Além das colunas normais, uma tabela pode ter uma **linha de totais**
-(`footer`) — uma célula por coluna, cada uma um template de verdade
-(texto fixo e/ou `{token}`/`{SUM(...)}`); desenha só uma vez, na última
-fatia, mesmo se a tabela paginar (nunca repete feito o cabeçalho).
-
-Cor de fundo/texto e **tamanho de fonte** são configuráveis em três
-níveis, do mais genérico ao mais específico — cabeçalho inteiro, linha de
-valor inteira (todas as linhas de dado), rodapé inteiro (`headBackgroundColor`/
-`headTextColor`/`headFontSize`, `bodyBackgroundColor`/`bodyTextColor`/
-`bodyFontSize`, `footerBackgroundColor`/`footerTextColor`/`footerFontSize`
-em `TableSchema`) — e por **coluna individual** via `columnStyles`
-(header e valor separados, sobrescreve só aquela coluna). Sem nada
-definido, cai no azul/branco/9pt de sempre — templates antigos não mudam
-de aparência.
-
-A lista "Colunas atuais da tabela" no painel deixa **arrastar pra
-reordenar** (desloca `head`/`content`/`footer`/`columnStyles` juntos,
-pelo índice) e tem um botão "+" pra adicionar coluna de uma fonte de
-dados conhecida (mesma da seção dona, se a tabela for membro, ou do
-próprio vínculo se for solta).
-
-**Cabeçalho, rodapé e margens** (`Template.headerHeight/footerHeight/
-marginLeft/marginRight`, em mm) — faixas que se repetem em **toda página**
-do PDF gerado. Não existe campo de "zona" no schema: um campo cai
-automaticamente no cabeçalho/rodapé/margem quando sua posição (x/y) fica
-contida ali — é só onde ele tá, sem precisar marcar nada.
-
-Fora do modo isolado (ver abaixo), um campo do cabeçalho/rodapé/margem
-aparece no canvas só como contexto visual — meio apagado, sem clique,
-sem arrastar/redimensionar (e vice-versa: campo do corpo trava enquanto
-isolado). A lista lateral também só mostra o que é editável no modo
-atual. Botão **"Editar cabeçalho/rodapé/margem"** isola a edição: some
-com o corpo, mostra só a faixa vermelha, e todo campo novo criado nesse
-modo já nasce dentro dela.
-
-Dentro de um campo de texto que caia nessas faixas, os tokens especiais
-`{pageNumber}` e `{pageCount}` funcionam direto no conteúdo (com ou sem
-vínculo) e são resolvidos de novo em cada página — útil pra "Página 1 de
-3" no rodapé.
-
-**Paginação de verdade** — se uma tabela (ou seção repetida) do corpo
-tiver mais linhas/itens do que cabem numa página, o `generatePdf` quebra
-em várias páginas automaticamente. TODO item do corpo — tabela, seção,
-texto, imagem — é processado numa sequência só, **ordenada por Y**:
-quando um termina, o próximo continua logo abaixo (mesma página ou
-nova, o que couber), preservando o espaçamento desenhado no editor
-mesmo que algo antes tenha crescido (seção mestre-detalhe) ou mudado de
-página — então dá pra colocar uma legenda/título ENTRE duas tabelas, ou
-texto antes/depois de uma seção, que a posição relativa é respeitada.
-No editor de cada tabela dá pra desligar "Repetir cabeçalho da tabela
-nas próximas páginas" (default ligado).
-
-**Texto — fundo e borda** — um campo de texto pode ter cor de fundo e
-borda (`TextSchema.backgroundColor`/`borderColor`/`borderWidth`, em mm) —
-útil pra faixa de título colorida, caixa de destaque etc. Sem nada
-definido, fica transparente/sem borda, como sempre foi.
-
-**Gráfico** (`ChartSchema`) — pizza ou barra sobre um array vinculado
-(`Binding` do tipo `chart`: `path` do array, `labelColumn` a chave do
-rótulo, `valueColumn` a chave numérica somada por rótulo — ex: trocar
-`valueColumn` de `"valor"` pra `"quantidade"` sem mexer no resto). Agrupa
-os `topN` maiores (default 7, qualquer inteiro — `0` desliga o agrupamento e
-mostra todo mundo) numa cor fixa cada e o resto numa fatia/barra "Outros" —
-nunca estoura a paleta. `displayMode` escolhe se a legenda/rótulo mostra o
-número bruto ou a porcentagem do total.
-
-**Indicador** (`KpiSchema`) — cartão de KPI: fundo colorido sólido, ícone
-(`icon` — `bar-chart`/`check-circle`/`x-circle`/`search`/`alert-triangle`/
-`file-check`/`none`), título, valor grande e legenda. `title`/`value`/
-`subtitle` são texto comum (mesma sintaxe `{path}`/`{FUNÇÃO(...)}` de um
-campo de texto solto) — sem `Binding` próprio, resolvidos direto contra o
-documento inteiro na hora de gerar.
-
-**Tamanho e orientação da página** — o `<Designer>` mostra um seletor de
-tamanho (A4/A3/A5/Carta/Ofício) e orientação (retrato/paisagem) quando
-nenhum campo tá selecionado; `applyOrientation`/`orientationOf`/
-`matchPreset`/`PAGE_SIZE_PRESETS` (exportados) fazem a mesma conta pra
-quem quiser montar o próprio seletor.
-
-**Fundo de página** (`Template.backgroundImage`) — uma imagem (ou a
-primeira página de um PDF, rasterizada uma vez no upload) atrás de tudo,
-tanto no editor quanto no PDF final. Botão "PDF/imagem de fundo" no
-`<Designer>`; a conversão fica em `fileToBackgroundImage` (exportado só
-internamente por ora).
-
-**Fonte customizada** — passe `fontBytes` (bytes de um **TTF/OTF de
-verdade**) em `generatePdf(..., { fontBytes })` pra acentuação/Unicode
-completos via `fontkit`. Sem isso, cai no Helvetica padrão do pdf-lib
-(WinAnsi — cobre a maioria dos acentos do português, mas não tudo).
-
-`.woff`/`.woff2` (o formato que pacotes tipo `@fontsource/*` distribuem)
-também são aceitos — `normalizeFontBytes(bytes)` detecta e descomprime pro
-TTF/OTF de verdade que o pdf-lib precisa, automaticamente (WOFF2 via
-`wawoff2`/WASM; WOFF v1 é mais simples — zlib puro por tabela, decodificado
-em JS puro, sem WASM nenhum, via `tiny-inflate`). O arquivo resultante
-reordena as tabelas em ordem alfabética (característica normal do formato
-WOFF, que não guarda a ordem física original) — isso não afeta a fonte:
-mesmo glifo, métrica e mapeamento de caractere, validado com `fontkit`
-(a mesma lib que o pdf-lib usa por baixo pra embutir a fonte).
-
-**Régua e zoom** — régua em mm à esquerda/embaixo do canvas; barra
-flutuante no rodapé com zoom -/+, ajustar à largura/altura e reset — não
-afeta o PDF gerado, é só a visualização. Arrastar/redimensionar continua
-correto em qualquer nível de zoom (react-rnd recebe o fator de escala).
-
-**Preview do PDF real** (`<PdfPreview bytes={...} />`) — renderiza o PDF
-gerado (byte a byte, com pdf.js) num `<canvas>` por página, mostrando
-tamanho/margens reais do arquivo.
-
-### Worker do pdf.js — CDN por padrão vs. self-host
-
-O preview precisa do *worker* do pdf.js (`pdf.worker.min.mjs`) rodando
-separado da thread principal. Como o pacote é pré-compilado com `tsup`
-(sem o asset-URL handling que o Vite faz em código de app), ele **não
-empacota esse worker** — por padrão, `ensureWorker()` aponta pro CDN
-oficial casado com a versão instalada:
-
-```
-https://cdn.jsdelivr.net/npm/pdfjs-dist@<versão>/build/pdf.worker.min.mjs
+```tsx
+<Designer locale="pt-BR" template={template} onChangeTemplate={setTemplate} bindings={bindings} onChangeBindings={setBindings} />
 ```
 
-Isso funciona direto nos exemplos (`report-builder`/`custom-ui`) e em
-qualquer app com saída livre pra internet. **Numa integração real**
-(frontend atrás de CSP restrito, VPN, rede corporativa fechada, ou
-qualquer ambiente que não pode depender da disponibilidade do
-`jsdelivr.net` em produção), self-hoste o worker chamando
-`configurePdfWorker(url)` **uma vez, antes do primeiro `<PdfPreview>`/
-`<PdfPreviewModal>` renderizar** — no entrypoint do app, por exemplo.
+This is purely a UI-chrome setting — it never changes how the
+**generated PDF** formats dates or currency (that's `{DATE(...)}`/
+`{CURRENCY(...)}` written into the template's own content by whoever
+designs it, see "Data binding" below) or the internal `name` your
+templates already use for existing fields.
 
-Com Vite, importe o worker como asset (o `?url` faz o Vite copiar o
-arquivo pro build e devolver a URL final, já com hash/CDN próprio do
-app):
+If you use any of the package's components standalone (`PdfPreview`,
+`FieldList`, etc.) without wrapping them in `<Designer>`, they render in
+English by default too — wrap them in `<I18nProvider locale="pt-BR">`
+yourself if you need them in Portuguese:
+
+```tsx
+import { I18nProvider, PdfPreview } from "json-pdf-designer";
+
+<I18nProvider locale="pt-BR">
+  <PdfPreview bytes={pdfBytes} />
+</I18nProvider>
+```
+
+`useT()`/`useLocale()` (exported) give you the active dictionary/locale
+code inside your own components, same context `<Designer>` uses
+internally.
+
+## What's in it
+
+**Fields**: text, table, image, **section** (repeated data band),
+**chart** (pie/bar), and **KPI indicator** — all drag/resize freely
+(react-rnd), with a **5mm grid** snapping position/size by default —
+hold **Shift** while dragging/resizing to break free of the grid and
+move freely (without Shift, a field always snaps back to the grid, even
+if it started off-grid). The "+ text/table/image/section/chart/
+indicator" button always creates the new field **centered** in the body
+area — it doesn't depend on where other fields already are, so it never
+"stacks" its way off the page. Double-click turns on inline editing:
+text/table become an input/textarea right on top of the field (Escape
+exits, and only the cell you actually clicked shows the raw formula —
+the others keep showing the clean token); an image opens the file picker
+to swap it. `Delete`/`Backspace` deletes ALL selected fields; `Ctrl`/
+`Cmd`+`C` copies, `Ctrl`/`Cmd`+`V` pastes an offset copy (new id/name,
+already selected) — all three shortcuts are disabled while focus is in
+an input/textarea, so they don't eat normal typing.
+
+**Multi-select** — Ctrl/Cmd+click adds/removes a field from the
+selection (on the canvas or in the side list); dragging on empty canvas
+space (or inside a section's body, without touching its drag bar) draws
+a marquee box that picks up every field it crosses. Dragging ANY
+selected field moves the whole group live. Dragging a section always
+moves its member fields too, in addition to the rest of the selection.
+
+**The side panel** has a single, flat row of tabs, no nesting — **Fields**
+(the list of every field already placed: click anywhere on the row to
+select it — the list scrolls itself to the item if it's out of view —
+send-to-back/bring-to-front buttons appear on the selected row, a lock
+icon locks/unlocks moving/resizing, a trash icon removes it directly),
+**Page** (size/orientation, header/footer/margin, background PDF/image,
+an "edit header/footer/margin" toggle) always available, and **Data**/
+**Style**/**Filter** — only present while a field is selected, and only
+the ones that make sense for its type (Style doesn't exist for image/
+section; Filter only exists for charts). Switching fields keeps the
+current tab if it also exists on the new type (e.g. styling several
+charts in a row without bouncing back to "Data" on every click); if it
+doesn't exist, it falls back to "Fields".
+
+Any Data/Style/Filter/Page tab can be pinned as hidden via the "×" that
+appears on it while active — it comes back through the "+" button at the
+end of the bar (which also lists "Restore default" once the order or
+visibility has been changed). Tab order is free — drag one on top of
+another to reorder (a thin bar shows where it'll land). Order and hidden
+tabs persist across sessions via `localStorage` (keys
+`json-pdf-designer:tab-order` and `json-pdf-designer:hidden-tabs`) — a
+browser UI preference, not part of the saved `Template`/`Binding[]`.
+
+**Incomplete-configuration warning** — a section/chart with no JSON
+binding, or a chart filter with a column picked but no value filled in
+(see "Chart filter" below), get a yellow ⚠ warning icon in the Fields
+list (with the reason in the tooltip) and, for charts, also on the right
+tab in the top bar — "Data" if the binding is missing, "Filter" if the
+problem is an incomplete condition — pointing straight at what to fix
+without having to open every tab to find out.
+
+**Data binding** (`Binding`) — each field points at the real JSON:
+- `scalar` — a direct value (`path.in.json`).
+- `template` — free text with `{token}`, e.g.
+  `"Client: {name} — Total: {SUM(rows.total)}"`.
+- `array` — a table built from an array of objects, column by column,
+  including **calculated columns** (a fixed label + a formula evaluated
+  per row, can combine fixed text with more than one token:
+  `"{pnr} - {product}"`).
+- `keyvalue` — a "field / value" table from a manually chosen list of
+  paths.
+- `section` — the array a **section** (see below) repeats, one item per
+  repetition.
+
+Inside `{...}` (text, calculated column, footer cell — anywhere):
+functions `SUM`, `COUNT`, `AVG`, `CONCAT`, `UPPER`, `LOWER`,
+`TRIM(path)` (trims whitespace from both ends — useful for a legacy
+system's fixed-width field, like `"invoice": " 01156189"`; `{token}`/
+`CONCAT` preserve the value exactly as it came, on purpose, so the space
+only goes away if you ask for it), `DATE(path, "output"[, "input"])`,
+`CURRENCY(path, "$")`, `NUMBER(path, decimals)` (like C's `%.2f` —
+controls how many decimal places, no thousands separator/symbol, that's
+`CURRENCY`), and **simple arithmetic** (`{qty * price}`,
+`{subtotal - discount}` — left to right, no operator precedence). A
+function CAN receive another function or an arithmetic expression as an
+argument (e.g. `{CURRENCY(SUM(rows.total), "$")}`), with one exception:
+**two function calls combined by an operator in the same expression**
+(`{SUM(a) - SUM(b)}`) doesn't resolve correctly — in that case,
+pre-compute the value in the JSON or split it into two tokens.
+
+`DATE`'s 3rd argument (optional) gives the **input format** — without
+it, JS's `new Date(raw)` tries to guess, and a date like `"10/04/2025"`
+(the 10th) turns into October 10th (American format). Passing
+`DATE(dueDate, "DD/MM/YYYY", "DD/MM/YYYY")` reads it exactly as written,
+with no ambiguity. Dates are always read/written in **UTC** (not the
+browser/server's own timezone that generates the PDF) — a date-only
+value (`"2026-07-01"`, no time) comes out matching exactly what was
+written no matter where it runs; a datetime with an explicit offset
+(`"...T23:30:00-03:00"`) is converted to the equivalent UTC instant.
+
+## Repeated section (master-detail / data band)
+
+A `SectionSchema` is a plain rectangle — it holds no children, it's just
+a **group**: any field (text, image, table) dropped on top of it on the
+canvas becomes a **member** (via `BaseSchema.sectionId`), staying a
+normal field in the flat `template.schemas` array — same absolute
+position, same way to select/edit/drag. Dragging a field OUT of the
+section clears the link again (bidirectional). A section only drags by
+its **purple bar at the top** ("Section (repeats) — drag here to move")
+— clicking anywhere else on it (or a field on top of it) selects
+normally, without moving it.
+
+Once bound (`type: "section"`, path to the array), the section
+**repeats once per item** of the array — stacking vertically and
+paginating together with the rest of the body (a large section spills
+onto a new page just like any table). Inside it:
+- Any member text resolves `{field}` against the **current ITEM** (not
+  the whole document), and `{Line}`/`{index}` gives the repetition
+  number (1, 2, 3...).
+- A **member table with no binding of its own** shows a single row,
+  cell by cell, against the current item — an empty cell falls back to
+  the column name directly (`head[i]` -> `{item[head[i]]}`), a filled-in
+  cell is a real template (same syntax as text, can combine fields).
+- A **member table WITH an `array` binding** (a path relative to the
+  item, e.g. Order → OrderItems) is real master-detail — one row per
+  item of the nested array, and the section **grows in height** to fit
+  (text below the table, if any, shifts down with it, even if more than
+  one table grows within the same section).
+
+A section can also have **zero tables** — just member text fields is
+already a valid repeated "record"/list.
+
+## Table — header, value, and footer (totals)
+
+Besides its normal columns, a table can have a **totals row** (`footer`)
+— one cell per column, each a real template (fixed text and/or
+`{token}`/`{SUM(...)}`); it's drawn just once, on the last page slice,
+even if the table paginates (it never repeats like the header does).
+
+Background/text color and **font size** are configurable at three
+levels, from most generic to most specific — the whole header, the
+whole value row (every data row), the whole footer
+(`headBackgroundColor`/`headTextColor`/`headFontSize`,
+`bodyBackgroundColor`/`bodyTextColor`/`bodyFontSize`,
+`footerBackgroundColor`/`footerTextColor`/`footerFontSize` on
+`TableSchema`) — and per **individual column** via `columnStyles`
+(header and value kept separate, overrides only that column). With
+nothing set, it falls back to the usual blue/white/9pt — old templates
+don't change appearance.
+
+The "Current table columns" list in the panel lets you **drag to
+reorder** (shifts `head`/`content`/`footer`/`columnStyles` together, by
+index) and has a "+" button to add a column from a known data source
+(the owning section's, if the table is a member, or its own binding's,
+if it's standalone).
+
+**Header, footer, and margins** (`Template.headerHeight`/
+`footerHeight`/`marginLeft`/`marginRight`, in mm) — bands that repeat on
+**every page** of the generated PDF. There's no "zone" field on the
+schema: a field automatically falls into the header/footer/margin when
+its position (x/y) lands inside it — it's just where it is, nothing to
+flag.
+
+Outside of isolated mode (see below), a header/footer/margin field
+shows up on the canvas only as visual context — dimmed, not clickable,
+not draggable/resizable (and vice versa: a body field locks while
+isolated mode is on). The side list also only shows what's editable in
+the current mode. The **"Edit header/footer/margin"** button isolates
+editing: the body disappears, only the red band shows, and any new
+field created in that mode is born inside it.
+
+Inside a text field that falls in one of these bands, the special
+tokens `{pageNumber}` and `{pageCount}` work directly in the content
+(bound or not) and are re-resolved on every page — useful for a "Page 1
+of 3" in the footer.
+
+**Real pagination** — if a body table (or repeated section) has more
+rows/items than fit on one page, `generatePdf` automatically splits it
+across several pages. EVERY item in the body — table, section, text,
+image — is processed in a single sequence, **ordered by Y**: when one
+finishes, the next one continues right below it (same page or a new
+one, whichever fits), preserving the spacing drawn in the editor even
+if something before it grew (a master-detail section) or moved to a new
+page — so you can place a caption/title BETWEEN two tables, or text
+before/after a section, and the relative position is respected. Each
+table's editor lets you turn off "Repeat table header on next pages"
+(on by default).
+
+**Text — background and border** — a text field can have a background
+color and a border (`TextSchema.backgroundColor`/`borderColor`/
+`borderWidth`, in mm) — useful for a colored title band, a highlight
+box, etc. With nothing set, it's transparent/borderless, as always.
+
+**Chart** (`ChartSchema`) — pie or bar over a bound array (a `Binding`
+of type `chart`: `path` to the array, `labelColumn` the label's key,
+`valueColumn` the numeric key summed per label — e.g. switching
+`valueColumn` from `"value"` to `"quantity"` without touching anything
+else). In the panel, its fields live across three tabs — **Data** (sort
+by, group into "Other" starting from N, and the JSON binding), **Style**
+(type, format, legend, color palette, display, value format), and
+**Filter** (see below) — same tab pattern as the table. It groups the
+`topN` largest (default 7, any integer — `0` turns off grouping and
+shows everyone) each with their own fixed color, and the rest into an
+"Other" slice/bar — it never overruns the palette. `displayMode` picks
+whether the legend/label shows the raw number or the percentage of the
+total; `valueFormat` (`"number"` default or `"currency"`) formats the
+raw-value part — `currencySymbol` (default `"$"`) and `decimals`
+(default 2) only apply when `valueFormat` is `"currency"`.
+
+**Color palette** (`ChartSchema.colorPalette`) — the name of a
+ready-made palette (see `CHART_PALETTE_NAMES`/`CHART_PALETTE_LABELS` in
+`chartColors.ts`): `"default"`, `"classic"`, `"modern"`, `"vibrant"`,
+`"pastel"`, `"grayscale"` — ready-made color themes, same idea as any
+spreadsheet/chart editor. A loose string (not a closed union), absent
+falls back to `"default"` on its own — a template saved with a palette
+name removed in a future version doesn't break. `"custom"` uses
+`ChartSchema.customPaletteColors` (`string[]`, up to
+`CHART_PALETTE_SIZE` hex colors) instead of a fixed one — editable color
+by color in the panel (Style tab → Color palette → pick "Custom" to
+reveal the pickers); with no color chosen yet, it falls back to
+`"default"` until the first `onChangeCustomColors`.
+
+**Chart filter** (its own "Filter" tab in the panel, separate from "JSON
+binding") — a `Binding` of type `chart` accepts `filters?:
+ChartFilterGroup[]` (groups combined with **OR**; inside a group,
+conditions combine with **AND** — an advanced filter with combinable
+AND/OR groups). Each condition is `{ column, op, value }`, where
+`column` is a key of the bound array's item (it doesn't have to be
+`labelColumn`/`valueColumn` — you can filter by one column and aggregate
+by another) and `op` is `"eq"` (`=`), `"neq"` (`≠`), `"gt"` (`>`),
+`"gte"` (`≥`), `"lt"` (`<`), `"lte"` (`≤`), or `"contains"` (substring,
+case-insensitive). Numeric comparison when both sides convert to a
+number, text otherwise — with no filter at all (`filters` absent/empty),
+every item enters, as always.
 
 ```ts
-// main.tsx (ou qualquer módulo carregado antes da 1ª tela com preview)
+// only agents with quantity > 20 OR status "vip"
+const binding: Binding = {
+  schemaName: "my_chart",
+  type: "chart",
+  path: "salesByAgent",
+  labelColumn: "label",
+  valueColumn: "value",
+  filters: [
+    [{ column: "quantity", op: "gt", value: "20" }],
+    [{ column: "status", op: "eq", value: "vip" }],
+  ],
+};
+```
+
+**KPI indicator** (`KpiSchema`) — a KPI card: solid colored background,
+an icon, title, a large value, and a caption. `icon` is the name of a
+[Google Material Symbols](https://fonts.google.com/icons) icon (e.g.
+`bar_chart`, `attach_money`, `warning`) or `"none"` — the panel's icon
+picker is searchable both by technical name and by a plain-language
+label in the active `locale`. `title`/`value`/`subtitle` are plain text
+(same `{path}`/`{FUNCTION(...)}` syntax as a standalone text field) —
+with no `Binding` of their own, resolved directly against the whole
+document at generation time.
+
+**Page size and orientation** — `<Designer>` shows a size selector
+(A4/A3/A5/Letter/Legal) and orientation (portrait/landscape) in its
+"Page" tab; `applyOrientation`/`orientationOf`/`matchPreset`/
+`PAGE_SIZE_PRESETS` (exported) do the same math for anyone building
+their own selector.
+
+**Page background** (`Template.backgroundImage`) — an image (or the
+first page of a PDF, rasterized once on upload) behind everything, both
+in the editor and in the final PDF. The "Background PDF/image" button
+in `<Designer>`; the conversion lives in `fileToBackgroundImage`
+(exported internally only, for now).
+
+**Custom font** — pass `fontBytes` (the bytes of a **real TTF/OTF**) to
+`generatePdf(..., { fontBytes })` for full accent/Unicode coverage via
+`fontkit`. Without it, it falls back to pdf-lib's default Helvetica
+(WinAnsi — covers most Latin accents, but not everything).
+
+`.woff`/`.woff2` (the format packages like `@fontsource/*` ship) are
+also accepted — `normalizeFontBytes(bytes)` detects and decompresses
+them into the real TTF/OTF that pdf-lib needs, automatically (WOFF2 via
+`wawoff2`/WASM; WOFF v1 is simpler — plain zlib per table, decoded in
+pure JS, no WASM at all, via `tiny-inflate`). The resulting file
+reorders its tables alphabetically (a normal trait of the WOFF format,
+which doesn't keep the original physical order) — this doesn't affect
+the font: same glyphs, metrics, and character mapping, validated with
+`fontkit` (the same library pdf-lib uses under the hood to embed the
+font).
+
+**Ruler and zoom** — a mm ruler on the left/bottom of the canvas; a
+floating bar at the bottom with zoom -/+, fit width/height, and reset —
+doesn't affect the generated PDF, it's just the view. Drag/resize stays
+correct at any zoom level (react-rnd receives the scale factor).
+
+**Real PDF preview** (`<PdfPreview bytes={...} />`) — renders the
+generated PDF (byte for byte, with pdf.js) into one `<canvas>` per page,
+showing the file's real size/margins.
+
+### pdf.js worker — CDN by default vs. self-hosting
+
+The preview needs pdf.js's *worker* (`pdf.worker.min.mjs`) running on
+its own thread. Since the package is pre-built with `tsup` (without the
+asset-URL handling Vite does for app code), it **doesn't bundle that
+worker** — by default, `ensureWorker()` points at the official CDN
+matching the installed version:
+
+```
+https://cdn.jsdelivr.net/npm/pdfjs-dist@<version>/build/pdf.worker.min.mjs
+```
+
+That works fine in the examples (`report-builder`/`custom-ui`) and in
+any app with free outbound internet access. **In a real integration**
+(a frontend behind a restrictive CSP, a VPN, a closed corporate network,
+or any environment that can't depend on `jsdelivr.net`'s availability
+in production), self-host the worker by calling `configurePdfWorker(url)`
+**once, before the first `<PdfPreview>`/`<PdfPreviewModal>` renders** —
+in your app's entry point, for example.
+
+With Vite, import the worker as an asset (the `?url` suffix makes Vite
+copy the file into the build and hand back the final URL, already
+hashed/served by your own app's CDN):
+
+```ts
+// main.tsx (or any module loaded before the first screen with a preview)
 import { configurePdfWorker } from "json-pdf-designer";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 configurePdfWorker(pdfWorkerUrl);
 ```
 
-Com outro bundler (webpack, esbuild direto, etc.), o equivalente é
-copiar `node_modules/pdfjs-dist/build/pdf.worker.min.mjs` pra uma pasta
-estática servida pelo app e apontar a URL pública dele
+With another bundler (webpack, esbuild directly, etc.), the equivalent
+is copying `node_modules/pdfjs-dist/build/pdf.worker.min.mjs` into a
+static folder your app serves and pointing at its public URL
 (`configurePdfWorker("/static/pdf.worker.min.mjs")`).
 
-Se `configurePdfWorker` nunca for chamado e o CDN estiver inacessível, o
-preview simplesmente não renderiza (erro de rede no console) —
-`generatePdf`/`downloadPdf` **não são afetados**, já que não usam pdf.js
-(só o preview visual depende dele).
+If `configurePdfWorker` is never called and the CDN is unreachable, the
+preview simply doesn't render (a network error in the console) —
+`generatePdf`/`downloadPdf` **aren't affected**, since they don't use
+pdf.js at all (only the visual preview depends on it).
 
-## Componentes de UI prontos
+## Ready-made UI components
 
-Se você não quer (ou não pode) montar a própria casca visual em volta do
-`<Designer>`, o pacote também exporta os componentes prontos que ele usa
-por dentro (`Button`, `Card`, `Input`, ícones etc — Tailwind, mesmo
-estilo do painel de propriedades) e um `PdfPreviewModal` completo:
+If you don't want to (or can't) build your own visual shell around
+`<Designer>`, the package also exports the ready-made components it uses
+internally (`Button`, `Card`, `Input`, icons, etc — Tailwind, same look
+as the property panel) and a complete `PdfPreviewModal`:
 
 ```tsx
 import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select, PdfPreviewModal } from "json-pdf-designer";
@@ -330,130 +442,154 @@ import "json-pdf-designer/style.css";
 
 <Card>
   <CardHeader>
-    <CardTitle>Fontes de dados</CardTitle>
+    <CardTitle>Data sources</CardTitle>
     <Button variant="ghost" size="icon"><IconX /></Button>
   </CardHeader>
-  <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
+  <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
 </Card>
 ```
 
-Nada disso é obrigatório — o exemplo `custom-ui` (ver "Exemplos" abaixo)
-monta a casca inteira com CSS próprio, sem importar nenhum desses
-componentes, pra provar que o `<Designer>` funciona igual dos dois jeitos.
+None of this is required — the `custom-ui` example (see "Examples"
+below) builds its entire shell with its own CSS, without importing any
+of these components, to prove `<Designer>` works either way.
 
-## API pública
+## Public API
 
 ```ts
-// Componente
-Designer                                   // canvas React completo (toolbar + lista + réguas + zoom + faixas)
-PdfPreview, configurePdfWorker             // preview do PDF gerado
-PdfPreviewModal                            // modal completo em volta do PdfPreview (botão baixar/fechar)
+// Component
+Designer                                   // the full React canvas (toolbar + list + rulers + zoom + bands)
+PdfPreview, configurePdfWorker             // preview of the generated PDF
+PdfPreviewModal                            // a full modal around PdfPreview (download/close buttons)
 
-// UI pronta (opcional — ver "Componentes de UI prontos" acima)
-Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select
+// UI language (see "UI language" above)
+I18nProvider, useT, useLocale, withInlineCode
+type Locale, type Dict
+
+// Ready-made UI (optional — see "Ready-made UI components" above)
+Button, Card, CardHeader, CardTitle, Badge, TabPanel, Input, ColorInput, Textarea, Select
 IconPlus, IconX, IconTrash, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
 IconArrowsVertical, IconDots, IconUpload, IconLock, IconLockOpen, IconBringToFront,
-IconSendToBack, IconRefresh, IconDownload, IconFolderUp
+IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle
 
-// Geração
+// Generation
 generatePdf(template, data, bindings, { fontBytes? }) => Promise<Uint8Array>
 downloadPdf(bytes, filename?)
-normalizeFontBytes(bytes)                  // detecta WOFF2 e descomprime (rede de segurança — ver aviso acima)
+normalizeFontBytes(bytes)                  // detects WOFF/WOFF2 and decompresses (a safety net — see the note above)
 
-// Vínculos
-buildInputs(data, bindings)                // resolve todos os vínculos de uma vez
-renderTemplate(template, data)             // resolve um template livre "{token}"
-resolveToken(token, data)                  // resolve um token/função isolado
-rowsFromArrayBinding(list, columns)        // array de objetos -> linhas de tabela
+// Bindings
+buildInputs(data, bindings)                // resolves every binding at once
+renderTemplate(template, data)             // resolves a free "{token}" template
+resolveToken(token, data)                  // resolves a single token/function
+rowsFromArrayBinding(list, columns)        // array of objects -> table rows
 columnLabel(col), columnKey(col)
-describeBinding(b), describeBindingShort(b)
-CUSTOM_FIELD_FUNCTIONS                     // lista das funções disponíveis (pra UI própria)
-resolveChartItems(binding, data)           // vínculo "chart" -> [{label, value}] cru
-aggregateChartItems(items, topN?)          // agrupa nos topN maiores + "Outros" (com cor)
-CHART_COLORS, CHART_OTHER_COLOR            // paleta fixa usada pelo gráfico (canvas e PDF)
+describeBinding(b, t?), describeBindingShort(b, t?)  // t: Dict, for UI display — defaults to English
+CUSTOM_FIELD_FUNCTIONS                     // the list of available functions (for a custom UI)
+resolveChartItems(binding, data)           // "chart" binding -> raw [{label, value}]
+aggregateChartItems(items, topN?, sortBy?, palette?)  // groups into the topN largest + "Other" (with a color)
 
-// Zonas (cabeçalho/rodapé/margem)
+// Chart color palettes
+CHART_COLORS, CHART_OTHER_COLOR, CHART_PALETTES, CHART_PALETTE_LABELS,
+CHART_PALETTE_NAMES, CHART_PALETTE_SIZE, resolveChartPalette, resolveChartColors
+type ChartPaletteName, type ChartPresetName
+
+// KPI icons
+MATERIAL_ICON_GRID, MATERIAL_ICON_PATHS, MATERIAL_ICON_LABELS, MATERIAL_ICON_NAMES,
+materialIconLabels(locale)                 // English or Portuguese icon search labels
+type MaterialIconName
+
+// Schema factories (used internally by the "+" toolbar, exported for a custom UI)
+makeChartSchema(nextY, t?), makeKpiSchema(nextY, t?), makeSectionColumnPair(sectionId, column, x, y, t?)
+
+// Zones (header/footer/margin)
 classifyZone(schema, page, bands) => Zone  // "header" | "footer" | "marginLeft" | "marginRight" | "body"
 isRedZone(zone), clampToZone(...)
 
-// Unidades
+// Units
 mmToPx, pxToMm, mmToPt
 
-// Página — tamanho e orientação
-PAGE_SIZE_PRESETS                          // A4/A3/A5/Carta/Ofício, sempre em retrato
+// Page — size and orientation
+PAGE_SIZE_PRESETS                          // A4/A3/A5/Letter/Legal, always portrait
 orientationOf(page), applyOrientation(page, orientation), matchPreset(page)
 
-// Tipos
+// Types
 Template, Schema, TextSchema, TableSchema, TableColumnStyle, ImageSchema,
 SectionSchema, ChartSchema, KpiSchema, KpiIcon, BaseSchema, PageSize, Binding,
 TableColumn, DataSourceOption, SectionColumnDragPayload, Zone, Bands,
 GeneratePdfOptions, Orientation
 ```
 
-## Estrutura do pacote
+## Package structure
 
 ```
 src/
   types/
     schema.ts          -> Template/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
-    binding.ts          -> TableColumn, Binding (inclui "chart": path/labelColumn/valueColumn)
+    binding.ts          -> TableColumn, Binding (includes "chart": path/labelColumn/valueColumn/filters)
     dataSource.ts       -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
-  units.ts             -> conversões mm <-> px <-> pt + grade (GRID_SIZE_MM, snapToGrid)
-  zones.ts             -> classifica campo em header/footer/margem/corpo + trava de arrasto
-  chartColors.ts       -> paleta categórica fixa do gráfico (CHART_COLORS/CHART_OTHER_COLOR)
-  pageSizes.ts         -> presets de tamanho de página + orientação (retrato/paisagem)
-  schemaFactory.ts     -> cria schema novo (texto/tabela/imagem/seção/gráfico/indicador) + próximo Y livre
+  units.ts             -> mm <-> px <-> pt conversions + grid (GRID_SIZE_MM, snapToGrid)
+  zones.ts             -> classifies a field into header/footer/margin/body + drag lock
+  chartColors.ts       -> the chart's fixed categorical palettes + labels
+  materialIcons.ts     -> Material Symbols icon paths + EN/PT-BR search labels (KPI icon picker)
+  fieldWarnings.ts     -> "missing binding"/"incomplete filter" warning messages (Fields list, tab icons)
+  pageSizes.ts         -> page size presets + orientation (portrait/landscape)
+  schemaFactory.ts     -> creates a new schema (text/table/image/section/chart/indicator) + next free Y
+  tableColumns.ts      -> keeps a table's head/content/footer/columnStyles in sync with its array binding
+  i18n/
+    en.ts, pt-BR.ts     -> the Designer's own UI text, one file per language (en is canonical)
+    context.tsx, hooks.ts -> I18nProvider, useT, useLocale
   bindings/
-    bindings.ts        -> resolve vínculos + funções (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER...) + aritmética
-                          + resolveChartItems/aggregateChartItems (vínculo "chart")
-    columnParsing.ts   -> parse do texto livre "col, Rótulo={FUNÇÃO(...)}" da tabela
+    bindings.ts        -> resolves bindings + functions (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER...) + arithmetic
+                          + resolveChartItems/aggregateChartItems ("chart" binding)
+    columnParsing.ts   -> parses the table's free-text "col, Label={FUNCTION(...)}" input
   pdf/
-    generate.ts        -> gera o PDF de verdade (pdf-lib): paginação unificada (tabela/seção/texto/imagem
-                          numa sequência só por Y), mestre-detalhe, faixas repetidas, fundo, fonte
-    drawTable.ts       -> desenha tabela no pdf-lib em fatias (paginação), cabeçalho/valor/rodapé com cor/tamanho
-    drawChart.ts       -> desenha pizza (fatias via drawSvgPath) ou barra + legenda no pdf-lib
-    drawKpi.ts         -> desenha o cartão de indicador (fundo + ícone traçado + título/valor/legenda)
-    fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1, WASM pro v2)
-    pdfWorker.ts       -> configuração do worker do pdf.js (compartilhada)
-    backgroundImage.ts -> converte upload (PDF ou imagem) num PNG de fundo
-    thirdParty.d.ts    -> tipos ambient pra wawoff2/tiny-inflate (sem @types próprio)
-  Designer.tsx         -> canvas React (react-rnd) — orquestra tudo abaixo, seleção múltipla, seções,
-                          tamanho/orientação da página
+    generate.ts        -> generates the real PDF (pdf-lib): unified pagination (table/section/text/image
+                          in a single sequence by Y), master-detail, repeated bands, background, font
+    drawTable.ts       -> draws a table in pdf-lib across page slices, header/value/footer with color/size
+    drawSection.ts     -> draws a repeated section, one pass per bound array item
+    drawChart.ts       -> draws pie (slices via drawSvgPath) or bar + legend in pdf-lib
+    drawKpi.ts         -> draws the KPI card (background + traced icon + title/value/caption)
+    pagination.ts      -> splits body content across pages against the header/footer/margin bands
+    resolvers.ts, color.ts -> small shared helpers for the draw* modules
+    fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1, WASM for v2)
+    pdfWorker.ts       -> shared pdf.js worker configuration
+    backgroundImage.ts -> turns an upload (PDF or image) into a background PNG
+    thirdParty.d.ts    -> ambient types for wawoff2/tiny-inflate (no official @types)
+  Designer.tsx         -> React canvas orchestrator — selection, clipboard, tab bar, all Template/Binding[] mutations
   components/
-    PageCanvas.tsx     -> folha A4, réguas, zoom (zoom-aware drag/resize), grade, faixas vermelhas,
-                          caixa de seleção, drag/resize/edição inline
-    FieldBox.tsx       -> renderiza texto/tabela/imagem/seção/gráfico/indicador no canvas (com modo de edição)
-    FieldList.tsx      -> lista lateral de campos (selecionar/travar/remover)
-    PropertyPanel.tsx  -> posição/tamanho + campos do tipo + vínculo (tabela/gráfico/indicador: painel próprio)
-    PropertyPanelChart.tsx -> tipo de gráfico, exibição (número/porcentagem), quantos "top N"
-    PropertyPanelKpi.tsx   -> título/valor/legenda, ícone, cores do cartão
-    BindingEditor.tsx  -> UI do vínculo (scalar/template/array/keyvalue/section/chart + colunas calculadas)
-    Toolbar.tsx        -> botões "+ texto/tabela/imagem/seção/gráfico/indicador"
-    Ruler.tsx          -> régua em mm (SVG)
-    PdfPreview.tsx     -> preview do PDF gerado via pdf.js
-    PdfPreviewModal.tsx-> modal completo em volta do PdfPreview (exportado, ver acima)
-    ui/                -> Button, Input, Card, Select, Textarea, ícones — exportados (ver acima),
-                          usados por dentro do próprio Designer (PropertyPanel/Toolbar/BindingEditor)
-  index.ts             -> exports públicos do pacote
+    PageCanvas.tsx     -> the A4 sheet, rulers, zoom (zoom-aware drag/resize), grid, red bands,
+                          marquee selection, drag/resize/inline editing
+    FieldBox/          -> renders text/table/image/section/chart/indicator on the canvas (one file per type)
+    FieldList.tsx      -> the side field list (select/lock/remove, send-to-back/bring-to-front)
+    Toolbar.tsx        -> the "+ text/table/image/section/chart/indicator" buttons
+    PropertyPanel.tsx  -> thin dispatcher to one PropertyPanel<Type>.tsx per schema type
+    PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,
+    PropertyPanelChart.tsx, PropertyPanelKpi.tsx, PropertyPanelFields.tsx -> per-type Data/Style content
+    BindingEditor.tsx  -> the generic binding UI (scalar/template/array/keyvalue/section/chart + calculated columns)
+    Ruler.tsx          -> the mm ruler (SVG)
+    PdfPreview.tsx     -> preview of the generated PDF via pdf.js
+    PdfPreviewModal.tsx-> a full modal around PdfPreview (exported, see above)
+    ui/                -> Button, Input, Card, Select, Textarea, TabPanel, icons — exported (see above),
+                          used internally by Designer itself (PropertyPanel/Toolbar/BindingEditor)
+  index.ts             -> the package's public exports
 examples/
-  report-builder/      -> app completo (fontes JSON, explorador de campos) usando a UI pronta do pacote
-  custom-ui/           -> mesma ideia, casca 100% própria (CSS na mão, sem nenhum componente do pacote)
+  report-builder/      -> a full app (JSON data sources, field explorer) using the package's ready-made UI
+  custom-ui/           -> the same idea, a 100% custom shell (hand-written CSS, no package component)
 ```
 
-## Exemplos
+## Examples
 
-Dois apps de exemplo em `examples/`, cada um com seu próprio README:
+Two example apps in `examples/`, each with its own README:
 
-- **[report-builder](../examples/report-builder)** — designer completo (fontes de
-  dados JSON, explorador de campos, 6 templates prontos) usando os
-  componentes de UI do pacote (`Button`/`Card`/`Input`/`PdfPreviewModal`).
-- **[custom-ui](../examples/custom-ui)** — versão enxuta (1 template fixo),
-  casca inteira em CSS próprio, zero componente de UI do pacote — prova
-  que o `<Designer>` funciona sem nenhum design system alheio.
+- **[report-builder](../examples/report-builder)** — the full designer
+  (JSON data sources, field explorer, 6 ready-made templates) using the
+  package's UI components (`Button`/`Card`/`Input`/`PdfPreviewModal`).
+- **[custom-ui](../examples/custom-ui)** — a lean version (1 fixed
+  template), an entirely custom CSS shell, zero package UI components —
+  proof that `<Designer>` works without any foreign design system.
 
-Cada um roda independente (`npm install && npm run dev` dentro da pasta) —
-não são workspaces do pacote, só apontam pra ele via `"json-pdf-designer":
-"file:../.."` no próprio `package.json`.
+Each runs independently (`npm install && npm run dev` inside the
+folder) — they aren't package workspaces, they just point at it via
+`"json-pdf-designer": "file:../.."` in their own `package.json`.
 
 ## Build
 

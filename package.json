@@ -1,8 +1,8 @@
 {
   "name": "json-pdf-designer",
-  "version": "1.0.7",
+  "version": "1.1.0",
   "private": false,
-  "description": "Editor visual simples de relatórios em PDF (canvas drag/resize + vínculo de dados JSON) — enxuto e pensado pra ser modificado.",
+  "description": "Simple visual PDF report editor (drag/resize canvas + JSON data binding) — lean, i18n-ready, and built to be modified.",
   "keywords": [
     "pdf",
     "pdf-generator",
@@ -22,6 +22,8 @@
     "invoice",
     "canvas-editor",
     "master-detail",
+    "i18n",
+    "localization",
     "typescript"
   ],
   "license": "MIT",

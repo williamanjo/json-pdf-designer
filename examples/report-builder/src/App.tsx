@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { Template, Binding } from "json-pdf-designer";
+import type { Template, Binding, Locale } from "json-pdf-designer";
 import { generatePdf, downloadPdf, PdfPreviewModal, Button, IconDownload, IconFolderUp } from "json-pdf-designer";
 import FieldTree from "./components/FieldTree";
 import DesignerPanel from "./components/DesignerPanel";
@@ -32,6 +32,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
   const [generating, setGenerating] = useState(false);
+  // Idioma da UI do <Designer> (botões/abas/avisos) — demonstra o prop
+  // `locale`, não afeta o PDF gerado.
+  const [locale, setLocale] = useState<Locale>("en");
 
   useUndoRedo(template, bindings, setTemplate, setBindings);
   useAutosave(template, bindings, sources);
@@ -96,6 +99,15 @@ export default function App() {
         <div className="flex gap-2">
           <select
             className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-medium text-white"
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as Locale)}
+            title="Idioma da UI do designer (não muda o PDF gerado)"
+          >
+            <option value="en" className="text-slate-900">English</option>
+            <option value="pt-BR" className="text-slate-900">Português</option>
+          </select>
+          <select
+            className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-medium text-white"
             value=""
             onChange={(e) => {
               if (e.target.value) handleLoadExample(e.target.value);
@@ -152,6 +164,7 @@ export default function App() {
             onChangeTemplate={setTemplate}
             onChangeBindings={setBindings}
             openFieldPickerRef={fieldPickerTriggerRef}
+            locale={locale}
           />
         </main>
       </div>

@@ -4,63 +4,83 @@
 [![npm downloads](https://img.shields.io/npm/dm/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
 [![CI](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml/badge.svg)](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml)
 
-Editor visual de relatórios em PDF para React — canvas de arrastar/
-redimensionar campos, vínculo de campos a um JSON de dados, seção repetida
-(data band/mestre-detalhe, tipo Stimulsoft), gráficos, cartões de
-indicador (KPI), paginação de verdade, cabeçalho/rodapé repetidos e fundo
-tipo letterhead. Um componente React só seu: sem plugin system, sem
-propPanel declarativo, sem dependência de UI de terceiros — mudar
-qualquer coisa é editar o arquivo.
+**English** | [Português](README.pt-BR.md)
 
-A geração do PDF (`generatePdf`) é **JS puro** ([pdf-lib](https://github.com/Hopding/pdf-lib))
-— o mesmo template desenhado no navegador pode ser gerado tanto no
-cliente quanto num backend Node, sem headless browser.
+Visual PDF report editor for React — drag/resize canvas, bind fields to a
+JSON data source, repeated sections (data band/master-detail), charts,
+KPI cards, real pagination, repeating header/footer, and letterhead-style
+backgrounds. A React component that's entirely yours: no plugin system,
+no declarative propPanel, no third-party UI dependency — changing
+anything is just editing the file.
 
-## Por que este pacote
+PDF generation (`generatePdf`) is **plain JS** ([pdf-lib](https://github.com/Hopding/pdf-lib))
+— the same template designed in the browser can be generated on the
+client or on a Node backend, no headless browser required.
 
-- **Você é dono do código.** Sem sistema de plugins, sem schema
-  declarativo de propriedades — o componente `<Designer>` e o resto do
-  código-fonte ficam dentro do seu `node_modules`, prontos pra ler e
-  editar se precisar de algo que o pacote não previu.
-- **Um template = um JSON.** `Template` + `Binding[]` são objetos planos
-  serializáveis — salva no banco, versiona, manda por API, sem nenhuma
-  classe ou função escondida no meio.
-- **Mesma função gera no navegador e no servidor.** `generatePdf` não usa
-  DOM nem `canvas` do navegador — só `pdf-lib`/`fontkit`. Dá pra desenhar
-  o template numa tela com `<Designer>` e gerar o PDF de verdade num
-  backend Node a partir do JSON salvo (ver [Uso em backend](#uso-em-backend-sem-ui) abaixo).
+## Why this package
 
-## Campos suportados
+- **You own the code.** No plugin system, no declarative property
+  schema — the `<Designer>` component and the rest of the source sit
+  right inside your `node_modules`, ready to read and edit if you need
+  something the package didn't anticipate.
+- **One template = one JSON.** `Template` + `Binding[]` are plain,
+  serializable objects — save them to a database, version them, send
+  them over an API, no hidden class or function in between.
+- **The same function generates on the browser and the server.**
+  `generatePdf` doesn't touch the DOM or the browser `canvas` — just
+  `pdf-lib`/`fontkit`. Design the template on screen with `<Designer>`
+  and generate the real PDF on a Node backend from the saved JSON (see
+  [Backend usage](#backend-usage-no-ui) below).
 
-| Campo | O que faz |
+## English or Portuguese UI
+
+The `<Designer>` (buttons, tabs, warnings) speaks English by default —
+pass `locale="pt-BR"` to switch it to Portuguese:
+
+```tsx
+<Designer locale="pt-BR" template={template} onChangeTemplate={setTemplate} bindings={bindings} onChangeBindings={setBindings} />
+```
+
+This only changes the editor's own UI — it doesn't change how the
+generated PDF formats dates/currency (that's `{DATE(...)}`/
+`{CURRENCY(...)}` written into the template itself, see
+[docs/USAGE.md](docs/USAGE.md)).
+
+## Supported fields
+
+| Field | What it does |
 | --- | --- |
-| **Texto** | conteúdo livre com `{token}`/`{FUNÇÃO(...)}`, fonte/cor/alinhamento |
-| **Tabela** | colunas a partir de um array, com coluna calculada e rodapé (SUM/COUNT/AVG) |
-| **Imagem** | upload direto no canvas, redimensiona junto |
-| **Seção** | data band repetido — mestre-detalhe, agrupa outros campos e paginação junto com o corpo |
-| **Gráfico** | pizza/rosca ou barra, com legenda configurável (direita/esquerda/topo/base/nas fatias), ordenação e modo de exibição (número/percentual/ambos) |
-| **Indicador (KPI)** | cartão colorido com ícone ([Google Material Symbols](https://fonts.google.com/icons), com busca), título, valor e legenda |
+| **Text** | free content with `{token}`/`{FUNCTION(...)}`, font/color/alignment |
+| **Table** | columns from an array, with calculated columns and a footer (SUM/COUNT/AVG) |
+| **Image** | upload straight into the canvas, resizes with it |
+| **Section** | repeated data band — master-detail, groups other fields and paginates together with the body |
+| **Chart** | pie/donut or bar, configurable legend (right/left/top/bottom/on slices), sorting, display mode (number/percent/both), value format (number/currency), a ready-made color palette (Default/Classic/Modern/Vibrant/Pastel/Grayscale) or a fully custom one (color by color), and an advanced filter (OR groups, AND conditions) |
+| **KPI indicator** | colored card with an icon ([Google Material Symbols](https://fonts.google.com/icons), searchable), title, value, and caption |
 
-Tudo arrasta/redimensiona livre (via [react-rnd](https://github.com/bokuweb/react-rnd)), com grade de 5mm (estilo Stimulsoft) que trava
-posição/tamanho por padrão — segura **Shift** durante o arrasto pra soltar
-da grade. Seleção múltipla (Ctrl/Cmd+clique ou caixa de seleção),
-copiar/colar, atalhos de teclado, tamanho/orientação de página
-configuráveis. Detalhe completo de cada recurso em [docs/USAGE.md](docs/USAGE.md).
+Everything drags/resizes freely (via [react-rnd](https://github.com/bokuweb/react-rnd)), with a 5mm grid
+that snaps position/size by default — hold **Shift** while dragging to
+break free of the grid. Multi-select (Ctrl/Cmd+click or a marquee box),
+copy/paste, keyboard shortcuts, configurable page size/orientation. A
+tabbed side panel — **Fields** and **Page** (always available) plus
+**Data**/**Style**/**Filter** (only while a field is selected, depending
+on its type) — tabs are drag-reorderable and pinnable (hide with the
+"×", bring back with the "+"). Full detail on every feature in
+[docs/USAGE.md](docs/USAGE.md).
 
-## Instalação
+## Install
 
 ```bash
 npm install json-pdf-designer
 ```
 
-Peer deps: `react` e `react-dom` (18 ou 19). Importe o CSS do pacote uma
-vez, no entrypoint do seu app:
+Peer deps: `react` and `react-dom` (18 or 19). Import the package's CSS
+once, in your app's entry point:
 
 ```ts
 import "json-pdf-designer/style.css";
 ```
 
-## Uso básico
+## Basic usage
 
 ```tsx
 import { useState } from "react";
@@ -68,7 +88,7 @@ import { Designer, generatePdf, downloadPdf, type Template, type Binding } from 
 import "json-pdf-designer/style.css";
 
 const initialTemplate: Template = {
-  page: { width: 210, height: 297 }, // A4 em mm
+  page: { width: 210, height: 297 }, // A4 in mm
   schemas: [],
 };
 
@@ -77,9 +97,9 @@ function Report() {
   const [bindings, setBindings] = useState<Binding[]>([]);
 
   async function handleGenerate() {
-    const data = await fetchMyData(); // o JSON real que popula os campos
+    const data = await fetchMyData(); // the real JSON that fills the fields
     const pdfBytes = await generatePdf(template, data, bindings);
-    downloadPdf(pdfBytes, "relatorio.pdf");
+    downloadPdf(pdfBytes, "report.pdf");
   }
 
   return (
@@ -90,82 +110,77 @@ function Report() {
         bindings={bindings}
         onChangeBindings={setBindings}
       />
-      <button onClick={handleGenerate}>Gerar PDF</button>
+      <button onClick={handleGenerate}>Generate PDF</button>
     </>
   );
 }
 ```
 
-Guia completo (vínculo de dados, funções de template, seção repetida,
-gráfico, KPI, fontes customizadas, API pública inteira) em
+Full guide (data binding, template functions, repeated sections, charts,
+KPIs, custom fonts, the entire public API) in
 **[docs/USAGE.md](docs/USAGE.md)**.
 
-## Uso em backend (sem UI)
+## Backend usage (no UI)
 
-Como `generatePdf` é JS puro, dá pra separar o sistema em duas partes:
-um **frontend** com o `<Designer>` (onde o template é desenhado e salvo
-como JSON) e um **backend/API** que recebe um id de template + dados
-reais, busca o template salvo, chama `generatePdf` direto em Node e
-manda o PDF por e-mail — sem precisar de headless browser nem duplicar a
-lógica de desenho.
+Since `generatePdf` is plain JS, you can split the system into two
+parts: a **frontend** with `<Designer>` (where the template is designed
+and saved as JSON) and a **backend/API** that receives a template id +
+real data, fetches the saved template, calls `generatePdf` directly in
+Node, and emails the PDF out — no headless browser, no duplicated
+drawing logic.
 
 ```ts
-// backend Node — nenhuma dependência de React/DOM
+// Node backend — no React/DOM dependency at all
 import { generatePdf } from "json-pdf-designer";
 
 const template = await db.reportTemplates.findById(templateId); // { template, bindings }
 const pdfBytes = await generatePdf(template.template, data, template.bindings);
-// pdfBytes: Uint8Array — anexa em e-mail, salva em disco/S3, retorna na resposta...
+// pdfBytes: Uint8Array — attach to an email, save to disk/S3, return in a response...
 ```
 
-Só `downloadPdf`, `Designer`, `PdfPreview*` e os componentes de UI são
-browser-only (usam `document`/DOM) — todo o resto do pacote (`generatePdf`,
-os tipos `Template`/`Binding`/`Schema`, e os helpers de `bindings/`) é
-seguro de importar em Node.
+Only `downloadPdf`, `Designer`, `PdfPreview*`, and the UI components are
+browser-only (they touch `document`/the DOM) — everything else in the
+package (`generatePdf`, the `Template`/`Binding`/`Schema` types, and the
+`bindings/` helpers) is safe to import in Node.
 
-Passo a passo completo — modelo de dados a persistir, endpoints
-sugeridos, exemplo com fonte customizada carregada do disco e
-considerações de segurança — em **[docs/BACKEND_INTEGRATION.md](docs/BACKEND_INTEGRATION.md)**.
+Full walkthrough — the data model to persist, suggested endpoints, an
+example with a custom font loaded from disk, and security
+considerations — in **[docs/BACKEND_INTEGRATION.md](docs/BACKEND_INTEGRATION.md)**.
 
-## Exemplos
+## Examples
 
-- **[examples/report-builder](examples/report-builder)** — designer completo
-  (fontes de dados JSON, explorador de campos, 6 templates prontos).
-- **[examples/custom-ui](examples/custom-ui)** — versão enxuta com casca
-  própria em CSS puro, sem os componentes de UI do pacote.
+- **[examples/report-builder](examples/report-builder)** — the full
+  designer (JSON data sources, field explorer, 6 ready-made templates).
+- **[examples/custom-ui](examples/custom-ui)** — a lean version with its
+  own plain-CSS shell, without the package's UI components.
 
-## Documentação
+## Documentation
 
-- **[docs/USAGE.md](docs/USAGE.md)** — instalação, uso, todos os recursos do
-  `<Designer>` e API pública completa.
-- **[docs/BACKEND_INTEGRATION.md](docs/BACKEND_INTEGRATION.md)** — como
-  separar frontend (Designer) de backend (geração + envio por e-mail).
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — decisões de arquitetura
-  internas do pacote.
-- **[docs/SCOPE.md](docs/SCOPE.md)** — o que o pacote se propõe (e não se
-  propõe) a fazer.
-- **[docs/ROADMAP.md](docs/ROADMAP.md)** — o que já foi feito e o que ainda
-  está planejado.
+- **[docs/USAGE.md](docs/USAGE.md)** — install, usage, every `<Designer>`
+  feature, and the full public API.
+- **[docs/BACKEND_INTEGRATION.md](docs/BACKEND_INTEGRATION.md)** — how to
+  split the frontend (Designer) from the backend (generation + emailing).
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — the package's
+  internal architecture decisions.
 
 ## Stack
 
 React + TypeScript, [pdf-lib](https://github.com/Hopding/pdf-lib) +
-[fontkit](https://github.com/foliojs/fontkit) pra geração do PDF,
-[react-rnd](https://github.com/bokuweb/react-rnd) pra arrastar/
-redimensionar, [pdf.js](https://github.com/mozilla/pdf.js) pro preview,
-Tailwind CSS pro visual do próprio editor. Zero dependência de UI de
-terceiros (Material UI, Ant Design etc.) — os componentes visuais do
-`<Designer>` são próprios e exportados junto, caso queiram ser
-reaproveitados.
+[fontkit](https://github.com/foliojs/fontkit) for PDF generation,
+[react-rnd](https://github.com/bokuweb/react-rnd) for drag/resize,
+[pdf.js](https://github.com/mozilla/pdf.js) for the preview, Tailwind CSS
+for the editor's own look. Zero third-party UI dependency (Material UI,
+Ant Design, etc.) — `<Designer>`'s visual components are its own and
+exported alongside it, in case you want to reuse them.
 
-## Licença
+## License
 
 [MIT](LICENSE)
 
-## Contribuidores
+## Contributors
 
-| | Nome | Papel |
+| | Name | Role |
 | --- | --- | --- |
-| <img src="https://avatars.githubusercontent.com/u/69880957?v=4" width="40" height="40"> | [@williamanjo](https://github.com/williamanjo) | Autor original |
+| <img src="https://avatars.githubusercontent.com/u/69880957?v=4" width="40" height="40"> | [@williamanjo](https://github.com/williamanjo) | Original author |
 
-Contribuições via pull request são bem-vindas.
+Contributions via pull request are welcome.

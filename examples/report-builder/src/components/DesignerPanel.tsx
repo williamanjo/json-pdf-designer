@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Designer, classifyZone, makeSectionColumnPair } from "json-pdf-designer";
-import type { Binding, Schema, SectionSchema, TableSchema, Template, TextSchema } from "json-pdf-designer";
+import type { Binding, Locale, Schema, SectionSchema, TableSchema, Template, TextSchema } from "json-pdf-designer";
 import type { FieldNode } from "../lib/jsonExplorer";
 import { sanitizeName } from "../lib/jsonExplorer";
 import { uid } from "../lib/uid";
@@ -17,6 +17,7 @@ type Props = {
   onChangeTemplate: React.Dispatch<React.SetStateAction<Template>>;
   onChangeBindings: React.Dispatch<React.SetStateAction<Binding[]>>;
   openFieldPickerRef?: React.MutableRefObject<(() => void) | null>;
+  locale?: Locale;
 };
 
 function nextFreeY(schemas: Schema[]): number {
@@ -42,6 +43,7 @@ export default function DesignerPanel({
   onChangeTemplate,
   onChangeBindings,
   openFieldPickerRef,
+  locale,
 }: Props) {
   const [showFieldPicker, setShowFieldPicker] = useState(false);
 
@@ -163,6 +165,7 @@ export default function DesignerPanel({
         onChangeBindings={onChangeBindings}
         onCanvasDrop={handleCanvasDrop}
         dataSources={dataSources}
+        locale={locale}
       />
 
       {showFieldPicker && (

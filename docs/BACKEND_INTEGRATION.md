@@ -1,46 +1,51 @@
-# Integração: frontend com o Designer + backend gerando o PDF
+**English** | [Português](BACKEND_INTEGRATION.pt-BR.md)
 
-Como usar o `json-pdf-designer` num sistema separado em duas partes: um
-**frontend** onde o usuário desenha o template (o `<Designer>` de sempre) e
-salva o resultado, e um **backend/API** que, a partir de um `templateId` +
-os dados reais, junta os dois, gera o PDF e manda por e-mail. Ponto-chave
-que faz isso funcionar sem gambiarra: **`generatePdf` é JS puro (pdf-lib) —
-roda em Node exatamente igual roda no navegador**, sem headless browser,
-sem Puppeteer, sem nada a mais.
+# Integration: frontend with the Designer + backend generating the PDF
 
-## Visão geral
+How to use `json-pdf-designer` in a system split into two parts: a
+**frontend** where the user designs the template (the usual
+`<Designer>`) and saves the result, and a **backend/API** that, given a
+`templateId` + the real data, brings the two together, generates the
+PDF, and emails it out. The key point that makes this work without any
+hack: **`generatePdf` is plain JS (pdf-lib) — it runs in Node exactly
+the same way it runs in the browser**, no headless browser, no
+Puppeteer, nothing extra.
+
+## Overview
 
 ```
-┌─────────────────────┐        salva {template, bindings}        ┌──────────────┐
-│  Frontend (Designer) │ ───────────────────────────────────────▶│   Banco de   │
-│  <Designer/>          │◀─────────────────────────────────────── │   dados      │
-└─────────────────────┘        carrega pra editar de novo         └──────┬───────┘
-                                                                         │ busca por
-                                                                         │ templateId
+┌─────────────────────┐        saves {template, bindings}         ┌──────────────┐
+│  Frontend (Designer) │ ───────────────────────────────────────▶│   Database   │
+│  <Designer/>          │◀─────────────────────────────────────── │              │
+└─────────────────────┘        loads it back up to edit again      └──────┬───────┘
+                                                                         │ looked up
+                                                                         │ by templateId
 ┌─────────────────────┐   POST /reports/generate                        │
-│  Quem dispara o       │   { templateId, data, email }          ┌──────▼───────┐
-│  relatório (seu app,  │ ───────────────────────────────────────▶│   Backend    │
-│  um cron, outro       │                                         │   (API)      │
-│  serviço...)          │                                         │              │
-└─────────────────────┘                                          │ 1. busca      │
+│  Whoever triggers    │   { templateId, data, email }          ┌──────▼───────┐
+│  the report (your    │ ───────────────────────────────────────▶│   Backend    │
+│  app, a cron job,     │                                         │   (API)      │
+│  another service...) │                                         │              │
+└─────────────────────┘                                          │ 1. fetch      │
                                                                    │    template   │
                                                                    │ 2. generatePdf│
-                                                                   │ 3. envia email│
+                                                                   │ 3. send email │
                                                                    └──────────────┘
 ```
 
-Duas fontes de verdade, cada uma cuidando só da própria parte:
-- **Template + vínculos (Binding[])** — desenhado no frontend, guardado
-  como JSON no banco. Não tem dado real dentro, só a estrutura (posição,
-  tamanho, cor, `{token}`/`{FUNÇÃO(...)}`).
-- **Dado real** — só existe na hora de gerar; vem no corpo do POST de quem
-  pede o relatório (seu próprio backend, um webhook, outra API).
+Two sources of truth, each owning only its own part:
+- **Template + bindings (`Binding[]`)** — designed on the frontend,
+  stored as JSON in the database. Holds no real data, just the structure
+  (position, size, color, `{token}`/`{FUNCTION(...)}`).
+- **Real data** — only exists at generation time; arrives in the body of
+  the POST from whoever requested the report (your own backend, a
+  webhook, another API).
 
-## 1. Frontend — desenhar e salvar o template
+## 1. Frontend — design and save the template
 
-O frontend usa o pacote exatamente como os exemplos (`examples/report-builder`)
-já mostram — a única diferença é que "Salvar projeto" (que hoje baixa um
-`.json`) vira um `POST`/`PUT` pra API em vez de um arquivo:
+The frontend uses the package exactly like the examples
+(`examples/report-builder`) already show — the only difference is that
+"Save project" (which today downloads a `.json`) becomes a `POST`/`PUT`
+to the API instead of a file:
 
 ```tsx
 import { useState } from "react";
@@ -48,7 +53,7 @@ import { Designer, type Template, type Binding } from "json-pdf-designer";
 import "json-pdf-designer/style.css";
 
 function TemplateEditorPage({ templateId }: { templateId?: string }) {
-  const [template, setTemplate] = useState<Template>(/* carregado do backend ou vazio */);
+  const [template, setTemplate] = useState<Template>(/* loaded from the backend, or empty */);
   const [bindings, setBindings] = useState<Binding[]>([]);
 
   async function handleSave() {
@@ -57,30 +62,30 @@ function TemplateEditorPage({ templateId }: { templateId?: string }) {
     await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Recibo padrão", template, bindings }),
+      body: JSON.stringify({ name: "Default receipt", template, bindings }),
     });
   }
 
   return (
     <>
       <Designer template={template} onChangeTemplate={setTemplate} bindings={bindings} onChangeBindings={setBindings} />
-      <button onClick={handleSave}>Salvar</button>
+      <button onClick={handleSave}>Save</button>
     </>
   );
 }
 ```
 
-`template`/`bindings` são só objetos JS serializáveis (`JSON.stringify`
-direto, sem classe/função por dentro) — dá pra guardar como estão.
+`template`/`bindings` are just serializable JS objects (`JSON.stringify`
+directly, no class/function hidden inside) — safe to store as they are.
 
-**Preview no frontend** (opcional, com dado de exemplo) continua igual ao
-que já existe: `generatePdf(template, data, bindings)` + `<PdfPreview>`,
-rodando no navegador do usuário enquanto ele desenha — não tem relação
-nenhuma com a geração de verdade que o backend vai fazer depois.
+**Preview on the frontend** (optional, with sample data) works exactly
+like it already does: `generatePdf(template, data, bindings)` +
+`<PdfPreview>`, running in the user's own browser while they design —
+completely unrelated to the real generation the backend will do later.
 
-## 2. Banco de dados — migration + model (Lucid)
+## 2. Database — migration + model (Lucid)
 
-Uma tabela só, uma linha por template. Migration:
+A single table, one row per template. Migration:
 
 ```ts
 // database/migrations/xxxx_create_report_templates_table.ts
@@ -137,14 +142,15 @@ export default class ReportTemplate extends BaseModel {
 }
 ```
 
-Coluna `jsonb` + driver `pg` já entrega/recebe objeto JS direto (sem
-`JSON.parse`/`stringify` manual) — `row.template`/`row.bindings` saem do
-banco no mesmo formato que o `<Designer>` produziu e que `generatePdf`
-espera. Nenhum dado real do relatório fica nessa tabela, só o desenho.
+A `jsonb` column + the `pg` driver already hands back/accepts a plain JS
+object (no manual `JSON.parse`/`stringify`) — `row.template`/
+`row.bindings` come out of the database in the exact same shape
+`<Designer>` produced and `generatePdf` expects. No real report data
+ever lives in this table, just the design.
 
-## 3. Backend — rota + controller que gera e manda o e-mail
+## 3. Backend — route + controller that generates and emails it
 
-Rota:
+Route:
 
 ```ts
 // start/routes.ts
@@ -154,7 +160,7 @@ import ReportsController from '#controllers/reports_controller'
 router.post('/api/reports/generate', [ReportsController, 'generate'])
 ```
 
-Validação do payload (VineJS):
+Payload validation (VineJS):
 
 ```ts
 // app/validators/report.ts
@@ -170,8 +176,9 @@ export const generateReportValidator = vine.compile(
 )
 ```
 
-Controller — só o `templateId` chega junto com `data`/`email`; o template
-em si é sempre lido do banco, nunca do request (ver "Segurança" abaixo):
+Controller — only `templateId` arrives alongside `data`/`email`; the
+template itself is always read from the database, never from the
+request (see "Security" below):
 
 ```ts
 // app/controllers/reports_controller.ts
@@ -183,27 +190,28 @@ import { generateReportValidator } from '#validators/report'
 
 export default class ReportsController {
   async generate({ request, response }: HttpContext) {
-    const { templateId, data, email, filename = 'relatorio.pdf' } = await request.validateUsing(
+    const { templateId, data, email, filename = 'report.pdf' } = await request.validateUsing(
       generateReportValidator
     )
 
     const row = await ReportTemplate.find(templateId)
-    if (!row) return response.notFound({ error: 'Template não encontrado' })
+    if (!row) return response.notFound({ error: 'Template not found' })
 
     let pdfBytes: Uint8Array
     try {
-      // Junta o template salvo com o dado real e gera o PDF — puro JS,
-      // mesma função que o preview do Designer usa no navegador.
+      // Combines the saved template with the real data and generates the
+      // PDF — plain JS, the same function the Designer's own preview uses
+      // in the browser.
       pdfBytes = await generatePdf(row.template, data, row.bindings)
     } catch (err) {
-      // erro de conteúdo (ex: imagem de fundo corrompida, ver generate.ts)
-      // vira 422, não 500 — template tá ok, o DADO que chegou é que não
-      // bateu com o que o template espera.
+      // A content error (e.g. a corrupted background image, see
+      // generate.ts) becomes a 422, not a 500 — the template is fine, the
+      // DATA that arrived just didn't match what the template expects.
       return response.unprocessableEntity({ error: String(err) })
     }
 
     await mail.send((message) => {
-      message.to(email).subject('Seu relatório').attachData(Buffer.from(pdfBytes), { filename })
+      message.to(email).subject('Your report').attachData(Buffer.from(pdfBytes), { filename })
     })
 
     return response.accepted({ ok: true })
@@ -211,21 +219,21 @@ export default class ReportsController {
 }
 ```
 
-Sem DOM, sem `canvas` do navegador, sem `document` — `generatePdf` só usa
-`pdf-lib`/`fontkit`, que rodam em Node normalmente (Adonis roda em Node,
-então importa igual qualquer outro pacote). `downloadPdf` (o
-`URL.createObjectURL`/`<a download>`) é a ÚNICA função do pacote que só
-funciona no navegador — o backend nunca chama essa, só `generatePdf` +
-`Buffer.from(bytes)`.
+No DOM, no browser `canvas`, no `document` — `generatePdf` only uses
+`pdf-lib`/`fontkit`, which run in Node like any other package (Adonis
+runs on Node, so it imports the same as anything else). `downloadPdf`
+(the `URL.createObjectURL`/`<a download>` one) is the ONLY function in
+the package that's browser-only — the backend never calls that one,
+just `generatePdf` + `Buffer.from(bytes)`.
 
-### Fonte customizada no backend
+### Custom font on the backend
 
-Se o template usa `fontBytes` (acentuação/Unicode completo — ver
-`docs/USAGE.md`), carregue o `.ttf`/`.otf` do disco em vez de `fetch`,
-uma vez só num provider/setup (não a cada request):
+If the template uses `fontBytes` (full accent/Unicode coverage — see
+`docs/USAGE.md`), load the `.ttf`/`.otf` from disk instead of `fetch`,
+once, in a provider/setup (not on every request):
 
 ```ts
-// providers/pdf_fonts_provider.ts (ou um singleton simples)
+// providers/pdf_fonts_provider.ts (or a simple singleton)
 import { readFile } from 'node:fs/promises'
 import app from '@adonisjs/core/services/app'
 
@@ -240,46 +248,49 @@ export async function loadReportFont() {
 pdfBytes = await generatePdf(row.template, data, row.bindings, { fontBytes: reportFontBytes })
 ```
 
-## 4. Contrato de API sugerido
+## 4. Suggested API contract
 
-| Rota | O que faz |
+| Route | What it does |
 | --- | --- |
-| `POST /api/templates` | Cria um template novo (`{ name, template, bindings }`) |
-| `PUT /api/templates/:id` | Atualiza um template existente |
-| `GET /api/templates/:id` | Carrega `{ template, bindings }` de volta pro `<Designer>` editar |
-| `GET /api/templates` | Lista (nome + id) pra um seletor no frontend |
-| `POST /api/reports/generate` | Junta `templateId` + `data`, gera o PDF, manda e-mail |
+| `POST /api/templates` | Creates a new template (`{ name, template, bindings }`) |
+| `PUT /api/templates/:id` | Updates an existing template |
+| `GET /api/templates/:id` | Loads `{ template, bindings }` back for `<Designer>` to edit |
+| `GET /api/templates` | Lists (name + id) for a picker on the frontend |
+| `POST /api/reports/generate` | Combines `templateId` + `data`, generates the PDF, emails it |
 
-## 5. Segurança
+## 5. Security
 
-- **Nunca aceite `template`/`bindings` no corpo do `/reports/generate`** —
-  só o `templateId`. Se o cliente puder mandar o template junto, ele
-  controla o que o servidor desenha (inclusive `backgroundImage` — base64
-  arbitrário) e quanto processamento uma seção repetida gigante consome.
-  O template só muda pelas rotas de `/templates`, que devem exigir o mesmo
-  dono/tenant autenticado que criou aquele template.
-- **Limite o tamanho de `data`** (body-parser com `limit`, ex. 2–5MB) — uma
-  seção repetida itera o array inteiro; um array absurdo vira um PDF de
-  milhares de páginas e trava o processo.
-- **`email` sempre validado** (formato +, se fizer sentido, pertence ao
-  mesmo tenant do template) antes de mandar — evita virar relay de spam.
-- Log de auditoria simples (quem gerou, `templateId`, timestamp,
-  destinatário) — útil pra debugar "cadê meu relatório" sem guardar o PDF
-  inteiro.
+- **Never accept `template`/`bindings` in the `/reports/generate` body**
+  — only `templateId`. If the client could send the template along, it
+  would control what the server draws (including `backgroundImage` —
+  arbitrary base64) and how much processing a giant repeated section
+  consumes. The template should only ever change through the
+  `/templates` routes, which must require the same authenticated
+  owner/tenant that created that template.
+- **Cap the size of `data`** (body-parser with a `limit`, e.g. 2–5MB) —
+  a repeated section iterates the whole array; an absurd array turns
+  into a PDF with thousands of pages and hangs the process.
+- **Always validate `email`** (format, and if it makes sense, that it
+  belongs to the same tenant as the template) before sending — avoids
+  turning the endpoint into a spam relay.
+- A simple audit log (who generated it, `templateId`, timestamp,
+  recipient) — useful for debugging a "where's my report" without
+  storing the whole PDF.
 
-## 6. Síncrono ou via Scheduler (poll)?
+## 6. Synchronous or queued?
 
-Pra templates pequenos (poucas páginas), gerar e mandar o e-mail dentro do
-próprio controller (como acima) é suficiente — `generatePdf` de um
-relatório comum roda em milissegundos. Se o catálogo tiver templates
-pesados ou o volume de disparos for alto, segue o **mesmo padrão que o
-Scheduler Service já usa nos outros serviços** (CronJob + poll numa
-tabela de status, não fila tipo Bull) — é exatamente o fluxo de
-`sales_validation`/`cancelar_vendas`: o controller só grava a solicitação
-com `status=pendente` e responde; um job cron descoberto em `jobs/` faz o
-poll e processa.
+For small templates (few pages), generating and emailing right inside
+the controller (as above) is enough — `generatePdf` for a typical
+report runs in milliseconds. If your catalog has heavy templates or the
+volume of requests is high, move the actual generation off the request/
+response cycle: the controller just writes the request row with
+`status = "pending"` and responds immediately; a background worker (a
+queue consumer, a cron job, whatever your project already uses to run
+scheduled/background work) polls for pending rows and processes them.
+The exact scheduling mechanism doesn't matter — what matters is the
+shape below.
 
-Tabela de solicitações (mesma ideia de `sales_to_cancels`, adaptada):
+Requests table:
 
 ```ts
 // database/migrations/xxxx_create_report_requests_table.ts
@@ -289,7 +300,7 @@ this.schema.createTable('report_requests', (table) => {
   table.jsonb('data').notNullable()
   table.string('email').notNullable()
   table.string('filename').nullable()
-  table.enum('status', ['pendente', 'concluido', 'erro']).notNullable().defaultTo('pendente')
+  table.enum('status', ['pending', 'done', 'error']).notNullable().defaultTo('pending')
   table.text('error_message').nullable()
   table.timestamp('processed_at').nullable()
   table.timestamp('created_at')
@@ -297,35 +308,32 @@ this.schema.createTable('report_requests', (table) => {
 })
 ```
 
-Controller só cria a solicitação (sem gerar nada síncrono):
+The controller only creates the request (nothing generated
+synchronously):
 
 ```ts
 async generate({ request, response }: HttpContext) {
   const payload = await request.validateUsing(generateReportValidator)
   const row = await ReportTemplate.find(payload.templateId)
-  if (!row) return response.notFound({ error: 'Template não encontrado' })
+  if (!row) return response.notFound({ error: 'Template not found' })
 
-  const reportRequest = await ReportRequest.create({ ...payload, status: 'pendente' })
+  const reportRequest = await ReportRequest.create({ ...payload, status: 'pending' })
   return response.accepted({ id: reportRequest.id })
 }
 ```
 
-Job cron (`jobs/generate_report_job.ts`, auto-descoberto pelo
-`jobsRegistry.ts` do serviço), key snake_case `generate_report_job`, igual
-padrão de `cancelar_vendas`:
+Whatever runs your background jobs picks up the pending rows and does
+the actual work:
 
 ```ts
 // jobs/generate_report_job.ts
 import { generatePdf } from 'json-pdf-designer'
 import mail from '@adonisjs/mail/services/main'
 import ReportRequest from '#models/report_request'
-import IntegrationLogService from '#services/integration_log_service'
 
 export default class GenerateReportJob {
-  static key = 'generate_report_job'
-
   async handle() {
-    const pending = await ReportRequest.query().where('status', 'pendente').preload('template')
+    const pending = await ReportRequest.query().where('status', 'pending').preload('template')
 
     for (const reportRequest of pending) {
       try {
@@ -337,43 +345,39 @@ export default class GenerateReportJob {
         await mail.send((message) => {
           message
             .to(reportRequest.email)
-            .subject('Seu relatório')
-            .attachData(Buffer.from(pdfBytes), { filename: reportRequest.filename ?? 'relatorio.pdf' })
+            .subject('Your report')
+            .attachData(Buffer.from(pdfBytes), { filename: reportRequest.filename ?? 'report.pdf' })
         })
-        reportRequest.status = 'concluido'
+        reportRequest.status = 'done'
         reportRequest.processedAt = DateTime.now()
       } catch (err) {
-        reportRequest.status = 'erro'
+        reportRequest.status = 'error'
         reportRequest.errorMessage = String(err)
       }
       await reportRequest.save()
-      await IntegrationLogService.log({ system: 'generate_report_job', reportId: reportRequest.id })
     }
   }
 }
 ```
 
-Igual todo job novo no projeto: precisa ativar manualmente na tabela
-`scheduler_jobs` na primeira subida (`status = 'WAITING'`, definir
-`cron_expression` — ex. `*/5 * * * *` pra rodar a cada 5min), do jeito que
-`DashboardNightlyJob` (finance) já é ativado hoje.
+Wire this job into whatever scheduling infrastructure your project
+already has (a cron entry, a queue worker, a scheduled task runner) —
+running it every few minutes is plenty for an on-demand report. If your
+volume justifies reacting immediately instead of waiting for the next
+tick, publish an event/message when the request is created and have the
+worker react to that instead of (or in addition to) polling — but for
+most on-demand-report use cases, a short poll interval is simpler and
+good enough.
 
-Se o volume justificar reação imediata em vez de esperar o próximo tick
-do cron (como `bradesco_parse` reage via pub/sub logo após
-`edinet_capture`), dá pra publicar no canal Redis `scheduler-jobs` na
-hora que a solicitação é criada, em vez de só esperar o poll — mas pro
-caso de relatório sob demanda o poll de poucos minutos já resolve, sem
-precisar desse acoplamento extra.
+## 7. Template version compatibility
 
-## 7. Compatibilidade de versão do template
-
-Templates salvos ficam armazenados por tempo indeterminado, mas o pacote
-evolui (novos tipos de campo, novas opções). O modelo de dados já foi
-desenhado pra isso: campos novos em `ChartSchema`/`KpiSchema` (`pieStyle`,
-`legendPosition`, `sortBy`, ícone, etc.) são sempre **opcionais**, com um
-default aplicado na hora de desenhar quando ausentes (ver
-`docs/ARCHITECTURE.md`) — atualizar o pacote no backend não quebra
-template salvo antes do campo existir. Ainda assim, é uma boa guardar a
-versão do pacote (`package.json` do backend) junto do log de geração, pra
-saber com qual versão um PDF específico foi gerado se algum dia precisar
-investigar uma diferença visual.
+Saved templates stick around indefinitely, but the package evolves (new
+field types, new options). The data model was already designed for
+this: new fields on `ChartSchema`/`KpiSchema` (`pieStyle`,
+`legendPosition`, `sortBy`, icon, etc.) are always **optional**, with a
+default applied at draw time when absent (see
+`docs/ARCHITECTURE.md`) — upgrading the package on the backend doesn't
+break a template saved before that field existed. Still, it's worth
+storing the package version (from the backend's own `package.json`)
+alongside the generation log, so you know which version produced a
+given PDF if you ever need to investigate a visual difference.

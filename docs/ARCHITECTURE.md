@@ -1,139 +1,137 @@
-# Arquitetura
+**English** | [Português](ARCHITECTURE.pt-BR.md)
 
-## Modelo de dados (`src/types/`)
+# Architecture
+
+Map of the source tree for anyone who needs to change something —
+grouped by responsibility, not by import order.
+
+## Data model (`src/types/`)
 
 ```ts
-export type PageSize = { width: number; height: number }; // em mm
-
-export type BaseSchema = {
-  id: string;       // uuid, estável (react-rnd/seleção usam isso)
-  name: string;      // nome do campo — schemaName no sistema de vínculo
-  x: number;          // mm, a partir do canto superior-esquerdo da página
-  y: number;          // mm
-  width: number;      // mm
-  height: number;     // mm
-};
-
-export type TextSchema = BaseSchema & {
-  type: "text";
-  content: string;    // texto de design-time — pode ter {path} / {FUNÇÃO(...)}
-  fontSize: number;
-  fontColor: string;  // hex
-  alignment: "left" | "center" | "right";
-};
-
-export type TableSchema = BaseSchema & {
-  type: "table";
-  head: string[];        // rótulos das colunas (preview de design-time)
-  content: string[][];   // linhas de preview (design-time)
-};
-
-export type ImageSchema = BaseSchema & {
-  type: "image";
-  content: string; // data URI (base64)
-};
-
-export type Schema = TextSchema | TableSchema | ImageSchema;
+export type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
 
 export type Template = {
-  page: PageSize;
+  page: PageSize; // { width, height } in mm
+  headerHeight?: number; // static bands (mm) repeated on every generated page
+  footerHeight?: number;
+  marginLeft?: number;
+  marginRight?: number;
+  backgroundImage?: string; // PNG data URI, letterhead-style background
   schemas: Schema[];
 };
 
-// Binding: igual ao já validado no report-builder (ver bindings.ts)
-export type TableColumn = string | { label: string; formula: string };
 export type Binding =
   | { schemaName: string; type: "scalar"; path: string }
   | { schemaName: string; type: "array"; path: string; columns: TableColumn[] }
   | { schemaName: string; type: "keyvalue"; paths: string[] }
-  | { schemaName: string; type: "template"; template: string };
+  | { schemaName: string; type: "template"; template: string }
+  | { schemaName: string; type: "section"; path: string }
+  | { schemaName: string; type: "chart"; path: string; labelColumn: string; valueColumn: string; filters?: ChartFilterGroup[] };
 ```
 
-Unidade de medida: **mm** no modelo de dados (fácil de raciocinar — folha
-A4 é 210×297mm), convertido pra **px** só na hora de renderizar no canvas
-(via um fator de escala fixo, ex. 1mm = 3.78px a 96dpi) e pra **pt** na
-hora de desenhar no PDF via pdf-lib (1mm = 2.83465pt).
+Every `Schema` shares `BaseSchema` (`id`, `name`, `x`/`y`/`width`/`height`
+in mm, `locked?`, `sectionId?`) plus type-specific fields — see
+`src/types/schema.ts` for the full, current shape of each one (it grows
+whenever a field type gains a new option, so that file is the source of
+truth, not this doc).
 
-## Canvas (`src/Designer.tsx`)
+Unit of measure: **mm** everywhere in the data model (easy to reason
+about — an A4 sheet is 210×297mm). Converted to **px** only to render on
+the editor canvas (`src/units.ts`, `mmToPx`/`pxToMm`) and to **pt** when
+drawing the real PDF via pdf-lib (`mmToPt`).
 
-```
-<div className="page" style={{ width: mmToPx(page.width), height: mmToPx(page.height) }}>
-  {schemas.map((schema) => (
-    <Rnd
-      key={schema.id}
-      size={{ width: mmToPx(schema.width), height: mmToPx(schema.height) }}
-      position={{ x: mmToPx(schema.x), y: mmToPx(schema.y) }}
-      onDragStop={(e, d) => updateSchema(schema.id, { x: pxToMm(d.x), y: pxToMm(d.y) })}
-      onResizeStop={(e, dir, ref, delta, pos) => updateSchema(schema.id, {
-        width: pxToMm(ref.offsetWidth),
-        height: pxToMm(ref.offsetHeight),
-        x: pxToMm(pos.x),
-        y: pxToMm(pos.y),
-      })}
-      bounds="parent"
-      onClick={() => setSelectedId(schema.id)}
-    >
-      <FieldRenderer schema={schema} selected={schema.id === selectedId} />
-    </Rnd>
-  ))}
-</div>
-```
+## Editor (`src/Designer.tsx` + `src/components/`)
 
-`FieldRenderer` troca o que desenha por `schema.type` (texto: `<div>` com
-o `content`; tabela: `<table>` de `head`+`content`; imagem: `<img>`).
+`Designer.tsx` owns selection state, the tab bar (Fields/Data/Style/
+Filter/Page), clipboard (copy/paste), keyboard shortcuts, and every
+mutation on `Template`/`Binding[]` (add/remove/reorder schemas, update a
+binding, resize page bands...). It renders two children:
 
-Seleção (`selectedId`) dispara o painel de propriedades — **dentro da
-mesma árvore React**, sem ponte de módulo. O botão de vínculo manual
-(reusa o `ManualBindingPanel` já existente) fica logo ali, como qualquer
-outro componente filho condicional.
+- **`PageCanvas.tsx`** — the actual page: one `<Rnd>` (react-rnd) per
+  schema for drag/resize, the header/footer/margin bands drawn in red,
+  the grid, marquee (box) selection, zoom controls. Delegates what a
+  field actually looks like to **`FieldBox/`** (one small component per
+  `schema.type` — `TextField.tsx`, `TableField.tsx`, `ImageField.tsx`,
+  `SectionField.tsx`, `ChartField.tsx`, `KpiField.tsx`).
+- **The side panel** — `FieldList.tsx` (the field list, click to select),
+  `Toolbar.tsx` (add-field buttons), and, once a field is selected,
+  `PropertyPanel.tsx` — a thin dispatcher to one `PropertyPanel<Type>.tsx`
+  per schema type, each split into a "Data" and a "Style" tab.
+  `BindingEditor.tsx` (the generic path/array/section/chart binding
+  editor) and `PropertyPanelFields.tsx` (shared X/Y/width/height inputs)
+  are reused across several of them.
 
-Toolbar simples: botões "+ texto" / "+ tabela" / "+ imagem" (cria schema
-com posição/tamanho default) e "Remover" pro campo selecionado — a
-remoção já dispara a limpeza do binding correspondente (mesma lógica que
-já existia: filtrar `bindings` por `schemaName` que ainda existe em
-`schemas`).
+Selection, editing, and binding all live in the same React tree — no
+module bridge, no imperative API between the canvas and the panel.
 
-## Geração do PDF (`src/pdf/generate.ts`)
+## Bindings and templates (`src/bindings/`, `src/tableColumns.ts`)
 
-```ts
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { buildInputs } from "./bindings";
-import { mmToPt } from "./units";
+`bindings.ts` is pure logic over strings/plain objects, with no
+third-party dependency:
 
-export async function generatePdf(template: Template, data: unknown, bindings: Binding[]) {
-  const doc = await PDFDocument.create();
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const page = doc.addPage([mmToPt(template.page.width), mmToPt(template.page.height)]);
-  const inputs = buildInputs(data, bindings); // já existe, sem mudança
+- `resolveToken`/`renderTemplate` — evaluate a `{token}`/`{FUNCTION(...)}`
+  template against the real JSON document (`CUSTOM_FIELD_FUNCTIONS`:
+  SUM/COUNT/AVG/CONCAT/UPPER/LOWER/TRIM/DATE/CURRENCY/NUMBER).
+  `renderTemplate` is what turns a `TextSchema.content` or a
+  `KpiSchema.title`/`value`/`subtitle` into the string that actually gets
+  drawn.
+  Formatting inside `DATE`/`CURRENCY` is intentionally independent of the
+  Designer's own UI language (`locale` prop, see below) — it's part of
+  the generated report's content, written by whoever authors the
+  template, not the tool's chrome.
+- `buildInputs` — turns the whole JSON document + `Binding[]` into a
+  flat `Record<schemaName, string>` (or a stringified 2D array, for
+  tables) that the canvas preview and `generate.ts` both read from.
+- `resolveChartItems`/`aggregateChartItems` — resolve a chart's `Binding`
+  against the real array, apply `filters` (OR-of-AND groups), group the
+  tail into "Other" past `topN`.
+- `describeBinding`/`describeBindingShort` — short human-readable
+  summaries used only in the editor UI (accept an optional `Dict` for
+  the active `locale`, default English).
 
-  for (const schema of template.schemas) {
-    const value = inputs[schema.name];
-    const xPt = mmToPt(schema.x);
-    // pdf-lib mede Y de baixo pra cima — inverte a partir do topo da página
-    const yPt = mmToPt(template.page.height - schema.y - schema.height);
+`tableColumns.ts` holds the pure functions that keep a `TableSchema`'s
+`head`/`content`/`footer`/`columnStyles` in sync with its `Binding`
+(array) when a column is added/removed/reordered/reformatted from the
+panel.
 
-    if (schema.type === "text") {
-      page.drawText(value ?? schema.content, { x: xPt, y: yPt, size: schema.fontSize, font, color: rgb(...) });
-    } else if (schema.type === "table") {
-      drawTable(page, font, schema, JSON.parse(value ?? "[]"), xPt, yPt);
-    } else if (schema.type === "image") {
-      const img = await doc.embedPng(schema.content); // ou embedJpg
-      page.drawImage(img, { x: xPt, y: yPt, width: mmToPt(schema.width), height: mmToPt(schema.height) });
-    }
-  }
+## PDF generation (`src/pdf/`)
 
-  return doc.save();
-}
-```
+`generate.ts` is the entry point (`generatePdf(template, data,
+bindings, options?)`) — pure JS, no DOM, safe to run in Node. For each
+`schema` it resolves the value via `buildInputs`/`resolveToken` and
+delegates the actual drawing to a per-type module:
 
-`drawTable` é a única peça 100% nova (motor antigo resolvia isso por
-dentro do próprio plugin de tabela): itera linhas × colunas, desenha texto de cada célula +
-`drawRectangle`/`drawLine` pras bordas. Fica em `src/pdf/drawTable.ts`,
-separado pra não inchar `generate.ts`.
+- `drawTable.ts` — header/body/footer rows, per-column style overrides,
+  pagination when a table doesn't fit on one page.
+- `drawSection.ts` — repeats the group of member fields once per item of
+  the bound array, growing/paginating with the rest of the body.
+- `drawChart.ts` — pie/donut/bar, legend placement, color palette
+  (`src/chartColors.ts`).
+- `drawKpi.ts` — the colored card + Material Symbols icon path (`src/materialIcons.ts`).
 
-## Sistema de vínculo (`src/bindings/bindings.ts`)
+Supporting modules: `pagination.ts` (splitting the body across pages
+against `headerHeight`/`footerHeight`/`marginLeft`/`marginRight`, see
+`src/zones.ts` for how the editor classifies a field into header/footer/
+margin/body by position alone), `fontUtils.ts` (embedding a custom TTF
+via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts` (turning an
+uploaded PDF/PNG/JPEG into the page's background PNG), `color.ts`,
+`resolvers.ts`, and `pdfWorker.ts` (wiring up `pdf.js`'s worker for
+`PdfPreview`, browser-only).
 
-Portado do `report-builder/src/lib/bindings.ts` quase sem mudança —
-ver [SCOPE.md](SCOPE.md) pra lista exata do que muda (só os imports de
-tipo). Toda a lógica de `resolveToken`/`renderTemplate`/`buildInputs` é
-puro JS sobre strings/objetos, não tem nenhuma referência a lib de terceiros.
+Only `downloadPdf`, `Designer`, `PdfPreview*`, and the UI components
+touch the DOM. Everything else under `src/pdf/`, `src/bindings/`, and
+`src/types/` is safe to import in a Node backend (see
+[BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md)).
+
+## UI language (`src/i18n/`)
+
+The Designer's own UI text (buttons, tabs, warnings, placeholders) comes
+from a small dictionary — `en.ts` (canonical, default) and `pt-BR.ts`
+(typed against it, so a missing key is a compile error, not a silent
+blank string). `I18nProvider`/`useT`/`useLocale` (React context) wire the
+`<Designer locale="en" | "pt-BR">` prop through to every component; a
+component used standalone, without `<Designer>` on top, still renders
+correct (English) text via the context's default value. This only
+covers the editor's chrome — it never touches how `{DATE(...)}`/
+`{CURRENCY(...)}` format the generated report's own content (see
+"Bindings and templates" above).
