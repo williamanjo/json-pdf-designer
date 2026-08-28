@@ -8,7 +8,7 @@ description: The source tree, folder by folder.
 ```
 src/
   types/
-    schema.ts          -> Template/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
+    schema.ts          -> Template/TemplatePage/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
     binding.ts         -> TableColumn, Binding (chart/kpi: path/labelColumn|valueColumn/filters/aggregation)
     dataSource.ts      -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
   units.ts             -> mm <-> px <-> pt conversions + grid (GRID_SIZE_MM, snapToGrid)
@@ -30,7 +30,8 @@ src/
     columnParsing.ts   -> parses the table's free-text "col, Label={FUNCTION(...)}" input
   pdf/
     generate.ts        -> generates the real PDF (pdf-lib): unified pagination (table/section/text/image
-                          in a single sequence by Y), master-detail, repeated bands, background, font
+                          in a single sequence by Y), master-detail, repeated bands, background, font,
+                          multi-page (Template.pages) with continuous {pageNumber}/{pageCount}
     drawTable.ts       -> draws a table in pdf-lib across page slices, header/value/footer with color/size
     drawSection.ts     -> draws a repeated section, one pass per bound array item
     drawChart.ts       -> draws pie (slices via drawSvgPath) or bar + legend in pdf-lib

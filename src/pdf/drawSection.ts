@@ -7,7 +7,7 @@
 // drawSectionInstance pra desenhar de verdade.
 import type { PDFFont, PDFPage } from "pdf-lib";
 import get from "lodash.get";
-import type { Binding, Schema, SectionSchema, TableSchema, Template } from "../types";
+import type { Binding, Schema, SectionSchema, TableSchema, TemplatePage } from "../types";
 import { mmToPt } from "../units";
 import { drawTableSlice, TABLE_ROW_HEIGHT_MM } from "./drawTable";
 import { resolveFooterRow, resolveNestedTableRows, resolveTextValue } from "./resolvers";
@@ -15,8 +15,8 @@ import { resolveFooterRow, resolveNestedTableRows, resolveTextValue } from "./re
 // Campos membros de uma seção — qualquer schema do template com
 // sectionId apontando pra ela (ver PageCanvas.tsx: arrastar em cima
 // absorve, arrastar pra fora limpa).
-export function sectionMembersOf(template: Template, section: SectionSchema): Schema[] {
-  return template.schemas.filter((s) => s.sectionId === section.id);
+export function sectionMembersOf(pageDef: TemplatePage, section: SectionSchema): Schema[] {
+  return pageDef.schemas.filter((s) => s.sectionId === section.id);
 }
 
 // Crescimento (mm) de UMA tabela membro além do próprio placeholder, pro
@@ -34,9 +34,9 @@ function tableGrowth(tableMember: TableSchema, item: unknown, bindings: Binding[
 // TODAS as tabelas membro (mestre-detalhe) é o quanto falta caber a
 // mais, já que cada uma empurra pra baixo tudo que vem depois dela (ver
 // drawSectionInstance) — com 1 tabela só é só o crescimento dela mesma.
-export function sectionInstanceHeight(template: Template, section: SectionSchema, item: unknown, bindings: Binding[]): number {
+export function sectionInstanceHeight(pageDef: TemplatePage, section: SectionSchema, item: unknown, bindings: Binding[]): number {
   let totalGrowth = 0;
-  for (const member of sectionMembersOf(template, section)) {
+  for (const member of sectionMembersOf(pageDef, section)) {
     if (member.type !== "table") continue;
     totalGrowth += tableGrowth(member, item, bindings);
   }
@@ -59,7 +59,7 @@ export function resolveSectionItems(sectionSchema: SectionSchema, bindings: Bind
 // desenhar texto/imagem/gráfico/indicador com doc/imageCache/inputs por
 // dentro do seu próprio closure).
 export type SectionDrawContext = {
-  template: Template;
+  template: TemplatePage;
   bindings: Binding[];
   font: PDFFont;
   pageHeightPt: number;

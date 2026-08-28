@@ -11,6 +11,7 @@ export type {
   KpiIcon,
   Schema,
   Template,
+  TemplatePage,
 } from "./schema";
 
 export type { TableColumn, Binding, ChartFilterOp, ChartFilterCondition, ChartFilterGroup, KpiAggregation } from "./binding";

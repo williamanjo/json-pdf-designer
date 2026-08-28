@@ -1,14 +1,16 @@
 import { useRef, useState } from "react";
-import type { Template, Binding, Locale } from "json-pdf-designer";
+import type { Template, TemplatePage, Binding, Locale } from "json-pdf-designer";
 import { generatePdf, PdfPreviewModal, Button, IconDownload, IconFolderUp } from "json-pdf-designer";
 import FieldTree from "./components/FieldTree";
 import DesignerPanel from "./components/DesignerPanel";
+import PageTabs from "./components/PageTabs";
 import DataSourcePanel, { type JsonSource } from "./components/DataSourcePanel";
 import { extractFields, type FieldNode } from "./lib/jsonExplorer";
 import { loadDefaultFont } from "./lib/font";
 import { uid } from "./lib/uid";
 import { mergeSources } from "./lib/sources";
 import { downloadProjectFile, parseProjectFile } from "./lib/projectFile";
+import { ensurePages, blankPage } from "./lib/pages";
 import { useUndoRedo } from "./hooks/useUndoRedo";
 import { loadAutosave, useAutosave } from "./hooks/useAutosave";
 import { initialTemplate, initialBindings, initialSample } from "./data/initialTemplate";
@@ -19,8 +21,9 @@ import "./App.css";
 export default function App() {
   const fieldPickerTriggerRef = useRef<(() => void) | null>(null);
   const [autosaved] = useState(loadAutosave);
-  const [template, setTemplate] = useState<Template>(() => autosaved?.template ?? initialTemplate);
+  const [template, setTemplate] = useState<Template>(() => ensurePages(autosaved?.template ?? initialTemplate));
   const [bindings, setBindings] = useState<Binding[]>(() => autosaved?.bindings ?? initialBindings);
+  const [activePageIndex, setActivePageIndex] = useState(0);
   const [sources, setSources] = useState<JsonSource[]>(
     () => autosaved?.sources ?? [{ id: uid(), name: "principal", raw: JSON.stringify(initialSample, null, 2) }]
   );
@@ -38,6 +41,38 @@ export default function App() {
 
   useUndoRedo(template, bindings, setTemplate, setBindings);
   useAutosave(template, bindings, sources);
+
+  // `template.pages` sempre existe e não é vazio (garantido por
+  // ensurePages em todo lugar que troca `template` inteiro) — clampa o
+  // índice pra nunca apontar fora do array (ex: depois de remover a última
+  // aba selecionada, ou carregar um projeto/exemplo com menos páginas).
+  const pages = template.pages!;
+  const safeActivePageIndex = Math.min(activePageIndex, pages.length - 1);
+  const activePage = pages[safeActivePageIndex];
+
+  // Repassa pro <Designer> (via DesignerPanel) só a página ATIVA — Designer
+  // não sabe que existem outras páginas, só edita a que recebeu. Grava de
+  // volta em template.pages[safeActivePageIndex], preservando o resto do
+  // Template intacto (inclusive as outras páginas).
+  function setActivePageTemplate(update: React.SetStateAction<Template>) {
+    setTemplate((prev) => {
+      const prevPages = prev.pages!;
+      const current = prevPages[safeActivePageIndex];
+      const next = (typeof update === "function" ? (update as (p: Template) => Template)(current) : update) as TemplatePage;
+      return { ...prev, pages: prevPages.map((p, i) => (i === safeActivePageIndex ? next : p)) };
+    });
+  }
+
+  function handleAddPage() {
+    setTemplate((prev) => ({ ...prev, pages: [...prev.pages!, blankPage()] }));
+    setActivePageIndex(pages.length); // nova página vai pro final
+  }
+
+  function handleRemovePage(index: number) {
+    if (pages.length <= 1) return;
+    setTemplate((prev) => ({ ...prev, pages: prev.pages!.filter((_, i) => i !== index) }));
+    setActivePageIndex((prevIndex) => Math.max(0, prevIndex >= index ? prevIndex - 1 : prevIndex));
+  }
 
   // Só recalcula a lista de campos quando o usuário clicar em "Resync
   // campos" — assim ele pode colar um JSON grande sem a lista ficar
@@ -70,8 +105,9 @@ export default function App() {
     if (!file) return;
     parseProjectFile(file)
       .then(({ template, bindings }) => {
-        setTemplate(template);
+        setTemplate(ensurePages(template));
         setBindings(bindings);
+        setActivePageIndex(0);
         setError(null);
       })
       .catch((err: Error) => setError(err.message));
@@ -83,8 +119,9 @@ export default function App() {
   function handleLoadExample(key: string) {
     const example = EXAMPLES[key];
     if (!example) return;
-    setTemplate(example.template);
+    setTemplate(ensurePages(example.template));
     setBindings(example.bindings);
+    setActivePageIndex(0);
     const raw = JSON.stringify(example.sample, null, 2);
     setSources([{ id: uid(), name: example.sourceName, raw }]);
     setFields(extractFields(example.sample));
@@ -156,23 +193,33 @@ export default function App() {
           />
         </aside>
 
-        <main className="min-w-0 flex-1 overflow-auto p-4">
-          <DesignerPanel
-            fields={fields}
-            template={template}
-            bindings={bindings}
-            onChangeTemplate={setTemplate}
-            onChangeBindings={setBindings}
-            openFieldPickerRef={fieldPickerTriggerRef}
-            locale={locale}
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <PageTabs
+            pages={pages}
+            activeIndex={safeActivePageIndex}
+            onSelect={setActivePageIndex}
+            onAdd={handleAddPage}
+            onRemove={handleRemovePage}
           />
+          <div className="min-h-0 flex-1 overflow-auto p-4">
+            <DesignerPanel
+              key={activePage.id}
+              fields={fields}
+              template={activePage}
+              bindings={bindings}
+              onChangeTemplate={setActivePageTemplate}
+              onChangeBindings={setBindings}
+              openFieldPickerRef={fieldPickerTriggerRef}
+              locale={locale}
+            />
+          </div>
         </main>
       </div>
 
       {previewBytes && (
         <PdfPreviewModal
           bytes={previewBytes}
-          page={template.page}
+          page={pages[0].page}
           onClose={() => setPreviewBytes(null)}
         />
       )}

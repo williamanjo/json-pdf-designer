@@ -18,6 +18,26 @@ type Template = {
   marginRight?: number;
   backgroundImage?: string; // PNG data URI, fundo tipo letterhead
   schemas: Schema[];
+  // Opcional — ver "Templates com várias páginas" abaixo. Quando
+  // presente e não-vazio, é a fonte da verdade (os campos flat acima
+  // são ignorados); ausente/vazio cai nos campos flat como única
+  // página implícita, então todo Template de antes desse campo existir
+  // continua funcionando sem mudança.
+  pages?: TemplatePage[];
+};
+
+// Mesmo formato do Template, menos o próprio `pages` — um design de
+// página independente (tamanho/cabeçalho/rodapé/fundo/schemas próprios).
+type TemplatePage = {
+  id: string;
+  name?: string;
+  page: PageSize;
+  headerHeight?: number;
+  footerHeight?: number;
+  marginLeft?: number;
+  marginRight?: number;
+  backgroundImage?: string;
+  schemas: Schema[];
 };
 
 type Binding =
@@ -98,6 +118,20 @@ orientação (retrato/paisagem) na aba "Página" —
 `Template.backgroundImage` coloca uma imagem (ou a primeira página de
 um PDF enviado, rasterizada uma vez) atrás de tudo, tanto no editor
 quanto no PDF final.
+
+## Templates com várias páginas
+
+`Template.pages` (opcional) deixa UM `Template` guardar vários designs de
+página **diferentes** — tamanho, cabeçalho/rodapé, fundo, schemas
+próprios — que o `generatePdf` desenha num PDF só, em sequência, com
+`{pageNumber}`/`{pageCount}` continuando de um design pro outro (se o
+design 1 termina na página física 2, o design 2 começa na página 3, não
+reinicia na 1). `data`/`Binding[]` são compartilhados entre TODAS as
+entradas de `pages` — nome de schema precisa ficar único no template
+inteiro, não só dentro de uma página. O exemplo `report-builder` constrói
+uma UI de abas de página em cima disso: cada aba edita uma
+`TemplatePage`, enquanto as fontes de dados JSON continuam
+compartilhadas/globais entre todas as abas.
 
 ## Fontes customizadas
 

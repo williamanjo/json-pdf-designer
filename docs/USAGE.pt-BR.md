@@ -497,6 +497,44 @@ preview simplesmente não renderiza (erro de rede no console) —
 `generatePdf`/`downloadPdf` **não são afetados**, já que não usam pdf.js
 (só o preview visual depende dele).
 
+## Relatórios com várias páginas (`Template.pages`)
+
+Por padrão um `Template` é UM design de página, repetido quantas vezes o
+corpo precisar (paginação de tabela/seção) — isso continua igual. Como
+opção, `Template.pages` deixa UM `Template` guardar vários designs de
+página **diferentes** (tamanho, cabeçalho/rodapé, fundo, schemas próprios)
+que o `generatePdf` desenha num PDF só, em sequência, com
+`{pageNumber}`/`{pageCount}` continuando de um pra outro — se o design 1
+termina na página física 2, o design 2 começa na página 3, não reinicia
+na 1.
+
+```ts
+import { generatePdf, type Template } from "json-pdf-designer";
+
+const template: Template = {
+  page: { width: 210, height: 297 }, // ignorado quando `pages` existe
+  schemas: [],
+  pages: [
+    { id: "capa", page: { width: 210, height: 297 }, schemas: [/* ... */] },
+    { id: "detalhe", page: { width: 210, height: 297 }, headerHeight: 15, schemas: [/* ... */] },
+  ],
+};
+const bytes = await generatePdf(template, data, bindings); // mesma chamada de sempre
+```
+
+- `data`/`Binding[]` são compartilhados entre TODAS as entradas de
+  `pages` — nome de schema precisa ficar único no template inteiro, não
+  só dentro de uma página.
+- Um `Template` sem `pages` (todo template salvo antes desse recurso
+  existir) continua se comportando exatamente como antes — `pages`
+  ausente/vazio cai nos campos flat de sempre
+  (`page`/`headerHeight`/`footerHeight`/`schemas`) como página implícita
+  única, sem precisar migrar nada já salvo.
+- O exemplo `report-builder` (ver "Exemplos" abaixo) constrói uma UI de
+  abas de página em cima disso: cada aba edita uma entrada de
+  `template.pages` com seu próprio `<Designer>`, enquanto as fontes de
+  dados JSON continuam compartilhadas/globais entre todas as abas.
+
 ## Componentes de UI prontos
 
 Se você não quer (ou não pode) montar a própria casca visual em volta do
@@ -585,7 +623,7 @@ PAGE_SIZE_PRESETS                          // A4/A3/A5/Carta/Ofício, sempre em 
 orientationOf(page), applyOrientation(page, orientation), matchPreset(page)
 
 // Tipos
-Template, Schema, TextSchema, TableSchema, TableColumnStyle, ImageSchema,
+Template, TemplatePage, Schema, TextSchema, TableSchema, TableColumnStyle, ImageSchema,
 SectionSchema, ChartSchema, KpiSchema, KpiIcon, BaseSchema, PageSize, Binding,
 TableColumn, DataSourceOption, SectionColumnDragPayload, Zone, Bands,
 GeneratePdfOptions, Orientation
@@ -596,7 +634,7 @@ GeneratePdfOptions, Orientation
 ```
 src/
   types/
-    schema.ts          -> Template/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
+    schema.ts          -> Template/TemplatePage/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
     binding.ts          -> TableColumn, Binding (inclui "chart": path/labelColumn/valueColumn/filters)
     dataSource.ts       -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
   units.ts             -> conversões mm <-> px <-> pt + grade (GRID_SIZE_MM, snapToGrid)
@@ -616,7 +654,8 @@ src/
     columnParsing.ts   -> parse do texto livre "col, Rótulo={FUNÇÃO(...)}" da tabela
   pdf/
     generate.ts        -> gera o PDF de verdade (pdf-lib): paginação unificada (tabela/seção/texto/imagem
-                          numa sequência só por Y), mestre-detalhe, faixas repetidas, fundo, fonte
+                          numa sequência só por Y), mestre-detalhe, faixas repetidas, fundo, fonte,
+                          multi-página (Template.pages) com {pageNumber}/{pageCount} contínuo
     drawTable.ts       -> desenha tabela no pdf-lib em fatias (paginação), cabeçalho/valor/rodapé com cor/tamanho
     drawSection.ts     -> desenha uma seção repetida, uma passada por item do array vinculado
     drawChart.ts       -> desenha pizza (fatias via drawSvgPath) ou barra + legenda no pdf-lib

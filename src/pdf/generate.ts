@@ -3,7 +3,7 @@ import type { PDFFont, PDFImage, PDFPage } from "pdf-lib";
 // A build browser do fontkit só exporta nomeado (sem default) — import
 // default quebra no bundler do app consumidor (Vite/Rollup).
 import * as fontkit from "fontkit";
-import type { Binding, ImageSchema, Schema, SectionSchema, TableSchema, Template, TextSchema } from "../types";
+import type { Binding, ImageSchema, Schema, SectionSchema, TableSchema, Template, TemplatePage, TextSchema } from "../types";
 import { aggregateChartItems, buildInputs, renderTemplate, resolveChartItems, resolveKpiValue } from "../bindings/bindings";
 import { resolveChartColors } from "../chartColors";
 import { drawChart } from "./drawChart";
@@ -168,65 +168,156 @@ async function drawImageField(
   page.drawImage(embedded, { x: xPt, y: yPt, width: widthPt, height: heightPt });
 }
 
-// Gera o PDF final: resolve os vínculos contra o JSON real (buildInputs, já
-// existente e sem nenhuma dependência de motor de PDF) e desenha cada
-// schema no formato certo. Roda 100% no navegador (pdf-lib é JS puro).
-//
-// Paginação: um campo do corpo entra automaticamente no cabeçalho/rodapé
-// (repete em toda página) quando sua posição Y cai dentro da faixa
-// headerHeight/footerHeight — sem campo de "zona" no schema, é só a
-// posição. TODO item do corpo (tabela, seção repetida, texto, imagem) é
-// processado em UMA sequência só, ordenada por Y: quando um termina, o
-// próximo continua logo abaixo (mesma página ou nova, o que couber) — como
-// se fosse um bloco só emendado. Tabela e seção podem consumir várias
-// fatias/repetições (inclusive página nova) até acabar; texto/imagem só
-// ocupa a própria altura autorada. Isso já cobre título/legenda ENTRE duas
-// tabelas, texto antes/depois de uma seção etc — a posição relativa entre
-// itens é sempre preservada (mesmo gap autorado no editor), mesmo que algo
-// anterior tenha crescido (seção mestre-detalhe) ou mudado de página.
-export async function generatePdf(
-  template: Template,
-  data: unknown,
-  bindings: Binding[],
-  options: GeneratePdfOptions = {}
-): Promise<Uint8Array> {
-  const doc = await PDFDocument.create();
-  let font: PDFFont;
-  if (options.fontBytes) {
-    // @types/fontkit e o tipo interno do pdf-lib pra Fontkit divergem um
-    // pouco na forma exata do retorno de create() — incompatibilidade de
-    // tipos conhecida entre os dois pacotes, não um erro de fato (funciona
-    // certinho em runtime).
-    doc.registerFontkit(fontkit as unknown as Parameters<typeof doc.registerFontkit>[0]);
-    const sfntBytes = await normalizeFontBytes(options.fontBytes);
-    font = await doc.embedFont(sfntBytes);
-  } else {
-    font = await doc.embedFont(StandardFonts.Helvetica);
-  }
+// Normaliza um Template pro array de páginas que generatePdf desenha: se
+// `template.pages` existe e não é vazio, é a fonte da verdade (várias
+// páginas, cada uma com seu próprio design); senão, os campos flat de
+// sempre (page/headerHeight/.../schemas) viram a única página implícita —
+// mesmo caminho de código pros dois casos, sem branch "single vs multi".
+function normalizePageDefs(template: Template): TemplatePage[] {
+  if (template.pages && template.pages.length > 0) return template.pages;
+  return [
+    {
+      id: "single",
+      page: template.page,
+      headerHeight: template.headerHeight,
+      footerHeight: template.footerHeight,
+      marginLeft: template.marginLeft,
+      marginRight: template.marginRight,
+      backgroundImage: template.backgroundImage,
+      schemas: template.schemas,
+    },
+  ];
+}
 
-  const pageWidthPt = mmToPt(template.page.width);
-  const pageHeightPt = mmToPt(template.page.height);
-  const headerHeight = template.headerHeight ?? 0;
-  const footerHeight = template.footerHeight ?? 0;
-  const bodyBottomMm = template.page.height - footerHeight;
-  const inputs = buildInputs(data, bindings);
-  const imageCache = new Map<string, PDFImage>();
-
-  const background = template.backgroundImage ? await doc.embedPng(template.backgroundImage) : null;
-
+// Deriva, de UMA página (TemplatePage), tudo que a paginação/desenho
+// precisam — mesma conta de sempre, só que parametrizada por pageDef em vez
+// do Template inteiro (permite rodar uma vez por página quando há mais de
+// uma).
+function deriveBodyLayout(pageDef: TemplatePage) {
+  const headerHeight = pageDef.headerHeight ?? 0;
+  const footerHeight = pageDef.footerHeight ?? 0;
+  const bodyBottomMm = pageDef.page.height - footerHeight;
   const bands = {
     headerHeight,
     footerHeight,
-    marginLeft: template.marginLeft ?? 0,
-    marginRight: template.marginRight ?? 0,
+    marginLeft: pageDef.marginLeft ?? 0,
+    marginRight: pageDef.marginRight ?? 0,
   };
-
   // Campo com sectionId nunca desenha por conta própria — só através da
   // repetição da seção dona dele (ver drawSection.ts).
   const ownedBySection = (s: Schema) => Boolean(s.sectionId);
-  const repeatingSchemas = template.schemas.filter((s) => !ownedBySection(s) && classifyZone(s, template.page, bands) !== "body");
-  const bodySchemas = template.schemas.filter((s) => !ownedBySection(s) && classifyZone(s, template.page, bands) === "body");
+  const repeatingSchemas = pageDef.schemas.filter((s) => !ownedBySection(s) && classifyZone(s, pageDef.page, bands) !== "body");
+  const bodySchemas = pageDef.schemas.filter((s) => !ownedBySection(s) && classifyZone(s, pageDef.page, bands) === "body");
   const bodyItems = buildBodyItems(bodySchemas);
+  return { headerHeight, bodyBottomMm, repeatingSchemas, bodyItems };
+}
+
+// Total de páginas que a sequência do corpo (tabela/seção/texto/imagem, em
+// ordem de Y) de UMA página vai ocupar — matemática pura (sem pdf-lib),
+// calculada antes de desenhar qualquer coisa, pra {pageCount} já sair certo
+// desde a primeira página física de todo o documento (soma de todas as
+// páginas do template). Simula a mesma conta de fatiamento/encadeamento do
+// loop de desenho real, sem criar página nenhuma.
+function countBodyPages(
+  pageDef: TemplatePage,
+  bodyItems: BodyItem[],
+  bodyBottomMm: number,
+  headerHeight: number,
+  bindings: Binding[],
+  data: unknown,
+  inputs: Record<string, string>
+): number {
+  if (bodyItems.length === 0) return 1;
+  let pages = 1;
+  let cursorTopMm = boundsOf(bodyItems[0]).y;
+  let prev: { y: number; height: number } | undefined;
+
+  for (const item of bodyItems) {
+    const bounds = boundsOf(item);
+    if (prev) cursorTopMm += gapAfter(prev, bounds);
+    prev = bounds;
+    if (cursorTopMm >= bodyBottomMm) {
+      pages++;
+      cursorTopMm = headerHeight;
+    }
+
+    if (item.kind === "row") {
+      const availableMm = bodyBottomMm - cursorTopMm;
+      if (needsNewPageForItem(item.height, availableMm, cursorTopMm, headerHeight)) {
+        pages++;
+        cursorTopMm = headerHeight;
+      }
+      cursorTopMm += item.height;
+      continue;
+    }
+
+    if (item.kind === "table") {
+      const table = item.schema;
+      const repeatHeader = table.repeatHeader !== false;
+      const hasFooter = Boolean(table.footer && table.footer.length > 0);
+      let remaining = resolveTopLevelTableRows(table, bindings, data, inputs).length;
+      let isFirstSlice = true;
+      for (let guard = 0; guard < 1000; guard++) {
+        const includeHead = isFirstSlice || repeatHeader;
+        const availableMm = bodyBottomMm - cursorTopMm;
+        const slice = computeTableSlice(remaining, availableMm, includeHead, hasFooter);
+        remaining -= slice.rowsToTake;
+        cursorTopMm += slice.heightMm;
+        isFirstSlice = false;
+        if (remaining <= 0 || slice.capacity <= 0) break;
+        pages++;
+        cursorTopMm = headerHeight;
+      }
+    } else {
+      const section = item.schema;
+      const sectionItems = resolveSectionItems(section, bindings, data);
+      let index = 0;
+      for (let guard = 0; guard < 20000 && index < sectionItems.length; guard++) {
+        const instanceHeight = sectionInstanceHeight(pageDef, section, sectionItems[index], bindings);
+        const availableMm = bodyBottomMm - cursorTopMm;
+        if (needsNewPageForItem(instanceHeight, availableMm, cursorTopMm, headerHeight)) {
+          pages++;
+          cursorTopMm = headerHeight;
+          continue;
+        }
+        cursorTopMm += instanceHeight;
+        index++;
+      }
+    }
+  }
+  return pages;
+}
+
+type PreparedPageDef = {
+  pageDef: TemplatePage;
+  repeatingSchemas: Schema[];
+  bodyItems: BodyItem[];
+  headerHeight: number;
+  bodyBottomMm: number;
+  pageCount: number;
+};
+
+// Desenha UMA página-design (todas as suas páginas físicas) dentro do
+// PDFDocument/font compartilhados por todo o Template — `startPageNumber`/
+// `totalPages` já vêm prontos (somados entre TODAS as páginas do template,
+// ver generatePdf) pra numeração ficar contínua entre uma página-design e a
+// próxima. Retorna o último `pageNumber` usado, pra a próxima página-design
+// continuar dali.
+async function renderPageDef(
+  doc: PDFDocument,
+  font: PDFFont,
+  prepared: PreparedPageDef,
+  data: unknown,
+  bindings: Binding[],
+  inputs: Record<string, string>,
+  imageCache: Map<string, PDFImage>,
+  startPageNumber: number,
+  totalPages: number
+): Promise<number> {
+  const { pageDef, repeatingSchemas, bodyItems, headerHeight, bodyBottomMm } = prepared;
+  const pageWidthPt = mmToPt(pageDef.page.width);
+  const pageHeightPt = mmToPt(pageDef.page.height);
+  const background = pageDef.backgroundImage ? await doc.embedPng(pageDef.backgroundImage) : null;
 
   async function drawField(page: PDFPage, schema: Schema, value: string | undefined) {
     const xPt = mmToPt(schema.x);
@@ -283,7 +374,7 @@ export async function generatePdf(
     // "section" nunca chega aqui direto — ver drawSection.ts.
   }
 
-  const sectionCtx: SectionDrawContext = { template, bindings, font, pageHeightPt, drawField };
+  const sectionCtx: SectionDrawContext = { template: pageDef, bindings, font, pageHeightPt, drawField };
 
   async function drawRepeating(page: PDFPage, pageNumber: number, pageCount: number) {
     for (const schema of repeatingSchemas) {
@@ -297,74 +388,7 @@ export async function generatePdf(
     }
   }
 
-  // Total de páginas que a sequência do corpo (tabela/seção/texto/imagem,
-  // em ordem de Y) vai ocupar — calculado antes de desenhar de verdade, só
-  // pra {pageCount} já sair certo na página 1. Simula a mesma conta de
-  // fatiamento/encadeamento do loop real, sem criar página nenhuma.
-  function countBodyPages(): number {
-    if (bodyItems.length === 0) return 1;
-    let pages = 1;
-    let cursorTopMm = boundsOf(bodyItems[0]).y;
-    let prev: { y: number; height: number } | undefined;
-
-    for (const item of bodyItems) {
-      const bounds = boundsOf(item);
-      if (prev) cursorTopMm += gapAfter(prev, bounds);
-      prev = bounds;
-      if (cursorTopMm >= bodyBottomMm) {
-        pages++;
-        cursorTopMm = headerHeight;
-      }
-
-      if (item.kind === "row") {
-        const availableMm = bodyBottomMm - cursorTopMm;
-        if (needsNewPageForItem(item.height, availableMm, cursorTopMm, headerHeight)) {
-          pages++;
-          cursorTopMm = headerHeight;
-        }
-        cursorTopMm += item.height;
-        continue;
-      }
-
-      if (item.kind === "table") {
-        const table = item.schema;
-        const repeatHeader = table.repeatHeader !== false;
-        const hasFooter = Boolean(table.footer && table.footer.length > 0);
-        let remaining = resolveTopLevelTableRows(table, bindings, data, inputs).length;
-        let isFirstSlice = true;
-        for (let guard = 0; guard < 1000; guard++) {
-          const includeHead = isFirstSlice || repeatHeader;
-          const availableMm = bodyBottomMm - cursorTopMm;
-          const slice = computeTableSlice(remaining, availableMm, includeHead, hasFooter);
-          remaining -= slice.rowsToTake;
-          cursorTopMm += slice.heightMm;
-          isFirstSlice = false;
-          if (remaining <= 0 || slice.capacity <= 0) break;
-          pages++;
-          cursorTopMm = headerHeight;
-        }
-      } else {
-        const section = item.schema;
-        const sectionItems = resolveSectionItems(section, bindings, data);
-        let index = 0;
-        for (let guard = 0; guard < 20000 && index < sectionItems.length; guard++) {
-          const instanceHeight = sectionInstanceHeight(template, section, sectionItems[index], bindings);
-          const availableMm = bodyBottomMm - cursorTopMm;
-          if (needsNewPageForItem(instanceHeight, availableMm, cursorTopMm, headerHeight)) {
-            pages++;
-            cursorTopMm = headerHeight;
-            continue;
-          }
-          cursorTopMm += instanceHeight;
-          index++;
-        }
-      }
-    }
-    return pages;
-  }
-  const totalPages = countBodyPages();
-
-  let pageNumber = 1;
+  let pageNumber = startPageNumber;
   let lastPage = doc.addPage([pageWidthPt, pageHeightPt]);
   drawBackground(lastPage, background, pageWidthPt, pageHeightPt);
   await drawRepeating(lastPage, pageNumber, totalPages);
@@ -449,7 +473,7 @@ export async function generatePdf(
           isFirstSlice = false;
 
           if (remaining.length === 0 || decision.capacity <= 0) {
-            cursorTopMm = template.page.height - ptToMm(bottomYPt);
+            cursorTopMm = pageDef.page.height - ptToMm(bottomYPt);
             break;
           }
 
@@ -462,7 +486,7 @@ export async function generatePdf(
         let index = 0;
 
         for (let guard = 0; guard < 20000 && index < sectionItems.length; guard++) {
-          const instanceHeight = sectionInstanceHeight(template, sectionSchema, sectionItems[index], bindings);
+          const instanceHeight = sectionInstanceHeight(pageDef, sectionSchema, sectionItems[index], bindings);
           const availableMm = bodyBottomMm - cursorTopMm;
           if (needsNewPageForItem(instanceHeight, availableMm, cursorTopMm, headerHeight)) {
             await newPage();
@@ -476,6 +500,70 @@ export async function generatePdf(
         }
       }
     }
+  }
+
+  return pageNumber;
+}
+
+// Gera o PDF final: resolve os vínculos contra o JSON real (buildInputs, já
+// existente e sem nenhuma dependência de motor de PDF) e desenha cada
+// schema no formato certo. Roda 100% no navegador (pdf-lib é JS puro).
+//
+// Paginação: um campo do corpo entra automaticamente no cabeçalho/rodapé
+// (repete em toda página) quando sua posição Y cai dentro da faixa
+// headerHeight/footerHeight — sem campo de "zona" no schema, é só a
+// posição. TODO item do corpo (tabela, seção repetida, texto, imagem) é
+// processado em UMA sequência só, ordenada por Y: quando um termina, o
+// próximo continua logo abaixo (mesma página ou nova, o que couber) — como
+// se fosse um bloco só emendado. Tabela e seção podem consumir várias
+// fatias/repetições (inclusive página nova) até acabar; texto/imagem só
+// ocupa a própria altura autorada. Isso já cobre título/legenda ENTRE duas
+// tabelas, texto antes/depois de uma seção etc — a posição relativa entre
+// itens é sempre preservada (mesmo gap autorado no editor), mesmo que algo
+// anterior tenha crescido (seção mestre-detalhe) ou mudado de página.
+//
+// Multi-página: `template.pages` (opcional) deixa desenhar várias páginas-
+// design DIFERENTES num PDF só, com numeração contínua entre elas — mesmo
+// PDFDocument/font embed, sem gerar/mesclar PDFs separados (ver
+// normalizePageDefs/renderPageDef acima). Um Template sem `pages` (todo
+// template de hoje) vira um array de 1, passando pelo mesmíssimo caminho.
+export async function generatePdf(
+  template: Template,
+  data: unknown,
+  bindings: Binding[],
+  options: GeneratePdfOptions = {}
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  let font: PDFFont;
+  if (options.fontBytes) {
+    // @types/fontkit e o tipo interno do pdf-lib pra Fontkit divergem um
+    // pouco na forma exata do retorno de create() — incompatibilidade de
+    // tipos conhecida entre os dois pacotes, não um erro de fato (funciona
+    // certinho em runtime).
+    doc.registerFontkit(fontkit as unknown as Parameters<typeof doc.registerFontkit>[0]);
+    const sfntBytes = await normalizeFontBytes(options.fontBytes);
+    font = await doc.embedFont(sfntBytes);
+  } else {
+    font = await doc.embedFont(StandardFonts.Helvetica);
+  }
+
+  // buildInputs/imageCache dependem só de data+bindings (globais no
+  // Template inteiro, não por página) — computados uma vez, reusados por
+  // todas as páginas-design.
+  const inputs = buildInputs(data, bindings);
+  const imageCache = new Map<string, PDFImage>();
+
+  const pageDefs = normalizePageDefs(template);
+  const prepared: PreparedPageDef[] = pageDefs.map((pageDef) => {
+    const { headerHeight, bodyBottomMm, repeatingSchemas, bodyItems } = deriveBodyLayout(pageDef);
+    const pageCount = countBodyPages(pageDef, bodyItems, bodyBottomMm, headerHeight, bindings, data, inputs);
+    return { pageDef, repeatingSchemas, bodyItems, headerHeight, bodyBottomMm, pageCount };
+  });
+  const totalPages = prepared.reduce((sum, p) => sum + p.pageCount, 0);
+
+  let pageNumber = 0;
+  for (const p of prepared) {
+    pageNumber = await renderPageDef(doc, font, p, data, bindings, inputs, imageCache, pageNumber + 1, totalPages);
   }
 
   return doc.save();

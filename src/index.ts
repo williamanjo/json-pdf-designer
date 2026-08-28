@@ -15,6 +15,7 @@ export type {
   KpiIcon,
   Schema,
   Template,
+  TemplatePage,
   TableColumn,
   Binding,
   KpiAggregation,

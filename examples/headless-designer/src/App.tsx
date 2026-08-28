@@ -11,6 +11,13 @@ const PAGE = { width: 210, height: 297 };
 const PX_PER_MM = 3;
 const MIN_WIDTH_MM = 15;
 const MIN_HEIGHT_MM = 8;
+// Grade de 5mm — mesmo passo do <Designer> (arrastar/redimensionar trava
+// nela por padrão). Sem isso, campo novo nasce sempre no mesmo x/y e fica
+// empilhado exatamente em cima do anterior.
+const GRID_MM = 5;
+function snap(mm: number): number {
+  return Math.round(mm / GRID_MM) * GRID_MM;
+}
 
 const SAMPLE_DATA = JSON.stringify({ name: "World" }, null, 2);
 
@@ -19,14 +26,18 @@ function uid(): string {
   return `field_${nextId++}`;
 }
 
-function newTextField(): TextSchema {
+// `stagger` evita nascer em cima do campo anterior: cada campo novo desloca
+// mais um passo de grade (e volta pro início depois de 6, formando uma
+// escada em vez de uma fila infinita).
+function newTextField(stagger: number): TextSchema {
   const n = nextId;
+  const step = (stagger % 6) * GRID_MM;
   return {
     id: uid(),
     name: `text_${n}`,
     type: "text",
-    x: 10,
-    y: 10,
+    x: 10 + step,
+    y: 10 + step,
     width: 100,
     height: 15,
     content: "Hello {name}",
@@ -36,14 +47,15 @@ function newTextField(): TextSchema {
   };
 }
 
-function newTableField(): TableSchema {
+function newTableField(stagger: number): TableSchema {
   const n = nextId;
+  const step = (stagger % 6) * GRID_MM;
   return {
     id: uid(),
     name: `table_${n}`,
     type: "table",
-    x: 10,
-    y: 40,
+    x: 10 + step,
+    y: 40 + step,
     width: 150,
     height: 30,
     head: ["Column A", "Column B"],
@@ -91,7 +103,7 @@ function CanvasField({
     function onMouseMove(ev: MouseEvent) {
       const dxMm = (ev.clientX - startX) / PX_PER_MM;
       const dyMm = (ev.clientY - startY) / PX_PER_MM;
-      onMove(Math.max(0, origX + dxMm), Math.max(0, origY + dyMm));
+      onMove(snap(Math.max(0, origX + dxMm)), snap(Math.max(0, origY + dyMm)));
     }
     function onMouseUp() {
       window.removeEventListener("mousemove", onMouseMove);
@@ -112,7 +124,7 @@ function CanvasField({
     function onMouseMove(ev: MouseEvent) {
       const dwMm = (ev.clientX - startX) / PX_PER_MM;
       const dhMm = (ev.clientY - startY) / PX_PER_MM;
-      onResize(Math.max(MIN_WIDTH_MM, origW + dwMm), Math.max(MIN_HEIGHT_MM, origH + dhMm));
+      onResize(snap(Math.max(MIN_WIDTH_MM, origW + dwMm)), snap(Math.max(MIN_HEIGHT_MM, origH + dhMm)));
     }
     function onMouseUp() {
       window.removeEventListener("mousemove", onMouseMove);
@@ -201,7 +213,7 @@ function SelectedFieldPanel({
 // "json-pdf-designer") pra mostrar o resultado. Prova que dá pra construir
 // um designer 100% próprio em cima só do modelo de dados do pacote.
 export default function App() {
-  const [fields, setFields] = useState<Schema[]>(() => [newTextField()]);
+  const [fields, setFields] = useState<Schema[]>(() => [newTextField(0)]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dataText, setDataText] = useState(SAMPLE_DATA);
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
@@ -219,8 +231,8 @@ export default function App() {
     setSelectedId((prev) => (prev === id ? null : prev));
   }
 
-  function addField(make: () => Schema) {
-    const field = make();
+  function addField(make: (stagger: number) => Schema) {
+    const field = make(fields.length);
     setFields((prev) => [...prev, field]);
     setSelectedId(field.id);
   }
@@ -308,7 +320,11 @@ export default function App() {
             <div className="canvas-scroll">
               <div
                 className="canvas-page"
-                style={{ width: PAGE.width * PX_PER_MM, height: PAGE.height * PX_PER_MM }}
+                style={{
+                  width: PAGE.width * PX_PER_MM,
+                  height: PAGE.height * PX_PER_MM,
+                  backgroundSize: `${GRID_MM * PX_PER_MM}px ${GRID_MM * PX_PER_MM}px`,
+                }}
                 onMouseDown={() => setSelectedId(null)}
               >
                 {fields.map((f) => (

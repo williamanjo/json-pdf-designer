@@ -18,6 +18,26 @@ type Template = {
   marginRight?: number;
   backgroundImage?: string; // PNG data URI, letterhead-style background
   schemas: Schema[];
+  // Optional — see "Multi-page templates" below. When present and
+  // non-empty, it's the source of truth (the flat fields above are
+  // ignored); absent/empty falls back to the flat fields as a single
+  // implicit page, so every Template from before this field existed
+  // keeps working unchanged.
+  pages?: TemplatePage[];
+};
+
+// Same shape as Template, minus `pages` itself — one independent page
+// design (own size/header/footer/background/schemas).
+type TemplatePage = {
+  id: string;
+  name?: string;
+  page: PageSize;
+  headerHeight?: number;
+  footerHeight?: number;
+  marginLeft?: number;
+  marginRight?: number;
+  backgroundImage?: string;
+  schemas: Schema[];
 };
 
 type Binding =
@@ -92,6 +112,19 @@ orientation (portrait/landscape) in its "Page" tab —
 `Template.backgroundImage` puts an image (or the first page of an
 uploaded PDF, rasterized once) behind everything, in both the editor
 and the final PDF.
+
+## Multi-page templates
+
+`Template.pages` (optional) lets one `Template` hold several
+**different** page designs — own size, header/footer, background,
+schemas — that `generatePdf` draws into a single PDF, one after another,
+with `{pageNumber}`/`{pageCount}` continuing across them (page design #1
+ending on physical page 2 makes page design #2 start at page 3, not
+restart at 1). `data`/`Binding[]` are shared across every entry in
+`pages` — schema names must stay unique across the whole template, not
+just within one page. The `report-builder` example builds a page-tabs UI
+on top of this — each tab edits one `TemplatePage`, while JSON data
+sources stay shared/global across all tabs.
 
 ## Custom fonts
 

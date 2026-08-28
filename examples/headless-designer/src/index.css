@@ -122,7 +122,10 @@ body {
    isso aqui é só a superfície de arrastar/redimensionar, feita à mão. */
 .canvas-page {
   position: relative;
-  background: #ffffff;
+  background-color: #ffffff;
+  background-image: linear-gradient(to right, rgba(2, 132, 199, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(2, 132, 199, 0.08) 1px, transparent 1px);
+  background-repeat: repeat;
   border: 1px solid #cbd5e1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
@@ -144,6 +147,10 @@ body {
 .canvas-field.selected {
   border: 2px solid #0284c7;
   background: rgba(2, 132, 199, 0.12);
+  /* Campos empilhados (grade permite sobreposição intencional, ex: título
+     por cima de uma seção) — o selecionado sempre fica por cima pra dar
+     pra arrastar/redimensionar sem "pegar" o de baixo. */
+  z-index: 1;
 }
 
 .canvas-field-label {

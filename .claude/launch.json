@@ -14,6 +14,12 @@
       "port": 5174
     },
     {
+      "name": "headless-designer",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "examples/headless-designer", "run", "dev"],
+      "port": 5175
+    },
+    {
       "name": "docs-site",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["--yes", "serve", "-l", "3010", "site-preview-root"],

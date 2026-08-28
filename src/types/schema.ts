@@ -194,6 +194,23 @@ export type KpiSchema = BaseSchema & {
 
 export type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
 
+// Um "design" de página — mesmo formato que Template tinha antes de existir
+// multi-página, usado dentro de Template.pages[] quando há mais de uma.
+export type TemplatePage = {
+  // Estável entre edições (chave de aba/undo/<Designer key=...>) — não é
+  // salvo/lido do PDF, só identidade de UI.
+  id: string;
+  // Rótulo de aba; default é o índice+1 ("Página N") quando ausente.
+  name?: string;
+  page: PageSize;
+  headerHeight?: number;
+  footerHeight?: number;
+  marginLeft?: number;
+  marginRight?: number;
+  backgroundImage?: string;
+  schemas: Schema[];
+};
+
 export type Template = {
   page: PageSize;
   // Faixas estáticas (mm) que se repetem em toda página gerada — um campo
@@ -210,4 +227,11 @@ export type Template = {
   // pra imagem (ver backgroundImage.ts).
   backgroundImage?: string;
   schemas: Schema[];
+  // Multi-página: quando presente e não-vazio, é a fonte da verdade — os
+  // campos flat acima (page/headerHeight/.../schemas) são ignorados por
+  // generatePdf/Designer. Ausente/vazio = comportamento de sempre (os
+  // campos flat viram a única página implícita). Todas as páginas
+  // compartilham o mesmo Binding[]/dado — nome de schema precisa ser único
+  // no Template inteiro, não só dentro de uma página.
+  pages?: TemplatePage[];
 };

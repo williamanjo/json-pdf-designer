@@ -8,7 +8,7 @@ description: A árvore de código-fonte, pasta por pasta.
 ```
 src/
   types/
-    schema.ts          -> Template/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
+    schema.ts          -> Template/TemplatePage/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
     binding.ts         -> TableColumn, Binding (chart/kpi: path/labelColumn|valueColumn/filters/aggregation)
     dataSource.ts      -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
   units.ts             -> conversões mm <-> px <-> pt + grade (GRID_SIZE_MM, snapToGrid)
@@ -30,7 +30,8 @@ src/
     columnParsing.ts   -> parse do texto livre "col, Rótulo={FUNÇÃO(...)}" da tabela
   pdf/
     generate.ts        -> gera o PDF de verdade (pdf-lib): paginação unificada (tabela/seção/texto/imagem
-                          numa sequência só por Y), mestre-detalhe, faixas repetidas, fundo, fonte
+                          numa sequência só por Y), mestre-detalhe, faixas repetidas, fundo, fonte,
+                          multi-página (Template.pages) com {pageNumber}/{pageCount} contínuo
     drawTable.ts       -> desenha tabela no pdf-lib em fatias (paginação), cabeçalho/valor/rodapé com cor/tamanho
     drawSection.ts     -> desenha uma seção repetida, uma passada por item do array vinculado
     drawChart.ts       -> desenha pizza (fatias via drawSvgPath) ou barra + legenda no pdf-lib
