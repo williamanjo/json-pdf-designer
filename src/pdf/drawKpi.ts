@@ -11,15 +11,10 @@ import {
   formatKpiValue,
   kpiBorderRadius,
 } from "../kpiFormat";
-import { parseHex } from "./color";
+import { colorOrDefault } from "./color";
 import { truncateToWidth } from "./drawTable";
 
 const PADDING_PT = 8;
-
-function colorOf(hex: string, fallback: Color): Color {
-  const c = parseHex(hex);
-  return c ? rgb(c.r, c.g, c.b) : fallback;
-}
 
 // Retângulo com cantos arredondados — pdf-lib não tem essa forma pronta
 // (drawRectangle só faz cantos retos), então desenha via drawSvgPath.
@@ -67,8 +62,8 @@ export function drawKpi(
   const radiusPt = kpiBorderRadius(schema.borderRadius ?? DEFAULT_KPI_BORDER_RADIUS_PERCENT, widthPt, heightPt);
   const displayValue = formatKpiValue(value, schema.numberFormat);
 
-  const bg = colorOf(schema.backgroundColor, rgb(0.15, 0.39, 0.92));
-  const fg = colorOf(schema.textColor, rgb(1, 1, 1));
+  const bg = colorOrDefault(schema.backgroundColor, rgb(0.15, 0.39, 0.92));
+  const fg = colorOrDefault(schema.textColor, rgb(1, 1, 1));
   page.drawSvgPath(roundedRectPath(widthPt, heightPt, radiusPt), { x: xPt, y: yPt + heightPt, color: bg });
 
   const hasIcon = Boolean(MATERIAL_ICON_PATHS[schema.icon as keyof typeof MATERIAL_ICON_PATHS]);

@@ -1,7 +1,8 @@
-import type { Schema } from "../../types";
+import type { ImageSchema } from "../../types";
+import { useT } from "../../i18n";
 
-export function ImageField({ schema, onUpdate }: { schema: Schema; onUpdate?: (patch: Partial<Schema>) => void }) {
-  if (schema.type !== "image") return null;
+export function ImageField({ schema, onUpdate }: { schema: ImageSchema; onUpdate?: (patch: Partial<ImageSchema>) => void }) {
+  const t = useT();
 
   function pickFile() {
     const input = document.createElement("input");
@@ -37,7 +38,7 @@ export function ImageField({ schema, onUpdate }: { schema: Schema; onUpdate?: (p
       }}
       className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-slate-300 text-[11px] text-slate-400 dark:border-gray-500 dark:text-gray-500"
     >
-      imagem (duplo clique pra escolher)
+      {t.image.dropHint}
     </div>
   );
 }

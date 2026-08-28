@@ -1,9 +1,8 @@
 // Resolve o conteúdo de um schema (texto/tabela) contra o dado real —
 // puro, sem nenhuma dependência de pdf-lib. Usado tanto pelo fluxo
 // principal (generate.ts) quanto pelo desenho de seção (drawSection.ts).
-import get from "lodash.get";
 import type { Binding, TableSchema } from "../types";
-import { renderTemplate } from "../bindings/bindings";
+import { filteredArrayAt, renderTemplate } from "../bindings/bindings";
 
 export function resolveTableRows(schema: TableSchema, value: string | undefined): string[][] {
   if (!value) return schema.content;
@@ -57,8 +56,8 @@ export function resolveTopLevelTableRows(tableSchema: TableSchema, bindings: Bin
     (b): b is Extract<Binding, { type: "array" }> => b.schemaName === tableSchema.name && b.type === "array"
   );
   if (binding) {
-    const arr = get(data, binding.path);
-    if (Array.isArray(arr)) return resolveArrayRows(tableSchema, arr, binding);
+    const filtered = filteredArrayAt(data, binding.path, binding.filters);
+    if (filtered) return resolveArrayRows(tableSchema, filtered, binding);
   }
   return resolveTableRows(tableSchema, inputs[tableSchema.name]);
 }
@@ -77,8 +76,8 @@ export function resolveNestedTableRows(tableMember: TableSchema, item: unknown, 
     (b): b is Extract<Binding, { type: "array" }> => b.schemaName === tableMember.name && b.type === "array"
   );
   if (binding) {
-    const arr = get(item, binding.path);
-    if (Array.isArray(arr)) return resolveArrayRows(tableMember, arr, binding);
+    const filtered = filteredArrayAt(item, binding.path, binding.filters);
+    if (filtered) return resolveArrayRows(tableMember, filtered, binding);
   } else if (item && typeof item === "object") {
     const row = resolveRowFromItem(tableMember, item, undefined);
     if (row.some((cell) => cell !== "")) return [row];

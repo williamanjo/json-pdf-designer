@@ -1,6 +1,8 @@
 import { useState } from "react";
-import type { KpiSchema } from "../types";
-import { MATERIAL_ICON_GRID, MATERIAL_ICON_NAMES, MATERIAL_ICON_PATHS, materialIconLabels } from "../materialIcons";
+import type { Binding, DataSourceOption, KpiSchema } from "../types";
+import { BindingEditor } from "./BindingEditor";
+import { allowDrop, readDroppedField } from "./dragField";
+import { MATERIAL_ICON_NAMES, materialIconLabels } from "../materialIcons";
 import { useLocale, useT, withInlineCode, type Locale } from "../i18n";
 import {
   DEFAULT_KPI_BORDER_RADIUS_PERCENT,
@@ -9,34 +11,17 @@ import {
   DEFAULT_KPI_TITLE_FONT_SIZE,
   DEFAULT_KPI_VALUE_FONT_SIZE,
 } from "../kpiFormat";
-import { BulkLocked, ColorInput, Input, Select } from "./ui";
-
-type DroppedField = { path: string; kind: string };
-function readDroppedField(e: React.DragEvent): DroppedField | null {
-  const raw = e.dataTransfer.getData("application/json");
-  if (!raw) return null;
-  try { return JSON.parse(raw) as DroppedField; } catch { return null; }
-}
-const allowDrop = (e: React.DragEvent) => {
-  if (e.dataTransfer.types.includes("application/json")) e.preventDefault();
-};
+import { BulkLocked, ColorInput, Input, MaterialIcon, Select } from "./ui";
 
 type Props = {
   schema: KpiSchema;
   activeTab: "dados" | "estilo";
   bulkEdit?: boolean;
   onChangeSchema: (patch: Partial<KpiSchema>) => void;
+  binding: Binding | undefined;
+  onChangeBinding: (b: Binding | null) => void;
+  dataSources?: DataSourceOption[];
 };
-
-function IconGlyph({ name, size = 18 }: { name: string; size?: number }) {
-  const path = MATERIAL_ICON_PATHS[name as keyof typeof MATERIAL_ICON_PATHS];
-  if (!path) return null;
-  return (
-    <svg width={size} height={size} viewBox={`0 -${MATERIAL_ICON_GRID} ${MATERIAL_ICON_GRID} ${MATERIAL_ICON_GRID}`} fill="currentColor">
-      <path d={path} />
-    </svg>
-  );
-}
 
 // Busca+seleção de ícone (Material Symbols, ver materialIcons.ts) — filtra
 // pelo nome técnico OU pelo rótulo no idioma ativo (ex: "money" acha
@@ -60,7 +45,7 @@ function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, n
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
         <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-600 dark:border-gray-600 dark:text-gray-300">
-          {value && value !== "none" ? <IconGlyph name={value} /> : <span className="text-[9px] text-slate-400 dark:text-gray-500">—</span>}
+          {value && value !== "none" ? <MaterialIcon icon={value} size={18} /> : <span className="text-[9px] text-slate-400 dark:text-gray-500">—</span>}
         </span>
         <Input
           placeholder={searchPlaceholder}
@@ -87,7 +72,7 @@ function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, n
                 : "border-slate-200 dark:border-gray-600"
             }`}
           >
-            <IconGlyph name={name} />
+            <MaterialIcon icon={name} size={18} />
           </button>
         ))}
       </div>
@@ -95,7 +80,7 @@ function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, n
   );
 }
 
-export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit }: Props) {
+export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, binding, onChangeBinding, dataSources }: Props) {
   const t = useT();
   const locale = useLocale();
   const contentFields = (
@@ -133,6 +118,10 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit }
             <option value="plain">{t.kpi.numberFormatPlain}</option>
             <option value="grouped">{t.kpi.numberFormatGrouped}</option>
           </Select>
+          <BindingEditor schema={schema} binding={binding} onChangeBinding={onChangeBinding} dataSources={dataSources} />
+          {binding?.type === "kpi" && (
+            <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.kpi.boundOverridesValueHint}</p>
+          )}
         </>
       )}
 

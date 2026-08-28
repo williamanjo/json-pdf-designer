@@ -1,3 +1,5 @@
+import { formatPtBrNumber } from "./numberFormat";
+
 // Defaults compartilhados entre o preview no canvas (components/FieldBox/KpiField.tsx)
 // e o desenho real no PDF (pdf/drawKpi.ts) — mesmo valor nos dois lugares
 // pra preview bater com o PDF gerado quando o schema não define um tamanho.
@@ -29,5 +31,5 @@ export function formatKpiValue(value: string, format?: "none" | "plain" | "group
   if (trimmed === "") return value;
   const n = Number(trimmed);
   if (Number.isNaN(n)) return value;
-  return n.toLocaleString("pt-BR", { maximumFractionDigits: 2, useGrouping: format === "grouped" });
+  return formatPtBrNumber(n, { decimals: 2, forceDecimals: false, grouping: format === "grouped" });
 }

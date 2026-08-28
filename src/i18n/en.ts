@@ -102,6 +102,7 @@ export const en = {
       "The whole section repeats once per item of this array. Inside it, each field's binding resolves against the CURRENT item (not the whole document) — use `{field}` directly, or `{Line}` for the repetition number (1, 2, 3...).",
     dataSourcePlaceholder: "Data Source — pick an array from the JSON",
     chartPathPlaceholder: "array path — e.g. agents",
+    kpiPathPlaceholder: "array path — e.g. rows",
     labelColumnPlaceholder: "Label column",
     labelColumnInputPlaceholder: "label column — e.g. label",
     valueColumnPlaceholder: "Numeric column",
@@ -209,6 +210,12 @@ export const en = {
     numberFormatNone: "Original (as typed)",
     numberFormatPlain: "10000",
     numberFormatGrouped: "10.000",
+    aggregationSum: "Sum",
+    aggregationCount: "Count",
+    aggregationAvg: "Average",
+    aggregationMin: "Minimum",
+    aggregationMax: "Maximum",
+    boundOverridesValueHint: "Bound below — the Value field above is ignored; the card shows the aggregated result instead.",
   },
   text: {
     designText: "Text (design)",
@@ -226,11 +233,13 @@ export const en = {
   },
   image: {
     label: "Image (data URI)",
+    dropHint: "image (double-click to choose)",
   },
   section: {
     dragHint:
       "Drag text/image on top of it in the canvas to group — the whole group repeats per item of the bound array.",
     fieldsFromSource: (path: string) => `Fields from "${path}" — drag to the canvas:`,
+    dragHandleHint: "Section (repeats) — drag here to move",
   },
   position: {
     x: "X (mm)",
@@ -238,7 +247,11 @@ export const en = {
     width: "Width (mm)",
     height: "Height (mm)",
   },
-  chart: {
+  // Grupos/condições do filtro (chart/table/kpi — ver components/FilterTab.tsx,
+  // compartilhado entre os 3), genérico o bastante pra não ficar preso ao
+  // namespace "chart" (era `t.chart.*` antes, ficou semanticamente errado
+  // assim que table/kpi passaram a usar a mesma aba de filtro).
+  filter: {
     opEq: "=",
     opNeq: "≠",
     opGt: ">",
@@ -246,14 +259,16 @@ export const en = {
     opLt: "<",
     opLte: "≤",
     opContains: "contains",
-    paletteLabel: "Color palette",
-    noFilter: "No filter — every array item enters the chart.",
+    noFilter: "No filter — every array item enters.",
     or: "OR",
     and: "AND",
     columnPlaceholder: "column",
     valuePlaceholder: "value",
     addCondition: "condition (AND)",
     addGroup: "group (OR)",
+  },
+  chart: {
+    paletteLabel: "Color palette",
     sortBy: "Sort by",
     sortValueDesc: "Highest value first",
     sortValueAsc: "Lowest value first",

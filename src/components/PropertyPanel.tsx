@@ -47,9 +47,9 @@ type Props = {
 // propPanel declarativo, React normal. Image/Section não têm divisão
 // Dados/Estilo própria (conteúdo simples demais pra precisar) — tudo delas
 // aparece em "Dados"; o vínculo genérico (BindingEditor) só serve a esses
-// dois tipos, os outros já embutem o vínculo certo dentro do próprio
-// componente (chart) ou nem precisam de um (kpi/texto usam template
-// direto no campo, tabela tem o próprio dentro de "Dados").
+// dois tipos direto aqui, os outros já embutem o vínculo certo dentro do
+// próprio componente (chart, kpi) ou nem precisam de um (texto usa
+// template direto no campo, tabela tem o próprio dentro de "Dados").
 export function PropertyPanel({
   schema,
   binding,
@@ -123,5 +123,15 @@ export function PropertyPanel({
   }
 
   // "kpi"
-  return <PropertyPanelKpi schema={schema} activeTab={activeTab} bulkEdit={bulkEdit} onChangeSchema={onChangeSchema} />;
+  return (
+    <PropertyPanelKpi
+      schema={schema}
+      activeTab={activeTab}
+      bulkEdit={bulkEdit}
+      onChangeSchema={onChangeSchema}
+      binding={binding}
+      onChangeBinding={onChangeBinding}
+      dataSources={dataSources}
+    />
+  );
 }

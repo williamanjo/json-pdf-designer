@@ -366,6 +366,7 @@ export const MATERIAL_ICON_NAMES = Object.keys(MATERIAL_ICON_PATHS) as MaterialI
 // Mantido pra compatibilidade — quem já importava MATERIAL_ICON_LABELS
 // direto (sem passar por materialIconLabels(locale)) continua vendo
 // PT-BR, igual sempre foi.
+/** @deprecated Fixo em PT-BR — use `materialIconLabels(locale)` abaixo, que respeita o idioma ativo. */
 export const MATERIAL_ICON_LABELS = MATERIAL_ICON_LABELS_PT_BR;
 
 export function materialIconLabels(locale: Locale): Record<MaterialIconName, string> {

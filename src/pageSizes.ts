@@ -2,6 +2,10 @@ import type { PageSize } from "./types";
 
 // Larguras/alturas em mm, sempre em RETRATO aqui — a orientação (ver
 // applyOrientation) decide se inverte width/height na hora de aplicar.
+// `label` é só fallback — Designer.tsx faz `t.pageSizeLabels[p.name] ?? p.label`,
+// e todo preset abaixo já tem entrada em pageSizeLabels (en.ts/pt-BR.ts),
+// então esse texto (parte em PT) quase nunca aparece de verdade; existe
+// só pra um preset novo/desconhecido não ficar sem rótulo nenhum.
 export const PAGE_SIZE_PRESETS: { name: string; label: string; size: PageSize }[] = [
   { name: "a4", label: "A4 (210 x 297mm)", size: { width: 210, height: 297 } },
   { name: "a3", label: "A3 (297 x 420mm)", size: { width: 297, height: 420 } },

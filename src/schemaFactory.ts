@@ -14,13 +14,19 @@ export function uid(): string {
     : Math.random().toString(36).slice(2);
 }
 
+// Preâmbulo repetido de todo make*Schema abaixo — id novo, nome com
+// sufixo aleatório (evita colisão entre campos do mesmo tipo), sempre
+// nasce em x=10 (só y varia, empilhado abaixo do último campo — ver
+// nextFreeY). width/height/type/resto ficam a cargo de cada função,
+// que são específicos por tipo de campo.
+function makeBase(namePrefix: string, nextY: number): { id: string; name: string; x: number; y: number } {
+  return { id: uid(), name: `${namePrefix}_${Math.random().toString(36).slice(2, 6)}`, x: 10, y: nextY };
+}
+
 export function makeTextSchema(nextY: number, t: Dict = en): TextSchema {
   return {
-    id: uid(),
-    name: `${t.schemaDefaults.textNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
+    ...makeBase(t.schemaDefaults.textNamePrefix, nextY),
     type: "text",
-    x: 10,
-    y: nextY,
     width: 80,
     height: 10,
     content: t.schemaDefaults.textContent,
@@ -32,11 +38,8 @@ export function makeTextSchema(nextY: number, t: Dict = en): TextSchema {
 
 export function makeTableSchema(nextY: number, t: Dict = en): TableSchema {
   return {
-    id: uid(),
-    name: `${t.schemaDefaults.tableNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
+    ...makeBase(t.schemaDefaults.tableNamePrefix, nextY),
     type: "table",
-    x: 10,
-    y: nextY,
     width: 150,
     height: 30,
     head: [t.schemaDefaults.column1, t.schemaDefaults.column2],
@@ -46,11 +49,8 @@ export function makeTableSchema(nextY: number, t: Dict = en): TableSchema {
 
 export function makeImageSchema(nextY: number, t: Dict = en): ImageSchema {
   return {
-    id: uid(),
-    name: `${t.schemaDefaults.imageNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
+    ...makeBase(t.schemaDefaults.imageNamePrefix, nextY),
     type: "image",
-    x: 10,
-    y: nextY,
     width: 40,
     height: 40,
     content: "",
@@ -59,11 +59,8 @@ export function makeImageSchema(nextY: number, t: Dict = en): ImageSchema {
 
 export function makeSectionSchema(nextY: number, t: Dict = en): SectionSchema {
   return {
-    id: uid(),
-    name: `${t.schemaDefaults.sectionNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
+    ...makeBase(t.schemaDefaults.sectionNamePrefix, nextY),
     type: "section",
-    x: 10,
-    y: nextY,
     width: 190,
     height: 20,
   };
@@ -119,11 +116,8 @@ export function makeSectionColumnPair(
 
 export function makeChartSchema(nextY: number, t: Dict = en): ChartSchema {
   return {
-    id: uid(),
-    name: `${t.schemaDefaults.chartNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
+    ...makeBase(t.schemaDefaults.chartNamePrefix, nextY),
     type: "chart",
-    x: 10,
-    y: nextY,
     width: 100,
     height: 70,
     chartType: "pie",
@@ -136,11 +130,8 @@ export function makeChartSchema(nextY: number, t: Dict = en): ChartSchema {
 
 export function makeKpiSchema(nextY: number, t: Dict = en): KpiSchema {
   return {
-    id: uid(),
-    name: `${t.schemaDefaults.kpiNamePrefix}_${Math.random().toString(36).slice(2, 6)}`,
+    ...makeBase(t.schemaDefaults.kpiNamePrefix, nextY),
     type: "kpi",
-    x: 10,
-    y: nextY,
     width: 55,
     height: 35,
     icon: "bar_chart",

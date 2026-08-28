@@ -3,7 +3,7 @@ import type { PDFFont, PDFPage } from "pdf-lib";
 import { rgb } from "pdf-lib";
 import type { TableSchema } from "../types";
 import { mmToPt } from "../units";
-import { parseHex } from "./color";
+import { colorOrDefault, parseHex } from "./color";
 
 const CELL_PADDING_PT = mmToPt(1.5);
 const BORDER_COLOR = rgb(0.6, 0.6, 0.6);
@@ -58,14 +58,14 @@ export function drawTableSlice(
   const rowHeightPt = mmToPt(TABLE_ROW_HEIGHT_MM);
   let cursorY = topYPt;
 
-  const headBg = hexToColor(schema.headBackgroundColor) ?? DEFAULT_HEAD_BG;
-  const headColor = hexToColor(schema.headTextColor) ?? DEFAULT_HEAD_COLOR;
+  const headBg = colorOrDefault(schema.headBackgroundColor, DEFAULT_HEAD_BG);
+  const headColor = colorOrDefault(schema.headTextColor, DEFAULT_HEAD_COLOR);
   const headSize = schema.headFontSize ?? HEAD_FONT_SIZE;
   const bodyBg = hexToColor(schema.bodyBackgroundColor);
-  const bodyColor = hexToColor(schema.bodyTextColor) ?? rgb(0, 0, 0);
+  const bodyColor = colorOrDefault(schema.bodyTextColor, rgb(0, 0, 0));
   const bodySize = schema.bodyFontSize ?? BODY_FONT_SIZE;
-  const footerBg = hexToColor(schema.footerBackgroundColor) ?? DEFAULT_FOOTER_BG;
-  const footerColor = hexToColor(schema.footerTextColor) ?? DEFAULT_FOOTER_COLOR;
+  const footerBg = colorOrDefault(schema.footerBackgroundColor, DEFAULT_FOOTER_BG);
+  const footerColor = colorOrDefault(schema.footerTextColor, DEFAULT_FOOTER_COLOR);
   const footerSize = schema.footerFontSize ?? BODY_FONT_SIZE;
 
   // Fundo/cor/tamanho: override por coluna (mais específico) > estilo da
@@ -85,12 +85,12 @@ export function drawTableSlice(
         variant === "head" ? colStyle?.headFontSize ?? headSize : variant === "body" ? colStyle?.cellFontSize ?? bodySize : footerSize;
       const textColor =
         variant === "head"
-          ? hexToColor(colStyle?.headTextColor) ?? headColor
+          ? colorOrDefault(colStyle?.headTextColor, headColor)
           : variant === "footer"
             ? footerColor
-            : hexToColor(colStyle?.cellTextColor) ?? bodyColor;
+            : colorOrDefault(colStyle?.cellTextColor, bodyColor);
       const cellBg =
-        variant === "head" ? hexToColor(colStyle?.headBackgroundColor) ?? headBg : variant === "body" ? hexToColor(colStyle?.cellBackgroundColor) : undefined;
+        variant === "head" ? colorOrDefault(colStyle?.headBackgroundColor, headBg) : variant === "body" ? hexToColor(colStyle?.cellBackgroundColor) : undefined;
       if (cellBg) {
         page.drawRectangle({ x: cellX, y: cursorY, width: colWidth, height: rowHeightPt, color: cellBg });
       }

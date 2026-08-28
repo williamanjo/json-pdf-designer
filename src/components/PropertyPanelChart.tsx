@@ -1,11 +1,10 @@
 import { useState } from "react";
-import type { Binding, ChartFilterCondition, ChartFilterGroup, ChartFilterOp, ChartSchema, DataSourceOption } from "../types";
+import type { Binding, ChartSchema, DataSourceOption } from "../types";
 import { CHART_PALETTE_NAMES, CHART_PALETTE_SIZE, resolveChartColors, resolveChartPalette, type ChartPaletteName } from "../chartColors";
 import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../chartFormat";
-import { useT, type Dict } from "../i18n";
+import { useT } from "../i18n";
 import { BindingEditor } from "./BindingEditor";
-import { BulkLocked, Button, ColorInput, Input, Select } from "./ui";
-import { IconPlus, IconX } from "./ui/icons";
+import { BulkLocked, ColorInput, Input, Select } from "./ui";
 
 type Props = {
   schema: ChartSchema;
@@ -16,18 +15,6 @@ type Props = {
   onChangeBinding: (b: Binding | null) => void;
   dataSources?: DataSourceOption[];
 };
-
-function chartFilterOps(t: Dict): { value: ChartFilterOp; label: string }[] {
-  return [
-    { value: "eq", label: t.chart.opEq },
-    { value: "neq", label: t.chart.opNeq },
-    { value: "gt", label: t.chart.opGt },
-    { value: "gte", label: t.chart.opGte },
-    { value: "lt", label: t.chart.opLt },
-    { value: "lte", label: t.chart.opLte },
-    { value: "contains", label: t.chart.opContains },
-  ];
-}
 
 // Uma fileira de bolinhas com as cores dadas — mesma ideia de um seletor
 // de tema de cores pronto.
@@ -113,105 +100,6 @@ function PalettePicker({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-// Aba "Filtro" — edita `binding.filters` direto (não é rascunho local: o
-// vínculo já existe quando essa aba faz sentido de usar). Grupos combinam
-// com OU, condições dentro de um grupo combinam com E (ver ChartFilterGroup
-// em types/binding.ts, filtro avançado com grupos E/OU combináveis).
-// Exportado — Designer.tsx renderiza direto na aba "Filtro" (nível
-// superior, mesma fileira de abas de Campos/Dados/Estilo/Página).
-export function ChartFilterTab({
-  binding,
-  onChangeBinding,
-  columns,
-}: {
-  binding: Extract<Binding, { type: "chart" }>;
-  onChangeBinding: (b: Binding | null) => void;
-  columns: string[];
-}) {
-  const t = useT();
-  const filters = binding.filters ?? [];
-
-  function applyFilters(next: ChartFilterGroup[]) {
-    const clean = next.map((g) => g.filter((c) => c.column)).filter((g) => g.length > 0);
-    onChangeBinding({ ...binding, filters: clean.length > 0 ? clean : undefined });
-  }
-  function addGroup() {
-    applyFilters([...filters, [{ column: columns[0] ?? "", op: "eq", value: "" }]]);
-  }
-  function removeGroup(gi: number) {
-    applyFilters(filters.filter((_, i) => i !== gi));
-  }
-  function addCondition(gi: number) {
-    applyFilters(filters.map((g, i) => (i === gi ? [...g, { column: columns[0] ?? "", op: "eq" as ChartFilterOp, value: "" }] : g)));
-  }
-  function removeCondition(gi: number, ci: number) {
-    applyFilters(filters.map((g, i) => (i === gi ? g.filter((_, j) => j !== ci) : g)));
-  }
-  function updateCondition(gi: number, ci: number, patch: Partial<ChartFilterCondition>) {
-    applyFilters(filters.map((g, i) => (i === gi ? g.map((c, j) => (j === ci ? { ...c, ...patch } : c)) : g)));
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      {filters.length === 0 && (
-        <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.chart.noFilter}</p>
-      )}
-      {filters.map((group, gi) => (
-        <div key={gi} className="flex flex-col gap-1 rounded-md border border-slate-200 p-1.5 dark:border-gray-700">
-          {gi > 0 && <span className="text-center text-[9px] font-semibold text-slate-400">{t.chart.or}</span>}
-          {group.map((cond, ci) => (
-            <div key={ci} className="flex items-center gap-1">
-              {ci > 0 && <span className="w-4 flex-shrink-0 text-center text-[9px] font-semibold text-slate-400">{t.chart.and}</span>}
-              {columns.length > 0 ? (
-                <Select value={cond.column} onChange={(e) => updateCondition(gi, ci, { column: e.target.value })}>
-                  <option value="">{t.chart.columnPlaceholder}</option>
-                  {columns.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </Select>
-              ) : (
-                <Input
-                  placeholder={t.chart.columnPlaceholder}
-                  value={cond.column}
-                  onChange={(e) => updateCondition(gi, ci, { column: e.target.value })}
-                />
-              )}
-              <Select value={cond.op} onChange={(e) => updateCondition(gi, ci, { op: e.target.value as ChartFilterOp })}>
-                {chartFilterOps(t).map((op) => (
-                  <option key={op.value} value={op.value}>{op.label}</option>
-                ))}
-              </Select>
-              <Input placeholder={t.chart.valuePlaceholder} value={cond.value} onChange={(e) => updateCondition(gi, ci, { value: e.target.value })} />
-              <Button variant="ghost" size="icon" onClick={() => removeCondition(gi, ci)}>
-                <IconX />
-              </Button>
-            </div>
-          ))}
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              className="flex items-center gap-1 text-[10px] text-sky-600 hover:underline dark:text-blue-400"
-              onClick={() => addCondition(gi)}
-            >
-              <IconPlus /> {t.chart.addCondition}
-            </button>
-            <Button variant="ghost" size="icon" onClick={() => removeGroup(gi)}>
-              <IconX />
-            </Button>
-          </div>
-        </div>
-      ))}
-      <button
-        type="button"
-        className="flex items-center gap-1 self-start text-[10px] text-sky-600 hover:underline dark:text-blue-400"
-        onClick={addGroup}
-      >
-        <IconPlus /> {t.chart.addGroup}
-      </button>
     </div>
   );
 }

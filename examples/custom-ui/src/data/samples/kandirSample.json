@@ -1,0 +1,353 @@
+{
+  "carta": {
+    "numero": "1086",
+    "data": "2026-07-01",
+    "destinatario": "TRANSPORTES AÉREOS EXEMPLO S/A.",
+    "departamento": "Depto. Financeiro",
+    "agencia": "Agência Exemplo Turismo",
+    "iata": "00-0 0000 0"
+  },
+  "faturas": [
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01226385",
+      "vencto": "10/04/2025",
+      "tarFatura": 37022.46,
+      "tarKandir": 1258.77,
+      "taxFatura": 710.04,
+      "taxKandir": 50.07,
+      "total": 1308.84
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01226386",
+      "vencto": "10/04/2025",
+      "tarFatura": 37367.21,
+      "tarKandir": 1270.49,
+      "taxFatura": 639.26,
+      "taxKandir": 45.07,
+      "total": 1315.56
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01226390",
+      "vencto": "10/04/2025",
+      "tarFatura": 84783.89,
+      "tarKandir": 2882.65,
+      "taxFatura": 1736.2,
+      "taxKandir": 122.4,
+      "total": 3005.05
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01226392",
+      "vencto": "10/04/2025",
+      "tarFatura": 26879.04,
+      "tarKandir": 913.9,
+      "taxFatura": 372.87,
+      "taxKandir": 26.29,
+      "total": 940.18
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01229524",
+      "vencto": "10/04/2025",
+      "tarFatura": 4436.58,
+      "tarKandir": 150.84,
+      "taxFatura": 77.15,
+      "taxKandir": 5.44,
+      "total": 156.28
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01232940",
+      "vencto": "02/05/2025",
+      "tarFatura": 67272.6,
+      "tarKandir": 2287.26,
+      "taxFatura": 1745.14,
+      "taxKandir": 123.02,
+      "total": 2410.28
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01300073",
+      "vencto": "04/12/2025",
+      "tarFatura": 12063.86,
+      "tarKandir": 410.17,
+      "taxFatura": 246.51,
+      "taxKandir": 17.38,
+      "total": 427.55
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01302105",
+      "vencto": "12/12/2025",
+      "tarFatura": 6827.02,
+      "tarKandir": 232.12,
+      "taxFatura": 73.34,
+      "taxKandir": 5.17,
+      "total": 237.29
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01302106",
+      "vencto": "12/12/2025",
+      "tarFatura": 19927.42,
+      "tarKandir": 677.53,
+      "taxFatura": 422.14,
+      "taxKandir": 29.76,
+      "total": 707.29
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01302107",
+      "vencto": "12/12/2025",
+      "tarFatura": 19230.46,
+      "tarKandir": 653.84,
+      "taxFatura": 296.99,
+      "taxKandir": 20.94,
+      "total": 674.77
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01302109",
+      "vencto": "12/12/2025",
+      "tarFatura": 5149.56,
+      "tarKandir": 175.09,
+      "taxFatura": 196.08,
+      "taxKandir": 13.82,
+      "total": 188.91
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01302119",
+      "vencto": "12/12/2025",
+      "tarFatura": 4655,
+      "tarKandir": 158.27,
+      "taxFatura": 84.54,
+      "taxKandir": 5.96,
+      "total": 164.23
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01304400",
+      "vencto": "24/12/2025",
+      "tarFatura": 6361.3,
+      "tarKandir": 216.28,
+      "taxFatura": 179.69,
+      "taxKandir": 12.67,
+      "total": 228.95
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01304401",
+      "vencto": "24/12/2025",
+      "tarFatura": 17820.42,
+      "tarKandir": 605.89,
+      "taxFatura": 375.12,
+      "taxKandir": 26.45,
+      "total": 632.34
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01304403",
+      "vencto": "24/12/2025",
+      "tarFatura": 10525.42,
+      "tarKandir": 357.86,
+      "taxFatura": 132.23,
+      "taxKandir": 9.32,
+      "total": 367.19
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01304405",
+      "vencto": "24/12/2025",
+      "tarFatura": 4829.8,
+      "tarKandir": 164.21,
+      "taxFatura": 87.32,
+      "taxKandir": 6.16,
+      "total": 170.37
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01304411",
+      "vencto": "24/12/2025",
+      "tarFatura": 2048.64,
+      "tarKandir": 69.65,
+      "taxFatura": 82.58,
+      "taxKandir": 5.82,
+      "total": 75.48
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01304412",
+      "vencto": "24/12/2025",
+      "tarFatura": 18745.11,
+      "tarKandir": 637.33,
+      "taxFatura": 518.55,
+      "taxKandir": 36.56,
+      "total": 673.89
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01306601",
+      "vencto": "05/01/2026",
+      "tarFatura": 12167.84,
+      "tarKandir": 413.71,
+      "taxFatura": 418.32,
+      "taxKandir": 29.49,
+      "total": 443.2
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01306602",
+      "vencto": "05/01/2026",
+      "tarFatura": 23094.52,
+      "tarKandir": 785.21,
+      "taxFatura": 721.53,
+      "taxKandir": 50.87,
+      "total": 836.08
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01306603",
+      "vencto": "05/01/2026",
+      "tarFatura": 3043.16,
+      "tarKandir": 103.47,
+      "taxFatura": 79.23,
+      "taxKandir": 5.59,
+      "total": 109.05
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01306604",
+      "vencto": "05/01/2026",
+      "tarFatura": 30454.58,
+      "tarKandir": 1035.46,
+      "taxFatura": 526.58,
+      "taxKandir": 37.12,
+      "total": 1072.58
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01306605",
+      "vencto": "05/01/2026",
+      "tarFatura": 2162.82,
+      "tarKandir": 73.54,
+      "taxFatura": 32.87,
+      "taxKandir": 2.32,
+      "total": 75.85
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01306606",
+      "vencto": "05/01/2026",
+      "tarFatura": 11599.77,
+      "tarKandir": 394.39,
+      "taxFatura": 287.94,
+      "taxKandir": 20.3,
+      "total": 414.69
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01306615",
+      "vencto": "05/01/2026",
+      "tarFatura": 19553.7,
+      "tarKandir": 664.83,
+      "taxFatura": 453.78,
+      "taxKandir": 31.99,
+      "total": 696.82
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01306616",
+      "vencto": "05/01/2026",
+      "tarFatura": 36349.78,
+      "tarKandir": 1235.89,
+      "taxFatura": 1378.94,
+      "taxKandir": 97.22,
+      "total": 1333.11
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01309889",
+      "vencto": "15/01/2026",
+      "tarFatura": 4802.2,
+      "tarKandir": 163.27,
+      "taxFatura": 81.62,
+      "taxKandir": 5.75,
+      "total": 169.03
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01319802",
+      "vencto": "05/03/2026",
+      "tarFatura": 68846.1,
+      "tarKandir": 2340.77,
+      "taxFatura": 1939.16,
+      "taxKandir": 136.71,
+      "total": 2477.48
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01319803",
+      "vencto": "05/03/2026",
+      "tarFatura": 8647.05,
+      "tarKandir": 294,
+      "taxFatura": 104.13,
+      "taxKandir": 7.34,
+      "total": 301.34
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01319804",
+      "vencto": "05/03/2026",
+      "tarFatura": 44055.13,
+      "tarKandir": 1497.87,
+      "taxFatura": 1156.32,
+      "taxKandir": 81.52,
+      "total": 1579.39
+    },
+    {
+      "orgao": "INSTITUTO FICTÍCIO DE DESENVOLVIMENTO REGIONAL",
+      "cnpj": "12.345.678/0001-90",
+      "fatura": "01319805",
+      "vencto": "05/03/2026",
+      "tarFatura": 82803.43,
+      "tarKandir": 2815.32,
+      "taxFatura": 1796.83,
+      "taxKandir": 126.68,
+      "total": 2941.99
+    }
+  ]
+}

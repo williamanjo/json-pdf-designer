@@ -13,9 +13,16 @@ export type ChartFilterCondition = { column: string; op: ChartFilterOp; value: s
 // Um grupo é uma lista de condições combinadas com E (todas precisam bater).
 export type ChartFilterGroup = ChartFilterCondition[];
 
+export type KpiAggregation = "sum" | "count" | "avg" | "min" | "max";
+
 export type Binding =
   | { schemaName: string; type: "scalar"; path: string }
-  | { schemaName: string; type: "array"; path: string; columns: TableColumn[] }
+  // Vínculo de uma TableSchema — path aponta pro array, columns mapeia
+  // cada coluna da tabela (chave crua ou {label,formula} calculada por
+  // linha). `filters` (opcional) — mesmo formato do chart (grupos OU de
+  // condições E) — item só vira linha se bater em pelo menos um grupo
+  // inteiro; sem filtro nenhum, toda linha entra (comportamento de sempre).
+  | { schemaName: string; type: "array"; path: string; columns: TableColumn[]; filters?: ChartFilterGroup[] }
   | { schemaName: string; type: "keyvalue"; paths: string[] }
   | { schemaName: string; type: "template"; template: string }
   // Vínculo de uma SectionSchema — path aponta pro array a repetir. Os
@@ -36,5 +43,19 @@ export type Binding =
       path: string;
       labelColumn: string;
       valueColumn: string;
+      filters?: ChartFilterGroup[];
+    }
+  // Vínculo de uma KpiSchema — path aponta pro array a agregar; valueColumn
+  // é a coluna numérica somada/mediada/etc (ignorada quando
+  // aggregation === "count", que só conta as linhas filtradas). Sem esse
+  // vínculo, o KPI resolve `value` como template livre de sempre (ver
+  // bindings.ts) — presente, ele manda: `value` vira o resultado calculado,
+  // o template do campo é ignorado.
+  | {
+      schemaName: string;
+      type: "kpi";
+      path: string;
+      valueColumn?: string;
+      aggregation: KpiAggregation;
       filters?: ChartFilterGroup[];
     };

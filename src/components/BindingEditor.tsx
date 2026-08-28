@@ -1,28 +1,12 @@
 import { useState } from "react";
-import type { Binding, DataSourceOption, Schema } from "../types";
+import type { Binding, DataSourceColumnType, DataSourceOption, KpiAggregation, Schema } from "../types";
 import { CUSTOM_FIELD_FUNCTIONS, describeBindingShort } from "../bindings/bindings";
 import { parseColumnsInput, stringifyColumns } from "../bindings/columnParsing";
 import { splitDelimited } from "../bindings/splitDelimited";
 import { useT, withInlineCode } from "../i18n";
+import { allowDrop, readDroppedField } from "./dragField";
 import { Button, Input, Select } from "./ui";
 import { IconLink } from "./ui/icons";
-
-type DroppedField = {
-  path: string;
-  kind: "scalar" | "arraySource" | "arrayColumn" | "native";
-  sourcePath?: string;
-  column?: string;
-};
-
-function readDroppedField(e: React.DragEvent): DroppedField | null {
-  const raw = e.dataTransfer.getData("application/json");
-  if (!raw) return null;
-  try { return JSON.parse(raw) as DroppedField; } catch { return null; }
-}
-
-const allowDrop = (e: React.DragEvent) => {
-  if (e.dataTransfer.types.includes("application/json")) e.preventDefault();
-};
 
 type Props = {
   schema: Schema;
@@ -31,6 +15,84 @@ type Props = {
   dataSources?: DataSourceOption[];
 };
 
+// "Fonte conhecida -> <Select> de dataSources, senão <Input> livre com
+// drop" — mesmo par de branches repetido nos vínculos chart/table/kpi
+// abaixo, só mudava o placeholder livre e o que acontecia ao escolher.
+function DataSourcePicker({
+  knownSources,
+  value,
+  freePlaceholder,
+  onSelect,
+  onFreeChange,
+  onDropFree,
+}: {
+  knownSources: DataSourceOption[] | null;
+  value: string;
+  freePlaceholder: string;
+  onSelect: (source: DataSourceOption) => void;
+  onFreeChange: (v: string) => void;
+  onDropFree: (e: React.DragEvent) => void;
+}) {
+  const t = useT();
+  if (knownSources) {
+    return (
+      <Select
+        value={knownSources.some((d) => d.path === value.trim()) ? value.trim() : ""}
+        onChange={(e) => {
+          const source = knownSources.find((d) => d.path === e.target.value);
+          if (source) onSelect(source);
+        }}
+      >
+        <option value="">{t.bindingEditor.dataSourcePlaceholder}</option>
+        {knownSources.map((d) => (
+          <option key={d.path} value={d.path}>
+            {d.label}
+          </option>
+        ))}
+      </Select>
+    );
+  }
+  return <Input placeholder={freePlaceholder} value={value} onChange={(e) => onFreeChange(e.target.value)} onDragOver={allowDrop} onDrop={onDropFree} />;
+}
+
+// "Colunas conhecidas -> <Select>, senão <Input> livre com drop próprio" —
+// mesmo par repetido pro rótulo/valor do chart e pro valor do kpi.
+// `showNumericHint` liga o sufixo "(não-numérica)" só onde já aparecia
+// antes (coluna de VALOR) — não no rótulo do chart.
+function ColumnPicker({
+  columns,
+  columnTypes,
+  value,
+  onChange,
+  placeholder,
+  onDropCustom,
+  showNumericHint,
+}: {
+  columns: string[];
+  columnTypes?: Record<string, DataSourceColumnType>;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  onDropCustom: (e: React.DragEvent) => void;
+  showNumericHint?: boolean;
+}) {
+  const t = useT();
+  if (columns.length > 0) {
+    return (
+      <Select value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{placeholder}</option>
+        {columns.map((c) => (
+          <option key={c} value={c}>
+            {c}
+            {showNumericHint && columnTypes?.[c] !== "number" ? t.bindingEditor.notNumericSuffix : ""}
+          </option>
+        ))}
+      </Select>
+    );
+  }
+  return <Input placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} onDragOver={allowDrop} onDrop={onDropCustom} />;
+}
+
 export function BindingEditor({ schema, binding, onChangeBinding, dataSources }: Props) {
   const t = useT();
   const [bindingDraft, setBindingDraft] = useState(() => {
@@ -38,6 +100,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
     if (binding?.type === "array") return binding.path;
     if (binding?.type === "section") return binding.path;
     if (binding?.type === "chart") return binding.path;
+    if (binding?.type === "kpi") return binding.path;
     if (binding?.type === "scalar") return `{${binding.path}}`;
     return "";
   });
@@ -47,7 +110,10 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
     return "";
   });
   const [labelColumn, setLabelColumn] = useState(() => (binding?.type === "chart" ? binding.labelColumn : ""));
-  const [valueColumn, setValueColumn] = useState(() => (binding?.type === "chart" ? binding.valueColumn : ""));
+  const [valueColumn, setValueColumn] = useState(() =>
+    binding?.type === "chart" ? binding.valueColumn : binding?.type === "kpi" ? (binding.valueColumn ?? "") : ""
+  );
+  const [kpiAggregation, setKpiAggregation] = useState<KpiAggregation>(() => (binding?.type === "kpi" ? binding.aggregation : "sum"));
 
   const tableMode = bindingDraft.trim() ? "array" : "keyvalue";
   const knownSources = dataSources && dataSources.length > 0 ? dataSources : null;
@@ -57,11 +123,13 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
     cols = colsDraft,
     label = labelColumn,
     value = valueColumn,
+    aggregation = kpiAggregation,
   }: {
     draft?: string;
     cols?: string;
     label?: string;
     value?: string;
+    aggregation?: KpiAggregation;
   } = {}) {
     if (schema.type === "section") {
       if (!draft.trim()) return;
@@ -88,12 +156,34 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
       if (path) {
         const columns = parseColumnsInput(cols);
         if (columns.length === 0) return;
-        onChangeBinding({ schemaName: schema.name, type: "array", path, columns });
+        // Filtro (aba própria "Filtro", ver Designer.tsx) não é editado
+        // aqui — só preserva o que já tava salvo quando o resto do
+        // vínculo muda (fonte/colunas), mesma regra do chart acima.
+        onChangeBinding({
+          schemaName: schema.name,
+          type: "array",
+          path,
+          columns,
+          filters: binding?.type === "array" ? binding.filters : undefined,
+        });
       } else {
         const paths = splitDelimited(cols);
         if (paths.length === 0) return;
         onChangeBinding({ schemaName: schema.name, type: "keyvalue", paths });
       }
+      return;
+    }
+    if (schema.type === "kpi") {
+      if (!draft.trim()) return;
+      if (aggregation !== "count" && !value) return;
+      onChangeBinding({
+        schemaName: schema.name,
+        type: "kpi",
+        path: draft.trim(),
+        valueColumn: aggregation === "count" ? undefined : value,
+        aggregation,
+        filters: binding?.type === "kpi" ? binding.filters : undefined,
+      });
       return;
     }
     if (!draft.trim()) return;
@@ -121,7 +211,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
     // Para seção/tabela/gráfico: insere o path do array (sem chaves)
     // Para texto: insere {path}
     let next: string;
-    if (schema.type === "section" || schema.type === "table" || schema.type === "chart") {
+    if (schema.type === "section" || schema.type === "table" || schema.type === "chart" || schema.type === "kpi") {
       next = field.kind === "arrayColumn" ? (field.sourcePath ?? field.path) : field.path;
     } else {
       next = bindingDraft
@@ -162,90 +252,45 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
         </>
       ) : schema.type === "chart" ? (
         <>
-          {knownSources ? (
-            <Select
-              value={knownSources.some((d) => d.path === bindingDraft.trim()) ? bindingDraft.trim() : ""}
-              onChange={(e) => {
-                const source = knownSources.find((d) => d.path === e.target.value);
-                if (!source) return;
-                const newDraft = source.path;
-                const numberCol = source.columns?.find((c) => source.columnTypes?.[c] === "number") ?? "";
-                const textCol = source.columns?.find((c) => source.columnTypes?.[c] !== "number") ?? source.columns?.[0] ?? "";
-                setBindingDraft(newDraft);
-                setValueColumn(numberCol);
-                setLabelColumn(textCol);
-                applyBinding({ draft: newDraft, label: textCol, value: numberCol });
-              }}
-            >
-              <option value="">{t.bindingEditor.dataSourcePlaceholder}</option>
-              {knownSources.map((d) => (
-                <option key={d.path} value={d.path}>
-                  {d.label}
-                </option>
-              ))}
-            </Select>
-          ) : (
-            <Input
-              placeholder={t.bindingEditor.chartPathPlaceholder}
-              value={bindingDraft}
-              onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
-              onDragOver={allowDrop}
-              onDrop={handleDropOnDraft}
-            />
-          )}
+          <DataSourcePicker
+            knownSources={knownSources}
+            value={bindingDraft}
+            freePlaceholder={t.bindingEditor.chartPathPlaceholder}
+            onSelect={(source) => {
+              const newDraft = source.path;
+              const numberCol = source.columns?.find((c) => source.columnTypes?.[c] === "number") ?? "";
+              const textCol = source.columns?.find((c) => source.columnTypes?.[c] !== "number") ?? source.columns?.[0] ?? "";
+              setBindingDraft(newDraft);
+              setValueColumn(numberCol);
+              setLabelColumn(textCol);
+              applyBinding({ draft: newDraft, label: textCol, value: numberCol });
+            }}
+            onFreeChange={(v) => { setBindingDraft(v); applyBinding({ draft: v }); }}
+            onDropFree={handleDropOnDraft}
+          />
           {(() => {
             const source = knownSources?.find((d) => d.path === bindingDraft.trim());
             const columns = source?.columns ?? [];
             return (
               <div className="grid grid-cols-2 gap-2">
-                  {columns.length > 0 ? (
-                    <Select
-                      value={labelColumn}
-                      onChange={(e) => {
-                        setLabelColumn(e.target.value);
-                        applyBinding({ label: e.target.value });
-                      }}
-                    >
-                      <option value="">{t.bindingEditor.labelColumnPlaceholder}</option>
-                      {columns.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </Select>
-                  ) : (
-                    <Input
-                      placeholder={t.bindingEditor.labelColumnInputPlaceholder}
-                      value={labelColumn}
-                      onChange={(e) => { setLabelColumn(e.target.value); applyBinding({ label: e.target.value }); }}
-                      onDragOver={allowDrop}
-                      onDrop={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setLabelColumn(col); applyBinding({ label: col }); }}
-                    />
-                  )}
-                  {columns.length > 0 ? (
-                    <Select
-                      value={valueColumn}
-                      onChange={(e) => {
-                        setValueColumn(e.target.value);
-                        applyBinding({ value: e.target.value });
-                      }}
-                    >
-                      <option value="">{t.bindingEditor.valueColumnPlaceholder}</option>
-                      {columns.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                          {source?.columnTypes?.[c] === "number" ? "" : t.bindingEditor.notNumericSuffix}
-                        </option>
-                      ))}
-                    </Select>
-                  ) : (
-                    <Input
-                      placeholder={t.bindingEditor.valueColumnInputPlaceholder}
-                      value={valueColumn}
-                      onChange={(e) => { setValueColumn(e.target.value); applyBinding({ value: e.target.value }); }}
-                      onDragOver={allowDrop}
-                      onDrop={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setValueColumn(col); applyBinding({ value: col }); }}
-                    />
-                  )}
-                </div>
+                <ColumnPicker
+                  columns={columns}
+                  columnTypes={source?.columnTypes}
+                  value={labelColumn}
+                  onChange={(v) => { setLabelColumn(v); applyBinding({ label: v }); }}
+                  placeholder={columns.length > 0 ? t.bindingEditor.labelColumnPlaceholder : t.bindingEditor.labelColumnInputPlaceholder}
+                  onDropCustom={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setLabelColumn(col); applyBinding({ label: col }); }}
+                />
+                <ColumnPicker
+                  columns={columns}
+                  columnTypes={source?.columnTypes}
+                  value={valueColumn}
+                  onChange={(v) => { setValueColumn(v); applyBinding({ value: v }); }}
+                  placeholder={columns.length > 0 ? t.bindingEditor.valueColumnPlaceholder : t.bindingEditor.valueColumnInputPlaceholder}
+                  onDropCustom={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setValueColumn(col); applyBinding({ value: col }); }}
+                  showNumericHint
+                />
+              </div>
             );
           })()}
           <p className="text-[10px] text-slate-400 dark:text-gray-400">
@@ -257,35 +302,20 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
         </>
       ) : schema.type === "table" ? (
         <>
-          {knownSources ? (
-            <Select
-              value={knownSources.some((d) => d.path === bindingDraft.trim()) ? bindingDraft.trim() : ""}
-              onChange={(e) => {
-                const source = knownSources.find((d) => d.path === e.target.value);
-                if (!source) return;
-                const newDraft = source.path;
-                const newCols = source.columns?.join(", ") ?? "";
-                setBindingDraft(newDraft);
-                setColsDraft(newCols);
-                applyBinding({ draft: newDraft, cols: newCols });
-              }}
-            >
-              <option value="">{t.bindingEditor.dataSourcePlaceholder}</option>
-              {knownSources.map((d) => (
-                <option key={d.path} value={d.path}>
-                  {d.label}
-                </option>
-              ))}
-            </Select>
-          ) : (
-            <Input
-              placeholder={t.bindingEditor.tablePathPlaceholderFree}
-              value={bindingDraft}
-              onChange={(e) => { setBindingDraft(e.target.value); applyBinding({ draft: e.target.value }); }}
-              onDragOver={allowDrop}
-              onDrop={handleDropOnDraft}
-            />
-          )}
+          <DataSourcePicker
+            knownSources={knownSources}
+            value={bindingDraft}
+            freePlaceholder={t.bindingEditor.tablePathPlaceholderFree}
+            onSelect={(source) => {
+              const newDraft = source.path;
+              const newCols = source.columns?.join(", ") ?? "";
+              setBindingDraft(newDraft);
+              setColsDraft(newCols);
+              applyBinding({ draft: newDraft, cols: newCols });
+            }}
+            onFreeChange={(v) => { setBindingDraft(v); applyBinding({ draft: v }); }}
+            onDropFree={handleDropOnDraft}
+          />
           <p className="text-[10px] text-slate-400 dark:text-gray-400">
             {t.bindingEditor.modeLabel(tableMode === "array" ? t.bindingEditor.modeArray : t.bindingEditor.modeKeyValue)}
           </p>
@@ -319,6 +349,56 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
               )}
             </>
           )}
+        </>
+      ) : schema.type === "kpi" ? (
+        <>
+          <DataSourcePicker
+            knownSources={knownSources}
+            value={bindingDraft}
+            freePlaceholder={t.bindingEditor.kpiPathPlaceholder}
+            onSelect={(source) => {
+              const newDraft = source.path;
+              const numberCol = source.columns?.find((c) => source.columnTypes?.[c] === "number") ?? "";
+              setBindingDraft(newDraft);
+              setValueColumn(numberCol);
+              applyBinding({ draft: newDraft, value: numberCol });
+            }}
+            onFreeChange={(v) => { setBindingDraft(v); applyBinding({ draft: v }); }}
+            onDropFree={handleDropOnDraft}
+          />
+          {(() => {
+            const source = knownSources?.find((d) => d.path === bindingDraft.trim());
+            const columns = source?.columns ?? [];
+            return (
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={kpiAggregation}
+                  onChange={(e) => {
+                    const next = e.target.value as KpiAggregation;
+                    setKpiAggregation(next);
+                    applyBinding({ aggregation: next });
+                  }}
+                >
+                  <option value="sum">{t.kpi.aggregationSum}</option>
+                  <option value="count">{t.kpi.aggregationCount}</option>
+                  <option value="avg">{t.kpi.aggregationAvg}</option>
+                  <option value="min">{t.kpi.aggregationMin}</option>
+                  <option value="max">{t.kpi.aggregationMax}</option>
+                </Select>
+                {kpiAggregation !== "count" && (
+                  <ColumnPicker
+                    columns={columns}
+                    columnTypes={source?.columnTypes}
+                    value={valueColumn}
+                    onChange={(v) => { setValueColumn(v); applyBinding({ value: v }); }}
+                    placeholder={columns.length > 0 ? t.bindingEditor.valueColumnPlaceholder : t.bindingEditor.valueColumnInputPlaceholder}
+                    onDropCustom={(e) => { const f = readDroppedField(e); if (!f) return; e.preventDefault(); const col = f.kind === "arrayColumn" ? (f.column ?? f.path) : f.path; setValueColumn(col); applyBinding({ value: col }); }}
+                    showNumericHint
+                  />
+                )}
+              </div>
+            );
+          })()}
         </>
       ) : (
         <>

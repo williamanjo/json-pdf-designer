@@ -5,6 +5,7 @@ export { Select } from "./Select";
 export { Card, CardHeader, CardTitle, Badge } from "./Card";
 export { TabPanel } from "./TabPanel";
 export { BulkLocked } from "./BulkLocked";
+export { MaterialIcon } from "./MaterialIcon";
 export {
   IconPlus,
   IconX,

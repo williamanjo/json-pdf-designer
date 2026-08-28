@@ -4,7 +4,8 @@ import type { ChartItem } from "../bindings/bindings";
 import type { ChartSchema } from "../types";
 import { pieSlicePath, pointOnCircle } from "../pieGeometry";
 import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../chartFormat";
-import { parseHex } from "./color";
+import { formatPtBrNumber } from "../numberFormat";
+import { colorOrDefault } from "./color";
 import { truncateToWidth } from "./drawTable";
 
 const SLICE_LABEL_TEXT = rgb(1, 1, 1);
@@ -29,10 +30,7 @@ const BAR_TRACK_HEIGHT = 7;
 const NEUTRAL_TEXT = rgb(0.1, 0.1, 0.1);
 const TRACK_BG = rgb(0.9, 0.9, 0.9);
 
-function colorOf(hex: string) {
-  const c = parseHex(hex);
-  return c ? rgb(c.r, c.g, c.b) : rgb(0.6, 0.6, 0.6);
-}
+const CHART_ITEM_FALLBACK_COLOR = rgb(0.6, 0.6, 0.6);
 
 function formatChartValue(value: number, schema: ChartSchema): string {
   const decimals = schema.decimals ?? 2;
@@ -43,10 +41,10 @@ function formatChartValue(value: number, schema: ChartSchema): string {
   // sem valueFormat) mantém o comportamento de sempre — só limita casas
   // quando existem, sem forçar ".00" num valor inteiro.
   if (schema.valueFormat === "currency") {
-    const formatted = value.toLocaleString("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping });
+    const formatted = formatPtBrNumber(value, { decimals, forceDecimals: true, grouping: useGrouping });
     return `${schema.currencySymbol ?? "R$"} ${formatted}`;
   }
-  return value.toLocaleString("pt-BR", { maximumFractionDigits: decimals, useGrouping });
+  return formatPtBrNumber(value, { decimals, forceDecimals: false, grouping: useGrouping });
 }
 
 function formatValue(item: ChartItem, total: number, schema: ChartSchema): string {
@@ -94,7 +92,7 @@ function drawPieSlices(
     const sweepDeg = total > 0 ? (item.value / total) * 360 : 0;
     if (sweepDeg <= 0) continue;
     const path = pieSlicePath(cx, cy, r, innerR, cumulativeDeg, Math.max(sweepDeg - 1, 0));
-    page.drawSvgPath(path, { x: originX, y: originTopY, color: colorOf(item.color) });
+    page.drawSvgPath(path, { x: originX, y: originTopY, color: colorOrDefault(item.color, CHART_ITEM_FALLBACK_COLOR) });
 
     if (directLabels && sweepDeg >= SLICE_LABEL_MIN_SWEEP_DEG) {
       const midDeg = cumulativeDeg + sweepDeg / 2;
@@ -143,7 +141,7 @@ function drawLegend(
   const maxLabelWidth = Math.max(widthPt - LEGEND_SWATCH_PT - LEGEND_GAP_PT - 4, 20);
   let y = topYPt - Math.max(0, (heightPt - rowsHeight) / 2) - rowHeight / 2 - LEGEND_SWATCH_PT / 2;
   for (const item of items) {
-    page.drawRectangle({ x: xPt, y, width: LEGEND_SWATCH_PT, height: LEGEND_SWATCH_PT, color: colorOf(item.color) });
+    page.drawRectangle({ x: xPt, y, width: LEGEND_SWATCH_PT, height: LEGEND_SWATCH_PT, color: colorOrDefault(item.color, CHART_ITEM_FALLBACK_COLOR) });
     const label = `${item.label}  ${formatValue(item, total, schema)}`;
     page.drawText(truncateToWidth(label, font, fontSize, maxLabelWidth), {
       x: xPt + LEGEND_SWATCH_PT + LEGEND_GAP_PT,
@@ -179,7 +177,7 @@ function drawBars(page: PDFPage, font: PDFFont, schema: ChartSchema, items: Char
     });
     page.drawRectangle({ x: xPt, y: trackY, width: trackWidth, height: BAR_TRACK_HEIGHT, color: TRACK_BG });
     if (fillWidth > 0) {
-      page.drawRectangle({ x: xPt, y: trackY, width: fillWidth, height: BAR_TRACK_HEIGHT, color: colorOf(item.color) });
+      page.drawRectangle({ x: xPt, y: trackY, width: fillWidth, height: BAR_TRACK_HEIGHT, color: colorOrDefault(item.color, CHART_ITEM_FALLBACK_COLOR) });
     }
     page.drawText(valueText, {
       x: xPt + trackWidth + 6,

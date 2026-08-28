@@ -1,3 +1,7 @@
+// server.ts espelha um SUBCONJUNTO destas listas (tudo aqui exceto o que é
+// browser/React-only — downloadPdf, componentes, i18n provider). Mantido à
+// mão em paralelo nos dois arquivos: adicionar um export aqui que também
+// devia existir no server (não-React) precisa da mesma mudança lá.
 export type {
   PageSize,
   BaseSchema,
@@ -13,6 +17,7 @@ export type {
   Template,
   TableColumn,
   Binding,
+  KpiAggregation,
   DataSourceOption,
   DataSourceColumnType,
   SectionColumnDragPayload,
@@ -28,6 +33,7 @@ export {
   buildInputs,
   rowsFromArrayBinding,
   resolveChartItems,
+  resolveKpiValue,
   aggregateChartItems,
   type ChartItem,
   type ChartSortBy,

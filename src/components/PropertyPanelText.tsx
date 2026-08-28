@@ -1,17 +1,8 @@
 import type { TextSchema } from "../types";
 import { useT } from "../i18n";
+import { allowDrop, readDroppedField } from "./dragField";
 import { BulkLocked, Button, ColorInput, Input, Select, Textarea } from "./ui";
 import { IconX } from "./ui/icons";
-
-type DroppedField = { path: string; kind: string };
-function readDroppedField(e: React.DragEvent): DroppedField | null {
-  const raw = e.dataTransfer.getData("application/json");
-  if (!raw) return null;
-  try { return JSON.parse(raw) as DroppedField; } catch { return null; }
-}
-const allowDrop = (e: React.DragEvent) => {
-  if (e.dataTransfer.types.includes("application/json")) e.preventDefault();
-};
 
 type Props = {
   schema: TextSchema;

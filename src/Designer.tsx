@@ -30,12 +30,12 @@ import { classifyZone, isRedZone } from "./zones";
 import { GRID_SIZE_MM, snapToGrid } from "./units";
 import { fileToBackgroundImage } from "./pdf/backgroundImage";
 import { toErrorMessage } from "./errorUtils";
-import { chartFilterIncomplete } from "./fieldWarnings";
+import { filterIncomplete } from "./fieldWarnings";
 import { I18nProvider, useT, type Locale } from "./i18n";
 import { applyOrientation, matchPreset, orientationOf, PAGE_SIZE_PRESETS } from "./pageSizes";
 import { PageCanvas } from "./components/PageCanvas";
 import { PropertyPanel } from "./components/PropertyPanel";
-import { ChartFilterTab } from "./components/PropertyPanelChart";
+import { FilterTab } from "./components/FilterTab";
 import { PositionFields } from "./components/PropertyPanelFields";
 import { FieldList } from "./components/FieldList";
 import { Toolbar } from "./components/Toolbar";
@@ -48,6 +48,10 @@ import { IconAlertTriangle, IconPlus, IconUpload, IconX } from "./components/ui/
 function hasEstiloTab(type: Schema["type"]): boolean {
   return type === "text" || type === "table" || type === "chart" || type === "kpi";
 }
+
+// Tipos de campo que podem ganhar a aba "Filtro" — todos com vínculo de
+// array por trás (chart/table diretos, kpi quando vinculado).
+const FILTERABLE_TYPES = ["chart", "table", "kpi"] as const;
 
 type OptionalTab = "dados" | "estilo" | "filtro";
 type TabKey = "campos" | OptionalTab | "pagina";
@@ -534,9 +538,11 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   // (fieldWarnings.ts), só que dividida por aba: falta vínculo aparece em
   // "Dados", filtro incompleto aparece em "Filtro".
   const dadosWarning = !!selected && (selected.type === "section" || selected.type === "chart") && !selectedBinding;
-  const filtroWarning = selected?.type === "chart" && chartFilterIncomplete(selectedBinding);
-  const chartColumns =
-    selected?.type === "chart" && selectedBinding?.type === "chart"
+  const filtroWarning = !!selected && (FILTERABLE_TYPES as readonly string[]).includes(selected.type) && filterIncomplete(selectedBinding);
+  const filterColumns =
+    selected &&
+    (FILTERABLE_TYPES as readonly string[]).includes(selected.type) &&
+    (selectedBinding?.type === "chart" || selectedBinding?.type === "array" || selectedBinding?.type === "kpi")
       ? dataSources?.find((d) => d.path === selectedBinding.path)?.columns ?? []
       : [];
 
@@ -578,7 +584,7 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
     const stillEligible =
       (sidebarTab === "dados" && !hiddenOptionalTabs.has("dados")) ||
       (sidebarTab === "estilo" && hasEstiloTab(selected.type) && !hiddenOptionalTabs.has("estilo")) ||
-      (sidebarTab === "filtro" && selected.type === "chart" && !hiddenOptionalTabs.has("filtro"));
+      (sidebarTab === "filtro" && FILTERABLE_TYPES.includes(selected.type as (typeof FILTERABLE_TYPES)[number]) && !hiddenOptionalTabs.has("filtro"));
     if (!stillEligible) setSidebarTab("campos");
   }, [selected, sidebarTab, hiddenOptionalTabs]);
 
@@ -854,7 +860,12 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
     campos: { label: t.tabBar.fields, eligible: true, warning: false, removable: false },
     dados: { label: t.tabBar.data, eligible: !!selected, warning: dadosWarning, removable: true },
     estilo: { label: t.tabBar.style, eligible: !!selected && hasEstiloTab(selected.type), warning: false, removable: true },
-    filtro: { label: t.tabBar.filter, eligible: selected?.type === "chart", warning: filtroWarning, removable: true },
+    filtro: {
+      label: t.tabBar.filter,
+      eligible: !!selected && (FILTERABLE_TYPES as readonly string[]).includes(selected.type),
+      warning: filtroWarning,
+      removable: true,
+    },
     pagina: { label: t.tabBar.page, eligible: true, warning: false, removable: true },
   };
   const orderedVisibleTabs = tabOrder
@@ -1077,12 +1088,14 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
                 />
               )}
 
-              {sidebarTab === "filtro" && selected.type === "chart" && (
-                selectedBinding?.type === "chart" ? (
-                  <ChartFilterTab
-                    binding={selectedBinding}
+              {sidebarTab === "filtro" && (FILTERABLE_TYPES as readonly string[]).includes(selected.type) && (
+                (selected.type === "chart" && selectedBinding?.type === "chart") ||
+                (selected.type === "table" && selectedBinding?.type === "array") ||
+                (selected.type === "kpi" && selectedBinding?.type === "kpi") ? (
+                  <FilterTab
+                    binding={selectedBinding as Extract<Binding, { type: "chart" | "array" | "kpi" }>}
                     onChangeBinding={(b) => handleChangeBinding(selected.name, b)}
-                    columns={chartColumns}
+                    columns={filterColumns}
                   />
                 ) : (
                   <p className="text-xs text-slate-400 dark:text-gray-400">{t.fieldsPanel.filterNeedsBinding}</p>

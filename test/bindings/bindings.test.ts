@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInputs, renderTemplate, resolveToken, rowsFromArrayBinding } from "../../src/bindings/bindings";
+import { buildInputs, renderTemplate, resolveKpiValue, resolveToken, rowsFromArrayBinding } from "../../src/bindings/bindings";
 import type { Binding } from "../../src/types";
 
 describe("resolveToken — funções", () => {
@@ -109,6 +109,68 @@ describe("buildInputs", () => {
   it("section não gera entrada em inputs (resolvida à parte na paginação)", () => {
     const bindings: Binding[] = [{ schemaName: "secao", type: "section", path: "rows" }];
     expect(buildInputs(data, bindings)).toEqual({});
+  });
+
+  it("array com filters só inclui linhas que batem em algum grupo (OU de grupos, E dentro do grupo)", () => {
+    const bindings: Binding[] = [
+      {
+        schemaName: "tabela",
+        type: "array",
+        path: "rows",
+        columns: ["produto", "qtd"],
+        filters: [[{ column: "produto", op: "eq", value: "B" }]],
+      },
+    ];
+    expect(JSON.parse(buildInputs(data, bindings).tabela)).toEqual([["B", "2"]]);
+  });
+
+  it("kpi não gera entrada em inputs (resolvido à parte via resolveKpiValue)", () => {
+    const bindings: Binding[] = [{ schemaName: "indicador", type: "kpi", path: "rows", valueColumn: "qtd", aggregation: "sum" }];
+    expect(buildInputs(data, bindings)).toEqual({});
+  });
+});
+
+describe("resolveKpiValue", () => {
+  const data = {
+    rows: [
+      { produto: "A", qtd: 1 },
+      { produto: "B", qtd: 2 },
+      { produto: "B", qtd: 5 },
+    ],
+  };
+
+  it("sum agrega a coluna numérica de todas as linhas sem filtro", () => {
+    expect(resolveKpiValue({ schemaName: "k", type: "kpi", path: "rows", valueColumn: "qtd", aggregation: "sum" }, data)).toBe(8);
+  });
+
+  it("count ignora valueColumn e conta as linhas filtradas", () => {
+    const binding: Binding = {
+      schemaName: "k",
+      type: "kpi",
+      path: "rows",
+      aggregation: "count",
+      filters: [[{ column: "produto", op: "eq", value: "B" }]],
+    };
+    expect(resolveKpiValue(binding, data)).toBe(2);
+  });
+
+  it("avg/min/max agregam só as linhas que batem no filtro", () => {
+    const base = { schemaName: "k", path: "rows", valueColumn: "qtd", filters: [[{ column: "produto", op: "eq" as const, value: "B" }]] };
+    expect(resolveKpiValue({ ...base, type: "kpi", aggregation: "avg" }, data)).toBe(3.5);
+    expect(resolveKpiValue({ ...base, type: "kpi", aggregation: "min" }, data)).toBe(2);
+    expect(resolveKpiValue({ ...base, type: "kpi", aggregation: "max" }, data)).toBe(5);
+  });
+
+  it("sem linha batendo no filtro, resultado é 0", () => {
+    const binding: Binding = {
+      schemaName: "k",
+      type: "kpi",
+      path: "rows",
+      valueColumn: "qtd",
+      aggregation: "sum",
+      filters: [[{ column: "produto", op: "eq", value: "Z" }]],
+    };
+    expect(resolveKpiValue(binding, data)).toBe(0);
   });
 });
 

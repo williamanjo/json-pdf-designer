@@ -1,0 +1,38 @@
+{
+  "empresa": { "nome": "TransLog Distribuidora Ltda", "cnpj": "12.345.678/0001-99" },
+  "pedidos": [
+    {
+      "numero": "PED-1001",
+      "cliente": "Comercial Silva Ltda",
+      "data": "2026-06-02",
+      "valorTotal": 480.00,
+      "itens": [
+        { "produto": "Caixa de papelão 30x30", "qtd": 50, "preco": 3.20 },
+        { "produto": "Fita adesiva reforçada", "qtd": 20, "preco": 8.50 },
+        { "produto": "Etiqueta térmica (rolo)", "qtd": 10, "preco": 15.00 }
+      ]
+    },
+    {
+      "numero": "PED-1002",
+      "cliente": "Mercado Bom Preço",
+      "data": "2026-06-05",
+      "valorTotal": 634.80,
+      "itens": [
+        { "produto": "Palete PBR", "qtd": 8, "preco": 45.00 },
+        { "produto": "Filme stretch", "qtd": 12, "preco": 22.90 }
+      ]
+    },
+    {
+      "numero": "PED-1003",
+      "cliente": "Distribuidora Norte",
+      "data": "2026-06-10",
+      "valorTotal": 980.00,
+      "itens": [
+        { "produto": "Caixa de papelão 30x30", "qtd": 100, "preco": 3.20 },
+        { "produto": "Palete PBR", "qtd": 4, "preco": 45.00 },
+        { "produto": "Fita adesiva reforçada", "qtd": 30, "preco": 8.50 },
+        { "produto": "Etiqueta térmica (rolo)", "qtd": 15, "preco": 15.00 }
+      ]
+    }
+  ]
+}

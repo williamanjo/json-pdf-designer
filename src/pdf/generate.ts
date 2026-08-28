@@ -4,7 +4,7 @@ import type { PDFFont, PDFImage, PDFPage } from "pdf-lib";
 // default quebra no bundler do app consumidor (Vite/Rollup).
 import * as fontkit from "fontkit";
 import type { Binding, ImageSchema, Schema, SectionSchema, TableSchema, Template, TextSchema } from "../types";
-import { aggregateChartItems, buildInputs, renderTemplate, resolveChartItems } from "../bindings/bindings";
+import { aggregateChartItems, buildInputs, renderTemplate, resolveChartItems, resolveKpiValue } from "../bindings/bindings";
 import { resolveChartColors } from "../chartColors";
 import { drawChart } from "./drawChart";
 import { drawKpi } from "./drawKpi";
@@ -14,7 +14,7 @@ import { resolveFooterRow, resolveTextValue, resolveTopLevelTableRows } from "./
 import { mmToPt, ptToMm } from "../units";
 import { classifyZone } from "../zones";
 import { normalizeFontBytes } from "./fontUtils";
-import { parseHex } from "./color";
+import { colorOrDefault } from "./color";
 import { computeTableSlice, needsNewPageForItem } from "./pagination";
 
 export type GeneratePdfOptions = {
@@ -80,13 +80,6 @@ function gapAfter(prev: { y: number; height: number }, next: { y: number; height
   return Math.max(next.y - (prev.y + prev.height), 0);
 }
 
-// Hex inválido (comprimento errado, cor corrompida salva no template) cai
-// em preto — parseHex (src/pdf/color.ts) faz a mesma validação usada por
-// drawTable.ts's hexToColor, num núcleo só.
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  return parseHex(hex) ?? { r: 0, g: 0, b: 0 };
-}
-
 // Dados extras vistos só pelos campos repetidos (header/footer/margem) —
 // {pageNumber} e {pageCount} funcionam como qualquer outro token de
 // template ({caminho.do.json}), só que resolvidos de novo a cada página
@@ -114,21 +107,21 @@ function drawTextField(
   heightPt: number
 ): void {
   if (schema.backgroundColor) {
-    const bg = hexToRgb(schema.backgroundColor);
-    page.drawRectangle({ x: xPt, y: yPt, width: widthPt, height: heightPt, color: rgb(bg.r, bg.g, bg.b) });
+    const bg = colorOrDefault(schema.backgroundColor, rgb(0, 0, 0));
+    page.drawRectangle({ x: xPt, y: yPt, width: widthPt, height: heightPt, color: bg });
   }
   if (schema.borderColor && schema.borderWidth) {
-    const bc = hexToRgb(schema.borderColor);
+    const bc = colorOrDefault(schema.borderColor, rgb(0, 0, 0));
     page.drawRectangle({
       x: xPt,
       y: yPt,
       width: widthPt,
       height: heightPt,
-      borderColor: rgb(bc.r, bc.g, bc.b),
+      borderColor: bc,
       borderWidth: mmToPt(schema.borderWidth),
     });
   }
-  const { r, g, b } = hexToRgb(schema.fontColor || "#000000");
+  const textColor = colorOrDefault(schema.fontColor || "#000000", rgb(0, 0, 0));
   const text = value ?? schema.content;
   const textWidth = font.widthOfTextAtSize(text, schema.fontSize);
   const alignOffset =
@@ -142,7 +135,7 @@ function drawTextField(
     y: yPt + heightPt - schema.fontSize,
     size: schema.fontSize,
     font,
-    color: rgb(r, g, b),
+    color: textColor,
   });
 }
 
@@ -260,6 +253,11 @@ export async function generatePdf(
       return;
     }
 
+    // chart sem binding não desenha nada (nunca teve dado nenhum pra
+    // mostrar), enquanto kpi sem binding cai pro template livre (abaixo) —
+    // assimetria intencional, não esquecimento: KPI sempre tem título/
+    // legenda pra mostrar mesmo sem vínculo (era o único modo antes do
+    // vínculo "kpi" existir), chart sem array não tem o que desenhar.
     if (schema.type === "chart") {
       const binding = bindings.find(
         (b): b is Extract<Binding, { type: "chart" }> => b.schemaName === schema.name && b.type === "chart"
@@ -274,7 +272,10 @@ export async function generatePdf(
 
     if (schema.type === "kpi") {
       const title = renderTemplate(schema.title, data);
-      const value = renderTemplate(schema.value, data);
+      const kpiBinding = bindings.find(
+        (b): b is Extract<Binding, { type: "kpi" }> => b.schemaName === schema.name && b.type === "kpi"
+      );
+      const value = kpiBinding ? String(resolveKpiValue(kpiBinding, data)) : renderTemplate(schema.value, data);
       const subtitle = renderTemplate(schema.subtitle, data);
       drawKpi(page, font, schema, title, value, subtitle, xPt, yPt, widthPt, heightPt);
     }

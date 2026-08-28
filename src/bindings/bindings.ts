@@ -1,5 +1,6 @@
 import type { Binding, ChartFilterCondition, ChartFilterGroup, ChartFilterOp, TableColumn } from "../types";
 import { splitDelimited } from "./splitDelimited";
+import { formatPtBrNumber } from "../numberFormat";
 import { CHART_COLORS, CHART_OTHER_COLOR } from "../chartColors";
 import { en } from "../i18n/en";
 import type { Dict } from "../i18n";
@@ -23,6 +24,10 @@ export function columnLabel(col: TableColumn): string {
   return typeof col === "string" ? col : col.label;
 }
 
+// Sem uso interno no repo hoje (só columnLabel é consumida aqui dentro) —
+// mantida como parte da API pública (reexportada em index.ts/server.ts)
+// pra quem consome o pacote precisar de uma chave estável por coluna
+// (rótulo sozinho não serve pra coluna calculada, que pode repetir label).
 export function columnKey(col: TableColumn): string {
   return typeof col === "string" ? col : `formula:${col.label}`;
 }
@@ -45,6 +50,8 @@ export function describeBinding(b: Binding, t: Dict = en): string {
       return `${b.path} ${t.binding.repeatedSection}`;
     case "chart":
       return `${b.path} [${b.labelColumn} / ${b.valueColumn}]`;
+    case "kpi":
+      return `${b.path} [${b.aggregation}${b.valueColumn ? "/" + b.valueColumn : ""}]`;
   }
 }
 
@@ -62,6 +69,8 @@ export function describeBindingShort(b: Binding, t: Dict = en): string {
     case "section":
       return b.path;
     case "chart":
+      return b.path;
+    case "kpi":
       return b.path;
   }
 }
@@ -176,7 +185,7 @@ function formatCurrency(raw: string, symbol: string, decimals: number): string {
   const n = Number(raw);
   if (Number.isNaN(n)) return raw;
   const d = Number.isNaN(decimals) ? 2 : decimals;
-  const formatted = n.toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const formatted = formatPtBrNumber(n, { decimals: d, forceDecimals: true });
   return symbol ? `${symbol} ${formatted}` : formatted;
 }
 
@@ -352,11 +361,16 @@ export function buildInputs(data: unknown, bindings: Binding[]): Record<string, 
       continue;
     }
 
+    if (b.type === "kpi") {
+      // Resolvido à parte (ver generate.ts) — precisa do array bruto pra
+      // filtrar/agregar, não de uma string pré-computada.
+      continue;
+    }
+
     // "array": transforma o array de objetos em array de arrays (uma
-    // linha por item, uma coluna por chave).
-    const arr = ciGet(data, b.path);
-    const list = Array.isArray(arr) ? arr : [];
-    input[b.schemaName] = JSON.stringify(rowsFromArrayBinding(list, b.columns));
+    // linha por item, uma coluna por chave), já filtrado (b.filters).
+    const filtered = filteredArrayAt(data, b.path, b.filters) ?? [];
+    input[b.schemaName] = JSON.stringify(rowsFromArrayBinding(filtered, b.columns));
   }
 
   return input;
@@ -386,19 +400,32 @@ function matchesFilterCondition(raw: unknown, op: ChartFilterOp, value: string):
   return numRaw <= numValue; // "lte"
 }
 
-function matchesFilterGroups(item: Record<string, unknown>, groups: ChartFilterGroup[] | undefined): boolean {
+export function matchesFilterGroups(item: Record<string, unknown>, groups: ChartFilterGroup[] | undefined): boolean {
   if (!groups || groups.length === 0) return true;
   return groups.some((group) => group.every((cond: ChartFilterCondition) => matchesFilterCondition(item[cond.column], cond.op, cond.value)));
+}
+
+// Array bruto no `path` (ciGet — mesma busca case-insensitive de qualquer
+// outro vínculo), já filtrado por `filters`. `undefined` (não `[]`) quando
+// o path não resolve pra array de verdade — distinção que quem chama
+// precisa pra saber se cai num fallback (ex: conteúdo estático de design)
+// ou se é só "array existe mas filtro zerou tudo" (aí É `[]` mesmo).
+// Usada por buildInputs/resolveChartItems/resolveKpiValue aqui e por
+// resolveTopLevelTableRows/resolveNestedTableRows (pdf/resolvers.ts) —
+// um lugar só pra "pega array no path, filtra", em vez de cada consumidor
+// reimplementar o próprio ciGet+filter.
+export function filteredArrayAt(data: unknown, path: string, filters: ChartFilterGroup[] | undefined): unknown[] | undefined {
+  const arr = ciGet(data, path);
+  if (!Array.isArray(arr)) return undefined;
+  return arr.filter((item) => matchesFilterGroups(item && typeof item === "object" ? (item as Record<string, unknown>) : {}, filters));
 }
 
 // Lê o array bruto do vínculo "chart", aplica `filters` (grupos OU de
 // condições E — ver types/binding.ts) e extrai {label, value} de cada item
 // restante (labelColumn/valueColumn) — sem agregar ainda.
 export function resolveChartItems(binding: Extract<Binding, { type: "chart" }>, data: unknown): { label: string; value: number }[] {
-  const arr = ciGet(data, binding.path);
-  if (!Array.isArray(arr)) return [];
-  return arr
-    .filter((item) => matchesFilterGroups(item && typeof item === "object" ? (item as Record<string, unknown>) : {}, binding.filters))
+  const filtered = filteredArrayAt(data, binding.path, binding.filters) ?? [];
+  return filtered
     .map((item) => {
       const obj = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
       const rawLabel = obj[binding.labelColumn];
@@ -408,6 +435,28 @@ export function resolveChartItems(binding: Extract<Binding, { type: "chart" }>, 
         value: Number.isNaN(rawValue) ? 0 : rawValue,
       };
     });
+}
+
+// Lê o array bruto do vínculo "kpi", aplica `filters` (mesma regra do
+// chart) e agrega a coluna `valueColumn` segundo `aggregation` — "count"
+// ignora `valueColumn` (conta as linhas filtradas).
+export function resolveKpiValue(binding: Extract<Binding, { type: "kpi" }>, data: unknown): number {
+  const filtered = filteredArrayAt(data, binding.path, binding.filters) ?? [];
+  if (binding.aggregation === "count") return filtered.length;
+  const nums = filtered
+    .map((item) => Number(item && typeof item === "object" ? (item as Record<string, unknown>)[binding.valueColumn ?? ""] : undefined))
+    .filter((n) => !Number.isNaN(n));
+  if (nums.length === 0) return 0;
+  switch (binding.aggregation) {
+    case "avg":
+      return nums.reduce((a, b) => a + b, 0) / nums.length;
+    case "min":
+      return Math.min(...nums);
+    case "max":
+      return Math.max(...nums);
+    default:
+      return nums.reduce((a, b) => a + b, 0); // "sum"
+  }
 }
 
 export type ChartSortBy = "value_desc" | "value_asc" | "label_asc" | "label_desc";

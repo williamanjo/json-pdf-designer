@@ -1,5 +1,5 @@
 import type { KpiSchema } from "../../types";
-import { MATERIAL_ICON_GRID, MATERIAL_ICON_PATHS } from "../../materialIcons";
+import { MaterialIcon } from "../ui/MaterialIcon";
 import {
   DEFAULT_KPI_BORDER_RADIUS_PERCENT,
   DEFAULT_KPI_ICON_SIZE,
@@ -10,18 +10,6 @@ import {
   kpiBorderRadius,
 } from "../../kpiFormat";
 import { mmToPx, ptToPx } from "../../units";
-
-// Mesmo ícone (Material Symbols) desenhado no PDF final (ver pdf/drawKpi.ts)
-// — ícone desconhecido/"none" simplesmente não mostra nada.
-function KpiIconGlyph({ icon, sizePx }: { icon: string; sizePx: number }) {
-  const path = MATERIAL_ICON_PATHS[icon as keyof typeof MATERIAL_ICON_PATHS];
-  if (!path) return null;
-  return (
-    <svg width={sizePx} height={sizePx} viewBox={`0 -${MATERIAL_ICON_GRID} ${MATERIAL_ICON_GRID} ${MATERIAL_ICON_GRID}`} fill="currentColor">
-      <path d={path} />
-    </svg>
-  );
-}
 
 export function KpiField({ schema }: { schema: KpiSchema }) {
   const titleSize = ptToPx(schema.titleFontSize ?? DEFAULT_KPI_TITLE_FONT_SIZE);
@@ -44,7 +32,7 @@ export function KpiField({ schema }: { schema: KpiSchema }) {
         <span className="truncate font-medium uppercase tracking-wide opacity-90" style={{ fontSize: titleSize }}>
           {schema.title}
         </span>
-        <KpiIconGlyph icon={schema.icon} sizePx={iconSize} />
+        <MaterialIcon icon={schema.icon} size={iconSize} />
       </div>
       <div className="truncate font-bold leading-tight" style={{ fontSize: valueSize }}>
         {displayValue}

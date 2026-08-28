@@ -101,6 +101,7 @@ export const ptBR: Dict = {
       "A seção inteira repete uma vez por item deste array. Dentro dela, o vínculo de cada campo é resolvido contra o ITEM atual (não o documento todo) — use `{campo}` direto, ou `{Line}` pro número da repetição (1, 2, 3...).",
     dataSourcePlaceholder: "Data Source — escolha um array do JSON",
     chartPathPlaceholder: "path do array — ex: agentes",
+    kpiPathPlaceholder: "path do array — ex: rows",
     labelColumnPlaceholder: "Coluna do rótulo",
     labelColumnInputPlaceholder: "coluna do rótulo — ex: label",
     valueColumnPlaceholder: "Coluna numérica",
@@ -208,6 +209,12 @@ export const ptBR: Dict = {
     numberFormatNone: "Original (como digitado)",
     numberFormatPlain: "10000",
     numberFormatGrouped: "10.000",
+    aggregationSum: "Soma",
+    aggregationCount: "Contagem",
+    aggregationAvg: "Média",
+    aggregationMin: "Mínimo",
+    aggregationMax: "Máximo",
+    boundOverridesValueHint: "Vinculado abaixo — o campo Valor acima é ignorado; o card mostra o resultado agregado.",
   },
   text: {
     designText: "Texto (design)",
@@ -225,10 +232,12 @@ export const ptBR: Dict = {
   },
   image: {
     label: "Imagem (data URI)",
+    dropHint: "imagem (duplo clique pra escolher)",
   },
   section: {
     dragHint: "Arraste texto/imagem em cima dela no canvas pra agrupar — o grupo inteiro repete por item do array vinculado.",
     fieldsFromSource: (path) => `Campos de "${path}" — arraste pro canvas:`,
+    dragHandleHint: "Seção (repete) — arraste aqui pra mover",
   },
   position: {
     x: "X (mm)",
@@ -236,7 +245,7 @@ export const ptBR: Dict = {
     width: "Largura (mm)",
     height: "Altura (mm)",
   },
-  chart: {
+  filter: {
     opEq: "=",
     opNeq: "≠",
     opGt: ">",
@@ -244,14 +253,16 @@ export const ptBR: Dict = {
     opLt: "<",
     opLte: "≤",
     opContains: "contém",
-    paletteLabel: "Paleta de cores",
-    noFilter: "Sem filtro — todo item do array entra no gráfico.",
+    noFilter: "Sem filtro — todo item do array entra.",
     or: "OU",
     and: "E",
     columnPlaceholder: "coluna",
     valuePlaceholder: "valor",
     addCondition: "condição (E)",
     addGroup: "grupo (OU)",
+  },
+  chart: {
+    paletteLabel: "Paleta de cores",
     sortBy: "Ordenar por",
     sortValueDesc: "Maior valor primeiro",
     sortValueAsc: "Menor valor primeiro",
