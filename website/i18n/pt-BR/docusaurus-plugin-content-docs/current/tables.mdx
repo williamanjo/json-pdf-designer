@@ -1,0 +1,54 @@
+---
+title: Tabelas — Cabeçalho, Valor e Rodapé de Totais
+description: Estilo de tabela, overrides por coluna e linha de totais.
+---
+
+# Tabelas — cabeçalho, valor e rodapé (totais)
+
+Além das colunas normais, uma tabela pode ter uma **linha de totais**
+(`footer`) — uma célula por coluna, cada uma um template de verdade
+(texto fixo e/ou `{token}`/`{SUM(...)}`). Desenha só uma vez, na última
+fatia, mesmo se a tabela paginar (nunca repete feito o cabeçalho).
+
+## Estilo, em três níveis
+
+Cor de fundo/texto e **tamanho de fonte** são configuráveis do mais
+genérico ao mais específico:
+
+1. **Cabeçalho inteiro** — `headBackgroundColor`/`headTextColor`/`headFontSize`
+2. **Linha de valor inteira** (todas as linhas de dado) — `bodyBackgroundColor`/`bodyTextColor`/`bodyFontSize`
+3. **Rodapé inteiro** — `footerBackgroundColor`/`footerTextColor`/`footerFontSize`
+
+...e por **coluna individual** via `columnStyles` (cabeçalho e valor
+separados, sobrescreve só aquela coluna). Sem nada definido, cai no
+azul/branco/9pt de sempre — templates antigos não mudam de aparência.
+
+A lista "Colunas atuais da tabela" no painel deixa **arrastar pra
+reordenar** (desloca `head`/`content`/`footer`/`columnStyles` juntos,
+pelo índice) e tem um botão "+" pra adicionar coluna de uma fonte de
+dados conhecida.
+
+## Paginação
+
+Se uma tabela (ou seção repetida) do corpo tiver mais linhas/itens do
+que cabem numa página, o `generatePdf` quebra em várias páginas
+automaticamente. **Todo** item do corpo — tabela, seção, texto, imagem
+— é processado numa sequência só, **ordenada por Y**: quando um
+termina, o próximo continua logo abaixo (mesma página ou nova, o que
+couber), preservando o espaçamento desenhado no editor mesmo que algo
+antes tenha crescido ou mudado de página.
+
+No editor de cada tabela dá pra desligar "Repetir cabeçalho da tabela
+nas próximas páginas" (default ligado).
+
+## Cabeçalho, rodapé e margens
+
+`Template.headerHeight`/`footerHeight`/`marginLeft`/`marginRight` (mm)
+são faixas que se repetem em **toda página** do PDF gerado. Não existe
+campo de "zona" no schema — um campo cai automaticamente no cabeçalho/
+rodapé/margem quando sua posição (x/y) fica contida ali.
+
+Dentro de um campo de texto que caia nessas faixas, os tokens especiais
+`{pageNumber}` e `{pageCount}` funcionam direto no conteúdo e são
+resolvidos de novo em cada página — útil pra "Página 1 de 3" no
+rodapé.

@@ -1,0 +1,343 @@
+/* CSS 100% escrito à mão, sem Tailwind — este example não usa NENHUM
+   componente pronto do pacote pra sua própria casca (nem pro <Designer>,
+   que nem aparece aqui). Só o <PdfPreview> (canvas do pdf.js, dentro de
+   .app-preview) continua com a aparência do pacote, importada via
+   "json-pdf-designer/style.css" em main.tsx. */
+
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-header {
+  padding: 12px 20px;
+  background: #0f172a;
+  color: #f8fafc;
+  flex-shrink: 0;
+}
+
+.app-header h1 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.app-header p {
+  margin: 0;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.app-header code {
+  background: rgba(255, 255, 255, 0.12);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-sidebar {
+  width: 340px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-right: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f1f5f9;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 12px 0;
+  flex-shrink: 0;
+}
+
+.view-tabs button {
+  border-radius: 6px 6px 0 0;
+  border-bottom: none;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.view-tabs button.active {
+  background: #f1f5f9;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.view-tabs button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.canvas-scroll,
+.preview-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* Página do canvas — só um retângulo branco do tamanho da folha (em px,
+   escala PX_PER_MM do App.tsx) onde os campos ficam posicionados
+   absolutamente. Nenhuma relação com o <canvas> do pdf.js do PdfPreview —
+   isso aqui é só a superfície de arrastar/redimensionar, feita à mão. */
+.canvas-page {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.canvas-field {
+  position: absolute;
+  border: 1px solid #94a3b8;
+  background: rgba(2, 132, 199, 0.06);
+  overflow: hidden;
+  cursor: move;
+  user-select: none;
+  padding: 2px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.canvas-field.selected {
+  border: 2px solid #0284c7;
+  background: rgba(2, 132, 199, 0.12);
+}
+
+.canvas-field-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #0284c7;
+  flex-shrink: 0;
+}
+
+.canvas-field-preview {
+  font-size: 11px;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  background: #0284c7;
+  cursor: nwse-resize;
+  border-top-left-radius: 3px;
+}
+
+.panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.field-add-row {
+  display: flex;
+  gap: 6px;
+}
+
+.field-add-row button {
+  flex: 1;
+}
+
+.field-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.remove-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.field-full {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.field-geometry {
+  margin: 0;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  color: #64748b;
+}
+
+.field-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.field-list li:hover {
+  background: #f1f5f9;
+}
+
+.field-list li.selected {
+  border-color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+}
+
+.field-list-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.field-list-type {
+  flex-shrink: 0;
+  color: #94a3b8;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 7px;
+  color: #0f172a;
+}
+
+textarea {
+  resize: vertical;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+button {
+  background: #ffffff;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #f1f5f9;
+}
+
+.data-textarea {
+  width: 100%;
+}
+
+.generate-btn {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  font-weight: 600;
+  padding: 8px 10px;
+}
+
+.generate-btn:hover {
+  background: #0369a1;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 12px;
+  margin: 0;
+}
+
+.empty-hint {
+  color: #64748b;
+  font-size: 13px;
+}

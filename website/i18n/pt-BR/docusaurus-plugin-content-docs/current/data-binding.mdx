@@ -1,0 +1,76 @@
+---
+title: Vínculo de Dados e Templates
+description: Como os campos se conectam ao JSON real, e toda função de template disponível.
+---
+
+# Vínculo de dados e templates
+
+Cada campo aponta pro JSON real via um `Binding`:
+
+- **`scalar`** — um valor direto (`caminho.no.json`).
+- **`template`** — texto livre com `{token}`, ex.:
+  `"Cliente: {nome} — Total: {SUM(rows.total)}"`.
+- **`array`** — uma tabela vinda de um array de objetos, coluna por
+  coluna, incluindo **coluna calculada** (rótulo fixo + fórmula
+  avaliada por linha — pode combinar texto fixo com mais de um token:
+  `"{pnr} - {produto}"`).
+- **`keyvalue`** — tabela "campo / valor" a partir de uma lista de
+  paths escolhidos manualmente.
+- **`section`** — o array que uma [seção](./repeated-sections) repete,
+  um item por repetição.
+- **`chart`** — um array a agregar num gráfico pizza/barra (`path`,
+  `labelColumn`, `valueColumn`, `filters` opcional) — veja
+  [Gráficos](./charts).
+- **`kpi`** — um array a agregar (`sum`/`count`/`avg`/`min`/`max`) num
+  número só pra um cartão KPI, sobrescrevendo o `value` livre — veja
+  [Cartões KPI](./kpi-cards).
+
+## Funções de template
+
+Dentro de `{...}` (texto, coluna calculada, célula de rodapé — em
+qualquer lugar):
+
+| Função | O que faz |
+| --- | --- |
+| `SUM`, `COUNT`, `AVG` | Agrega um path de array. |
+| `CONCAT`, `UPPER`, `LOWER` | Helpers de string. |
+| `TRIM(caminho)` | Tira espaço do início/fim — útil pra campo de sistema legado com largura fixa (`"fatura": " 01156189"`). `{token}`/`CONCAT` preservam o valor exatamente como veio, de propósito — o espaço só some se você pedir. |
+| `DATE(caminho, "saída"[, "entrada"])` | Formata uma data — ver abaixo. |
+| `CURRENCY(caminho, "R$")` | Formata um número com símbolo de moeda. |
+| `NUMBER(caminho, casas)` | Tipo `%.2f` do C — só casas decimais, sem símbolo/separador de milhar (isso é o `CURRENCY`). |
+
+**Aritmética simples** também funciona: `{qtd * preco}`,
+`{subtotal - desconto}` — avaliada da esquerda pra direita, sem
+precedência de operador.
+
+Uma função pode receber outra função ou uma expressão aritmética como
+argumento (`{CURRENCY(SUM(rows.total), "R$")}`), com uma exceção:
+**duas chamadas de função combinadas por operador na mesma expressão**
+(`{SUM(a) - SUM(b)}`) não resolve certo — pré-calcule o valor no JSON
+ou separe em dois tokens.
+
+## Datas são sempre lidas/escritas em UTC
+
+O 3º argumento (opcional) do `DATE` diz o **formato de entrada** — sem
+ele, `new Date(raw)` do JS tenta adivinhar, e uma data tipo
+`"10/04/2025"` (dia 10) vira 10 de outubro (formato americano).
+Informando `DATE(vencto, "DD/MM/YYYY", "DD/MM/YYYY")`, lê exatamente
+como escrito, sem ambiguidade.
+
+As datas são sempre lidas/escritas em **UTC** — não no fuso do
+navegador/servidor que gera o PDF. Uma data só (`"2026-07-01"`, sem
+hora) sai igual ao que foi escrito, não importa onde rodar; um datetime
+com fuso explícito (`"...T23:30:00-03:00"`) é convertido pro instante
+UTC equivalente.
+
+## Funções públicas pra um vínculo de UI próprio
+
+```ts
+buildInputs(data, bindings)                // resolve todos os vínculos de uma vez
+renderTemplate(template, data)             // resolve um template livre "{token}"
+resolveToken(token, data)                  // resolve um token/função isolado
+rowsFromArrayBinding(list, columns)        // array de objetos -> linhas de tabela
+columnLabel(col), columnKey(col)
+describeBinding(b, t?), describeBindingShort(b, t?)  // t: Dict — default inglês
+CUSTOM_FIELD_FUNCTIONS                     // lista das funções disponíveis
+```

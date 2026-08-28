@@ -1,0 +1,40 @@
+---
+title: Repeated Sections (Master-Detail)
+description: A group of fields that repeats once per array item.
+---
+
+# Repeated section (master-detail / data band)
+
+A `SectionSchema` is a plain rectangle — it holds no children, it's
+just a **group**: any field (text, image, table) dropped on top of it
+on the canvas becomes a **member** (via `BaseSchema.sectionId`), while
+staying a normal field in the flat `template.schemas` array — same
+absolute position, same way to select/edit/drag. Dragging a field OUT
+of the section clears the link again (bidirectional).
+
+A section only drags by its **purple bar at the top** — clicking
+anywhere else on it (or a field on top of it) selects normally, without
+moving it.
+
+## Once bound
+
+Once bound (`type: "section"`, path to the array), the section
+**repeats once per item** of the array — stacking vertically and
+paginating together with the rest of the body.
+
+Inside it:
+
+- Any member text resolves `{field}` against the **current item**
+  (not the whole document), and `{Line}`/`{index}` gives the
+  repetition number (1, 2, 3…).
+- A **member table with no binding of its own** shows a single row,
+  cell by cell, against the current item — an empty cell falls back to
+  the column name directly (`head[i]` → `{item[head[i]]}`), a
+  filled-in cell is a real template.
+- A **member table WITH an `array` binding** (a path relative to the
+  item — e.g. Order → OrderItems) is real master-detail: one row per
+  item of the nested array, and the section **grows in height** to fit
+  (text below the table, if any, shifts down with it).
+
+A section can also have **zero tables** — just member text fields is
+already a valid repeated "record"/list.

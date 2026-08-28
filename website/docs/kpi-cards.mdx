@@ -1,0 +1,71 @@
+---
+title: KPI Cards
+description: A colored indicator card — icon, title, big value, and caption.
+---
+
+# KPI indicator
+
+`KpiSchema` is a KPI card: solid colored background, an icon, a title,
+a large value, and a caption.
+
+- `icon` is the name of a [Google Material Symbols](https://fonts.google.com/icons)
+  icon (e.g. `bar_chart`, `attach_money`, `warning`) or `"none"` — the
+  panel's icon picker is searchable both by technical name and by a
+  plain-language label in the active `locale`.
+- `title`/`value`/`subtitle` are plain text (same `{path}`/
+  `{FUNCTION(...)}` syntax as a standalone text field) — with no
+  `Binding` of their own, resolved directly against the whole document
+  at generation time.
+
+## Style
+
+- `titleFontSize`/`valueFontSize`/`subtitleFontSize`/`iconSize` (pt) —
+  each defaults to the card's original fixed size (8/20/8/14pt) when
+  absent, so existing templates never change appearance.
+- `borderRadius` (0–100, a percentage) — corner rounding relative to
+  the card's own smaller side (0 = square corners, 100 = a full "pill"
+  shape). Defaults to ~16%, matching the card's original fixed 8pt
+  radius at its default size.
+
+## Binding to an array (aggregation)
+
+A KPI's `value` is a free-text template by default (same `{path}`/
+`{FUNCTION(...)}` syntax as text). It can instead be bound directly to
+an array — same idea as a chart — via a `Binding` of type `kpi`:
+
+```ts
+const binding: Binding = {
+  schemaName: "total_sales",
+  type: "kpi",
+  path: "salesByAgent",
+  valueColumn: "value", // ignored when aggregation is "count"
+  aggregation: "sum", // "sum" | "count" | "avg" | "min" | "max"
+  filters: [[{ column: "status", op: "eq", value: "closed" }]], // optional, same shape as a chart's
+};
+```
+
+When a `kpi` binding exists for a card, it **overrides** the free-text
+`value` template entirely — the aggregated number becomes the value,
+`title`/`subtitle` are unaffected. Without a `kpi` binding, the card
+behaves exactly as before (free-text `value`).
+
+## Number format
+
+`numberFormat` (Data tab) reformats `value` when it resolves to a
+plain number — it never touches text with a prefix/suffix (e.g.
+`"R$ 42"` isn't a plain number, so it's left alone):
+
+| `numberFormat` | Example |
+| --- | --- |
+| `"none"` (default) | Shows the resolved value exactly as-is. |
+| `"plain"` | `10000` — comma decimal if the number has one, no thousands separator. |
+| `"grouped"` | `10.000` — same, with a thousands separator. |
+
+## Multi-select bulk editing
+
+Selecting several KPI cards together (`Ctrl`/`Cmd`+click) unlocks
+bulk-editing their shared **Style** (color, font sizes, icon, border
+radius — applies to every selected card at once); the per-card **Data**
+content (title/value/caption) stays locked to avoid overwriting
+different cards' own text, except `numberFormat`, which is shared and
+stays editable.

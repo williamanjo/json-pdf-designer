@@ -1,0 +1,121 @@
+---
+title: Arquitetura
+description: Como as peças se encaixam, pra quem for mexer no código-fonte.
+---
+
+# Arquitetura
+
+Um mapa da árvore de código agrupado por responsabilidade, não por
+ordem de import — contexto útil se você está modificando o próprio
+pacote em vez de só consumir ele.
+
+## Editor (`src/Designer.tsx` + `src/components/`)
+
+`Designer.tsx` guarda o estado de seleção, a barra de abas (Campos/
+Dados/Estilo/Filtro/Página), clipboard (copiar/colar), atalhos de
+teclado, e toda mutação em `Template`/`Binding[]` (adicionar/remover/
+reordenar schemas, atualizar um vínculo, redimensionar faixa de
+página…). Renderiza dois filhos:
+
+- **`PageCanvas.tsx`** — a página de verdade: um `<Rnd>` (react-rnd)
+  por schema pra arrastar/redimensionar, as faixas de cabeçalho/rodapé/
+  margem desenhadas em vermelho, a grade, seleção por caixa (marquee),
+  controles de zoom. Delega a aparência de cada campo pra
+  **`FieldBox/`** (um componente pequeno por `schema.type`).
+- **O painel lateral** — `FieldList.tsx`, `Toolbar.tsx` e, com um campo
+  selecionado, `PropertyPanel.tsx` — um dispatcher fino pra um
+  `PropertyPanel<Tipo>.tsx` por tipo de schema, cada um dividido em aba
+  "Dados" e "Estilo". `BindingEditor.tsx` (o editor de vínculo genérico
+  de path/array/seção/gráfico/kpi) e `PropertyPanelFields.tsx` (inputs
+  compartilhados de X/Y/largura/altura) são reaproveitados por vários
+  deles.
+
+Seleção, edição e vínculo vivem todos na mesma árvore React — sem ponte
+de módulo, sem API imperativa entre canvas e painel.
+
+## Vínculos e templates (`src/bindings/`, `src/tableColumns.ts`)
+
+`bindings.ts` é lógica pura sobre strings/objetos simples, sem
+dependência de terceiros:
+
+- `resolveToken`/`renderTemplate` — avalia um template `{token}`/
+  `{FUNÇÃO(...)}` contra o JSON de verdade. É quem transforma um
+  `TextSchema.content` ou um `KpiSchema.title`/`subtitle` na string que
+  de fato é desenhada. A formatação dentro de `DATE`/`CURRENCY` é
+  propositalmente independente do idioma da UI do Designer (prop
+  `locale`) — é parte do conteúdo do relatório gerado, escrito por
+  quem monta o template, não da casca da ferramenta.
+- `buildInputs` — transforma o documento JSON inteiro + `Binding[]` num
+  `Record<schemaName, string>` plano (ou um array 2D serializado, pra
+  tabelas) que tanto o preview do canvas quanto o `generate.ts` leem.
+- `resolveChartItems`/`aggregateChartItems` — resolve o `Binding` de um
+  gráfico contra o array de verdade, aplica `filters`, agrupa o resto
+  em "Outros" a partir de `topN`.
+- `resolveKpiValue` — resolve um `Binding` do tipo `kpi` num número só
+  agregado (`sum`/`count`/`avg`/`min`/`max`).
+- `describeBinding`/`describeBindingShort` — resumos legíveis usados só
+  na UI do editor.
+
+`tableColumns.ts` guarda as funções puras que mantêm `head`/`content`/
+`footer`/`columnStyles` de uma `TableSchema` sincronizados com o
+`Binding` dela (array) quando uma coluna é adicionada/removida/
+reordenada/reformatada pelo painel.
+
+## Geração do PDF (`src/pdf/`)
+
+`generate.ts` é o ponto de entrada (`generatePdf(template, data,
+bindings, options?)`) — JS puro, sem DOM, seguro de rodar em Node. Pra
+cada `schema`, resolve o valor via `buildInputs`/`resolveToken` (ou
+`resolveKpiValue` pra um KPI com vínculo `kpi`) e delega o desenho de
+verdade pra um módulo por tipo:
+
+- `drawTable.ts` — linhas de cabeçalho/corpo/rodapé, override de
+  estilo por coluna, paginação quando a tabela não cabe numa página só.
+- `drawSection.ts` — repete o grupo de campos membros uma vez por item
+  do array vinculado, crescendo/paginando junto com o resto do corpo.
+- `drawChart.ts` — pizza/rosca ou barra, posição da legenda (tamanho de
+  fonte configurável), paleta de cores (`src/chartColors.ts`).
+- `drawKpi.ts` — o cartão colorido + o path do ícone Material Symbols
+  (`src/materialIcons.ts`), tamanhos de fonte/ícone/raio de canto
+  configuráveis (defaults em `src/kpiFormat.ts`).
+
+Módulos de apoio: `pagination.ts` (divide o corpo entre páginas contra
+`headerHeight`/`footerHeight`/`marginLeft`/`marginRight` — ver
+`src/zones.ts` pra como o editor classifica um campo em cabeçalho/
+rodapé/margem/corpo só pela posição), `fontUtils.ts` (embute uma fonte
+TTF própria via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts`
+(transforma um PDF/PNG/JPEG enviado no PNG de fundo da página),
+`color.ts`, `resolvers.ts`, e `pdfWorker.ts` (configura o worker do
+`pdf.js` pro `PdfPreview`, browser-only).
+
+Só `downloadPdf`, `Designer`, `PdfPreview*` e os componentes de UI
+tocam o DOM. Todo o resto sob `src/pdf/`, `src/bindings/` e
+`src/types/` é seguro de importar num backend Node — veja
+[Integração com backend](./backend-integration) e
+[Uso só no servidor](./server-only-usage).
+
+## Idioma da UI (`src/i18n/`)
+
+O texto da própria UI do Designer (botões, abas, avisos, placeholders)
+vem de um dicionário pequeno — `en.ts` (canônico, default) e
+`pt-BR.ts` (tipado contra ele, então uma chave faltando é erro de
+compilação, não uma string vazia silenciosa). `I18nProvider`/`useT`/
+`useLocale` (contexto React) ligam a prop `<Designer locale="en" |
+"pt-BR">` até cada componente; um componente usado sozinho, sem
+`<Designer>` por cima, continua renderizando texto certo (em inglês)
+via o valor default do contexto. Isso só cobre a casca do editor —
+nunca muda como `{DATE(...)}`/`{CURRENCY(...)}` formatam o conteúdo do
+relatório gerado.
+
+## Duas entradas (`src/index.ts` vs. `src/server.ts`)
+
+`src/index.ts` exporta a API pública completa — componentes React
+(`Designer`, `PdfPreview`, `PdfPreviewModal`, o kit de UI) mais
+geração/vínculos/tipos. `src/server.ts` espelha só o subconjunto sem
+React — mesma geração/vínculos/tipos, zero referência a `react` em
+qualquer lugar do output compilado — buildado como um bundle separado
+(`dist/server.{js,cjs,d.ts}`) exposto pelo subpath
+`json-pdf-designer/server`. Manter os dois como listas mantidas à mão
+(em vez de uma gerada a partir da outra) faz um export adicionado por
+engano só numa das duas ser fácil de notar em review — ver o
+comentário no topo de `src/index.ts`.

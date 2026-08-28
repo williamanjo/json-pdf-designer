@@ -1,0 +1,67 @@
+---
+title: Installation
+description: Install the package and import its CSS.
+---
+
+# Installation
+
+```bash
+npm install json-pdf-designer
+```
+
+Peer deps: `react` and `react-dom` (`^18.0.0 || ^19.0.0`) — marked
+`optional` in `peerDependenciesMeta`, so a backend-only install never
+forces them on you (see [Server-only usage](./server-only-usage)).
+
+Import the package's CSS **once**, in your app's entry point — it
+styles `<Designer>` itself (property panel, toolbar, tabs). Without it,
+some editor elements end up with the wrong position/color, because your
+app's own Tailwind (if any) never scans this library's code:
+
+```ts
+import "json-pdf-designer/style.css";
+```
+
+`dist/style.css` is a pre-built, standalone stylesheet — it works no
+matter what Tailwind version (or none at all) your app uses.
+
+## Basic usage
+
+```tsx
+import { useState } from "react";
+import { Designer, generatePdf, downloadPdf, type Template, type Binding } from "json-pdf-designer";
+import "json-pdf-designer/style.css";
+
+const initialTemplate: Template = {
+  page: { width: 210, height: 297 }, // A4 in mm
+  schemas: [],
+};
+
+function Report() {
+  const [template, setTemplate] = useState<Template>(initialTemplate);
+  const [bindings, setBindings] = useState<Binding[]>([]);
+
+  async function handleGenerate() {
+    const data = await fetchMyData(); // the real JSON that fills the fields
+    const pdfBytes = await generatePdf(template, data, bindings);
+    downloadPdf(pdfBytes, "report.pdf");
+  }
+
+  return (
+    <>
+      <Designer
+        template={template}
+        onChangeTemplate={setTemplate}
+        bindings={bindings}
+        onChangeBindings={setBindings}
+      />
+      <button onClick={handleGenerate}>Generate PDF</button>
+    </>
+  );
+}
+```
+
+`onChangeTemplate`/`onChangeBindings` accept React's `setState`
+functional form (`(prev) => next`) — use the `useState` setter
+directly, as above, so you don't lose a field if two get added in quick
+succession.

@@ -1,0 +1,103 @@
+---
+title: Core Concepts
+description: Template, Schema, and Binding — the shapes everything else builds on.
+---
+
+# Core concepts
+
+## The data model
+
+```ts
+type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
+
+type Template = {
+  page: PageSize; // { width, height } in mm
+  headerHeight?: number; // static bands (mm) repeated on every generated page
+  footerHeight?: number;
+  marginLeft?: number;
+  marginRight?: number;
+  backgroundImage?: string; // PNG data URI, letterhead-style background
+  schemas: Schema[];
+};
+
+type Binding =
+  | { schemaName: string; type: "scalar"; path: string }
+  | { schemaName: string; type: "array"; path: string; columns: TableColumn[] }
+  | { schemaName: string; type: "keyvalue"; paths: string[] }
+  | { schemaName: string; type: "template"; template: string }
+  | { schemaName: string; type: "section"; path: string }
+  | { schemaName: string; type: "chart"; path: string; labelColumn: string; valueColumn: string; filters?: ChartFilterGroup[] };
+```
+
+Every `Schema` shares `BaseSchema` (`id`, `name`, `x`/`y`/`width`/
+`height` in mm, `locked?`, `sectionId?`) plus type-specific fields — see
+the [Public API reference](./public-api) for the full current shape.
+
+**Unit of measure: mm everywhere** in the data model — easy to reason
+about, an A4 sheet is simply 210×297mm. Converted to **px** only to
+render on the editor canvas, and to **pt** only when drawing the real
+PDF via `pdf-lib`.
+
+## Editor fields
+
+Text, table, image, repeated **section** (master-detail), **chart**
+(pie/bar), and **KPI indicator** — all drag/resize freely
+([react-rnd](https://github.com/bokuweb/react-rnd)), with a **5mm grid**
+snapping position/size by default — hold **Shift** while dragging to
+break free of the grid.
+
+- Double-click turns on inline editing (text/table become an input/
+  textarea right on top of the field; an image opens the file picker).
+- `Delete`/`Backspace` removes all selected fields; `Ctrl`/`Cmd`+`C`/`V`
+  copy/paste (disabled while typing in an input, so they never eat
+  normal keystrokes).
+- **Multi-select**: `Ctrl`/`Cmd`+click, or drag a marquee box over empty
+  canvas space. Dragging any selected field moves the whole group.
+
+## The side panel
+
+A single, flat row of tabs — **Fields** (every placed field, click to
+select, lock/send-to-back/bring-to-front/remove), **Page** (size,
+orientation, header/footer/margin, background), always available; plus
+**Data**/**Style**/**Filter** — only present while a field is selected,
+and only the ones that make sense for its type (no Style for image/
+section; Filter only for charts).
+
+Tabs are drag-reorderable and pinnable (hide with "×", bring back with
+"+") — order and hidden tabs persist in `localStorage`, a UI preference
+separate from the saved `Template`/`Binding[]`.
+
+**Multi-select editing** — selecting several fields of the **same
+type** together (all text, all KPI, all chart) lets you bulk-edit
+shared Style settings (color, font size, palette…) across all of them
+at once from a single panel; per-item Data content stays locked to
+avoid accidentally overwriting different fields' own content, except
+for the handful of settings that are genuinely shared (e.g. a KPI's
+number format, or a chart's thousands separator/"group into Other").
+
+## Incomplete-configuration warnings
+
+A section/chart with no JSON binding, or a chart filter with a column
+picked but no value filled in, gets a yellow ⚠ warning icon in the
+Fields list (and on the relevant tab) — pointing straight at what to
+fix.
+
+## Page size, orientation, and background
+
+`<Designer>` shows a size selector (A4/A3/A5/Letter/Legal) and
+orientation (portrait/landscape) in its "Page" tab —
+`applyOrientation`/`orientationOf`/`matchPreset`/`PAGE_SIZE_PRESETS`
+(all exported) do the same math for a custom selector.
+
+`Template.backgroundImage` puts an image (or the first page of an
+uploaded PDF, rasterized once) behind everything, in both the editor
+and the final PDF.
+
+## Custom fonts
+
+Pass `fontBytes` (a real TTF/OTF) to `generatePdf(..., { fontBytes })`
+for full accent/Unicode coverage via `fontkit`. Without it, it falls
+back to `pdf-lib`'s default Helvetica (covers most Latin accents, not
+everything). `.woff`/`.woff2` are accepted too —
+`normalizeFontBytes(bytes)` detects and decompresses them into the real
+TTF/OTF `pdf-lib` needs, automatically.

@@ -4,6 +4,11 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Relativo (não "/repo-name/") — funciona em qualquer subpath do GitHub
+  // Pages (site é montado em playground/report-builder/) sem precisar
+  // hardcodar o nome do repo aqui. Só é seguro porque este app não usa
+  // client-side router (SPA de view única).
+  base: './',
   plugins: [react(), tailwindcss()],
   // json-pdf-designer é uma dependência "file:" linkada (symlink) pro
   // pacote pai — sem isso o Vite pode resolver "react" a partir do

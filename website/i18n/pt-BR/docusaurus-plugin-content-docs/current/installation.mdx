@@ -1,0 +1,68 @@
+---
+title: Instalação
+description: Instale o pacote e importe o CSS dele.
+---
+
+# Instalação
+
+```bash
+npm install json-pdf-designer
+```
+
+Peer deps: `react` e `react-dom` (`^18.0.0 || ^19.0.0`) — marcados
+`optional` em `peerDependenciesMeta`, então uma instalação só de
+backend nunca força eles (ver [Uso só no servidor](./server-only-usage)).
+
+Importe o CSS do pacote **uma vez**, no entrypoint do seu app — ele
+estiliza o próprio `<Designer>` (painel de propriedades, toolbar,
+abas). Sem isso, alguns elementos do editor ficam com posição/cor
+errada, porque o Tailwind do seu app (se tiver) nunca escaneia o código
+desta lib:
+
+```ts
+import "json-pdf-designer/style.css";
+```
+
+`dist/style.css` é uma folha de estilo pré-compilada e independente —
+funciona com qualquer versão do Tailwind (ou nenhuma) no seu app.
+
+## Uso básico
+
+```tsx
+import { useState } from "react";
+import { Designer, generatePdf, downloadPdf, type Template, type Binding } from "json-pdf-designer";
+import "json-pdf-designer/style.css";
+
+const initialTemplate: Template = {
+  page: { width: 210, height: 297 }, // A4 em mm
+  schemas: [],
+};
+
+function Report() {
+  const [template, setTemplate] = useState<Template>(initialTemplate);
+  const [bindings, setBindings] = useState<Binding[]>([]);
+
+  async function handleGenerate() {
+    const data = await fetchMyData(); // o JSON de verdade que popula os campos
+    const pdfBytes = await generatePdf(template, data, bindings);
+    downloadPdf(pdfBytes, "relatorio.pdf");
+  }
+
+  return (
+    <>
+      <Designer
+        template={template}
+        onChangeTemplate={setTemplate}
+        bindings={bindings}
+        onChangeBindings={setBindings}
+      />
+      <button onClick={handleGenerate}>Gerar PDF</button>
+    </>
+  );
+}
+```
+
+`onChangeTemplate`/`onChangeBindings` aceitam a forma funcional do
+`setState` do React (`(prev) => next`) — use direto o setter do
+`useState`, como no exemplo, pra não perder um campo se dois forem
+adicionados em sequência rápida.

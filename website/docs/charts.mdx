@@ -1,0 +1,73 @@
+---
+title: Charts
+description: Pie/bar charts, color palettes, value formatting, and filters.
+---
+
+# Charts
+
+`ChartSchema` draws a pie or bar chart over a bound array (a `Binding`
+of type `chart`: `path` to the array, `labelColumn` the label's key,
+`valueColumn` the numeric key summed per label). In the panel, its
+fields live across three tabs:
+
+- **Data** — sort by, group into "Other" starting from the N largest
+  (`topN`, default 7 — `0` shows everyone), the thousands-separator
+  toggle for the raw value (`10.000` vs `10000`), and the JSON binding.
+- **Style** — chart type, pie format (donut/full), legend position and
+  font size, color palette, display mode, value format.
+- **Filter** — see below.
+
+It groups the `topN` largest each with their own fixed color, and the
+rest into an "Other" slice/bar — it never overruns the palette.
+`displayMode` picks whether the legend/label shows the raw number,
+the percentage of the total, or both; `valueFormat` (`"number"` default
+or `"currency"`) formats the raw-value part — `currencySymbol` (default
+`"R$"`) and `decimals` (default 2) only apply when `valueFormat` is
+`"currency"`.
+
+## Color palette
+
+`ChartSchema.colorPalette` names a ready-made palette (see
+`CHART_PALETTE_NAMES`/`CHART_PALETTE_LABELS` in `chartColors.ts`):
+`"default"`, `"classic"`, `"modern"`, `"vibrant"`, `"pastel"`,
+`"grayscale"`. A loose string (not a closed union) — absent falls back
+to `"default"` on its own, so a template saved with a palette name
+removed in a future version never breaks.
+
+`"custom"` uses `ChartSchema.customPaletteColors` (`string[]`, up to
+`CHART_PALETTE_SIZE` hex colors) instead of a fixed one — editable
+color by color in the panel (Style tab → Color palette → pick "Custom"
+to reveal the pickers).
+
+## Chart filter
+
+Its own "Filter" tab in the panel, separate from "JSON binding" — a
+`Binding` of type `chart` accepts `filters?: ChartFilterGroup[]`
+(groups combined with **OR**; inside a group, conditions combine with
+**AND**). Each condition is `{ column, op, value }`, where `column` is
+a key of the bound array's item (doesn't have to be `labelColumn`/
+`valueColumn` — filter by one column, aggregate by another) and `op` is
+`"eq"`, `"neq"`, `"gt"`, `"gte"`, `"lt"`, `"lte"`, or `"contains"`
+(substring, case-insensitive).
+
+```ts
+// only agents with quantity > 20 OR status "vip"
+const binding: Binding = {
+  schemaName: "my_chart",
+  type: "chart",
+  path: "salesByAgent",
+  labelColumn: "label",
+  valueColumn: "value",
+  filters: [
+    [{ column: "quantity", op: "gt", value: "20" }],
+    [{ column: "status", op: "eq", value: "vip" }],
+  ],
+};
+```
+
+## Legend font size
+
+`ChartSchema.legendFontSize` (pt) controls the legend's text size (swatch
++ label + value) — the row height scales with it automatically, so
+larger text never overlaps between rows. Absent falls back to the
+default (8pt), matching every chart drawn before this option existed.

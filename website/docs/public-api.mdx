@@ -1,0 +1,74 @@
+---
+title: Public API Reference
+description: Every export, grouped by area — main entry and /server.
+---
+
+# Public API
+
+Everything below comes from `json-pdf-designer`. The generation/
+bindings/chart-palette/type subset is also available React-free from
+`json-pdf-designer/server` — see [Server-only usage](./server-only-usage).
+
+```ts
+// Component
+Designer                                   // the full React canvas (toolbar + list + rulers + zoom + bands)
+PdfPreview, configurePdfWorker             // preview of the generated PDF
+PdfPreviewModal                            // a full modal around PdfPreview (download/close buttons)
+
+// UI language (see "UI language")
+I18nProvider, useT, useLocale, withInlineCode
+type Locale, type Dict
+
+// Ready-made UI (optional — see "Ready-made UI components")
+Button, Card, CardHeader, CardTitle, Badge, TabPanel, Input, ColorInput, Textarea, Select
+IconPlus, IconX, IconTrash, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
+IconArrowsVertical, IconDots, IconUpload, IconLock, IconLockOpen, IconBringToFront,
+IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle
+
+// Generation (also in json-pdf-designer/server, except downloadPdf)
+generatePdf(template, data, bindings, { fontBytes? }) => Promise<Uint8Array>
+downloadPdf(bytes, filename?)              // browser-only (document/Blob) — not in /server
+normalizeFontBytes(bytes)                  // detects WOFF/WOFF2 and decompresses
+
+// Bindings (also in json-pdf-designer/server)
+buildInputs(data, bindings)                // resolves every binding at once
+renderTemplate(template, data)             // resolves a free "{token}" template
+resolveToken(token, data)                  // resolves a single token/function
+rowsFromArrayBinding(list, columns)        // array of objects -> table rows
+columnLabel(col), columnKey(col)
+describeBinding(b, t?), describeBindingShort(b, t?)  // t: Dict, for UI display — defaults to English
+CUSTOM_FIELD_FUNCTIONS                     // the list of available functions (for a custom UI)
+resolveChartItems(binding, data)           // "chart" binding -> raw [{label, value}]
+aggregateChartItems(items, topN?, sortBy?, palette?)  // groups into the topN largest + "Other" (with a color)
+resolveKpiValue(binding, data)             // "kpi" binding -> a single aggregated number
+
+// Chart color palettes (also in json-pdf-designer/server)
+CHART_COLORS, CHART_OTHER_COLOR, CHART_PALETTES, CHART_PALETTE_LABELS,
+CHART_PALETTE_NAMES, CHART_PALETTE_SIZE, resolveChartPalette, resolveChartColors
+type ChartPaletteName, type ChartPresetName
+
+// KPI icons (also in json-pdf-designer/server)
+MATERIAL_ICON_GRID, MATERIAL_ICON_PATHS, MATERIAL_ICON_LABELS, MATERIAL_ICON_NAMES,
+materialIconLabels(locale)                 // English or Portuguese icon search labels
+type MaterialIconName
+
+// Schema factories (also in json-pdf-designer/server)
+makeChartSchema(nextY, t?), makeKpiSchema(nextY, t?), makeSectionColumnPair(sectionId, column, x, y, t?)
+
+// Zones — header/footer/margin (also in json-pdf-designer/server)
+classifyZone(schema, page, bands) => Zone  // "header" | "footer" | "marginLeft" | "marginRight" | "body"
+isRedZone(zone), clampToZone(...)
+
+// Units (also in json-pdf-designer/server)
+mmToPx, pxToMm, mmToPt
+
+// Page — size and orientation (also in json-pdf-designer/server)
+PAGE_SIZE_PRESETS                          // A4/A3/A5/Letter/Legal, always portrait
+orientationOf(page), applyOrientation(page, orientation), matchPreset(page)
+
+// Types (also in json-pdf-designer/server)
+Template, Schema, TextSchema, TableSchema, TableColumnStyle, ImageSchema,
+SectionSchema, ChartSchema, KpiSchema, KpiIcon, BaseSchema, PageSize, Binding,
+KpiAggregation, TableColumn, DataSourceOption, SectionColumnDragPayload, Zone, Bands,
+GeneratePdfOptions, Orientation
+```

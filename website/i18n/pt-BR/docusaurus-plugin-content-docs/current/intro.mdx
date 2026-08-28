@@ -1,0 +1,44 @@
+---
+title: Introdução
+description: O que é o json-pdf-designer e por onde seguir.
+---
+
+# json-pdf-designer
+
+Um editor visual de relatórios em PDF pra React — um canvas de arrastar/
+redimensionar (`<Designer>`) mais um motor de vínculo de dados JSON, e um
+gerador de PDF (`generatePdf`) que roda igual no navegador e num backend
+Node. Enxuto, pronto pra i18n, e feito pra ser modificado.
+
+## O que você ganha
+
+| Peça | O que faz |
+| --- | --- |
+| `<Designer>` | O canvas React — arrasta/redimensiona campos, painel lateral em abas (Campos/Dados/Estilo/Filtro/Página), zoom, réguas, seleção múltipla, copiar/colar, estado amigável a undo. |
+| `generatePdf` | Transforma um `Template` + dado JSON real + `Binding[]` em bytes de PDF (`pdf-lib`) — funciona no navegador **ou** em Node, sem headless browser envolvido. |
+| Tipos de campo | Texto, tabela, imagem, **seção** repetida (mestre-detalhe), **gráfico** (pizza/barra), cartão **indicador** (KPI). |
+| Vínculo de dados | Templates `{token}`/`{FUNÇÃO(...)}` contra JSON real — `SUM`, `COUNT`, `AVG`, `DATE`, `CURRENCY`, `NUMBER`, aritmética, e mais. |
+| Idioma da UI | Uma prop `locale` no `<Designer>` (inglês ou português) — só afeta a casca do editor, nunca o conteúdo do relatório gerado. |
+
+## Por onde começar
+
+- Novo no pacote? Comece por [Instalação](./installation) e
+  [Conceitos Centrais](./core-concepts).
+- Só vai gerar PDF num servidor, sem UI de editor? Vá direto pra
+  [Uso só no servidor](./server-only-usage).
+- Quer ver funcionando antes de ler qualquer coisa? Abra o
+  [Playground](/playground) — três
+  variantes ao vivo, desde "usa o kit de UI pronto" até "sem
+  `<Designer>` nenhum."
+- Montando a separação frontend-desenha/backend-gera? Veja
+  [Integração com backend](./backend-integration).
+
+## Instalação
+
+```bash
+npm install json-pdf-designer
+```
+
+Peer deps: `react` e `react-dom` (18 ou 19) — e são opcionais: se você
+só importa de `json-pdf-designer/server`, nunca precisa instalar nenhum
+dos dois. Veja [Instalação](./installation) pro quadro completo.

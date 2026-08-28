@@ -1,0 +1,40 @@
+---
+title: Seções Repetidas (Mestre-Detalhe)
+description: Um grupo de campos que se repete uma vez por item de array.
+---
+
+# Seção repetida (mestre-detalhe / data band)
+
+Uma `SectionSchema` é um retângulo puro — não guarda filhos, é só um
+**grupo**: qualquer campo (texto, imagem, tabela) largado em cima dela
+no canvas vira **membro** (via `BaseSchema.sectionId`), continuando um
+campo normal do array plano `template.schemas` — mesma posição
+absoluta, mesmo jeito de selecionar/editar/arrastar. Arrastar um campo
+pra FORA da seção limpa o vínculo de novo (bidirecional).
+
+Uma seção só arrasta pela **barra roxa no topo** — clicar em qualquer
+outro lugar dela (ou de um campo por cima) seleciona normalmente, sem
+mover.
+
+## Uma vez vinculada
+
+Vinculada (`type: "section"`, path pro array), a seção **repete uma
+vez por item** do array — empilhando na vertical e paginando junto com
+o resto do corpo.
+
+Dentro dela:
+
+- Qualquer texto membro resolve `{campo}` contra o **item atual** (não
+  o documento inteiro), e `{Line}`/`{index}` dá o número da repetição
+  (1, 2, 3…).
+- Uma **tabela membro sem vínculo próprio** mostra uma linha só, célula
+  a célula, contra o item atual — célula vazia cai no nome da coluna
+  direto (`head[i]` → `{item[head[i]]}`), célula preenchida é um
+  template de verdade.
+- Uma **tabela membro COM vínculo `array`** (path relativo ao item —
+  ex. Pedido → ItensPedido) é mestre-detalhe de verdade: uma linha por
+  item do array aninhado, e a seção **cresce de altura** pra caber (o
+  texto abaixo da tabela, se houver, desloca junto).
+
+Uma seção também pode ter **zero tabelas** — só campos de texto membros
+já é um "boletim"/lista repetida válido.

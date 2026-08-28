@@ -1,0 +1,86 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Builda o pacote raiz primeiro — os 3 exemplos dependem dele via
+      # "file:../.." (symlink), e precisam de dist/ já existindo tanto pra
+      # resolver o import em tempo de build (Vite) quanto pro typecheck
+      # (tsc -b contra dist/index.d.ts).
+      - name: Build root package
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build report-builder example
+        working-directory: examples/report-builder
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build custom-ui example
+        working-directory: examples/custom-ui
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build headless-designer example
+        working-directory: examples/headless-designer
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build docs site
+        working-directory: website
+        run: |
+          npm ci
+          npm run build
+
+      # Monta o site combinado: Docusaurus na raiz, cada exemplo copiado
+      # pra playground/<nome>/ (cada um com base: "./" no próprio
+      # vite.config.ts, então funciona em qualquer profundidade de subpath).
+      - name: Assemble combined site
+        run: |
+          mkdir -p site-dist/playground
+          cp -r website/build/. site-dist/
+          cp -r examples/report-builder/dist site-dist/playground/report-builder
+          cp -r examples/custom-ui/dist site-dist/playground/custom-ui
+          cp -r examples/headless-designer/dist site-dist/playground/headless-designer
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site-dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

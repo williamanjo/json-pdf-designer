@@ -1,0 +1,86 @@
+---
+title: Server-Only Usage (No React)
+description: Generate PDFs in a Node backend without installing react/react-dom.
+---
+
+# Server-only usage (no React needed)
+
+Only need `generatePdf` in a backend/Node API and don't want `react`/
+`react-dom` involved at all? Import from the `/server` subpath instead
+of the package root — same PDF-generation logic, but built as a
+separate, React-free bundle:
+
+```ts
+import { generatePdf, type Template, type Binding } from "json-pdf-designer/server";
+
+const bytes = await generatePdf(template, data, bindings);
+```
+
+It exports everything data/PDF-related — types, `generatePdf`,
+binding-resolution helpers (`renderTemplate`, `buildInputs`, …), chart
+color palettes, schema factories, `normalizeFontBytes` — but **not**
+`Designer`/`PdfPreview`/`PdfPreviewModal`/the ready-made UI components
+(all React), nor `downloadPdf` (uses the browser's `document`/`Blob` —
+doesn't apply on a server; write `bytes` to a file or an HTTP response
+instead).
+
+The package root (`.`) still exports the full set for apps that use
+both the editor and generation together — `react`/`react-dom` stay
+listed as peer dependencies there, but marked optional
+(`peerDependenciesMeta`), so a backend-only `npm install` doesn't force
+them on you either way.
+
+## Why this matters
+
+Before this split existed, importing *only* `generatePdf` from the
+package root still pulled the whole bundle — including `Designer`,
+`PdfPreview`, and every ready-made UI component — into the same module
+graph. That meant:
+
+- `npm install` always wanted `react`/`react-dom` present, even for a
+  pure Node API that never renders anything.
+- A backend with `react` genuinely absent could hit a hard runtime
+  `Cannot find module 'react'` the moment the module loaded.
+
+`json-pdf-designer/server` is a fully separate build with **zero**
+references to `react` anywhere in its module graph — verified by
+grepping the compiled output and by loading it in plain Node with no
+React installed anywhere on disk.
+
+## What it exports
+
+```ts
+// Types
+Template, Schema, TextSchema, TableSchema, TableColumnStyle, ImageSchema,
+SectionSchema, ChartSchema, KpiSchema, KpiIcon, BaseSchema, PageSize, Binding,
+KpiAggregation, TableColumn, DataSourceOption, SectionColumnDragPayload
+
+// Generation
+generatePdf(template, data, bindings, { fontBytes? }) => Promise<Uint8Array>
+normalizeFontBytes(bytes)
+
+// Bindings
+buildInputs, renderTemplate, resolveToken, rowsFromArrayBinding,
+columnLabel, columnKey, describeBinding, describeBindingShort,
+CUSTOM_FIELD_FUNCTIONS, resolveChartItems, aggregateChartItems, resolveKpiValue
+
+// Chart color palettes
+CHART_COLORS, CHART_OTHER_COLOR, CHART_PALETTES, CHART_PALETTE_LABELS,
+CHART_PALETTE_NAMES, CHART_PALETTE_SIZE, resolveChartPalette, resolveChartColors
+
+// KPI icons
+MATERIAL_ICON_GRID, MATERIAL_ICON_PATHS, MATERIAL_ICON_LABELS,
+MATERIAL_ICON_NAMES, materialIconLabels
+
+// Schema factories
+makeChartSchema, makeKpiSchema, makeSectionColumnPair
+
+// Units, page sizes, zones
+mmToPx, pxToMm, mmToPt, PAGE_SIZE_PRESETS, orientationOf,
+applyOrientation, matchPreset, classifyZone, isRedZone, clampToZone
+```
+
+See the <a href="/json-pdf-designer/playground/headless-designer/" target="_blank" rel="noopener noreferrer">headless-designer example</a>
+in the playground — it builds an entire (minimal) template editor using
+only this subpath plus `PdfPreview` from the main entry, with no
+`<Designer>` in sight.

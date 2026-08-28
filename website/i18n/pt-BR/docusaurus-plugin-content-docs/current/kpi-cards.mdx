@@ -1,0 +1,72 @@
+---
+title: Cartões KPI
+description: Um cartão indicador colorido — ícone, título, valor grande e legenda.
+---
+
+# Indicador (KPI)
+
+`KpiSchema` é um cartão de KPI: fundo colorido sólido, um ícone, um
+título, um valor grande e uma legenda.
+
+- `icon` é o nome de um ícone do
+  [Google Material Symbols](https://fonts.google.com/icons) (ex:
+  `bar_chart`, `attach_money`, `warning`) ou `"none"` — o seletor de
+  ícone do painel busca tanto pelo nome técnico quanto por um rótulo em
+  linguagem natural no `locale` ativo.
+- `title`/`value`/`subtitle` são texto comum (mesma sintaxe `{path}`/
+  `{FUNÇÃO(...)}` de um campo de texto solto) — sem `Binding` próprio,
+  resolvidos direto contra o documento inteiro na hora de gerar.
+
+## Estilo
+
+- `titleFontSize`/`valueFontSize`/`subtitleFontSize`/`iconSize` (pt) —
+  cada um cai no tamanho fixo original do cartão quando ausente
+  (8/20/8/14pt), então templates existentes nunca mudam de aparência.
+- `borderRadius` (0–100, uma porcentagem) — arredondamento de canto
+  relativo ao lado menor do próprio cartão (0 = cantos retos, 100 =
+  "pílula" cheia). Default de ~16%, batendo com o raio fixo original de
+  8pt do cartão no tamanho padrão.
+
+## Formato do número
+
+`numberFormat` (aba Dados) reformata o `value` quando ele resolve pra
+um número puro — nunca toca em texto com prefixo/sufixo (ex: `"R$ 42"`
+não é um número puro, então fica intocado):
+
+| `numberFormat` | Exemplo |
+| --- | --- |
+| `"none"` (default) | Mostra o valor resolvido exatamente como está. |
+| `"plain"` | `10000` — vírgula decimal se o número tiver uma, sem separador de milhar. |
+| `"grouped"` | `10.000` — igual, com separador de milhar. |
+
+## Vínculo a um array (agregação)
+
+O `value` de um KPI é um template livre por padrão (mesma sintaxe
+`{path}`/`{FUNÇÃO(...)}` de texto). Ele pode ser vinculado direto a um
+array — mesma ideia de um gráfico — via um `Binding` do tipo `kpi`:
+
+```ts
+const binding: Binding = {
+  schemaName: "total_vendas",
+  type: "kpi",
+  path: "vendasPorAgente",
+  valueColumn: "value", // ignorado quando aggregation é "count"
+  aggregation: "sum", // "sum" | "count" | "avg" | "min" | "max"
+  filters: [[{ column: "status", op: "eq", value: "fechado" }]], // opcional, mesma forma do gráfico
+};
+```
+
+Quando existe um vínculo `kpi` pra um cartão, ele **sobrescreve** o
+template livre de `value` inteiramente — o número agregado vira o
+valor, `title`/`subtitle` não são afetados. Sem vínculo `kpi`, o
+cartão se comporta exatamente como antes (`value` livre).
+
+## Edição em bloco na seleção múltipla
+
+Selecionar vários cartões KPI juntos (`Ctrl`/`Cmd`+clique) libera
+editar em bloco o **Estilo** compartilhado (cor, tamanhos de fonte,
+ícone, arredondamento de borda — aplica em todos os selecionados de
+uma vez); o conteúdo de **Dados** de cada cartão (título/valor/legenda)
+fica travado pra evitar sobrescrever o texto próprio de cartões
+diferentes, exceto `numberFormat`, que é compartilhado e continua
+editável.

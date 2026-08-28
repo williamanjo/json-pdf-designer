@@ -1,0 +1,109 @@
+---
+title: Conceitos Centrais
+description: Template, Schema e Binding — as formas em que tudo mais se apoia.
+---
+
+# Conceitos centrais
+
+## O modelo de dados
+
+```ts
+type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
+
+type Template = {
+  page: PageSize; // { width, height } em mm
+  headerHeight?: number; // faixas estáticas (mm) repetidas em toda página gerada
+  footerHeight?: number;
+  marginLeft?: number;
+  marginRight?: number;
+  backgroundImage?: string; // PNG data URI, fundo tipo letterhead
+  schemas: Schema[];
+};
+
+type Binding =
+  | { schemaName: string; type: "scalar"; path: string }
+  | { schemaName: string; type: "array"; path: string; columns: TableColumn[] }
+  | { schemaName: string; type: "keyvalue"; paths: string[] }
+  | { schemaName: string; type: "template"; template: string }
+  | { schemaName: string; type: "section"; path: string }
+  | { schemaName: string; type: "chart"; path: string; labelColumn: string; valueColumn: string; filters?: ChartFilterGroup[] };
+```
+
+Todo `Schema` compartilha `BaseSchema` (`id`, `name`, `x`/`y`/`width`/
+`height` em mm, `locked?`, `sectionId?`) mais os campos específicos de
+cada tipo — veja a [Referência da API pública](./public-api) pra forma
+completa e atual.
+
+**Unidade de medida: mm em todo o modelo de dados** — fácil de
+raciocinar, uma folha A4 é simplesmente 210×297mm. Convertido pra
+**px** só pra renderizar no canvas do editor, e pra **pt** só na hora
+de desenhar o PDF de verdade via `pdf-lib`.
+
+## Campos do editor
+
+Texto, tabela, imagem, **seção** repetida (mestre-detalhe), **gráfico**
+(pizza/barra) e cartão **indicador** (KPI) — todos arrastam/
+redimensionam livre ([react-rnd](https://github.com/bokuweb/react-rnd)),
+com **grade de 5mm** travando posição/tamanho por padrão — segure
+**Shift** durante o arrasto pra soltar da grade.
+
+- Duplo clique liga edição inline (texto/tabela viram input/textarea
+  direto em cima do campo; imagem abre o seletor de arquivo).
+- `Delete`/`Backspace` remove todos os campos selecionados; `Ctrl`/
+  `Cmd`+`C`/`V` copia/cola (desativado enquanto digita num input, pra
+  nunca comer digitação normal).
+- **Seleção múltipla**: `Ctrl`/`Cmd`+clique, ou arraste uma caixa de
+  seleção sobre o canvas vazio. Arrastar qualquer campo selecionado
+  move o grupo inteiro.
+
+## O painel lateral
+
+Uma única fileira de abas, sem aninhamento — **Campos** (todo campo
+colocado, clique seleciona, travar/enviar-pra-trás/trazer-pra-frente/
+remover), **Página** (tamanho, orientação, cabeçalho/rodapé/margem,
+fundo), sempre disponíveis; mais **Dados**/**Estilo**/**Filtro** — só
+presentes enquanto um campo está selecionado, e só as que fazem
+sentido pro tipo dele (sem Estilo pra imagem/seção; Filtro só pra
+gráfico).
+
+As abas são reordenáveis por arraste e fixáveis (esconde com "×",
+reaparece com "+") — ordem e abas escondidas persistem no
+`localStorage`, uma preferência de UI separada do `Template`/
+`Binding[]` salvo.
+
+**Edição em bloco na seleção múltipla** — selecionar vários campos do
+MESMO tipo juntos (todos texto, todos KPI, todos gráfico) libera editar
+em bloco as configurações de Estilo compartilhadas (cor, tamanho de
+fonte, paleta…) em todos de uma vez, a partir de um painel só; o
+conteúdo de Dados de cada item fica travado pra evitar sobrescrever o
+conteúdo próprio de campos diferentes por acidente, exceto pelo
+punhado de configurações que são genuinamente compartilhadas (ex: o
+formato de número de um KPI, ou o separador de milhar/"agrupar em
+Outros" de um gráfico).
+
+## Avisos de configuração incompleta
+
+Uma seção/gráfico sem vínculo com o JSON, ou um filtro de gráfico com
+coluna escolhida mas sem valor preenchido, ganha um ícone de alerta ⚠
+amarelo na lista de Campos (e na aba certa) — apontando direto pro que
+precisa ser corrigido.
+
+## Tamanho de página, orientação e fundo
+
+O `<Designer>` mostra um seletor de tamanho (A4/A3/A5/Carta/Ofício) e
+orientação (retrato/paisagem) na aba "Página" —
+`applyOrientation`/`orientationOf`/`matchPreset`/`PAGE_SIZE_PRESETS`
+(todos exportados) fazem a mesma conta pra um seletor próprio.
+
+`Template.backgroundImage` coloca uma imagem (ou a primeira página de
+um PDF enviado, rasterizada uma vez) atrás de tudo, tanto no editor
+quanto no PDF final.
+
+## Fontes customizadas
+
+Passe `fontBytes` (um TTF/OTF de verdade) pra `generatePdf(...,
+{ fontBytes })` pra acentuação/Unicode completos via `fontkit`. Sem
+isso, cai no Helvetica padrão do `pdf-lib` (cobre a maioria dos
+acentos latinos, não tudo). `.woff`/`.woff2` também são aceitos —
+`normalizeFontBytes(bytes)` detecta e descomprime pro TTF/OTF de
+verdade que o `pdf-lib` precisa, automaticamente.

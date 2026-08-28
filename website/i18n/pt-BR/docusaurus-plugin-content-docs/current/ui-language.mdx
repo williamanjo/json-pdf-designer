@@ -1,0 +1,45 @@
+---
+title: Idioma da UI (i18n)
+description: Troque a casca do Designer entre inglês e português.
+---
+
+# Idioma da UI
+
+O `<Designer>` fala inglês por padrão. Passe `locale="pt-BR"` pra
+trocar a própria UI dele (botões, abas, avisos, placeholders) pro
+português:
+
+```tsx
+<Designer
+  locale="pt-BR"
+  template={template}
+  onChangeTemplate={setTemplate}
+  bindings={bindings}
+  onChangeBindings={setBindings}
+/>
+```
+
+É só uma configuração de casca de UI — **nunca** muda como o PDF
+gerado formata data ou moeda (isso é `{DATE(...)}`/`{CURRENCY(...)}`
+escrito no próprio conteúdo do template por quem monta ele, ver
+[Vínculo de dados](./data-binding)), nem muda o `name` interno que seus
+templates já usam pra campos existentes.
+
+## Componentes sozinhos
+
+Se você usa algum componente do pacote sozinho (`PdfPreview`,
+`FieldList` etc) sem embrulhar em `<Designer>`, eles renderizam em
+inglês por padrão também — embrulhe em `<I18nProvider locale="pt-BR">`
+você mesmo se precisar deles em português:
+
+```tsx
+import { I18nProvider, PdfPreview } from "json-pdf-designer";
+
+<I18nProvider locale="pt-BR">
+  <PdfPreview bytes={pdfBytes} />
+</I18nProvider>
+```
+
+`useT()`/`useLocale()` (exportados) dão o dicionário/código de idioma
+ativo dentro dos seus próprios componentes — o mesmo contexto que o
+`<Designer>` usa por dentro.

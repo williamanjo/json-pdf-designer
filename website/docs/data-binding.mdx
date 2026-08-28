@@ -1,0 +1,73 @@
+---
+title: Data Binding & Templates
+description: How fields connect to real JSON data, and every available template function.
+---
+
+# Data binding & templates
+
+Each field points at the real JSON via a `Binding`:
+
+- **`scalar`** — a direct value (`path.in.json`).
+- **`template`** — free text with `{token}`, e.g.
+  `"Client: {name} — Total: {SUM(rows.total)}"`.
+- **`array`** — a table built from an array of objects, column by
+  column, including **calculated columns** (a fixed label + a formula
+  evaluated per row — can combine fixed text with more than one token:
+  `"{pnr} - {product}"`).
+- **`keyvalue`** — a "field / value" table from a manually chosen list
+  of paths.
+- **`section`** — the array a [section](./repeated-sections) repeats,
+  one item per repetition.
+- **`chart`** — an array to aggregate into a pie/bar chart (`path`,
+  `labelColumn`, `valueColumn`, optional `filters`) — see [Charts](./charts).
+- **`kpi`** — an array to aggregate (`sum`/`count`/`avg`/`min`/`max`)
+  into a single number for a KPI card, overriding its free-text `value`
+  — see [KPI cards](./kpi-cards).
+
+## Template functions
+
+Inside `{...}` (text, calculated column, footer cell — anywhere):
+
+| Function | What it does |
+| --- | --- |
+| `SUM`, `COUNT`, `AVG` | Aggregate an array path. |
+| `CONCAT`, `UPPER`, `LOWER` | String helpers. |
+| `TRIM(path)` | Trims whitespace from both ends — useful for a legacy system's fixed-width field (`"invoice": " 01156189"`). `{token}`/`CONCAT` preserve the value exactly as it came, on purpose — the space only goes away if you ask for it. |
+| `DATE(path, "output"[, "input"])` | Formats a date — see below. |
+| `CURRENCY(path, "$")` | Formats a number with a currency symbol. |
+| `NUMBER(path, decimals)` | Like C's `%.2f` — decimal places only, no symbol/thousands separator (that's `CURRENCY`). |
+
+Simple **arithmetic** works too: `{qty * price}`, `{subtotal - discount}`
+— evaluated left to right, no operator precedence.
+
+A function can receive another function or an arithmetic expression as
+an argument (`{CURRENCY(SUM(rows.total), "$")}`), with one exception:
+**two function calls combined by an operator in the same expression**
+(`{SUM(a) - SUM(b)}`) doesn't resolve correctly — pre-compute the value
+in the JSON or split it into two tokens instead.
+
+## Dates are always read/written in UTC
+
+`DATE`'s 3rd argument (optional) gives the **input format** — without
+it, JS's `new Date(raw)` tries to guess, and a date like `"10/04/2025"`
+(the 10th) turns into October 10th (American format). Passing
+`DATE(dueDate, "DD/MM/YYYY", "DD/MM/YYYY")` reads it exactly as
+written, with no ambiguity.
+
+Dates are always read/written in **UTC** — not the browser/server's
+own timezone that happens to generate the PDF. A date-only value
+(`"2026-07-01"`, no time) comes out matching exactly what was written,
+no matter where it runs; a datetime with an explicit offset
+(`"...T23:30:00-03:00"`) is converted to the equivalent UTC instant.
+
+## Public functions for a custom binding UI
+
+```ts
+buildInputs(data, bindings)                // resolves every binding at once
+renderTemplate(template, data)             // resolves a free "{token}" template
+resolveToken(token, data)                  // resolves a single token/function
+rowsFromArrayBinding(list, columns)        // array of objects -> table rows
+columnLabel(col), columnKey(col)
+describeBinding(b, t?), describeBindingShort(b, t?)  // t: Dict — defaults to English
+CUSTOM_FIELD_FUNCTIONS                     // the list of available functions
+```

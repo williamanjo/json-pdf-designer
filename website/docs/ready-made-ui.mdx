@@ -1,0 +1,50 @@
+---
+title: Ready-Made UI Components
+description: Optional Button/Card/Input/PdfPreviewModal, or build your own shell.
+---
+
+# Ready-made UI components
+
+If you don't want to (or can't) build your own visual shell around
+`<Designer>`, the package also exports the ready-made components it
+uses internally (`Button`, `Card`, `Input`, icons, etc — Tailwind, same
+look as the property panel) and a complete `PdfPreviewModal`:
+
+```tsx
+import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select, PdfPreviewModal } from "json-pdf-designer";
+import "json-pdf-designer/style.css";
+
+<Card>
+  <CardHeader>
+    <CardTitle>Data sources</CardTitle>
+    <Button variant="ghost" size="icon"><IconX /></Button>
+  </CardHeader>
+  <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+</Card>
+```
+
+## PdfPreviewModal
+
+A full modal wrapping `<PdfPreview>` — fit-to-container scale (recalculated
+on window resize), top-aligned scrollable multi-page layout, download and
+close buttons:
+
+```tsx
+import { PdfPreviewModal } from "json-pdf-designer";
+
+{previewBytes && (
+  <PdfPreviewModal
+    bytes={previewBytes}
+    page={template.page}
+    onClose={() => setPreviewBytes(null)}
+  />
+)}
+```
+
+## None of this is required
+
+The <a href="/json-pdf-designer/playground/custom-ui/" target="_blank" rel="noopener noreferrer">custom-ui example</a>
+builds its entire shell with its own CSS, without importing any of
+these components, to prove `<Designer>` works either way. The
+<a href="/json-pdf-designer/playground/headless-designer/" target="_blank" rel="noopener noreferrer">headless-designer example</a>
+goes one step further and doesn't use `<Designer>` at all.

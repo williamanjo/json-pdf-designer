@@ -1,0 +1,74 @@
+---
+title: Referência da API Pública
+description: Todo export, agrupado por área — entrada principal e /server.
+---
+
+# API pública
+
+Tudo abaixo vem de `json-pdf-designer`. O subconjunto de geração/
+vínculos/paleta de cor/tipos também está disponível sem React em
+`json-pdf-designer/server` — veja [Uso só no servidor](./server-only-usage).
+
+```ts
+// Componente
+Designer                                   // canvas React completo (toolbar + lista + réguas + zoom + faixas)
+PdfPreview, configurePdfWorker             // preview do PDF gerado
+PdfPreviewModal                            // modal completo em volta do PdfPreview (botão baixar/fechar)
+
+// Idioma da UI (ver "Idioma da UI")
+I18nProvider, useT, useLocale, withInlineCode
+type Locale, type Dict
+
+// UI pronta (opcional — ver "Componentes de UI prontos")
+Button, Card, CardHeader, CardTitle, Badge, TabPanel, Input, ColorInput, Textarea, Select
+IconPlus, IconX, IconTrash, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
+IconArrowsVertical, IconDots, IconUpload, IconLock, IconLockOpen, IconBringToFront,
+IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle
+
+// Geração (também em json-pdf-designer/server, exceto downloadPdf)
+generatePdf(template, data, bindings, { fontBytes? }) => Promise<Uint8Array>
+downloadPdf(bytes, filename?)              // só navegador (document/Blob) — não está no /server
+normalizeFontBytes(bytes)                  // detecta WOFF/WOFF2 e descomprime
+
+// Vínculos (também em json-pdf-designer/server)
+buildInputs(data, bindings)                // resolve todos os vínculos de uma vez
+renderTemplate(template, data)             // resolve um template livre "{token}"
+resolveToken(token, data)                  // resolve um token/função isolado
+rowsFromArrayBinding(list, columns)        // array de objetos -> linhas de tabela
+columnLabel(col), columnKey(col)
+describeBinding(b, t?), describeBindingShort(b, t?)  // t: Dict, pra exibição na UI — default inglês
+CUSTOM_FIELD_FUNCTIONS                     // lista das funções disponíveis (pra UI própria)
+resolveChartItems(binding, data)           // vínculo "chart" -> [{label, value}] cru
+aggregateChartItems(items, topN?, sortBy?, palette?)  // agrupa nos topN maiores + "Outros" (com cor)
+resolveKpiValue(binding, data)             // vínculo "kpi" -> um número agregado só
+
+// Paletas de cores do gráfico (também em json-pdf-designer/server)
+CHART_COLORS, CHART_OTHER_COLOR, CHART_PALETTES, CHART_PALETTE_LABELS,
+CHART_PALETTE_NAMES, CHART_PALETTE_SIZE, resolveChartPalette, resolveChartColors
+type ChartPaletteName, type ChartPresetName
+
+// Ícones do KPI (também em json-pdf-designer/server)
+MATERIAL_ICON_GRID, MATERIAL_ICON_PATHS, MATERIAL_ICON_LABELS, MATERIAL_ICON_NAMES,
+materialIconLabels(locale)                 // rótulos de busca de ícone em inglês ou português
+type MaterialIconName
+
+// Fábricas de schema (também em json-pdf-designer/server)
+makeChartSchema(nextY, t?), makeKpiSchema(nextY, t?), makeSectionColumnPair(sectionId, column, x, y, t?)
+
+// Zonas — cabeçalho/rodapé/margem (também em json-pdf-designer/server)
+classifyZone(schema, page, bands) => Zone  // "header" | "footer" | "marginLeft" | "marginRight" | "body"
+isRedZone(zone), clampToZone(...)
+
+// Unidades (também em json-pdf-designer/server)
+mmToPx, pxToMm, mmToPt
+
+// Página — tamanho e orientação (também em json-pdf-designer/server)
+PAGE_SIZE_PRESETS                          // A4/A3/A5/Carta/Ofício, sempre em retrato
+orientationOf(page), applyOrientation(page, orientation), matchPreset(page)
+
+// Tipos (também em json-pdf-designer/server)
+Template, Schema, TextSchema, TableSchema, TableColumnStyle, ImageSchema,
+SectionSchema, ChartSchema, KpiSchema, KpiIcon, BaseSchema, PageSize, Binding,
+KpiAggregation, TableColumn, DataSourceOption, SectionColumnDragPayload, Zone, Bands,
+GeneratePdfOptions, Orientation
+```

@@ -7,6 +7,11 @@ import react from "@vitejs/plugin-react";
 // "json-pdf-designer/style.css" (import estático, ver main.tsx), não
 // depende do consumidor ter Tailwind configurado.
 export default defineConfig({
+  // Relativo (não "/repo-name/") — funciona em qualquer subpath do GitHub
+  // Pages (site é montado em playground/custom-ui/) sem precisar hardcodar
+  // o nome do repo aqui. Só é seguro porque este app não usa client-side
+  // router (SPA de view única).
+  base: './',
   plugins: [react()],
   // Porta fixa — sem isso o Vite cai no default 5173, que colide com o
   // dev server do example "report-builder" se os dois rodarem juntos.

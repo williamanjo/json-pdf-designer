@@ -1,0 +1,189 @@
+---
+title: Integração com Backend
+description: Frontend desenha o template, backend gera e envia o PDF.
+---
+
+# Integração: frontend com o Designer + backend gerando o PDF
+
+Como usar o `json-pdf-designer` num sistema separado em duas partes:
+um **frontend** onde o usuário desenha o template (`<Designer>`) e
+salva o resultado, e um **backend/API** que, a partir de um
+`templateId` + os dados reais, junta os dois, gera o PDF e manda por
+e-mail.
+
+Ponto-chave que faz isso funcionar sem gambiarra: **`generatePdf` é JS
+puro (`pdf-lib`) — roda em Node exatamente igual roda no navegador**,
+sem headless browser, sem Puppeteer, sem nada a mais. Use
+[`json-pdf-designer/server`](./server-only-usage) no backend pra
+`react`/`react-dom` nem precisarem ser instalados lá.
+
+## Visão geral
+
+Duas fontes de verdade, cada uma cuidando só da própria parte:
+
+- **Template + vínculos (`Binding[]`)** — desenhado no frontend,
+  guardado como JSON no banco. Não tem dado real dentro, só a
+  estrutura (posição, tamanho, cor, `{token}`/`{FUNÇÃO(...)}`).
+- **Dado real** — só existe na hora de gerar; vem no corpo da
+  requisição de quem pede o relatório.
+
+## 1. Frontend — desenhar e salvar o template
+
+O frontend usa o pacote exatamente como o exemplo de
+[Instalação](./installation) — a única diferença é que "Salvar" vira
+uma requisição pra sua API em vez de um download local:
+
+```tsx
+import { useState } from "react";
+import { Designer, type Template, type Binding } from "json-pdf-designer";
+import "json-pdf-designer/style.css";
+
+function TemplateEditorPage({ templateId }: { templateId?: string }) {
+  const [template, setTemplate] = useState<Template>(/* carregado do backend ou vazio */);
+  const [bindings, setBindings] = useState<Binding[]>([]);
+
+  async function handleSave() {
+    const method = templateId ? "PUT" : "POST";
+    const url = templateId ? `/api/templates/${templateId}` : "/api/templates";
+    await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Recibo padrão", template, bindings }),
+    });
+  }
+
+  return (
+    <>
+      <Designer template={template} onChangeTemplate={setTemplate} bindings={bindings} onChangeBindings={setBindings} />
+      <button onClick={handleSave}>Salvar</button>
+    </>
+  );
+}
+```
+
+`template`/`bindings` são só objetos JS serializáveis
+(`JSON.stringify` direto) — dá pra guardar como estão. Um preview no
+frontend (opcional, com dado de exemplo) continua igual ao que já
+existe: `generatePdf(template, data, bindings)` + `<PdfPreview>`,
+rodando no navegador do usuário enquanto ele desenha — sem relação
+nenhuma com a geração de verdade que o backend faz depois.
+
+## 2. Backend — rota + controller
+
+```ts
+// app/controllers/reports_controller.ts (forma agnóstica de framework)
+import { generatePdf } from "json-pdf-designer/server";
+
+export async function generateReport({ templateId, data, email }) {
+  const row = await ReportTemplate.find(templateId); // sua própria camada de dados
+  if (!row) throw new NotFoundError();
+
+  let pdfBytes: Uint8Array;
+  try {
+    pdfBytes = await generatePdf(row.template, data, row.bindings);
+  } catch (err) {
+    // erro de conteúdo (ex: imagem de fundo corrompida) vira 422, não
+    // 500 — o template tá ok, o DADO que chegou é que não bateu com o
+    // que o template espera.
+    throw new UnprocessableEntityError(String(err));
+  }
+
+  await sendEmail({ to: email, subject: "Seu relatório", attachment: Buffer.from(pdfBytes) });
+}
+```
+
+Sem DOM, sem `canvas` do navegador, sem `document` — `generatePdf` só
+usa `pdf-lib`/`fontkit`, que rodam em Node normalmente. `downloadPdf` é
+a única função do pacote que só funciona no navegador — o backend
+nunca chama ela, só `generatePdf` + `Buffer.from(bytes)`.
+
+### Fonte customizada no backend
+
+Se o template usa `fontBytes` (acentuação/Unicode completo), carregue o
+`.ttf`/`.otf` do disco uma vez, no boot — não a cada requisição:
+
+```ts
+import { readFile } from "node:fs/promises";
+
+let reportFontBytes: Uint8Array;
+export async function loadReportFont() {
+  reportFontBytes = await readFile("resources/fonts/inter-regular.ttf");
+}
+
+// depois:
+const pdfBytes = await generatePdf(template, data, bindings, { fontBytes: reportFontBytes });
+```
+
+## 3. Contrato de API sugerido
+
+| Rota | O que faz |
+| --- | --- |
+| `POST /api/templates` | Cria um template novo (`{ name, template, bindings }`) |
+| `PUT /api/templates/:id` | Atualiza um template existente |
+| `GET /api/templates/:id` | Carrega `{ template, bindings }` de volta pro `<Designer>` editar |
+| `GET /api/templates` | Lista (nome + id) pra um seletor no frontend |
+| `POST /api/reports/generate` | Junta `templateId` + `data`, gera o PDF, manda e-mail |
+
+## 4. Segurança
+
+- **Nunca aceite `template`/`bindings` no corpo do
+  `/reports/generate`** — só o `templateId`. Se o cliente puder mandar
+  o template junto, ele controla o que o servidor desenha (inclusive
+  `backgroundImage` — base64 arbitrário) e quanto processamento uma
+  seção repetida gigante consome. O template só muda pelas rotas de
+  `/templates`, autenticadas como o mesmo dono/tenant que o criou.
+- **Limite o tamanho de `data`** (um limite de tamanho de corpo, ex.
+  2–5MB) — uma seção repetida itera o array inteiro; um array absurdo
+  vira um PDF de milhares de páginas e trava o processo.
+- **`email` sempre validado** antes de mandar — evita virar relay de
+  spam.
+- Um log de auditoria simples (quem gerou, `templateId`, timestamp,
+  destinatário) — útil pra debugar "cadê meu relatório" sem guardar o
+  PDF inteiro.
+
+## 5. Síncrono ou em fila?
+
+Pra templates pequenos, gerar e mandar o e-mail dentro do próprio
+handler (como acima) é suficiente — `generatePdf` de um relatório
+comum roda em milissegundos. Se o catálogo tiver templates pesados ou
+o volume de requisições for alto, tire a geração de dentro do ciclo
+request/response: o handler grava uma solicitação com
+`status = "pendente"` e responde na hora; um worker em segundo plano (um
+consumidor de fila, um job cron, o que seu projeto já usar) pega as
+solicitações pendentes e processa — o mecanismo de agendamento exato
+não importa, só o formato:
+
+```ts
+// linha de solicitação: templateId, data, email, filename, status ("pendente" | "concluido" | "erro"), errorMessage, processedAt
+
+// loop do worker:
+for (const req of await ReportRequest.where({ status: "pendente" })) {
+  try {
+    const pdfBytes = await generatePdf(req.template.template, req.data, req.template.bindings);
+    await sendEmail({ to: req.email, attachment: Buffer.from(pdfBytes) });
+    req.status = "concluido";
+  } catch (err) {
+    req.status = "erro";
+    req.errorMessage = String(err);
+  }
+  await req.save();
+}
+```
+
+Se o volume justificar reagir na hora em vez de esperar o próximo
+tick, publique um evento quando a solicitação é criada e faça o worker
+reagir a isso em vez de (ou além de) fazer poll — mas pra maioria dos
+casos de relatório sob demanda, um intervalo de poll curto já é mais
+simples e suficiente.
+
+## 6. Compatibilidade de versão do template
+
+Templates salvos ficam armazenados por tempo indeterminado, mas o
+pacote evolui (novos tipos de campo, novas opções). O modelo de dados
+já foi desenhado pra isso: campos novos em `ChartSchema`/`KpiSchema`
+são sempre **opcionais**, com um default aplicado na hora de desenhar
+quando ausentes — ver [Arquitetura](./architecture) — então atualizar
+o pacote no backend não quebra template salvo antes do campo existir.
+Ainda assim, é uma boa guardar a versão do pacote junto do log de
+geração, pra saber com qual versão um PDF específico foi gerado se
+algum dia precisar investigar uma diferença visual.

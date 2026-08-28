@@ -1,0 +1,55 @@
+---
+title: Tables — Header, Value, and Footer Totals
+description: Table styling, per-column overrides, and a totals row.
+---
+
+# Tables — header, value, and footer (totals)
+
+Besides its normal columns, a table can have a **totals row**
+(`footer`) — one cell per column, each a real template (fixed text
+and/or `{token}`/`{SUM(...)}`). It's drawn just once, on the last page
+slice, even if the table paginates (it never repeats like the header
+does).
+
+## Styling, three levels deep
+
+Background/text color and **font size** are configurable from most
+generic to most specific:
+
+1. **Whole header** — `headBackgroundColor`/`headTextColor`/`headFontSize`
+2. **Whole value row** (every data row) — `bodyBackgroundColor`/`bodyTextColor`/`bodyFontSize`
+3. **Whole footer** — `footerBackgroundColor`/`footerTextColor`/`footerFontSize`
+
+...and per **individual column** via `columnStyles` (header and value
+kept separate, overrides only that column). With nothing set, it falls
+back to the usual blue/white/9pt — old templates don't change
+appearance.
+
+The "Current table columns" list in the panel lets you **drag to
+reorder** (shifts `head`/`content`/`footer`/`columnStyles` together, by
+index) and has a "+" button to add a column from a known data source.
+
+## Pagination
+
+If a body table (or repeated section) has more rows/items than fit on
+one page, `generatePdf` automatically splits it across several pages.
+**Every** item in the body — table, section, text, image — is
+processed in a single sequence, **ordered by Y**: when one finishes,
+the next one continues right below it (same page or a new one,
+whichever fits), preserving the spacing drawn in the editor even if
+something before it grew or moved to a new page.
+
+Each table's editor lets you turn off "Repeat table header on next
+pages" (on by default).
+
+## Header, footer, and margins
+
+`Template.headerHeight`/`footerHeight`/`marginLeft`/`marginRight` (mm)
+are bands that repeat on **every page** of the generated PDF. There's
+no "zone" field on the schema — a field automatically falls into the
+header/footer/margin when its position (x/y) lands inside it.
+
+Inside a text field that falls in one of these bands, the special
+tokens `{pageNumber}` and `{pageCount}` work directly in the content
+and are re-resolved on every page — useful for a "Page 1 of 3" in the
+footer.

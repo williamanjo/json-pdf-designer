@@ -1,0 +1,65 @@
+---
+title: Estrutura do Pacote
+description: A árvore de código-fonte, pasta por pasta.
+---
+
+# Estrutura do pacote
+
+```
+src/
+  types/
+    schema.ts          -> Template/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
+    binding.ts         -> TableColumn, Binding (chart/kpi: path/labelColumn|valueColumn/filters/aggregation)
+    dataSource.ts      -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
+  units.ts             -> conversões mm <-> px <-> pt + grade (GRID_SIZE_MM, snapToGrid)
+  zones.ts             -> classifica campo em header/footer/margem/corpo + trava de arrasto
+  chartColors.ts       -> paletas categóricas fixas do gráfico + rótulos
+  materialIcons.ts     -> paths dos ícones Material Symbols + rótulos de busca EN/PT-BR (seletor do KPI)
+  kpiFormat.ts         -> defaults de tamanho de fonte/raio de borda/formato de número do KPI + formatação
+  chartFormat.ts       -> default de tamanho de fonte da legenda do gráfico, compartilhado preview + PDF
+  fieldWarnings.ts     -> mensagens de aviso "sem vínculo"/"filtro incompleto" (lista de campos, ícones de aba)
+  pageSizes.ts         -> presets de tamanho de página + orientação (retrato/paisagem)
+  schemaFactory.ts     -> cria schema novo (texto/tabela/imagem/seção/gráfico/indicador) + próximo Y livre
+  tableColumns.ts      -> mantém head/content/footer/columnStyles de uma tabela sincronizados com o vínculo array
+  i18n/
+    en.ts, pt-BR.ts    -> texto da própria UI do Designer, um arquivo por idioma (en é o canônico)
+    context.tsx, hooks.ts -> I18nProvider, useT, useLocale
+  bindings/
+    bindings.ts        -> resolve vínculos + funções (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER...) + aritmética
+                          + resolveChartItems/aggregateChartItems/resolveKpiValue
+    columnParsing.ts   -> parse do texto livre "col, Rótulo={FUNÇÃO(...)}" da tabela
+  pdf/
+    generate.ts        -> gera o PDF de verdade (pdf-lib): paginação unificada (tabela/seção/texto/imagem
+                          numa sequência só por Y), mestre-detalhe, faixas repetidas, fundo, fonte
+    drawTable.ts       -> desenha tabela no pdf-lib em fatias (paginação), cabeçalho/valor/rodapé com cor/tamanho
+    drawSection.ts     -> desenha uma seção repetida, uma passada por item do array vinculado
+    drawChart.ts       -> desenha pizza (fatias via drawSvgPath) ou barra + legenda no pdf-lib
+    drawKpi.ts         -> desenha o cartão de indicador (fundo + ícone traçado + título/valor/legenda)
+    pagination.ts      -> divide o conteúdo do corpo entre páginas contra as faixas de cabeçalho/rodapé/margem
+    resolvers.ts, color.ts -> pequenos helpers compartilhados pelos módulos draw*
+    fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1, WASM pro v2)
+    pdfWorker.ts       -> configuração do worker do pdf.js (só navegador)
+    backgroundImage.ts -> converte upload (PDF ou imagem) num PNG de fundo
+  Designer.tsx         -> orquestrador do canvas React — seleção, clipboard, barra de abas, toda mutação de Template/Binding[]
+  components/
+    PageCanvas.tsx     -> folha A4, réguas, zoom (zoom-aware drag/resize), grade, faixas vermelhas,
+                          caixa de seleção, drag/resize/edição inline
+    FieldBox/          -> renderiza texto/tabela/imagem/seção/gráfico/indicador no canvas (um arquivo por tipo)
+    FieldList.tsx      -> lista lateral de campos (selecionar/travar/remover, enviar-pra-trás/trazer-pra-frente)
+    Toolbar.tsx        -> botões "+ texto/tabela/imagem/seção/gráfico/indicador"
+    PropertyPanel.tsx  -> dispatcher fino pra um PropertyPanel<Tipo>.tsx por tipo de schema
+    PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,
+    PropertyPanelChart.tsx, PropertyPanelKpi.tsx, PropertyPanelFields.tsx -> conteúdo Dados/Estilo por tipo
+    BindingEditor.tsx  -> UI do vínculo genérico (scalar/template/array/keyvalue/section/chart/kpi + colunas calculadas)
+    Ruler.tsx          -> régua em mm (SVG)
+    PdfPreview.tsx     -> preview do PDF gerado via pdf.js
+    PdfPreviewModal.tsx-> modal completo em volta do PdfPreview (exportado)
+    ui/                -> Button, Input, Card, Select, Textarea, TabPanel, ícones — exportados,
+                          usados por dentro do próprio Designer (PropertyPanel/Toolbar/BindingEditor)
+  index.ts             -> exports públicos do pacote (React + geração)
+  server.ts            -> o subconjunto sem React de index.ts, pro json-pdf-designer/server
+examples/
+  report-builder/      -> app completo (fontes JSON, explorador de campos) usando a UI pronta do pacote
+  custom-ui/           -> mesma ideia, casca 100% própria (CSS na mão, sem nenhum componente do pacote)
+  headless-designer/   -> sem <Designer> nenhum — editor montado à mão sobre json-pdf-designer/server + PdfPreview
+```

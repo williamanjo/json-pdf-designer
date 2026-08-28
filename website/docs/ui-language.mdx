@@ -1,0 +1,45 @@
+---
+title: UI Language (i18n)
+description: Switch the Designer's own chrome between English and Portuguese.
+---
+
+# UI language
+
+The `<Designer>` speaks English by default. Pass `locale="pt-BR"` to
+switch its own UI (buttons, tabs, warnings, placeholders) to
+Portuguese:
+
+```tsx
+<Designer
+  locale="pt-BR"
+  template={template}
+  onChangeTemplate={setTemplate}
+  bindings={bindings}
+  onChangeBindings={setBindings}
+/>
+```
+
+This is purely a UI-chrome setting — it **never** changes how the
+generated PDF formats dates or currency (that's `{DATE(...)}`/
+`{CURRENCY(...)}` written into the template's own content by whoever
+designs it, see [Data binding](./data-binding)), and it never changes
+the internal `name` your templates already use for existing fields.
+
+## Standalone components
+
+If you use any of the package's components standalone (`PdfPreview`,
+`FieldList`, etc.) without wrapping them in `<Designer>`, they render
+in English by default too — wrap them in `<I18nProvider locale="pt-BR">`
+yourself if you need them in Portuguese:
+
+```tsx
+import { I18nProvider, PdfPreview } from "json-pdf-designer";
+
+<I18nProvider locale="pt-BR">
+  <PdfPreview bytes={pdfBytes} />
+</I18nProvider>
+```
+
+`useT()`/`useLocale()` (exported) give you the active dictionary/locale
+code inside your own components — the same context `<Designer>` uses
+internally.

@@ -1,0 +1,65 @@
+---
+title: Package Structure
+description: The source tree, folder by folder.
+---
+
+# Package structure
+
+```
+src/
+  types/
+    schema.ts          -> Template/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
+    binding.ts         -> TableColumn, Binding (chart/kpi: path/labelColumn|valueColumn/filters/aggregation)
+    dataSource.ts      -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
+  units.ts             -> mm <-> px <-> pt conversions + grid (GRID_SIZE_MM, snapToGrid)
+  zones.ts             -> classifies a field into header/footer/margin/body + drag lock
+  chartColors.ts       -> the chart's fixed categorical palettes + labels
+  materialIcons.ts     -> Material Symbols icon paths + EN/PT-BR search labels (KPI icon picker)
+  kpiFormat.ts         -> KPI font-size/border-radius/number-format defaults + formatting helper
+  chartFormat.ts       -> chart legend font-size default, shared by canvas preview + PDF drawing
+  fieldWarnings.ts     -> "missing binding"/"incomplete filter" warning messages (Fields list, tab icons)
+  pageSizes.ts         -> page size presets + orientation (portrait/landscape)
+  schemaFactory.ts     -> creates a new schema (text/table/image/section/chart/indicator) + next free Y
+  tableColumns.ts      -> keeps a table's head/content/footer/columnStyles in sync with its array binding
+  i18n/
+    en.ts, pt-BR.ts    -> the Designer's own UI text, one file per language (en is canonical)
+    context.tsx, hooks.ts -> I18nProvider, useT, useLocale
+  bindings/
+    bindings.ts        -> resolves bindings + functions (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER...) + arithmetic
+                          + resolveChartItems/aggregateChartItems/resolveKpiValue
+    columnParsing.ts   -> parses the table's free-text "col, Label={FUNCTION(...)}" input
+  pdf/
+    generate.ts        -> generates the real PDF (pdf-lib): unified pagination (table/section/text/image
+                          in a single sequence by Y), master-detail, repeated bands, background, font
+    drawTable.ts       -> draws a table in pdf-lib across page slices, header/value/footer with color/size
+    drawSection.ts     -> draws a repeated section, one pass per bound array item
+    drawChart.ts       -> draws pie (slices via drawSvgPath) or bar + legend in pdf-lib
+    drawKpi.ts         -> draws the KPI card (background + traced icon + title/value/caption)
+    pagination.ts      -> splits body content across pages against the header/footer/margin bands
+    resolvers.ts, color.ts -> small shared helpers for the draw* modules
+    fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1, WASM for v2)
+    pdfWorker.ts       -> shared pdf.js worker configuration (browser-only)
+    backgroundImage.ts -> turns an upload (PDF or image) into a background PNG
+  Designer.tsx         -> React canvas orchestrator — selection, clipboard, tab bar, all Template/Binding[] mutations
+  components/
+    PageCanvas.tsx     -> the A4 sheet, rulers, zoom (zoom-aware drag/resize), grid, red bands,
+                          marquee selection, drag/resize/inline editing
+    FieldBox/          -> renders text/table/image/section/chart/indicator on the canvas (one file per type)
+    FieldList.tsx      -> the side field list (select/lock/remove, send-to-back/bring-to-front)
+    Toolbar.tsx        -> the "+ text/table/image/section/chart/indicator" buttons
+    PropertyPanel.tsx  -> thin dispatcher to one PropertyPanel<Type>.tsx per schema type
+    PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,
+    PropertyPanelChart.tsx, PropertyPanelKpi.tsx, PropertyPanelFields.tsx -> per-type Data/Style content
+    BindingEditor.tsx  -> the generic binding UI (scalar/template/array/keyvalue/section/chart/kpi + calculated columns)
+    Ruler.tsx          -> the mm ruler (SVG)
+    PdfPreview.tsx     -> preview of the generated PDF via pdf.js
+    PdfPreviewModal.tsx-> a full modal around PdfPreview (exported)
+    ui/                -> Button, Input, Card, Select, Textarea, TabPanel, icons — exported,
+                          used internally by Designer itself (PropertyPanel/Toolbar/BindingEditor)
+  index.ts             -> the package's public exports (React + generation)
+  server.ts            -> the React-free subset of index.ts, for json-pdf-designer/server
+examples/
+  report-builder/      -> a full app (JSON data sources, field explorer) using the package's ready-made UI
+  custom-ui/           -> the same idea, a 100% custom shell (hand-written CSS, no package component)
+  headless-designer/   -> no <Designer> at all — a hand-built editor over json-pdf-designer/server + PdfPreview
+```

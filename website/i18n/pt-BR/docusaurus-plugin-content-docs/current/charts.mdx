@@ -1,0 +1,74 @@
+---
+title: Gráficos
+description: Gráficos pizza/barra, paletas de cor, formatação de valor e filtros.
+---
+
+# Gráficos
+
+`ChartSchema` desenha um gráfico pizza ou barra sobre um array
+vinculado (`Binding` do tipo `chart`: `path` do array, `labelColumn` a
+chave do rótulo, `valueColumn` a chave numérica somada por rótulo). No
+painel, os campos ficam em três abas:
+
+- **Dados** — ordenar por, agrupar em "Outros" a partir dos N maiores
+  (`topN`, default 7 — `0` mostra todo mundo), o toggle de separador de
+  milhar pro valor bruto (`10.000` vs `10000`), e o vínculo com o JSON.
+- **Estilo** — tipo de gráfico, formato da pizza (rosca/cheia), posição
+  e tamanho de fonte da legenda, paleta de cores, modo de exibição,
+  formato do valor.
+- **Filtro** — ver abaixo.
+
+Agrupa os `topN` maiores cada um numa cor fixa, e o resto numa fatia/
+barra "Outros" — nunca estoura a paleta. `displayMode` escolhe se a
+legenda/rótulo mostra o número bruto, a porcentagem do total, ou os
+dois; `valueFormat` (`"number"` default ou `"currency"`) formata a
+parte do valor bruto — `currencySymbol` (default `"R$"`) e `decimals`
+(default 2) só valem quando `valueFormat` é `"currency"`.
+
+## Paleta de cores
+
+`ChartSchema.colorPalette` nomeia uma paleta pronta (ver
+`CHART_PALETTE_NAMES`/`CHART_PALETTE_LABELS` em `chartColors.ts`):
+`"default"`, `"classic"`, `"modern"`, `"vibrant"`, `"pastel"`,
+`"grayscale"`. String solta (não união fechada) — ausente cai em
+`"default"` sozinho, então um template salvo com nome de paleta
+removida numa versão futura nunca quebra.
+
+`"custom"` usa `ChartSchema.customPaletteColors` (`string[]`, até
+`CHART_PALETTE_SIZE` cores hex) em vez de cor fixa — editável cor a cor
+no painel (aba Estilo → Paleta de cores → escolher "Personalizada"
+revela os seletores).
+
+## Filtro do gráfico
+
+Aba própria "Filtro" no painel, separada de "Vínculo com o JSON" — o
+`Binding` do tipo `chart` aceita `filters?: ChartFilterGroup[]` (grupos
+combinados com **OU**; dentro de um grupo, as condições combinam com
+**E**). Cada condição é `{ column, op, value }`, onde `column` é uma
+chave do item do array vinculado (não precisa ser `labelColumn`/
+`valueColumn` — filtre por uma coluna, agregue por outra) e `op` é
+`"eq"`, `"neq"`, `"gt"`, `"gte"`, `"lt"`, `"lte"`, ou `"contains"`
+(substring, case-insensitive).
+
+```ts
+// só agentes com quantidade > 20 OU status "vip"
+const binding: Binding = {
+  schemaName: "meu_grafico",
+  type: "chart",
+  path: "vendasPorAgente",
+  labelColumn: "label",
+  valueColumn: "value",
+  filters: [
+    [{ column: "quantity", op: "gt", value: "20" }],
+    [{ column: "status", op: "eq", value: "vip" }],
+  ],
+};
+```
+
+## Tamanho da fonte da legenda
+
+`ChartSchema.legendFontSize` (pt) controla o tamanho do texto da
+legenda (marcador + rótulo + valor) — a altura da linha escala junto
+automaticamente, então texto maior nunca sobrepõe entre linhas.
+Ausente cai no default (8pt), igual todo gráfico desenhado antes dessa
+opção existir.

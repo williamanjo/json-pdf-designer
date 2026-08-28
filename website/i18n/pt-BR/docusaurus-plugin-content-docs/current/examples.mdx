@@ -1,0 +1,56 @@
+---
+title: Exemplos
+description: Três apps de playground ao vivo, do "kit completo" ao "sem <Designer> nenhum".
+---
+
+# Exemplos
+
+Três apps de exemplo vivem em `examples/` no repositório, cada um com
+seu próprio README, e cada um rodável ao vivo no
+[Playground](/playground):
+
+## report-builder
+
+<a href="/json-pdf-designer/playground/report-builder/" target="_blank" rel="noopener noreferrer">Abrir no playground →</a>
+
+O designer completo — fontes de dados JSON, um explorador de campos, 6
+templates prontos — usando os componentes de UI prontos do pacote
+(`Button`/`Card`/`Input`/`PdfPreviewModal`). O caminho mais rápido: usa
+os componentes que a lib já distribui.
+
+## custom-ui
+
+<a href="/json-pdf-designer/playground/custom-ui/" target="_blank" rel="noopener noreferrer">Abrir no playground →</a>
+
+As mesmas funcionalidades do `report-builder`, mas a casca inteira
+(header, sidebar, cards, árvore de campos, modais) é CSS puro escrito
+à mão — zero `Button`/`Card`/`Input`/ícone importado do pacote. Prova
+que o próprio `<Designer>` funciona com qualquer design system, ou
+nenhum.
+
+## headless-designer
+
+<a href="/json-pdf-designer/playground/headless-designer/" target="_blank" rel="noopener noreferrer">Abrir no playground →</a>
+
+Sem o componente `<Designer>` nenhum. Um canvas montado à mão — a
+própria lógica de arrastar/redimensionar (`mousedown`/`mousemove`/
+`mouseup` puro, sem `react-rnd`) sobre `generatePdf` + tipos de
+`json-pdf-designer/server`, e o `PdfPreview` da entrada principal.
+Prova que o modelo de dados e o motor de PDF
+funcionam sozinhos, independente do editor de arrastar/soltar — a
+mesma ideia que um backend Node usa (ver [Uso só no servidor](./server-only-usage)
+e [Integração com backend](./backend-integration)), só que rodando no
+navegador aqui pra demonstração.
+
+## Rodando localmente
+
+Nenhum dos três é workspace do npm — cada um aponta pro pacote via
+`"json-pdf-designer": "file:../.."` no próprio `package.json`. A
+partir da raiz do repositório:
+
+```bash
+npm run build          # builda o pacote raiz uma vez, pra dist/ existir
+cd examples/report-builder   # ou custom-ui, ou headless-designer
+npm install
+npm run dev
+```

@@ -1,0 +1,50 @@
+---
+title: Usando Sua Própria Instalação do Tailwind
+description: Pule o CSS pré-compilado e deixe seu próprio Tailwind gerar as classes do Designer.
+---
+
+# Usando sua própria instalação do Tailwind
+
+`dist/style.css` é uma folha de estilo pré-compilada e independente —
+funciona com qualquer versão do Tailwind (ou nenhuma) no seu app,
+porque é CSS puro já compilado, não classes de utilitário "cruas".
+
+Se seu app já tem o próprio pipeline do Tailwind (v3 ou v4) e você
+prefere que ELE gere as classes do Designer também — pra seguir seu
+próprio tema/modo escuro em vez de carregar uma segunda folha de estilo
+separada — pule o import do `style.css` e aponte o scan de conteúdo do
+seu próprio Tailwind pro build do pacote:
+
+**Tailwind v4** (config em CSS):
+
+```css
+@import "tailwindcss";
+@source "../node_modules/json-pdf-designer/dist/**/*.{js,cjs}";
+```
+
+**Tailwind v3** (`tailwind.config.js`):
+
+```js
+module.exports = {
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/json-pdf-designer/dist/**/*.{js,cjs}",
+  ],
+  // ...
+};
+```
+
+`dist/index.js`/`dist/index.cjs` não são minificados, então os nomes de
+classe continuam intactos e o scanner de qualquer uma das duas versões
+consegue achar toda classe usada pelos componentes do Designer. Escolha
+um caminho ou outro — importar `style.css` **e** escanear o pacote com
+seu próprio Tailwind ao mesmo tempo só duplica as mesmas regras.
+
+:::tip Já está no Tailwind v3 com o próprio Preflight?
+O `dist/style.css` já vem com o Preflight do Tailwind **v4** embutido —
+importar os dois juntos aplica um reset de CSS duas vezes, o que pode
+aparecer como pequenas diferenças de espaçamento/borda onde os dois
+discordam. Escanear o pacote com o seu próprio Tailwind v3 (como acima)
+evita isso de vez: seu build nunca toca no nosso CSS, então só o SEU
+Preflight roda — nada pra importar, nada pra colidir.
+:::

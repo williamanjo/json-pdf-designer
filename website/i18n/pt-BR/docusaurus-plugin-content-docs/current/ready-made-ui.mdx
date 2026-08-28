@@ -1,0 +1,51 @@
+---
+title: Componentes de UI Prontos
+description: Button/Card/Input/PdfPreviewModal opcionais, ou monte a própria casca.
+---
+
+# Componentes de UI prontos
+
+Se você não quer (ou não pode) montar a própria casca visual em volta
+do `<Designer>`, o pacote também exporta os componentes prontos que
+ele usa por dentro (`Button`, `Card`, `Input`, ícones etc — Tailwind,
+mesmo estilo do painel de propriedades) e um `PdfPreviewModal`
+completo:
+
+```tsx
+import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select, PdfPreviewModal } from "json-pdf-designer";
+import "json-pdf-designer/style.css";
+
+<Card>
+  <CardHeader>
+    <CardTitle>Fontes de dados</CardTitle>
+    <Button variant="ghost" size="icon"><IconX /></Button>
+  </CardHeader>
+  <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
+</Card>
+```
+
+## PdfPreviewModal
+
+Um modal completo em volta do `<PdfPreview>` — escala que ajusta ao
+container (recalculada no resize da janela), layout rolável de
+múltiplas páginas alinhado ao topo, botões de baixar e fechar:
+
+```tsx
+import { PdfPreviewModal } from "json-pdf-designer";
+
+{previewBytes && (
+  <PdfPreviewModal
+    bytes={previewBytes}
+    page={template.page}
+    onClose={() => setPreviewBytes(null)}
+  />
+)}
+```
+
+## Nada disso é obrigatório
+
+O <a href="/json-pdf-designer/playground/custom-ui/" target="_blank" rel="noopener noreferrer">exemplo custom-ui</a>
+monta a casca inteira com CSS próprio, sem importar nenhum desses
+componentes, pra provar que o `<Designer>` funciona dos dois jeitos. O
+<a href="/json-pdf-designer/playground/headless-designer/" target="_blank" rel="noopener noreferrer">exemplo headless-designer</a>
+vai um passo além e nem usa o `<Designer>`.

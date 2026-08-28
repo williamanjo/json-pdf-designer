@@ -1,0 +1,54 @@
+---
+title: Examples
+description: Three live playground apps, from "batteries included" to "no <Designer> at all".
+---
+
+# Examples
+
+Three example apps live in `examples/` in the repo, each with its own
+README, and each runnable live in the
+[Playground](/playground):
+
+## report-builder
+
+<a href="/json-pdf-designer/playground/report-builder/" target="_blank" rel="noopener noreferrer">Open in the playground →</a>
+
+The full designer — JSON data sources, a field explorer, 6 ready-made
+templates — using the package's ready-made UI components (`Button`/
+`Card`/`Input`/`PdfPreviewModal`). The fastest path: use the components
+the library already ships.
+
+## custom-ui
+
+<a href="/json-pdf-designer/playground/custom-ui/" target="_blank" rel="noopener noreferrer">Open in the playground →</a>
+
+The exact same features as `report-builder`, but the entire shell
+(header, sidebar, cards, field tree, modals) is hand-written plain CSS
+— zero `Button`/`Card`/`Input`/icon imported from the package. Proves
+`<Designer>` itself works with any design system, or none at all.
+
+## headless-designer
+
+<a href="/json-pdf-designer/playground/headless-designer/" target="_blank" rel="noopener noreferrer">Open in the playground →</a>
+
+No `<Designer>` component at all. A hand-built canvas — its own drag/
+resize logic (plain `mousedown`/`mousemove`/`mouseup`, no `react-rnd`)
+over `generatePdf` + types from `json-pdf-designer/server`, plus
+`PdfPreview` from the main entry. Proves the data model and PDF engine
+work standalone, independent of the drag/drop editor — the
+same idea a Node backend relies on (see [Server-only usage](./server-only-usage)
+and [Backend integration](./backend-integration)), just running in the
+browser here for the demo.
+
+## Running locally
+
+None of the three are npm workspaces — each points at the package via
+`"json-pdf-designer": "file:../.."` in its own `package.json`. From the
+repo root:
+
+```bash
+npm run build          # build the root package once, so dist/ exists
+cd examples/report-builder   # or custom-ui, or headless-designer
+npm install
+npm run dev
+```

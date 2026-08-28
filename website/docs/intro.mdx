@@ -1,0 +1,45 @@
+---
+title: Introduction
+description: What json-pdf-designer is and where to go next.
+---
+
+# json-pdf-designer
+
+A visual PDF report editor for React — a drag/resize canvas
+(`<Designer>`) plus a JSON-data-binding engine, and a PDF generator
+(`generatePdf`) that runs identically in the browser and in a Node
+backend. Lean, i18n-ready, and built to be modified.
+
+## What you get
+
+| Piece | What it does |
+| --- | --- |
+| `<Designer>` | The React canvas — drag/resize fields, a tabbed side panel (Fields/Data/Style/Filter/Page), zoom, rulers, multi-select, copy/paste, undo-friendly state. |
+| `generatePdf` | Turns a `Template` + real JSON data + `Binding[]` into PDF bytes (`pdf-lib`) — works in the browser **or** in Node, no headless browser involved. |
+| Field types | Text, table, image, repeated **section** (master-detail), **chart** (pie/bar), **KPI** indicator card. |
+| Data binding | `{token}`/`{FUNCTION(...)}` templates against real JSON — `SUM`, `COUNT`, `AVG`, `DATE`, `CURRENCY`, `NUMBER`, arithmetic, and more. |
+| UI language | A `locale` prop on `<Designer>` (English or Portuguese) — only affects the editor's own chrome, never the generated report's content. |
+
+## Where to start
+
+- New to the package? Start with [Installation](./installation) and
+  [Core Concepts](./core-concepts).
+- Only generating PDFs on a server, no editor UI? Jump straight to
+  [Server-only usage](./server-only-usage).
+- Want to see it running before reading anything? Open the
+  [Playground](/playground) — three live
+  variants, from "uses the ready-made UI kit" to "no `<Designer>` at
+  all."
+- Building the frontend-designs / backend-generates split? See
+  [Backend integration](./backend-integration).
+
+## Install
+
+```bash
+npm install json-pdf-designer
+```
+
+Peer deps: `react` and `react-dom` (18 or 19) — and they're optional:
+if you only ever import from `json-pdf-designer/server`, you never
+need them installed at all. See [Installation](./installation) for the
+full picture.
