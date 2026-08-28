@@ -362,12 +362,16 @@ async function renderPageDef(
     }
 
     if (schema.type === "kpi") {
-      const title = renderTemplate(schema.title, data);
+      const title = schema.title !== undefined ? renderTemplate(schema.title, data) : undefined;
       const kpiBinding = bindings.find(
         (b): b is Extract<Binding, { type: "kpi" }> => b.schemaName === schema.name && b.type === "kpi"
       );
-      const value = kpiBinding ? String(resolveKpiValue(kpiBinding, data)) : renderTemplate(schema.value, data);
-      const subtitle = renderTemplate(schema.subtitle, data);
+      const value = kpiBinding
+        ? String(resolveKpiValue(kpiBinding, data))
+        : schema.value !== undefined
+          ? renderTemplate(schema.value, data)
+          : undefined;
+      const subtitle = schema.subtitle !== undefined ? renderTemplate(schema.subtitle, data) : undefined;
       drawKpi(page, font, schema, title, value, subtitle, xPt, yPt, widthPt, heightPt);
     }
 
@@ -467,7 +471,8 @@ async function renderPageDef(
             topYPt,
             widthPt,
             includeHead,
-            decision.isLastSlice ? footerRow : undefined
+            decision.isLastSlice ? footerRow : undefined,
+            decision.isLastSlice
           );
           remaining = remaining.slice(slice.length);
           isFirstSlice = false;

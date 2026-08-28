@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
-import type { PageSize, Schema, SectionColumnDragPayload } from "../types";
+import type { KpiElementKey, PageSize, Schema, SectionColumnDragPayload } from "../types";
 import { SECTION_COLUMN_MIME } from "../schemaFactory";
 import { GRID_SIZE_MM, mmToPx, pxToMm, snapToGrid } from "../units";
 import { classifyZone, clampToZone, isRedZone } from "../zones";
@@ -49,6 +49,10 @@ type Props = {
   // arrastar/redimensionar nesse passo. 0/negativo desliga a grade
   // (posição livre, sem quadriculado). Default 5mm.
   gridSizeMm?: number;
+  // Sub-elemento de KPI focado (ícone/título/valor/legenda) e seleção —
+  // ver KpiField.tsx/Designer.tsx. Só tem efeito nos campos type "kpi".
+  selectedKpiElement?: KpiElementKey | null;
+  onSelectKpiElement?: (el: KpiElementKey) => void;
 };
 
 const RULER_THICKNESS = 16;
@@ -84,6 +88,8 @@ export function PageCanvas({
   onCanvasDrop,
   onDropSectionColumn,
   gridSizeMm = GRID_SIZE_MM,
+  selectedKpiElement = null,
+  onSelectKpiElement,
 }: Props) {
   const t = useT();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -493,6 +499,10 @@ export function PageCanvas({
                     editing={isEditing}
                     onUpdate={(patch) => onUpdateSchema(schema.id, patch)}
                     onStopEditing={stopEditing}
+                    selected={selectedIds.length === 1 && selectedIds[0] === schema.id}
+                    zoom={zoom}
+                    selectedKpiElement={selectedIds.includes(schema.id) ? selectedKpiElement : null}
+                    onSelectKpiElement={onSelectKpiElement}
                   />
                 </Rnd>
               );

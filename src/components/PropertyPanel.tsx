@@ -1,4 +1,4 @@
-import type { Binding, DataSourceOption, Schema, TableColumnStyle } from "../types";
+import type { Binding, DataSourceOption, KpiElementKey, Schema, TableColumnStyle } from "../types";
 import { BindingEditor } from "./BindingEditor";
 import { PropertyPanelChart } from "./PropertyPanelChart";
 import { PropertyPanelImage } from "./PropertyPanelImage";
@@ -36,10 +36,14 @@ type Props = {
   // Estilo (cor/fundo/tamanho) de UMA coluna — cabeçalho e valor
   // separados. Botão "estilo" na lista de colunas abre o mini-painel.
   onSetColumnStyle?: (index: number, patch: Partial<TableColumnStyle>) => void;
+  onSetColumnWidth?: (index: number, widthMm: number | undefined) => void;
   // Fórmula de UMA coluna do vínculo "array" — botão "ƒx" na lista de
   // colunas. Só faz sentido pra tabela com vínculo array de verdade (sem
   // vínculo, o template já é editável direto na célula).
   onSetColumnFormula?: (index: number, formula: string) => void;
+  // Sub-elemento de KPI focado (ver Designer.tsx) — só o painel de KPI usa.
+  selectedKpiElement?: KpiElementKey | null;
+  onSelectKpiElement?: (el: KpiElementKey | null) => void;
 };
 
 // Conteúdo do campo selecionado pra aba "Dados"/"Estilo" ativa — cada tipo
@@ -64,7 +68,10 @@ export function PropertyPanel({
   onRemoveTableColumn,
   onReorderTableColumn,
   onSetColumnStyle,
+  onSetColumnWidth,
   onSetColumnFormula,
+  selectedKpiElement,
+  onSelectKpiElement,
 }: Props) {
   if (schema.type === "text") {
     return <PropertyPanelText schema={schema} activeTab={activeTab} bulkEdit={bulkEdit} onChangeSchema={onChangeSchema} />;
@@ -85,6 +92,7 @@ export function PropertyPanel({
         onRemoveTableColumn={onRemoveTableColumn}
         onReorderTableColumn={onReorderTableColumn}
         onSetColumnStyle={onSetColumnStyle}
+        onSetColumnWidth={onSetColumnWidth}
         onSetColumnFormula={onSetColumnFormula}
       />
     );
@@ -132,6 +140,8 @@ export function PropertyPanel({
       binding={binding}
       onChangeBinding={onChangeBinding}
       dataSources={dataSources}
+      selectedElement={selectedKpiElement}
+      onSelectElement={onSelectKpiElement}
     />
   );
 }

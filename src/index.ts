@@ -8,6 +8,7 @@ export type {
   TextSchema,
   TableSchema,
   TableColumnStyle,
+  TableCornerRadii,
   ImageSchema,
   SectionSchema,
   ChartSchema,

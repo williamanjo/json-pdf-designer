@@ -3,6 +3,7 @@ import type {
   Binding,
   DataSourceColumnType,
   DataSourceOption,
+  KpiElementKey,
   Schema,
   SectionColumnDragPayload,
   SectionSchema,
@@ -25,6 +26,7 @@ import {
   reorderTableColumn as reorderTableColumnPure,
   setColumnFormulaOnArrayBinding,
   setColumnStyle as setColumnStylePure,
+  setColumnWidth as setColumnWidthPure,
 } from "./tableColumns";
 import { classifyZone, isRedZone } from "./zones";
 import { GRID_SIZE_MM, snapToGrid } from "./units";
@@ -138,6 +140,14 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   // destaque no canvas e movem junto quando o principal é arrastado.
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const selectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
+  // Sub-elemento de KPI focado (ícone/título/valor/legenda) — só faz
+  // sentido com exatamente 1 KPI selecionado (ver KpiField.tsx/
+  // FieldList.tsx/PropertyPanelKpi.tsx); qualquer troca de seleção
+  // (campo diferente, ou virando seleção múltipla) limpa o foco.
+  const [selectedKpiElement, setSelectedKpiElement] = useState<KpiElementKey | null>(null);
+  useEffect(() => {
+    setSelectedKpiElement(null);
+  }, [selectedId, selectedIds.length]);
   // Abas "Dados"/"Estilo"/"Filtro" que o usuário fechou no "×" (ver botão
   // na própria aba) — fica fora da barra até ele reabrir pelo "+", mesmo
   // pra outros campos cujo tipo normalmente mostraria essa aba. É um
@@ -236,6 +246,27 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
       ...prev,
       schemas: prev.schemas.map((s) => (s.id === id ? ({ ...s, ...patch } as Schema) : s)),
     }));
+  }
+
+  // Renomear pela aba Campos (FieldList.tsx) — nome vazio ou já usado por
+  // outro campo é ignorado (mesma regra de unicidade do "colar", ver
+  // freshName/usedNames mais abaixo). Precisa remapear `bindings` também
+  // (mesma ideia do nameMap do "colar" logo abaixo, só que pra 1 campo só)
+  // — sem isso, um vínculo existente ("Binding.schemaName") apontando pro
+  // nome antigo para de bater com o schema renomeado (generate.ts resolve
+  // vínculo por nome) e silenciosamente some do PDF gerado.
+  function renameSchema(id: string, rawName: string) {
+    const newName = rawName.trim();
+    if (!newName) return;
+    const current = template.schemas.find((s) => s.id === id);
+    if (!current || current.name === newName) return;
+    if (template.schemas.some((s) => s.id !== id && s.name === newName)) return;
+    const oldName = current.name;
+    onChangeTemplate((prev) => ({
+      ...prev,
+      schemas: prev.schemas.map((s) => (s.id === id ? { ...s, name: newName } : s)),
+    }));
+    onChangeBindings((prev) => prev.map((b) => (b.schemaName === oldName ? { ...b, schemaName: newName } : b)));
   }
 
   // Mesmo patch em TODOS os ids de uma vez — usado só na edição em bloco
@@ -772,6 +803,19 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
     });
   }
 
+  // Largura de UMA coluna — input numérico do painel (arrastar a divisão
+  // no canvas já grava `columnWidths` direto via onUpdateSchema genérico,
+  // ver TableField.tsx). Mesmo padrão funcional de setColumnStyle acima.
+  function setColumnWidth(index: number, widthMm: number | undefined) {
+    if (!selectedId) return;
+    onChangeTemplate((prev) => {
+      const table = prev.schemas.find((s) => s.id === selectedId);
+      if (!table || table.type !== "table") return prev;
+      const newTable = setColumnWidthPure(table, index, widthMm);
+      return { ...prev, schemas: prev.schemas.map((s) => (s.id === selectedId ? newTable : s)) };
+    });
+  }
+
   // Fórmula de UMA coluna do vínculo "array" — botão "ƒx" na lista de
   // colunas do painel (só aparece pra tabela vinculada de verdade; sem
   // vínculo, o template já é editável direto na célula da tabela). Vazio
@@ -901,6 +945,8 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
           onMoveGroup={moveGroup}
           onCanvasDrop={onCanvasDrop}
           onDropSectionColumn={dropSectionColumn}
+          selectedKpiElement={selectedKpiElement}
+          onSelectKpiElement={setSelectedKpiElement}
         />
 
         <Card className="flex w-80 flex-shrink-0 flex-col gap-3 p-3.5">
@@ -1012,6 +1058,10 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
                     onBringToFront={bringToFront}
                     onSendToBack={sendToBack}
                     bindings={bindings}
+                    onRename={renameSchema}
+                    selectedKpiElement={selectedKpiElement}
+                    onSelectKpiElement={setSelectedKpiElement}
+                    onChangeSchema={updateSchema}
                   />
                 </div>
               </div>
@@ -1084,7 +1134,10 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
                   onRemoveTableColumn={removeTableColumn}
                   onReorderTableColumn={reorderTableColumn}
                   onSetColumnStyle={setColumnStyle}
+                  onSetColumnWidth={setColumnWidth}
                   onSetColumnFormula={setColumnFormula}
+                  selectedKpiElement={selectedKpiElement}
+                  onSelectKpiElement={setSelectedKpiElement}
                 />
               )}
 

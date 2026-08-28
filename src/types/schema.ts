@@ -47,10 +47,48 @@ export type TableColumnStyle = {
   cellFontSize?: number;
 };
 
+// Arredondamento de canto — 4 valores independentes (mm), mesma ideia do
+// border-radius do CSS por canto. Ausente = 0 (reto), igual sempre foi.
+// Cada bloco da tabela (cabeçalho/corpo/rodapé) tem o seu — só os cantos
+// que tocam a borda EXTERNA da tabela fazem sentido visualmente (cabeçalho:
+// só topLeft/topRight, já que o corpo sempre desenha logo abaixo dele;
+// rodapé: só bottomLeft/bottomRight, pela mesma razão ao contrário; corpo:
+// bottomLeft/bottomRight só importam quando NÃO há rodapé — com rodapé, é
+// ELE que fecha o canto de baixo). O editor (PropertyPanelTable.tsx) só
+// mostra os campos que fazem sentido pra cada bloco.
+export type TableCornerRadii = {
+  topLeft?: number;
+  topRight?: number;
+  bottomLeft?: number;
+  bottomRight?: number;
+};
+
 export type TableSchema = BaseSchema & {
   type: "table";
   head: string[];
   content: string[][];
+  // Largura (mm) de cada coluna — mesmo índice de `head`, sparse (índice
+  // sem entrada, ou array inteiro ausente) igual `columnStyles`. Coluna
+  // sem largura própria divide, em partes iguais, o que sobra de `width`
+  // depois de descontar as colunas COM largura explícita (ver
+  // resolveColumnWidthsMm em pdf/drawTable.ts) — sem nenhuma largura
+  // definida, cai na divisão igual de sempre. Mantido em sincronia
+  // (adicionar/remover/reordenar coluna) por tableColumns.ts, igual
+  // `columnStyles` já era.
+  columnWidths?: (number | undefined)[];
+  // Alinhamento de texto por BLOCO inteiro (cabeçalho/corpo/rodapé) — não
+  // por coluna (columnStyles continua só cor/fundo/tamanho de fonte).
+  // Ausente = "left"/"middle", comportamento de sempre.
+  headAlign?: "left" | "center" | "right";
+  headVerticalAlign?: "top" | "middle" | "bottom";
+  bodyAlign?: "left" | "center" | "right";
+  bodyVerticalAlign?: "top" | "middle" | "bottom";
+  footerAlign?: "left" | "center" | "right";
+  footerVerticalAlign?: "top" | "middle" | "bottom";
+  // Arredondamento por bloco — ver TableCornerRadii acima.
+  headBorderRadius?: TableCornerRadii;
+  bodyBorderRadius?: TableCornerRadii;
+  footerBorderRadius?: TableCornerRadii;
   // Quando a tabela pagina (mais linhas do que cabem numa página), repete
   // o cabeçalho em cada página nova — default true. false = cabeçalho só
   // na primeira página, o resto é só linhas.
@@ -72,6 +110,11 @@ export type TableSchema = BaseSchema & {
   bodyBackgroundColor?: string;
   bodyTextColor?: string;
   bodyFontSize?: number;
+  // Cor da linha "zebrada" (índice de linha ÍMPAR, 0-based) — ausente =
+  // sem zebra, toda linha usa bodyBackgroundColor de sempre. Escolher um
+  // preset de `colorPalette` (ver tableColors.ts) preenche este campo
+  // automaticamente, mas continua editável à mão depois.
+  bodyBandColor?: string;
   // Cores/tamanho da linha de rodapé — sem isso, cinza claro/preto/9pt.
   footerBackgroundColor?: string;
   footerTextColor?: string;
@@ -80,6 +123,12 @@ export type TableSchema = BaseSchema & {
   // — mais específico que os campos "linha toda" acima. Sparse — índice
   // sem entrada cai nos defaults da linha (header/valor) da tabela toda.
   columnStyles?: (TableColumnStyle | undefined)[];
+  // Nome de um preset pronto de src/tableColors.ts (ou "custom"/ausente =
+  // campos manuais acima) — mesma ideia de ChartSchema.colorPalette
+  // (ver chartColors.ts). String livre (não união fechada) pelo mesmo
+  // motivo do KpiIcon/colorPalette do chart: preset removido num template
+  // antigo cai pros campos manuais sozinho, sem quebrar.
+  colorPalette?: string;
 };
 
 export type ImageSchema = BaseSchema & {
@@ -160,17 +209,33 @@ export type ChartSchema = BaseSchema & {
 // simplesmente não desenha nada, tanto no canvas quanto no PDF.
 export type KpiIcon = string;
 
+// Chave de cada sub-elemento independente do cartão de KPI — usada tanto
+// pra posição/travamento (KpiSchema abaixo) quanto pra seleção na aba
+// Campos/painel de Estilo contextual (ver FieldList.tsx/Designer.tsx/
+// PropertyPanelKpi.tsx). Não é um Schema separado — só um dos 4 papéis
+// fixos dentro de UM KpiSchema.
+export type KpiElementKey = "icon" | "title" | "value" | "subtitle";
+
+// Posição (mm) de um sub-elemento, relativa ao canto superior-esquerdo do
+// PRÓPRIO cartão — mesma convenção "distância a partir do topo" que
+// schema.y já usa pra página inteira (ver drawKpi.ts/KpiField.tsx).
+export type KpiElementOffset = { x: number; y: number };
+
 // Cartão de indicador (KPI) — fundo colorido sólido, ícone + título +
 // número grande + legenda, tipo os cartões de um dashboard. title/value/
 // subtitle são templates de texto comuns (mesma sintaxe de TextSchema —
 // {path}/{FUNÇÃO(...)}), resolvidos contra o documento inteiro, sem
-// precisar de um Binding à parte (ver generate.ts).
+// precisar de um Binding à parte (ver generate.ts). Cada um dos 4
+// sub-elementos é opcional (ausente = removido, não desenha) e pode ter
+// posição própria (offset) e trava própria (locked) — ausente em ambos
+// cai no layout fixo de sempre, travado (ver kpiFormat.ts/drawKpi.ts/
+// KpiField.tsx), retrocompatível com todo template salvo antes disso.
 export type KpiSchema = BaseSchema & {
   type: "kpi";
   icon: KpiIcon;
-  title: string;
-  value: string;
-  subtitle: string;
+  title?: string;
+  value?: string;
+  subtitle?: string;
   backgroundColor: string;
   textColor: string;
   // Tamanho de fonte (pt) de cada texto do cartão — opcional; ausente cai
@@ -190,6 +255,20 @@ export type KpiSchema = BaseSchema & {
   // "plain" = "10000,00", "grouped" = "10.000,00" (ver formatKpiValue em
   // kpiFormat.ts). Texto com prefixo/sufixo passa direto, sem tocar.
   numberFormat?: "none" | "plain" | "grouped";
+  // Posição própria de cada sub-elemento (mm, relativo ao cartão) —
+  // ausente = posição padrão calculada (ver defaultKpiElementPositions em
+  // kpiFormat.ts).
+  iconOffset?: KpiElementOffset;
+  titleOffset?: KpiElementOffset;
+  valueOffset?: KpiElementOffset;
+  subtitleOffset?: KpiElementOffset;
+  // Trava de arrasto por sub-elemento — ausente/true = travado (não
+  // arrasta, mesmo default do cadeado do campo inteiro); false = solto
+  // pra arrastar no canvas (ver FieldList.tsx/KpiField.tsx).
+  iconLocked?: boolean;
+  titleLocked?: boolean;
+  valueLocked?: boolean;
+  subtitleLocked?: boolean;
 };
 
 export type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;

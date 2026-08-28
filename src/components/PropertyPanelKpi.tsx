@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Binding, DataSourceOption, KpiSchema } from "../types";
+import type { Binding, DataSourceOption, KpiElementKey, KpiSchema } from "../types";
 import { BindingEditor } from "./BindingEditor";
 import { allowDrop, readDroppedField } from "./dragField";
 import { MATERIAL_ICON_NAMES, materialIconLabels } from "../materialIcons";
@@ -10,8 +10,12 @@ import {
   DEFAULT_KPI_SUBTITLE_FONT_SIZE,
   DEFAULT_KPI_TITLE_FONT_SIZE,
   DEFAULT_KPI_VALUE_FONT_SIZE,
+  kpiElementOffset,
+  kpiElementOffsetPatch,
+  kpiElementPresent,
 } from "../kpiFormat";
-import { BulkLocked, ColorInput, Input, MaterialIcon, Select } from "./ui";
+import { BulkLocked, Button, ColorInput, Input, MaterialIcon, Select } from "./ui";
+import { IconX } from "./ui/icons";
 
 type Props = {
   schema: KpiSchema;
@@ -21,6 +25,15 @@ type Props = {
   binding: Binding | undefined;
   onChangeBinding: (b: Binding | null) => void;
   dataSources?: DataSourceOption[];
+  // Sub-elemento focado (ver Designer.tsx/FieldList.tsx/KpiField.tsx) —
+  // null/ausente = Estilo mostra os controles do CARTÃO inteiro
+  // (fundo/texto/arredondamento); definido = mostra só os controles
+  // DAQUELE elemento.
+  selectedElement?: KpiElementKey | null;
+  // Limpa o foco (botão "← Estilo do card") — mesmo setter que FieldList/
+  // KpiField usam pra FOCAR um elemento (Designer.tsx), só que chamado com
+  // `null` aqui.
+  onSelectElement?: (el: KpiElementKey | null) => void;
 };
 
 // Busca+seleção de ícone (Material Symbols, ver materialIcons.ts) — filtra
@@ -80,16 +93,34 @@ function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, n
   );
 }
 
-export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, binding, onChangeBinding, dataSources }: Props) {
+// Botão "resetar posição" — só aparece quando o elemento tem um offset
+// customizado (arrastado no canvas); volta pro layout padrão (mesmo
+// padrão de "limpar campo opcional pro default" de PropertyPanelText.tsx,
+// backgroundColor/borderColor com IconX).
+function ResetPositionButton({ schema, el, label, onChangeSchema }: {
+  schema: KpiSchema;
+  el: KpiElementKey;
+  label: string;
+  onChangeSchema: (patch: Partial<KpiSchema>) => void;
+}) {
+  if (!kpiElementOffset(schema, el)) return null;
+  return (
+    <Button variant="ghost" size="icon" onClick={() => onChangeSchema(kpiElementOffsetPatch(el, undefined))} title={label}>
+      <IconX />
+    </Button>
+  );
+}
+
+export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, binding, onChangeBinding, dataSources, selectedElement, onSelectElement }: Props) {
   const t = useT();
   const locale = useLocale();
   const contentFields = (
     <>
-      <Input label={t.kpi.title} value={schema.title} onChange={(e) => onChangeSchema({ title: e.target.value })} />
+      <Input label={t.kpi.title} value={schema.title ?? ""} onChange={(e) => onChangeSchema({ title: e.target.value })} />
       <Input
         mono
         label={t.kpi.valueLabel}
-        value={schema.value}
+        value={schema.value ?? ""}
         onChange={(e) => onChangeSchema({ value: e.target.value })}
         onDragOver={allowDrop}
         onDrop={(e) => {
@@ -100,10 +131,109 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
           onChangeSchema({ value: schema.value ? `${schema.value} ${token}` : token });
         }}
       />
-      <Input label={t.kpi.subtitle} value={schema.subtitle} onChange={(e) => onChangeSchema({ subtitle: e.target.value })} />
+      <Input label={t.kpi.subtitle} value={schema.subtitle ?? ""} onChange={(e) => onChangeSchema({ subtitle: e.target.value })} />
       <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.kpi.hint)}</p>
     </>
   );
+
+  // Estilo de UM sub-elemento — ou o botão de readicionar (se foi
+  // removido via aba Campos), ou os controles daquele elemento +
+  // "resetar posição" (posição em si só é arrastada no canvas, não tem
+  // input numérico aqui — ver KpiField.tsx).
+  function elementStyleFields(el: KpiElementKey) {
+    if (!kpiElementPresent(schema, el)) {
+      const restore =
+        el === "icon"
+          ? { icon: "bar_chart" }
+          : el === "title"
+            ? { title: t.kpi.title }
+            : el === "value"
+              ? { value: "0" }
+              : { subtitle: t.kpi.subtitle };
+      return (
+        <Button variant="outline" onClick={() => onChangeSchema(restore)}>
+          {t.kpi.addElement}
+        </Button>
+      );
+    }
+
+    if (el === "icon") {
+      return (
+        <>
+          <IconPicker
+            value={schema.icon}
+            onChange={(icon) => onChangeSchema({ icon })}
+            locale={locale}
+            removeLabel={t.kpi.removeIcon}
+            searchPlaceholder={t.kpi.iconSearchPlaceholder}
+            noneFoundLabel={t.kpi.noIconFound}
+          />
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              label={t.kpi.iconSize}
+              value={schema.iconSize ?? DEFAULT_KPI_ICON_SIZE}
+              onChange={(e) => onChangeSchema({ iconSize: Number(e.target.value) })}
+            />
+            <ResetPositionButton schema={schema} el="icon" label={t.kpi.resetPosition} onChangeSchema={onChangeSchema} />
+          </div>
+        </>
+      );
+    }
+
+    if (el === "title") {
+      return (
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            label={t.kpi.titleFontSize}
+            value={schema.titleFontSize ?? DEFAULT_KPI_TITLE_FONT_SIZE}
+            onChange={(e) => onChangeSchema({ titleFontSize: Number(e.target.value) })}
+          />
+          <ResetPositionButton schema={schema} el="title" label={t.kpi.resetPosition} onChangeSchema={onChangeSchema} />
+        </div>
+      );
+    }
+
+    if (el === "value") {
+      return (
+        <>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              label={t.kpi.valueFontSize}
+              value={schema.valueFontSize ?? DEFAULT_KPI_VALUE_FONT_SIZE}
+              onChange={(e) => onChangeSchema({ valueFontSize: Number(e.target.value) })}
+            />
+            <ResetPositionButton schema={schema} el="value" label={t.kpi.resetPosition} onChangeSchema={onChangeSchema} />
+          </div>
+          <Select
+            label={t.kpi.numberFormat}
+            value={schema.numberFormat ?? "none"}
+            onChange={(e) => onChangeSchema({ numberFormat: e.target.value as KpiSchema["numberFormat"] })}
+          >
+            <option value="none">{t.kpi.numberFormatNone}</option>
+            <option value="plain">{t.kpi.numberFormatPlain}</option>
+            <option value="grouped">{t.kpi.numberFormatGrouped}</option>
+          </Select>
+        </>
+      );
+    }
+
+    // "subtitle"
+    return (
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          label={t.kpi.subtitleFontSize}
+          value={schema.subtitleFontSize ?? DEFAULT_KPI_SUBTITLE_FONT_SIZE}
+          onChange={(e) => onChangeSchema({ subtitleFontSize: Number(e.target.value) })}
+        />
+        <ResetPositionButton schema={schema} el="subtitle" label={t.kpi.resetPosition} onChangeSchema={onChangeSchema} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2">
       {activeTab === "dados" && (
@@ -125,48 +255,24 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
         </>
       )}
 
-      {activeTab === "estilo" && (
+      {activeTab === "estilo" && !bulkEdit && selectedElement && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            className="self-start text-[11px] text-slate-400 hover:text-slate-600 dark:text-gray-400 dark:hover:text-gray-200"
+            onClick={() => onSelectElement?.(null)}
+          >
+            {t.kpi.backToCardStyle}
+          </button>
+          {elementStyleFields(selectedElement)}
+        </div>
+      )}
+
+      {activeTab === "estilo" && (bulkEdit || !selectedElement) && (
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-2 gap-2">
             <ColorInput label={t.kpi.background} value={schema.backgroundColor} onChange={(e) => onChangeSchema({ backgroundColor: e.target.value })} />
             <ColorInput label={t.kpi.textIcon} value={schema.textColor} onChange={(e) => onChangeSchema({ textColor: e.target.value })} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-slate-600 dark:text-gray-400">{t.kpi.iconLabel}</span>
-            <IconPicker
-              value={schema.icon}
-              onChange={(icon) => onChangeSchema({ icon })}
-              locale={locale}
-              removeLabel={t.kpi.removeIcon}
-              searchPlaceholder={t.kpi.iconSearchPlaceholder}
-              noneFoundLabel={t.kpi.noIconFound}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="number"
-              label={t.kpi.titleFontSize}
-              value={schema.titleFontSize ?? DEFAULT_KPI_TITLE_FONT_SIZE}
-              onChange={(e) => onChangeSchema({ titleFontSize: Number(e.target.value) })}
-            />
-            <Input
-              type="number"
-              label={t.kpi.valueFontSize}
-              value={schema.valueFontSize ?? DEFAULT_KPI_VALUE_FONT_SIZE}
-              onChange={(e) => onChangeSchema({ valueFontSize: Number(e.target.value) })}
-            />
-            <Input
-              type="number"
-              label={t.kpi.subtitleFontSize}
-              value={schema.subtitleFontSize ?? DEFAULT_KPI_SUBTITLE_FONT_SIZE}
-              onChange={(e) => onChangeSchema({ subtitleFontSize: Number(e.target.value) })}
-            />
-            <Input
-              type="number"
-              label={t.kpi.iconSize}
-              value={schema.iconSize ?? DEFAULT_KPI_ICON_SIZE}
-              onChange={(e) => onChangeSchema({ iconSize: Number(e.target.value) })}
-            />
           </div>
           <Input
             type="number"
@@ -176,6 +282,7 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
             value={schema.borderRadius ?? DEFAULT_KPI_BORDER_RADIUS_PERCENT}
             onChange={(e) => onChangeSchema({ borderRadius: Number(e.target.value) })}
           />
+          {!bulkEdit && <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.kpi.elementStyleHint}</p>}
         </div>
       )}
     </div>

@@ -39,6 +39,7 @@ export function reindexTableForNewHead(table: TableSchema, newHead: string[]): T
     content: table.content.map((row) => reindex(row, () => "")),
     footer: table.footer ? reindex(table.footer, () => "") : undefined,
     columnStyles: table.columnStyles ? reindex(table.columnStyles, () => undefined) : undefined,
+    columnWidths: table.columnWidths ? reindex(table.columnWidths, () => undefined) : undefined,
   };
 }
 
@@ -66,6 +67,10 @@ export function addColumnToTable(table: TableSchema, column: string, cell: strin
     content: table.content.map((row) => [...row, cell]),
     footer: table.footer ? [...table.footer, ""] : undefined,
     columnStyles: table.columnStyles ? [...table.columnStyles, undefined] : undefined,
+    // Sem largura própria — cai no rateio do espaço restante (ver
+    // resolveColumnWidthsMm em tableLayout.ts), igual sempre foi antes de
+    // colunas com largura explícita existirem.
+    columnWidths: table.columnWidths ? [...table.columnWidths, undefined] : undefined,
   };
 }
 
@@ -86,6 +91,7 @@ export function removeColumnFromTable(table: TableSchema, index: number): { tabl
       content: table.content.map((row) => row.filter((_, i) => i !== index)),
       footer: table.footer ? table.footer.filter((_, i) => i !== index) : undefined,
       columnStyles: table.columnStyles ? table.columnStyles.filter((_, i) => i !== index) : undefined,
+      columnWidths: table.columnWidths ? table.columnWidths.filter((_, i) => i !== index) : undefined,
     },
     removedName,
   };
@@ -106,6 +112,7 @@ export function reorderTableColumn(table: TableSchema, fromIndex: number, toInde
     content: table.content.map((row) => move(row, fromIndex, toIndex)),
     footer: table.footer ? move(table.footer, fromIndex, toIndex) : undefined,
     columnStyles: table.columnStyles ? move(table.columnStyles, fromIndex, toIndex) : undefined,
+    columnWidths: table.columnWidths ? move(table.columnWidths, fromIndex, toIndex) : undefined,
   };
 }
 
@@ -122,6 +129,18 @@ export function setColumnStyle(table: TableSchema, index: number, patch: Partial
   const styles = (table.columnStyles ?? table.head.map(() => undefined)).slice();
   styles[index] = { ...styles[index], ...patch };
   return { ...table, columnStyles: styles };
+}
+
+// --- setColumnWidth ---
+
+// `widthMm` undefined = volta a dividir o espaço restante em partes iguais
+// com as outras colunas sem largura própria (ver resolveColumnWidthsMm em
+// tableLayout.ts) — mesmo "resetar pro default" que outros campos opcionais
+// do pacote já usam.
+export function setColumnWidth(table: TableSchema, index: number, widthMm: number | undefined): TableSchema {
+  const widths = (table.columnWidths ?? table.head.map(() => undefined)).slice();
+  widths[index] = widthMm;
+  return { ...table, columnWidths: widths };
 }
 
 // --- setColumnFormula ---

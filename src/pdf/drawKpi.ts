@@ -1,6 +1,6 @@
 import type { Color, PDFFont, PDFPage } from "pdf-lib";
 import { rgb } from "pdf-lib";
-import type { KpiSchema } from "../types";
+import type { KpiElementOffset, KpiSchema } from "../types";
 import { MATERIAL_ICON_GRID, MATERIAL_ICON_PATHS } from "../materialIcons";
 import {
   DEFAULT_KPI_BORDER_RADIUS_PERCENT,
@@ -13,6 +13,7 @@ import {
 } from "../kpiFormat";
 import { colorOrDefault } from "./color";
 import { truncateToWidth } from "./drawTable";
+import { mmToPt } from "../units";
 
 const PADDING_PT = 8;
 
@@ -39,17 +40,40 @@ function drawIcon(page: PDFPage, icon: string, cx: number, cy: number, size: num
   page.drawSvgPath(path, { x: cx - size / 2, y: cy - size / 2, scale, color });
 }
 
+// Converte um offset customizado (mm, canto superior-esquerdo do
+// sub-elemento relativo ao cartão — ver KpiElementOffset) pro ponto (pt,
+// espaço da página) que `drawText`/`drawIcon` esperam. `anchor` decide a
+// conta: "baseline" (texto — a caixa some `sizePt` de altura, a baseline
+// fica embaixo dela) ou "center" (ícone — `drawIcon` já espera o centro).
+function offsetToPoint(
+  offset: KpiElementOffset,
+  xPt: number,
+  yPt: number,
+  heightPt: number,
+  sizePt: number,
+  anchor: "baseline" | "center"
+): { x: number; y: number } {
+  const boxX = xPt + mmToPt(offset.x);
+  const boxTopY = yPt + heightPt - mmToPt(offset.y);
+  if (anchor === "center") {
+    return { x: boxX + sizePt / 2, y: boxTopY - sizePt / 2 };
+  }
+  return { x: boxX, y: boxTopY - sizePt };
+}
+
 // Cartão de indicador: fundo sólido com cantos arredondados, ícone + título
-// no topo, valor grande no meio, legenda embaixo. title/value/subtitle já
-// vêm resolvidos (renderTemplate contra o documento, ver generate.ts) —
-// esta função só desenha.
+// no topo, valor grande no meio, legenda embaixo (posição padrão) — cada
+// um pode ter posição própria (schema.<el>Offset) e title/value/subtitle
+// ausente (undefined) simplesmente não desenha (sub-elemento removido, ver
+// FieldList.tsx). title/value/subtitle já vêm resolvidos (renderTemplate
+// contra o documento, ver generate.ts) — esta função só desenha.
 export function drawKpi(
   page: PDFPage,
   font: PDFFont,
   schema: KpiSchema,
-  title: string,
-  value: string,
-  subtitle: string,
+  title: string | undefined,
+  value: string | undefined,
+  subtitle: string | undefined,
   xPt: number,
   yPt: number,
   widthPt: number,
@@ -60,7 +84,6 @@ export function drawKpi(
   const subtitleSize = schema.subtitleFontSize ?? DEFAULT_KPI_SUBTITLE_FONT_SIZE;
   const iconSize = schema.iconSize ?? DEFAULT_KPI_ICON_SIZE;
   const radiusPt = kpiBorderRadius(schema.borderRadius ?? DEFAULT_KPI_BORDER_RADIUS_PERCENT, widthPt, heightPt);
-  const displayValue = formatKpiValue(value, schema.numberFormat);
 
   const bg = colorOrDefault(schema.backgroundColor, rgb(0.15, 0.39, 0.92));
   const fg = colorOrDefault(schema.textColor, rgb(1, 1, 1));
@@ -70,31 +93,50 @@ export function drawKpi(
   const innerWidth = widthPt - PADDING_PT * 2 - (hasIcon ? iconSize + 4 : 0);
   const topY = yPt + heightPt - PADDING_PT;
 
-  page.drawText(truncateToWidth(title.toUpperCase(), font, titleSize, Math.max(innerWidth, 10)), {
-    x: xPt + PADDING_PT,
-    y: topY - titleSize,
-    size: titleSize,
-    font,
-    color: fg,
-  });
-
-  if (hasIcon) {
-    drawIcon(page, schema.icon, xPt + widthPt - PADDING_PT - iconSize / 2, topY - titleSize / 2, iconSize, fg);
+  if (title !== undefined) {
+    const p = schema.titleOffset
+      ? offsetToPoint(schema.titleOffset, xPt, yPt, heightPt, titleSize, "baseline")
+      : { x: xPt + PADDING_PT, y: topY - titleSize };
+    page.drawText(truncateToWidth(title.toUpperCase(), font, titleSize, Math.max(innerWidth, 10)), {
+      x: p.x,
+      y: p.y,
+      size: titleSize,
+      font,
+      color: fg,
+    });
   }
 
-  page.drawText(truncateToWidth(displayValue, font, valueSize, widthPt - PADDING_PT * 2), {
-    x: xPt + PADDING_PT,
-    y: yPt + heightPt / 2 - valueSize / 3,
-    size: valueSize,
-    font,
-    color: fg,
-  });
+  if (hasIcon) {
+    const p = schema.iconOffset
+      ? offsetToPoint(schema.iconOffset, xPt, yPt, heightPt, iconSize, "center")
+      : { x: xPt + widthPt - PADDING_PT - iconSize / 2, y: topY - titleSize / 2 };
+    drawIcon(page, schema.icon, p.x, p.y, iconSize, fg);
+  }
 
-  page.drawText(truncateToWidth(subtitle, font, subtitleSize, widthPt - PADDING_PT * 2), {
-    x: xPt + PADDING_PT,
-    y: yPt + PADDING_PT,
-    size: subtitleSize,
-    font,
-    color: fg,
-  });
+  if (value !== undefined) {
+    const displayValue = formatKpiValue(value, schema.numberFormat);
+    const p = schema.valueOffset
+      ? offsetToPoint(schema.valueOffset, xPt, yPt, heightPt, valueSize, "baseline")
+      : { x: xPt + PADDING_PT, y: yPt + heightPt / 2 - valueSize / 3 };
+    page.drawText(truncateToWidth(displayValue, font, valueSize, widthPt - PADDING_PT * 2), {
+      x: p.x,
+      y: p.y,
+      size: valueSize,
+      font,
+      color: fg,
+    });
+  }
+
+  if (subtitle !== undefined) {
+    const p = schema.subtitleOffset
+      ? offsetToPoint(schema.subtitleOffset, xPt, yPt, heightPt, subtitleSize, "baseline")
+      : { x: xPt + PADDING_PT, y: yPt + PADDING_PT };
+    page.drawText(truncateToWidth(subtitle, font, subtitleSize, widthPt - PADDING_PT * 2), {
+      x: p.x,
+      y: p.y,
+      size: subtitleSize,
+      font,
+      color: fg,
+    });
+  }
 }

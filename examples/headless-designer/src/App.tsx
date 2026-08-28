@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Schema, TableSchema, Template, TextSchema } from "json-pdf-designer/server";
+import type { Binding, ChartSchema, KpiSchema, Schema, TableSchema, Template, TextSchema } from "json-pdf-designer/server";
 import { generatePdf } from "json-pdf-designer/server";
 import { PdfPreview } from "json-pdf-designer";
 
@@ -19,7 +19,22 @@ function snap(mm: number): number {
   return Math.round(mm / GRID_MM) * GRID_MM;
 }
 
-const SAMPLE_DATA = JSON.stringify({ name: "World" }, null, 2);
+// `sales` alimenta todo chart adicionado — sem editor de vínculo nesse
+// example (ver comentário na CanvasField), então o chart é sempre ligado
+// nesse mesmo path/colunas fixos (ver newChartField/handleGenerate abaixo).
+const SAMPLE_DATA = JSON.stringify(
+  {
+    name: "World",
+    sales: [
+      { region: "North", total: 4200 },
+      { region: "South", total: 3100 },
+      { region: "East", total: 2600 },
+      { region: "West", total: 1800 },
+    ],
+  },
+  null,
+  2
+);
 
 let nextId = 1;
 function uid(): string {
@@ -47,6 +62,13 @@ function newTextField(stagger: number): TextSchema {
   };
 }
 
+// Toda tabela deste example fica ligada neste path/colunas fixos (ver
+// TABLE_BINDING/handleGenerate) — mesma convenção do chart (CHART_BINDING),
+// já que só existe um array de exemplo (`sales`) no JSON de amostra. head/
+// content abaixo são só o preview de design (mostrado no canvas) — igual
+// ao <Designer> de verdade, o PDF gerado usa o vínculo, não esse literal.
+const TABLE_BINDING = { path: "sales", columns: ["region", "total"] } as const;
+
 function newTableField(stagger: number): TableSchema {
   const n = nextId;
   const step = (stagger % 6) * GRID_MM;
@@ -58,8 +80,57 @@ function newTableField(stagger: number): TableSchema {
     y: 40 + step,
     width: 150,
     height: 30,
-    head: ["Column A", "Column B"],
-    content: [["1", "2"]],
+    head: ["Region", "Total"],
+    content: [["North", "4200"]],
+  };
+}
+
+// Igual a newTextField/newTableField acima — literal escrito na mão, sem
+// nenhuma peça pronta do pacote (nem os factories internos makeKpiSchema/
+// makeChartSchema, que o <Designer> usa por dentro). `value` usa {token}
+// igual ao campo de texto — sem binding nenhum, generatePdf resolve
+// `{name}` direto contra o JSON (KPI sem vínculo cai pro template livre,
+// ver generate.ts).
+function newKpiField(stagger: number): KpiSchema {
+  const n = nextId;
+  const step = (stagger % 6) * GRID_MM;
+  return {
+    id: uid(),
+    name: `kpi_${n}`,
+    type: "kpi",
+    x: 10 + step,
+    y: 70 + step,
+    width: 55,
+    height: 35,
+    icon: "bar_chart",
+    title: "Name",
+    value: "{name}",
+    subtitle: "from JSON",
+    backgroundColor: "#2563eb",
+    textColor: "#ffffff",
+  };
+}
+
+// Chart PRECISA de um Binding "chart" pra desenhar alguma coisa (sem
+// vínculo, generatePdf não desenha nada — diferente de texto/KPI, que
+// aceitam {token} direto). Sem editor de vínculo neste example, todo
+// chart adicionado fica ligado neste path/colunas fixos — ver SAMPLE_DATA
+// (array `sales`) e handleGenerate (monta o Binding correspondente).
+const CHART_BINDING = { path: "sales", labelColumn: "region", valueColumn: "total" } as const;
+
+function newChartField(stagger: number): ChartSchema {
+  const n = nextId;
+  const step = (stagger % 6) * GRID_MM;
+  return {
+    id: uid(),
+    name: `chart_${n}`,
+    type: "chart",
+    x: 10 + step,
+    y: 110 + step,
+    width: 100,
+    height: 70,
+    chartType: "pie",
+    displayMode: "percent",
   };
 }
 
@@ -134,7 +205,16 @@ function CanvasField({
     window.addEventListener("mouseup", onMouseUp);
   }
 
-  const preview = field.type === "text" ? field.content : field.type === "table" ? field.head.join(" | ") : "";
+  const preview =
+    field.type === "text"
+      ? field.content
+      : field.type === "table"
+        ? field.head.join(" | ")
+        : field.type === "kpi"
+          ? `${field.title}: ${field.value}`
+          : field.type === "chart"
+            ? `chart (${field.chartType})`
+            : "";
 
   return (
     <div
@@ -201,6 +281,27 @@ function SelectedFieldPanel({
             </label>
           </>
         )}
+        {schema.type === "kpi" && (
+          <>
+            <label className="field-full">
+              Title
+              <input value={schema.title} onChange={(e) => onChange({ title: e.target.value })} />
+            </label>
+            <label className="field-full">
+              Value — plain text or {"{path}"}
+              <input value={schema.value} onChange={(e) => onChange({ value: e.target.value })} />
+            </label>
+            <label className="field-full">
+              Subtitle
+              <input value={schema.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} />
+            </label>
+          </>
+        )}
+        {schema.type === "chart" && (
+          <p className="field-geometry">
+            Bound to sample data's <code>sales</code> array ({CHART_BINDING.labelColumn}/{CHART_BINDING.valueColumn}) — no binding editor in this example.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -213,7 +314,15 @@ function SelectedFieldPanel({
 // "json-pdf-designer") pra mostrar o resultado. Prova que dá pra construir
 // um designer 100% próprio em cima só do modelo de dados do pacote.
 export default function App() {
-  const [fields, setFields] = useState<Schema[]>(() => [newTextField(0)]);
+  // Um de cada tipo já no canvas ao abrir — cada um mapeado contra o JSON
+  // de amostra (texto/KPI via {token}, tabela/chart via Binding), pra dar
+  // pra ver o resultado sem precisar montar campo nenhum na mão primeiro.
+  const [fields, setFields] = useState<Schema[]>(() => [
+    newTextField(0),
+    newTableField(1),
+    newKpiField(2),
+    newChartField(3),
+  ]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dataText, setDataText] = useState(SAMPLE_DATA);
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
@@ -242,7 +351,19 @@ export default function App() {
     try {
       const data: unknown = JSON.parse(dataText);
       const template: Template = { page: PAGE, schemas: fields };
-      const bytes = await generatePdf(template, data, []);
+      // chart precisa de Binding pra desenhar alguma coisa (ver newChartField);
+      // table sem binding também renderiza (usa head/content literal), mas
+      // aqui toda tabela é ligada ao mesmo array de amostra (ver
+      // TABLE_BINDING) pra provar o vínculo "array" funcionando também.
+      const bindings: Binding[] = [
+        ...fields
+          .filter((f): f is ChartSchema => f.type === "chart")
+          .map((f): Binding => ({ schemaName: f.name, type: "chart", ...CHART_BINDING })),
+        ...fields
+          .filter((f): f is TableSchema => f.type === "table")
+          .map((f): Binding => ({ schemaName: f.name, type: "array", ...TABLE_BINDING })),
+      ];
+      const bytes = await generatePdf(template, data, bindings);
       setPdfBytes(bytes);
       setView("preview");
     } catch (err) {
@@ -270,6 +391,12 @@ export default function App() {
               </button>
               <button type="button" onClick={() => addField(newTableField)}>
                 + Table field
+              </button>
+              <button type="button" onClick={() => addField(newKpiField)}>
+                + KPI field
+              </button>
+              <button type="button" onClick={() => addField(newChartField)}>
+                + Chart field
               </button>
             </div>
             <ul className="field-list">
