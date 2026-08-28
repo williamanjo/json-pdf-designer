@@ -3,6 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
 [![npm downloads](https://img.shields.io/npm/dm/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
 [![CI](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml/badge.svg)](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-website-blue)](https://williamanjo.github.io/json-pdf-designer/pt-BR/)
 
 **Português** | [English](README.md)
 
@@ -162,8 +163,22 @@ considerações de segurança — em **[docs/BACKEND_INTEGRATION.pt-BR.md](docs/
   (fontes de dados JSON, explorador de campos, 6 templates prontos).
 - **[examples/custom-ui](examples/custom-ui)** — versão enxuta com casca
   própria em CSS puro, sem os componentes de UI do pacote.
+- **[examples/headless-designer](examples/headless-designer)** — sem
+  `<Designer>` nenhum: um canvas de arrastar/redimensionar montado à mão
+  sobre `generatePdf` + tipos de `json-pdf-designer/server`, mais o
+  `PdfPreview`.
+
+Os três rodam ao vivo no navegador em
+**[o playground](https://williamanjo.github.io/json-pdf-designer/playground/)**
+— sem precisar instalar nada localmente.
 
 ## Documentação
+
+**[williamanjo.github.io/json-pdf-designer/pt-BR](https://williamanjo.github.io/json-pdf-designer/pt-BR/)**
+— documentação completa renderizada (inglês/português), guia de
+instalação, todos os recursos do `<Designer>` e a API pública completa.
+
+Markdown cru, se preferir ler direto no repositório:
 
 - **[docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md)** — instalação, uso, todos os recursos do
   `<Designer>` e API pública completa.

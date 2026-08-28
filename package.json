@@ -1,6 +1,6 @@
 {
   "name": "json-pdf-designer",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": false,
   "description": "Simple visual PDF report editor (drag/resize canvas + JSON data binding) — lean, i18n-ready, and built to be modified.",
   "keywords": [
@@ -32,7 +32,7 @@
     "type": "git",
     "url": "git+https://github.com/williamanjo/json-pdf-designer.git"
   },
-  "homepage": "https://github.com/williamanjo/json-pdf-designer#readme",
+  "homepage": "https://williamanjo.github.io/json-pdf-designer/",
   "bugs": {
     "url": "https://github.com/williamanjo/json-pdf-designer/issues"
   },
