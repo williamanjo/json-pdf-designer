@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Binding, ChartSchema, KpiSchema, Schema, TableSchema, Template, TextSchema } from "json-pdf-designer/server";
+import type { Binding, ChartSchema, KpiSchema, Schema, TableColumn, TableSchema, Template, TextSchema } from "json-pdf-designer/server";
 import { generatePdf } from "json-pdf-designer/server";
 import { PdfPreview } from "json-pdf-designer";
 
@@ -67,7 +67,7 @@ function newTextField(stagger: number): TextSchema {
 // já que só existe um array de exemplo (`sales`) no JSON de amostra. head/
 // content abaixo são só o preview de design (mostrado no canvas) — igual
 // ao <Designer> de verdade, o PDF gerado usa o vínculo, não esse literal.
-const TABLE_BINDING = { path: "sales", columns: ["region", "total"] } as const;
+const TABLE_BINDING: { path: string; columns: TableColumn[] } = { path: "sales", columns: ["region", "total"] };
 
 function newTableField(stagger: number): TableSchema {
   const n = nextId;
