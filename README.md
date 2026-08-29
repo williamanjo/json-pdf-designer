@@ -52,11 +52,11 @@ generated PDF formats dates/currency (that's `{DATE(...)}`/
 | Field | What it does |
 | --- | --- |
 | **Text** | free content with `{token}`/`{FUNCTION(...)}`, font/color/alignment |
-| **Table** | columns from an array, with calculated columns and a footer (SUM/COUNT/AVG) |
+| **Table** | columns from an array, calculated columns, a footer (SUM/COUNT/AVG), per-column width, zebra striping, per-block alignment/corner rounding, and ready-made color-palette presets |
 | **Image** | upload straight into the canvas, resizes with it |
 | **Section** | repeated data band — master-detail, groups other fields and paginates together with the body |
 | **Chart** | pie/donut or bar, configurable legend (right/left/top/bottom/on slices), sorting, display mode (number/percent/both), value format (number/currency), a ready-made color palette (Default/Classic/Modern/Vibrant/Pastel/Grayscale) or a fully custom one (color by color), and an advanced filter (OR groups, AND conditions) |
-| **KPI indicator** | colored card with an icon ([Google Material Symbols](https://fonts.google.com/icons), searchable), title, value, and caption |
+| **KPI indicator** | colored card with an icon ([Google Material Symbols](https://fonts.google.com/icons), searchable), title, value, and caption — each individually optional and freely repositionable on the card |
 
 Everything drags/resizes freely (via [react-rnd](https://github.com/bokuweb/react-rnd)), with a 5mm grid
 that snaps position/size by default — hold **Shift** while dragging to

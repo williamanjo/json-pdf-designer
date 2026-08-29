@@ -27,6 +27,32 @@ título, um valor grande e uma legenda.
   "pílula" cheia). Default de ~16%, batendo com o raio fixo original de
   8pt do cartão no tamanho padrão.
 
+## Elementos opcionais
+
+`title`/`value`/`subtitle` são opcionais — remover qualquer um deles (ou
+o ícone, com `icon: "none"`) simplesmente não desenha, no editor e no
+PDF gerado. Selecione o cartão sozinho (sem seleção múltipla) e a aba
+Campos mostra seus 4 sub-elementos — ícone/título/valor/legenda — cada
+um com um botão "+"/lixeira pra adicionar de volta ou remover.
+
+## Posição própria, trava e reset
+
+Cada sub-elemento pode ser arrastado pra uma posição própria no canvas,
+independente dos outros três — guardada em `iconOffset`/`titleOffset`/
+`valueOffset`/`subtitleOffset` (`{ x, y }` em mm, relativo ao canto
+superior-esquerdo do cartão). Ausente, um sub-elemento usa o layout fixo
+original do cartão — todo template existente mantém a aparência exata.
+
+Um sub-elemento nasce **travado** (`iconLocked`/`titleLocked`/
+`valueLocked`/`subtitleLocked`, ausente ou `true` = travado) — clique no
+cadeado dele na lista de sub-elementos da aba Campos pra destravar antes
+de arrastar. Clicar num sub-elemento (na aba Campos ou direto no canvas)
+foca ele: a aba Estilo passa a mostrar só os controles DAQUELE elemento
+(tamanho de fonte, seletor de ícone, formato de número...), com um link
+"← Estilo do card" pra voltar ao estilo do cartão inteiro e, quando ele
+já tem posição própria, um botão "Redefinir posição" que limpa o offset
+e volta pro layout padrão.
+
 ## Formato do número
 
 `numberFormat` (aba Dados) reformata o `value` quando ele resolve pra

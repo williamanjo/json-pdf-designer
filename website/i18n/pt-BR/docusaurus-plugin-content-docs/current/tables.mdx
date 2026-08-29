@@ -28,6 +28,53 @@ reordenar** (desloca `head`/`content`/`footer`/`columnStyles` juntos,
 pelo índice) e tem um botão "+" pra adicionar coluna de uma fonte de
 dados conhecida.
 
+## Largura de coluna
+
+`columnWidths` (mm, uma entrada por coluna, esparso — mesma convenção
+de `columnStyles`) define uma largura explícita pra uma coluna, seja
+pelo input numérico no painel de estilo daquela coluna, seja arrastando
+o divisor entre dois cabeçalhos de coluna direto no canvas. Coluna sem
+largura própria divide, em partes iguais, o que sobra da largura total
+da tabela — com `columnWidths` totalmente ausente, toda coluna ainda
+divide a largura igualmente, exatamente como antes disso existir.
+
+## Alinhamento de texto
+
+Cada bloco tem seu próprio alinhamento horizontal/vertical: `headAlign`/
+`bodyAlign`/`footerAlign` (`"left"` default, `"center"`, `"right"`) e
+`headVerticalAlign`/`bodyVerticalAlign`/`footerVerticalAlign` (`"top"`,
+`"middle"` default, `"bottom"`).
+
+## Arredondamento de canto
+
+`headBorderRadius`/`bodyBorderRadius`/`footerBorderRadius` recebem cada
+um um `TableCornerRadii` (`{ topLeft?, topRight?, bottomLeft?,
+bottomRight? }`, mm) — ausente/`0` continua reto, como sempre. Só os
+cantos que tocam a borda externa da tabela fazem sentido por bloco, e o
+painel só mostra esses: cabeçalho arredonda `topLeft`/`topRight` (o
+corpo sempre desenha logo abaixo dele), rodapé arredonda `bottomLeft`/
+`bottomRight`, e o corpo também arredonda `bottomLeft`/`bottomRight`,
+mas **só enquanto não há rodapé** — com a linha de totais ligada, é o
+rodapé que fecha os cantos de baixo.
+
+## Linha zebrada
+
+`bodyBandColor` define o fundo das linhas de dado de índice ÍMPAR
+(0-based), deixando as linhas pares com `bodyBackgroundColor` de sempre
+(branco/transparente por padrão) — uma tabela zebrada clássica. Ausente
+= sem zebra, toda linha usa `bodyBackgroundColor`.
+
+## Paletas prontas de estilo
+
+O seletor **Paleta** na aba Estilo aplica um esquema de cor inteiro num
+clique só — agrupado Claro/Médio/Escuro, cada um com uma opção azul/
+verde/laranja/cinza (e roxo, só claro/médio), mais um `default` — mesma
+ideia do "Formatar como Tabela" do Excel. Escolher um preenche
+`headBackgroundColor`/`headTextColor`/`bodyBandColor` (continua editável
+à mão depois); `colorPalette` só guarda qual preset mostrar selecionado
+da próxima vez que o seletor abrir — não é lido pelo `generatePdf`, só
+os campos de cor de verdade são.
+
 ## Paginação
 
 Se uma tabela (ou seção repetida) do corpo tiver mais linhas/itens do

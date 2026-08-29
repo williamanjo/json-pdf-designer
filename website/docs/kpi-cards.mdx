@@ -27,6 +27,32 @@ a large value, and a caption.
   shape). Defaults to ~16%, matching the card's original fixed 8pt
   radius at its default size.
 
+## Optional elements
+
+`title`/`value`/`subtitle` are optional — remove any of them (or the
+icon, via `icon: "none"`) and it simply isn't drawn, in the editor and
+in the generated PDF. Select the card alone (not part of a multi-select)
+and the Fields tab shows its 4 sub-elements — icon/title/value/subtitle
+— each with a "+"/trash button to add it back or remove it.
+
+## Custom position, lock, and reset
+
+Each sub-element can be dragged to its own position on the canvas,
+independent of the other three — stored as `iconOffset`/`titleOffset`/
+`valueOffset`/`subtitleOffset` (`{ x, y }` in mm, relative to the card's
+top-left corner). Left absent, a sub-element uses the card's original
+fixed layout — every existing template keeps its exact appearance.
+
+A sub-element is **locked** by default (`iconLocked`/`titleLocked`/
+`valueLocked`/`subtitleLocked`, absent or `true` = locked) — click its
+lock icon in the Fields tab's sub-element list to unlock it before it
+can be dragged. Clicking a sub-element (in the Fields list or directly
+on the canvas) focuses it: the Style tab then shows only that element's
+own controls (font size, icon picker, number format...), with a
+"← Card style" link back to the whole-card style and, once it has a
+custom position, a "Reset position" button that clears the offset and
+returns it to the default layout.
+
 ## Binding to an array (aggregation)
 
 A KPI's `value` is a free-text template by default (same `{path}`/

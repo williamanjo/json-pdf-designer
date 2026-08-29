@@ -29,6 +29,53 @@ The "Current table columns" list in the panel lets you **drag to
 reorder** (shifts `head`/`content`/`footer`/`columnStyles` together, by
 index) and has a "+" button to add a column from a known data source.
 
+## Column widths
+
+`columnWidths` (mm, one entry per column, sparse — same convention as
+`columnStyles`) sets an explicit width for a column, either from the
+numeric input in that column's style panel or by dragging the divider
+between two column headers directly on the canvas. Columns with no
+explicit width split whatever's left of the table's total width evenly
+between them — with `columnWidths` absent entirely, every column still
+divides the width equally, exactly as before this existed.
+
+## Text alignment
+
+Each block has its own horizontal/vertical alignment: `headAlign`/
+`bodyAlign`/`footerAlign` (`"left"` default, `"center"`, `"right"`) and
+`headVerticalAlign`/`bodyVerticalAlign`/`footerVerticalAlign`
+(`"top"`, `"middle"` default, `"bottom"`).
+
+## Corner rounding
+
+`headBorderRadius`/`bodyBorderRadius`/`footerBorderRadius` each take a
+`TableCornerRadii` (`{ topLeft?, topRight?, bottomLeft?, bottomRight? }`,
+mm) — absent/`0` stays square, like always. Only the corners that touch
+the table's outer edge make sense per block, and the panel only shows
+those: header rounds `topLeft`/`topRight` (the body always sits right
+below it), footer rounds `bottomLeft`/`bottomRight`, and body rounds
+`bottomLeft`/`bottomRight` too, but **only while there's no footer** —
+with a totals row on, the footer is what closes the bottom corners
+instead.
+
+## Zebra striping
+
+`bodyBandColor` sets the background of odd data rows (0-based), leaving
+even rows at `bodyBackgroundColor` (white/transparent by default) — a
+classic alternating-row table. Absent = no striping, every row uses
+`bodyBackgroundColor`.
+
+## Ready-made style presets
+
+The Style tab's **Palette** picker applies a whole color scheme in one
+click — grouped Light/Medium/Dark, each with a blue/green/orange/gray
+(and purple, light/medium only) option, plus a `default` — same idea as
+Excel's "Format as Table". Picking one fills in
+`headBackgroundColor`/`headTextColor`/`bodyBandColor` for you (still
+editable by hand afterward); `colorPalette` only remembers which preset
+is shown selected next time the picker opens — it isn't read by
+`generatePdf`, only the actual color fields are.
+
 ## Pagination
 
 If a body table (or repeated section) has more rows/items than fit on

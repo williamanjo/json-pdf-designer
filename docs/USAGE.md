@@ -196,7 +196,9 @@ moves its member fields too, in addition to the rest of the selection.
 (the list of every field already placed: click anywhere on the row to
 select it — the list scrolls itself to the item if it's out of view —
 send-to-back/bring-to-front buttons appear on the selected row, a lock
-icon locks/unlocks moving/resizing, a trash icon removes it directly),
+icon locks/unlocks moving/resizing, a trash icon removes it directly,
+double-clicking the name renames the field (remaps any `Binding.schemaName`
+pointing at the old name along with it)),
 **Page** (size/orientation, header/footer/margin, background PDF/image,
 an "edit header/footer/margin" toggle) always available, and **Data**/
 **Style**/**Filter** — only present while a field is selected, and only
@@ -318,6 +320,39 @@ index) and has a "+" button to add a column from a known data source
 (the owning section's, if the table is a member, or its own binding's,
 if it's standalone).
 
+**Column widths** (`columnWidths`, mm, one sparse entry per column) — an
+explicit width, set from a numeric input in that column's style panel or
+by dragging the divider between two column headers on the canvas.
+Columns without an explicit width split whatever's left of the table's
+total width evenly; with `columnWidths` absent entirely, every column
+still divides the width equally, same as before this existed.
+
+**Per-block text alignment** — `headAlign`/`bodyAlign`/`footerAlign`
+(`"left"` default/`"center"`/`"right"`) and `headVerticalAlign`/
+`bodyVerticalAlign`/`footerVerticalAlign` (`"top"`/`"middle"`
+default/`"bottom"`).
+
+**Per-block corner rounding** — `headBorderRadius`/`bodyBorderRadius`/
+`footerBorderRadius`, each a `TableCornerRadii` (`{ topLeft?, topRight?,
+bottomLeft?, bottomRight? }`, mm; absent/`0` stays square). Only the
+corners touching the table's outer edge apply per block (and that's all
+the panel shows for it): header rounds its top corners, footer its
+bottom corners, and body its bottom corners too, but only while there's
+no footer — with a totals row on, the footer closes the bottom instead.
+
+**Zebra striping** (`bodyBandColor`) — background color of odd data rows
+(0-based); even rows keep `bodyBackgroundColor`. Absent = no striping.
+
+**Ready-made style presets** (`TableSchema.colorPalette`) — a Palette
+picker in the Style tab, grouped Light/Medium/Dark (blue/green/orange/
+gray, plus purple in light/medium, and a `default`), same idea as
+Excel's "Format as Table" (see `TABLE_PALETTES`/`TABLE_PALETTE_GROUPS` in
+`tableColors.ts`). Picking one fills `headBackgroundColor`/
+`headTextColor`/`bodyBandColor` at once — still editable by hand
+afterward; `colorPalette` itself is only remembered for which preset
+shows selected next time, `generatePdf` reads the actual color fields,
+not the palette name.
+
 **Header, footer, and margins** (`Template.headerHeight`/
 `footerHeight`/`marginLeft`/`marginRight`, in mm) — bands that repeat on
 **every page** of the generated PDF. There's no "zone" field on the
@@ -421,6 +456,25 @@ label in the active `locale`. `title`/`value`/`subtitle` are plain text
 (same `{path}`/`{FUNCTION(...)}` syntax as a standalone text field) —
 with no `Binding` of their own, resolved directly against the whole
 document at generation time.
+
+Each of the 4 sub-elements (icon/title/value/subtitle) is independently
+**optional** — `title`/`value`/`subtitle` can simply be `undefined` (and
+`icon` already had `"none"`), and a removed sub-element just isn't
+drawn. Selecting a lone KPI card (not part of a multi-select) shows its
+4 sub-elements in the Fields tab, each with a "+"/trash button to add it
+back or remove it.
+
+Any sub-element can also be **dragged to its own position** on the
+canvas — `iconOffset`/`titleOffset`/`valueOffset`/`subtitleOffset`
+(`{ x, y }` mm, relative to the card's top-left corner; absent = the
+card's original fixed layout, so existing templates never change). Each
+one is **locked** by default (`iconLocked`/`titleLocked`/`valueLocked`/
+`subtitleLocked`, absent/`true` = locked) — unlock it via the lock icon
+next to it in the Fields tab before dragging. Clicking a sub-element
+(Fields tab or directly on the canvas) focuses it, and the Style tab
+then shows only that element's own controls plus a "← Card style" link
+back and, once it has a custom offset, a "Reset position" button that
+clears it.
 
 **Page size and orientation** — `<Designer>` shows a size selector
 (A4/A3/A5/Letter/Legal) and orientation (portrait/landscape) in its

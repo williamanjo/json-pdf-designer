@@ -197,7 +197,8 @@ sempre move os campos membros dela também, além do resto da seleção.
 linha seleciona — e rola a lista sozinha até o item, caso esteja fora da
 área visível —, botões de enviar-pra-trás/trazer-pra-frente aparecem na
 linha selecionada, cadeado trava/destrava mover/redimensionar, lixeira
-remove direto), **Página** (tamanho/orientação, cabeçalho/rodapé/margem,
+remove direto, duplo clique no nome renomeia o campo — remapeia junto
+qualquer `Binding.schemaName` que apontava pro nome antigo), **Página** (tamanho/orientação, cabeçalho/rodapé/margem,
 PDF/imagem de fundo, toggle "editar cabeçalho/rodapé/margem") sempre
 acessíveis, e **Dados**/**Estilo**/**Filtro** — só aparecem enquanto um
 campo está selecionado, e só as que fazem sentido pro tipo dele (Estilo
@@ -317,6 +318,41 @@ pelo índice) e tem um botão "+" pra adicionar coluna de uma fonte de
 dados conhecida (mesma da seção dona, se a tabela for membro, ou do
 próprio vínculo se for solta).
 
+**Largura de coluna** (`columnWidths`, mm, uma entrada esparsa por
+coluna) — largura explícita, definida pelo input numérico no painel de
+estilo daquela coluna ou arrastando o divisor entre dois cabeçalhos de
+coluna no canvas. Coluna sem largura própria divide, em partes iguais, o
+que sobra da largura total da tabela; com `columnWidths` totalmente
+ausente, toda coluna ainda divide a largura igualmente, igual sempre foi.
+
+**Alinhamento de texto por bloco** — `headAlign`/`bodyAlign`/
+`footerAlign` (`"left"` default/`"center"`/`"right"`) e
+`headVerticalAlign`/`bodyVerticalAlign`/`footerVerticalAlign` (`"top"`/
+`"middle"` default/`"bottom"`).
+
+**Arredondamento de canto por bloco** — `headBorderRadius`/
+`bodyBorderRadius`/`footerBorderRadius`, cada um um `TableCornerRadii`
+(`{ topLeft?, topRight?, bottomLeft?, bottomRight? }`, mm; ausente/`0`
+continua reto). Só os cantos que tocam a borda externa da tabela fazem
+sentido por bloco (e é só isso que o painel mostra): cabeçalho arredonda
+os cantos de cima, rodapé os de baixo, e o corpo também arredonda os de
+baixo, mas só enquanto não há rodapé — com a linha de totais ligada, é o
+rodapé que fecha os cantos de baixo.
+
+**Linha zebrada** (`bodyBandColor`) — cor de fundo das linhas de dado de
+índice ÍMPAR (0-based); linhas pares continuam com `bodyBackgroundColor`.
+Ausente = sem zebra.
+
+**Paletas prontas de estilo** (`TableSchema.colorPalette`) — um seletor
+Paleta na aba Estilo, agrupado Claro/Médio/Escuro (azul/verde/laranja/
+cinza, mais roxo em claro/médio, e um `default`), mesma ideia do
+"Formatar como Tabela" do Excel (ver `TABLE_PALETTES`/
+`TABLE_PALETTE_GROUPS` em `tableColors.ts`). Escolher um preenche
+`headBackgroundColor`/`headTextColor`/`bodyBandColor` de uma vez —
+continua editável à mão depois; `colorPalette` só guarda qual preset
+mostrar selecionado da próxima vez, o `generatePdf` lê os campos de cor
+de verdade, não o nome da paleta.
+
 **Cabeçalho, rodapé e margens** (`Template.headerHeight/footerHeight/
 marginLeft/marginRight`, em mm) — faixas que se repetem em **toda página**
 do PDF gerado. Não existe campo de "zona" no schema: um campo cai
@@ -418,6 +454,25 @@ linguagem natural no `locale` ativo. `title`/`value`/`subtitle` são
 texto comum (mesma sintaxe `{path}`/`{FUNÇÃO(...)}` de um campo de texto
 solto) — sem `Binding` próprio, resolvidos direto contra o documento
 inteiro na hora de gerar.
+
+Cada um dos 4 sub-elementos (ícone/título/valor/legenda) é
+independentemente **opcional** — `title`/`value`/`subtitle` podem
+simplesmente ficar `undefined` (e `icon` já tinha `"none"`), e um
+sub-elemento removido só não desenha. Selecionar um KPI sozinho (sem
+seleção múltipla) mostra seus 4 sub-elementos na aba Campos, cada um com
+um botão "+"/lixeira pra adicionar de volta ou remover.
+
+Qualquer sub-elemento também pode ser **arrastado pra uma posição
+própria** no canvas — `iconOffset`/`titleOffset`/`valueOffset`/
+`subtitleOffset` (`{ x, y }` mm, relativo ao canto superior-esquerdo do
+cartão; ausente = layout fixo original do cartão, então templates
+existentes nunca mudam). Cada um nasce **travado** por padrão
+(`iconLocked`/`titleLocked`/`valueLocked`/`subtitleLocked`, ausente/
+`true` = travado) — destrave pelo cadeado ao lado dele na aba Campos
+antes de arrastar. Clicar num sub-elemento (aba Campos ou direto no
+canvas) foca ele, e a aba Estilo passa a mostrar só os controles
+DAQUELE elemento, mais um link "← Estilo do card" pra voltar e, quando
+ele já tem offset próprio, um botão "Redefinir posição" que limpa ele.
 
 **Tamanho e orientação da página** — o `<Designer>` mostra um seletor de
 tamanho (A4/A3/A5/Carta/Ofício) e orientação (retrato/paisagem) na aba

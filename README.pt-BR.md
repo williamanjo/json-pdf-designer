@@ -51,11 +51,11 @@ template, ver [docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md)).
 | Campo | O que faz |
 | --- | --- |
 | **Texto** | conteúdo livre com `{token}`/`{FUNÇÃO(...)}`, fonte/cor/alinhamento |
-| **Tabela** | colunas a partir de um array, com coluna calculada e rodapé (SUM/COUNT/AVG) |
+| **Tabela** | colunas a partir de um array, coluna calculada, rodapé (SUM/COUNT/AVG), largura por coluna, linha zebrada, alinhamento/arredondamento por bloco e paletas de cor prontas |
 | **Imagem** | upload direto no canvas, redimensiona junto |
 | **Seção** | data band repetido — mestre-detalhe, agrupa outros campos e paginação junto com o corpo |
 | **Gráfico** | pizza/rosca ou barra, legenda configurável (direita/esquerda/topo/base/nas fatias), ordenação, modo de exibição (número/percentual/ambos), formato de valor (número/moeda), paleta de cores pronta (Padrão/Clássica/Moderna/Vibrante/Pastel/Escala de cinza) ou 100% personalizada (cor a cor), e filtro avançado (grupos em OU, condições em E) |
-| **Indicador (KPI)** | cartão colorido com ícone ([Google Material Symbols](https://fonts.google.com/icons), com busca), título, valor e legenda |
+| **Indicador (KPI)** | cartão colorido com ícone ([Google Material Symbols](https://fonts.google.com/icons), com busca), título, valor e legenda — cada um opcional e reposicionável livremente no cartão |
 
 Tudo arrasta/redimensiona livre (via [react-rnd](https://github.com/bokuweb/react-rnd)), com grade de 5mm que trava
 posição/tamanho por padrão — segura **Shift** durante o arrasto pra soltar
