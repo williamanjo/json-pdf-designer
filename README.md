@@ -186,6 +186,7 @@ Raw markdown, if you'd rather read it in the repo:
   split the frontend (Designer) from the backend (generation + emailing).
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — the package's
   internal architecture decisions.
+- **[CHANGELOG.md](CHANGELOG.md)** — what changed release by release.
 
 ## Stack
 

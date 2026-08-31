@@ -75,13 +75,17 @@
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0"
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "wawoff2": "^2.0.1"
   },
   "peerDependenciesMeta": {
     "react": {
       "optional": true
     },
     "react-dom": {
+      "optional": true
+    },
+    "wawoff2": {
       "optional": true
     }
   },
@@ -91,8 +95,7 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.2.108",
     "react-rnd": "^10.4.13",
-    "tiny-inflate": "^1.0.3",
-    "wawoff2": "^2.0.1"
+    "tiny-inflate": "^1.0.3"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
@@ -106,6 +109,7 @@
     "tailwindcss": "^4.3.3",
     "tsup": "^8.3.5",
     "typescript": "~5.9.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wawoff2": "^2.0.1"
   }
 }

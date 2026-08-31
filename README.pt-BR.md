@@ -186,6 +186,7 @@ Markdown cru, se preferir ler direto no repositório:
   separar frontend (Designer) de backend (geração + envio por e-mail).
 - **[docs/ARCHITECTURE.pt-BR.md](docs/ARCHITECTURE.pt-BR.md)** — decisões de arquitetura
   internas do pacote.
+- **[CHANGELOG.pt-BR.md](CHANGELOG.pt-BR.md)** — o que mudou, versão por versão.
 
 ## Stack
 

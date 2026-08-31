@@ -109,6 +109,7 @@ const config = {
             items: [
               { label: "Getting Started", to: "/docs/intro" },
               { label: "Public API", to: "/docs/public-api" },
+              { label: "Changelog", to: "/docs/changelog" },
             ],
           },
           {

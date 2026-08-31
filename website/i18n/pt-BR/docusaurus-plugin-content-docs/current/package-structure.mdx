@@ -38,7 +38,9 @@ src/
     drawKpi.ts         -> desenha o cartão de indicador (fundo + ícone traçado + título/valor/legenda)
     pagination.ts      -> divide o conteúdo do corpo entre páginas contra as faixas de cabeçalho/rodapé/margem
     resolvers.ts, color.ts -> pequenos helpers compartilhados pelos módulos draw*
-    fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1, WASM pro v2)
+    fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1; v2 precisa
+                          da dependência peer opcional `wawoff2`, carregada sob demanda,
+                          não instalada por padrão)
     pdfWorker.ts       -> configuração do worker do pdf.js (só navegador)
     backgroundImage.ts -> converte upload (PDF ou imagem) num PNG de fundo
   Designer.tsx         -> orquestrador do canvas React — seleção, clipboard, barra de abas, toda mutação de Template/Binding[]

@@ -1,4 +1,3 @@
-import decompressBinding from "wawoff2/build/decompress_binding.js";
 import inflate from "tiny-inflate";
 
 const WOFF2_SIGNATURE = 0x774f4632; // "wOF2"
@@ -108,16 +107,48 @@ function decompressWoff1(bytes: Uint8Array): Uint8Array {
 // inicializou, roda direto; só assina o callback se realmente ainda não
 // rodou. Fala com o binding direto (em vez do decompress.js do pacote)
 // pra aplicar esse fix sem depender de um patch externo.
+// `wawoff2` é dependência OPCIONAL (peerDependency, não instalada junto por
+// padrão) — só quem embute fonte .woff2 de verdade precisa dela; a maioria
+// dos projetos que usam este pacote nunca chama isso, e forçar wawoff2 como
+// dependência direta pra todo mundo tem 2 custos reais que não valem a pena
+// pra quem não usa: puxa um binário WASM grande sem necessidade, e o
+// `decompress_binding.js` dele tem um caminho de código pra Node (`fs`/
+// `path`) que bundlers tipo Vite avisam como "externalized for browser
+// compatibility" mesmo esse caminho nunca rodando no browser (falso
+// positivo inofensivo, mas foi reportado como confuso). Import dinâmico
+// (não estático) + `@vite-ignore` evita o bundler tentando resolver/
+// empacotar o módulo em build-time — só é carregado (e só FALHA, com
+// mensagem clara, se não instalado) na hora real de descomprimir um WOFF2.
+async function loadDecompressBinding(): Promise<{
+  decompress(input: Uint8Array): Uint8Array | false;
+  calledRun?: boolean;
+  onRuntimeInitialized?: () => void;
+}> {
+  try {
+    const mod = await import(/* @vite-ignore */ "wawoff2/build/decompress_binding.js");
+    return mod.default ?? mod;
+  } catch {
+    throw new Error(
+      "Embedding a .woff2 font needs the optional 'wawoff2' package — " +
+        "run `npm install wawoff2`, or convert the font to .ttf/.otf offline " +
+        "(e.g. via wawoff2 in a throwaway Node script) and pass that instead."
+    );
+  }
+}
+
 function decompressWoff2(input: Uint8Array): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    function run() {
-      const result = decompressBinding.decompress(input);
-      if (result === false) reject(new Error("ConvertWOFF2ToTTF failed"));
-      else resolve(result);
-    }
-    if (decompressBinding.calledRun) run();
-    else decompressBinding.onRuntimeInitialized = run;
-  });
+  return loadDecompressBinding().then(
+    (decompressBinding) =>
+      new Promise((resolve, reject) => {
+        function run() {
+          const result = decompressBinding.decompress(input);
+          if (result === false) reject(new Error("ConvertWOFF2ToTTF failed"));
+          else resolve(result);
+        }
+        if (decompressBinding.calledRun) run();
+        else decompressBinding.onRuntimeInitialized = run;
+      })
+  );
 }
 
 // Rede de segurança pro que SOBRAR de instabilidade do WASM (fora do

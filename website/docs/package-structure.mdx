@@ -38,7 +38,8 @@ src/
     drawKpi.ts         -> draws the KPI card (background + traced icon + title/value/caption)
     pagination.ts      -> splits body content across pages against the header/footer/margin bands
     resolvers.ts, color.ts -> small shared helpers for the draw* modules
-    fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1, WASM for v2)
+    fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1; v2 needs the
+                          optional peer dep `wawoff2`, lazy-loaded, not installed by default)
     pdfWorker.ts       -> shared pdf.js worker configuration (browser-only)
     backgroundImage.ts -> turns an upload (PDF or image) into a background PNG
   Designer.tsx         -> React canvas orchestrator — selection, clipboard, tab bar, all Template/Binding[] mutations

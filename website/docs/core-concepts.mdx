@@ -134,3 +134,10 @@ back to `pdf-lib`'s default Helvetica (covers most Latin accents, not
 everything). `.woff`/`.woff2` are accepted too —
 `normalizeFontBytes(bytes)` detects and decompresses them into the real
 TTF/OTF `pdf-lib` needs, automatically.
+
+`.woff2` decompression needs `wawoff2`, an **optional peer dependency**
+— it's not installed for you automatically (most projects never embed a
+custom font, and it's a sizeable WASM binary). Run `npm install wawoff2`
+only if you actually pass a `.woff2` file; without it installed, passing
+one throws a clear error telling you to install it or convert the font
+to `.ttf`/`.otf` offline instead.

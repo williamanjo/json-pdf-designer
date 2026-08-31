@@ -503,14 +503,21 @@ in `<Designer>`; the conversion lives in `fileToBackgroundImage`
 
 `.woff`/`.woff2` (the format packages like `@fontsource/*` ship) are
 also accepted — `normalizeFontBytes(bytes)` detects and decompresses
-them into the real TTF/OTF that pdf-lib needs, automatically (WOFF2 via
-`wawoff2`/WASM; WOFF v1 is simpler — plain zlib per table, decoded in
-pure JS, no WASM at all, via `tiny-inflate`). The resulting file
-reorders its tables alphabetically (a normal trait of the WOFF format,
-which doesn't keep the original physical order) — this doesn't affect
-the font: same glyphs, metrics, and character mapping, validated with
-`fontkit` (the same library pdf-lib uses under the hood to embed the
-font).
+them into the real TTF/OTF that pdf-lib needs, automatically (WOFF v1
+is simple enough to decompress in pure JS, no extra install needed —
+`tiny-inflate`, a real dependency of this package. WOFF2 needs
+`wawoff2`/WASM, which is an **optional peer dependency** — not
+installed for you automatically, since most projects never embed a
+custom font at all and the decompressor is a sizeable WASM binary
+nobody should pay for by default. `npm install wawoff2` only if you
+actually pass a `.woff2` file; passing a `.woff2` without it installed
+throws a clear error telling you to install it or convert the font to
+`.ttf`/`.otf` offline instead — nothing silently breaks). The resulting
+file reorders its tables alphabetically (a normal trait of the WOFF
+format, which doesn't keep the original physical order) — this doesn't
+affect the font: same glyphs, metrics, and character mapping, validated
+with `fontkit` (the same library pdf-lib uses under the hood to embed
+the font).
 
 **Ruler and zoom** — a mm ruler on the left/bottom of the canvas; a
 floating bar at the bottom with zoom -/+, fit width/height, and reset —
@@ -743,7 +750,8 @@ src/
     svgShapes.ts       -> roundedRectPath (uniform or per-corner radius) shared by drawTable.ts/drawKpi.ts
     textLayout.ts      -> alignX/alignY offset math + truncateToWidth, shared by drawTable.ts/generate.ts
     resolvers.ts, color.ts -> small shared helpers for the draw* modules
-    fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1, WASM for v2)
+    fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1; v2 needs the
+                          optional peer dep `wawoff2`, lazy-loaded, not installed by default)
     pdfWorker.ts       -> shared pdf.js worker configuration
     backgroundImage.ts -> turns an upload (PDF or image) into a background PNG
     thirdParty.d.ts    -> ambient types for wawoff2/tiny-inflate (no official @types)

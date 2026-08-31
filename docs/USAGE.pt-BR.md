@@ -501,13 +501,20 @@ completos via `fontkit`. Sem isso, cai no Helvetica padrão do pdf-lib
 
 `.woff`/`.woff2` (o formato que pacotes tipo `@fontsource/*` distribuem)
 também são aceitos — `normalizeFontBytes(bytes)` detecta e descomprime pro
-TTF/OTF de verdade que o pdf-lib precisa, automaticamente (WOFF2 via
-`wawoff2`/WASM; WOFF v1 é mais simples — zlib puro por tabela, decodificado
-em JS puro, sem WASM nenhum, via `tiny-inflate`). O arquivo resultante
-reordena as tabelas em ordem alfabética (característica normal do formato
-WOFF, que não guarda a ordem física original) — isso não afeta a fonte:
-mesmo glifo, métrica e mapeamento de caractere, validado com `fontkit`
-(a mesma lib que o pdf-lib usa por baixo pra embutir a fonte).
+TTF/OTF de verdade que o pdf-lib precisa, automaticamente (WOFF v1 é
+simples o bastante pra descomprimir em JS puro, sem instalar nada a mais
+— `tiny-inflate`, dependência real deste pacote. WOFF2 precisa de
+`wawoff2`/WASM, que é uma **dependência peer opcional** — não vem
+instalada sozinha, já que a maioria dos projetos nunca embute fonte
+customizada nenhuma, e o descompressor é um binário WASM grande que
+ninguém deveria pagar por padrão. Só rode `npm install wawoff2` se você
+realmente for passar um arquivo `.woff2`; passar um `.woff2` sem ele
+instalado lança um erro claro pedindo pra instalar ou converter a fonte
+pra `.ttf`/`.otf` offline antes — nada quebra silenciosamente). O arquivo
+resultante reordena as tabelas em ordem alfabética (característica normal
+do formato WOFF, que não guarda a ordem física original) — isso não afeta
+a fonte: mesmo glifo, métrica e mapeamento de caractere, validado com
+`fontkit` (a mesma lib que o pdf-lib usa por baixo pra embutir a fonte).
 
 **Régua e zoom** — régua em mm à esquerda/embaixo do canvas; barra
 flutuante no rodapé com zoom -/+, ajustar à largura/altura e reset — não
@@ -741,7 +748,9 @@ src/
     svgShapes.ts       -> roundedRectPath (raio uniforme ou por canto), compartilhado por drawTable.ts/drawKpi.ts
     textLayout.ts      -> matemática de deslocamento alignX/alignY + truncateToWidth, compartilhado por drawTable.ts/generate.ts
     resolvers.ts, color.ts -> pequenos helpers compartilhados pelos módulos draw*
-    fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1, WASM pro v2)
+    fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1; v2 precisa
+                          da dependência peer opcional `wawoff2`, carregada sob demanda,
+                          não instalada por padrão)
     pdfWorker.ts       -> configuração do worker do pdf.js (compartilhada)
     backgroundImage.ts -> converte upload (PDF ou imagem) num PNG de fundo
     thirdParty.d.ts    -> tipos ambient pra wawoff2/tiny-inflate (sem @types próprio)

@@ -20,6 +20,7 @@ const sidebars = {
     "architecture",
     "backend-integration",
     "examples",
+    "changelog",
   ],
 };
 
