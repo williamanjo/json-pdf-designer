@@ -211,6 +211,8 @@ export const en = {
     paletteGroupMedium: "Medium",
     paletteGroupDark: "Dark",
     bandColor: "Banded row color",
+    zebraStripes: "Striped rows (zebra)",
+    borderColor: "Border color",
   },
   kpi: {
     title: "Title",

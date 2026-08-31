@@ -210,6 +210,8 @@ export const ptBR: Dict = {
     paletteGroupMedium: "Médio",
     paletteGroupDark: "Escuro",
     bandColor: "Cor da linha zebrada",
+    zebraStripes: "Linhas zebradas",
+    borderColor: "Cor da borda",
   },
   kpi: {
     title: "Título",

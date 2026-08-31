@@ -146,6 +146,7 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
                     fontSize: colStyle?.headFontSize ?? schema.headFontSize,
                     textAlign: headAlign,
                     verticalAlign: vAlignCss(headVAlign),
+                    borderColor: schema.borderColor,
                   }}
                 >
                   {editing ? (
@@ -194,6 +195,7 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
                         fontSize: colStyle?.cellFontSize ?? schema.bodyFontSize,
                         textAlign: bodyAlign,
                         verticalAlign: vAlignCss(bodyVAlign),
+                        borderColor: schema.borderColor,
                       }}
                     >
                       {editing && focusedCell?.row === "body" && focusedCell.ri === ri && focusedCell.ci === ci ? (
@@ -238,6 +240,7 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
                     fontSize: schema.footerFontSize,
                     textAlign: footerAlign,
                     verticalAlign: vAlignCss(footerVAlign),
+                    borderColor: schema.borderColor,
                   }}
                 >
                   {editing && focusedCell?.row === "footer" && focusedCell.ci === i ? (

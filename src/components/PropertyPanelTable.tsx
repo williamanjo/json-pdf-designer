@@ -135,15 +135,34 @@ export function PropertyPanelTable({
     medium: t.table.paletteGroupMedium,
     dark: t.table.paletteGroupDark,
   };
-  const tablePaletteGroups: PaletteGroup[] = TABLE_PALETTE_GROUPS.map((group) => ({
-    label: tablePaletteGroupLabel[group.label] ?? group.label,
-    items: group.names.map((name) => {
-      const preset = TABLE_PALETTES[name];
-      return { name, colors: [preset.headBackgroundColor, preset.bandColor, preset.borderColor] };
-    }),
-  }));
+  // "custom" não é um preset de TABLE_PALETTES — é o sinal pra usar as cores
+  // manuais de sempre (inputs de Background/Text/Cor da faixa mais abaixo).
+  // Entra como grupo próprio, sem rótulo (mesmo truque do chart: label ""
+  // não desenha cabeçalho de grupo), na frente dos grupos Claro/Médio/Escuro.
+  const tablePaletteGroups: PaletteGroup[] = [
+    {
+      label: "",
+      items: [
+        {
+          name: "custom",
+          colors: [schema.headBackgroundColor ?? "#0284c7", schema.bodyBandColor ?? "#f1f5f9", schema.borderColor ?? "#94a3b8"],
+          label: t.table.paletteCustom,
+        },
+      ],
+    },
+    ...TABLE_PALETTE_GROUPS.map((group) => ({
+      label: tablePaletteGroupLabel[group.label] ?? group.label,
+      items: group.names.map((name) => {
+        const preset = TABLE_PALETTES[name];
+        return { name, colors: [preset.headBackgroundColor, preset.bandColor, preset.borderColor] };
+      }),
+    })),
+  ];
   const currentTablePreset =
     schema.colorPalette && schema.colorPalette !== "custom" ? TABLE_PALETTES[schema.colorPalette as TableStylePresetName] : undefined;
+  // Zebra é um interruptor à parte do preset — independe de qual paleta (ou
+  // "custom") está ativa, só olha se já tem uma cor de faixa configurada.
+  const zebraOn = Boolean(schema.bodyBandColor);
 
   return (
     <>
@@ -466,20 +485,28 @@ export function PropertyPanelTable({
         <>
           <PalettePicker
             label={t.table.paletteLabel}
-            currentName={schema.colorPalette ?? ""}
+            currentName={schema.colorPalette ?? "custom"}
             currentColors={
               currentTablePreset
                 ? [currentTablePreset.headBackgroundColor, currentTablePreset.bandColor, currentTablePreset.borderColor]
-                : []
+                : [schema.headBackgroundColor ?? "#0284c7", schema.bodyBandColor ?? "#f1f5f9", schema.borderColor ?? "#94a3b8"]
             }
             currentLabel={schema.colorPalette && schema.colorPalette !== "custom" ? schema.colorPalette : t.table.paletteCustom}
             onSelect={(name) => {
+              if (name === "custom") {
+                onChangeSchema({ colorPalette: "custom" });
+                return;
+              }
               const preset = TABLE_PALETTES[name as TableStylePresetName];
               onChangeSchema({
                 colorPalette: name as TableStylePresetName,
                 headBackgroundColor: preset.headBackgroundColor,
                 headTextColor: preset.headTextColor,
-                bodyBandColor: preset.bandColor,
+                borderColor: preset.borderColor,
+                // Zebra é um interruptor à parte (ver checkbox abaixo) — só
+                // troca a cor da faixa se ela já estava ligada; escolher um
+                // preset novo com zebra desligada continua sem listras.
+                ...(zebraOn ? { bodyBandColor: preset.bandColor } : {}),
               });
             }}
             groups={tablePaletteGroups}
@@ -488,6 +515,23 @@ export function PropertyPanelTable({
             swatchGap="gap-0.5"
             swatchShrink={false}
             staticArrow
+          />
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={zebraOn}
+              onChange={(e) =>
+                onChangeSchema({
+                  bodyBandColor: e.target.checked ? (currentTablePreset?.bandColor ?? schema.bodyBandColor ?? "#f1f5f9") : undefined,
+                })
+              }
+            />
+            {t.table.zebraStripes}
+          </label>
+          <ColorInput
+            label={t.table.borderColor}
+            value={schema.borderColor ?? "#94a3b8"}
+            onChange={(e) => onChangeSchema({ borderColor: e.target.value })}
           />
           <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">
             <input
@@ -544,11 +588,13 @@ export function PropertyPanelTable({
                 onChange={(e) => onChangeSchema({ bodyTextColor: e.target.value })}
               />
             </div>
-            <ColorInput
-              label={t.table.bandColor}
-              value={schema.bodyBandColor ?? "#ffffff"}
-              onChange={(e) => onChangeSchema({ bodyBandColor: e.target.value })}
-            />
+            {zebraOn && (
+              <ColorInput
+                label={t.table.bandColor}
+                value={schema.bodyBandColor ?? "#f1f5f9"}
+                onChange={(e) => onChangeSchema({ bodyBandColor: e.target.value })}
+              />
+            )}
             <Input
               label={t.table.fontSize}
               type="number"

@@ -115,6 +115,11 @@ export type TableSchema = BaseSchema & {
   // preset de `colorPalette` (ver tableColors.ts) preenche este campo
   // automaticamente, mas continua editável à mão depois.
   bodyBandColor?: string;
+  // Cor da grade fina (0.5pt) entre células e ao redor da tabela — ausente
+  // = cinza claro de sempre (mesmo default de antes desse campo existir,
+  // não muda PDF já gerado). Um preset de `colorPalette` preenche este
+  // campo também, igual bodyBandColor acima.
+  borderColor?: string;
   // Cores/tamanho da linha de rodapé — sem isso, cinza claro/preto/9pt.
   footerBackgroundColor?: string;
   footerTextColor?: string;

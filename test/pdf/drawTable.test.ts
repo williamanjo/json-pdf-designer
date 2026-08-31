@@ -9,21 +9,21 @@ import type { TableSchema } from "../../src/types";
 // técnica já usada em test/pdf/drawKpi.test.ts).
 function makeFakePage() {
   const texts: { text: string; x: number; y: number; size: number }[] = [];
-  const rects: { x: number; y: number; width: number; height: number }[] = [];
+  const rects: { x: number; y: number; width: number; height: number; borderColor?: unknown }[] = [];
   const paths: { x: number; y: number; borderColor?: unknown; borderWidth?: number }[] = [];
-  const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  const lines: { x1: number; y1: number; x2: number; y2: number; color?: unknown }[] = [];
   const page = {
     drawText: (text: string, opts: { x: number; y: number; size: number }) => {
       texts.push({ text, x: opts.x, y: opts.y, size: opts.size });
     },
-    drawRectangle: (opts: { x: number; y: number; width: number; height: number }) => {
-      rects.push({ x: opts.x, y: opts.y, width: opts.width, height: opts.height });
+    drawRectangle: (opts: { x: number; y: number; width: number; height: number; borderColor?: unknown }) => {
+      rects.push({ x: opts.x, y: opts.y, width: opts.width, height: opts.height, borderColor: opts.borderColor });
     },
     drawSvgPath: (_path: string, opts: { x: number; y: number; borderColor?: unknown; borderWidth?: number }) => {
       paths.push({ x: opts.x, y: opts.y, borderColor: opts.borderColor, borderWidth: opts.borderWidth });
     },
-    drawLine: (opts: { start: { x: number; y: number }; end: { x: number; y: number } }) => {
-      lines.push({ x1: opts.start.x, y1: opts.start.y, x2: opts.end.x, y2: opts.end.y });
+    drawLine: (opts: { start: { x: number; y: number }; end: { x: number; y: number }; color?: unknown }) => {
+      lines.push({ x1: opts.start.x, y1: opts.start.y, x2: opts.end.x, y2: opts.end.y, color: opts.color });
     },
   };
   return { page: page as unknown as PDFPage, texts, rects, paths, lines };
@@ -62,6 +62,34 @@ describe("drawTableSlice", () => {
     expect(rects.length).toBe(1 /* fundo head */ + 2 /* bordas head */ + 2 /* bordas body */);
     // texto da célula head[0] alinhado à esquerda: x = 0 (col 0) + padding
     expect(texts[0].x).toBeCloseTo(CELL_PADDING_PT);
+  });
+
+  it("borderColor do schema substitui o cinza padrão nas bordas retas E na moldura arredondada", () => {
+    const { page: defaultPage, rects: defaultRects } = makeFakePage();
+    drawTableSlice(defaultPage, fakeFont, baseSchema(), baseSchema().content, 0, 100, 200);
+    const defaultBorders = defaultRects.filter((r) => r.borderColor);
+    const defaultColor = defaultBorders[0].borderColor;
+
+    const { page, rects } = makeFakePage();
+    const schema = baseSchema({ borderColor: "#ff0000" });
+    drawTableSlice(page, fakeFont, schema, schema.content, 0, 100, 200);
+    // toda borda reta (célula por célula, já que não tem canto arredondado)
+    // usa a MESMA cor resolvida do schema, não mais a constante cinza fixa —
+    // o único rect SEM borderColor é o fundo do cabeçalho (fill, sem borda).
+    const borders = rects.filter((r) => r.borderColor);
+    expect(borders.length).toBe(4); // 2 células do head + 2 do body
+    borders.forEach((r) => expect(r.borderColor).toEqual({ type: "RGB", red: 1, green: 0, blue: 0 }));
+    expect(borders[0].borderColor).not.toEqual(defaultColor);
+
+    // com arredondamento, a borda também sai vermelha — no `drawSvgPath`
+    // (moldura) e no divisor interno entre colunas (`drawLine`).
+    const { page: roundedPage, paths, lines } = makeFakePage();
+    const roundedSchema = baseSchema({ borderColor: "#ff0000", headBorderRadius: { topLeft: 3, topRight: 3 } });
+    drawTableSlice(roundedPage, fakeFont, roundedSchema, roundedSchema.content, 0, 100, 200);
+    expect(paths.length).toBe(1);
+    expect(paths[0].borderColor).toEqual({ type: "RGB", red: 1, green: 0, blue: 0 });
+    expect(lines.length).toBe(1);
+    expect(lines[0].color).toEqual({ type: "RGB", red: 1, green: 0, blue: 0 });
   });
 
   it("columnWidths explícito muda o X da coluna seguinte", () => {

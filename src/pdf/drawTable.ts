@@ -60,6 +60,7 @@ function resolveTableStyles(schema: TableSchema): {
   footerSize: number;
   footerAlign: HAlign;
   footerVAlign: VAlign;
+  borderColor: Color;
 } {
   return {
     headBg: colorOrDefault(schema.headBackgroundColor, DEFAULT_HEAD_BG),
@@ -78,6 +79,7 @@ function resolveTableStyles(schema: TableSchema): {
     footerSize: schema.footerFontSize ?? BODY_FONT_SIZE,
     footerAlign: schema.footerAlign ?? "left",
     footerVAlign: schema.footerVerticalAlign ?? "middle",
+    borderColor: colorOrDefault(schema.borderColor, BORDER_COLOR),
   };
 }
 
@@ -166,6 +168,7 @@ export function drawTableSlice(
     footerSize,
     footerAlign,
     footerVAlign,
+    borderColor,
   } = resolveTableStyles(schema);
 
   // Tabela TEM rodapé (em alguma fatia, não necessariamente esta) — corpo
@@ -200,7 +203,7 @@ export function drawTableSlice(
         x: xPt,
         y: y + rowHeightPt,
         color: fillColor,
-        borderColor: BORDER_COLOR,
+        borderColor,
         borderWidth: 0.5,
       });
       return true;
@@ -283,7 +286,7 @@ export function drawTableSlice(
             start: { x: cellX + colWidth, y: cursorY },
             end: { x: cellX + colWidth, y: cursorY + rowHeightPt },
             thickness: 0.5,
-            color: BORDER_COLOR,
+            color: borderColor,
           });
         }
       } else {
@@ -292,7 +295,7 @@ export function drawTableSlice(
           y: cursorY,
           width: colWidth,
           height: rowHeightPt,
-          borderColor: BORDER_COLOR,
+          borderColor,
           borderWidth: 0.5,
         });
       }
