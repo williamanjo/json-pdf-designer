@@ -5,7 +5,7 @@ import { CHART_COLORS, CHART_OTHER_COLOR } from "../chart/colors";
 import { en } from "../i18n/en";
 import type { Dict } from "../i18n";
 
-function getCaseInsensitive(obj: unknown, path: string): unknown {
+export function getCaseInsensitive(obj: unknown, path: string): unknown {
   if (!path) return obj;
   const parts = path.split(".");
   let cur = obj;

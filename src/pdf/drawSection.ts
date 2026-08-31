@@ -6,7 +6,7 @@
 // repetições/quanto espaço cada uma ocupa antes de desenhar (paginação),
 // drawSectionInstance pra desenhar de verdade.
 import type { PDFFont, PDFPage } from "pdf-lib";
-import get from "lodash.get";
+import { getCaseInsensitive } from "../bindings/bindings";
 import type { Binding, Schema, SectionSchema, TableSchema, TemplatePage } from "../types";
 import { mmToPt } from "../units";
 import { drawTableSlice, TABLE_ROW_HEIGHT_MM } from "./drawTable";
@@ -50,7 +50,7 @@ export function resolveSectionItems(sectionSchema: SectionSchema, bindings: Bind
     (b): b is Extract<Binding, { type: "section" }> => b.schemaName === sectionSchema.name && b.type === "section"
   );
   if (!binding) return [undefined];
-  const arr = get(data, binding.path);
+  const arr = getCaseInsensitive(data, binding.path);
   return Array.isArray(arr) && arr.length > 0 ? arr : [undefined];
 }
 

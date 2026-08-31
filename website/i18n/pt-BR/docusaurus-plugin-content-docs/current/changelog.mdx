@@ -9,7 +9,20 @@ Todas as mudanças relevantes deste pacote ficam documentadas aqui.
 Formato inspirado, sem seguir à risca, em
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
-## 1.6.2 (não lançado ainda)
+## 1.6.3 (2026-08-31)
+
+### Removido
+
+- **Dependência `lodash.get`** — o único ponto que usava (resolver o
+  path do array vinculado de uma seção repetida) passou a usar a
+  própria função de path case-insensitive que o pacote já tinha (agora
+  exportada de `bindings.ts` como `getCaseInsensitive`), igual todo
+  outro tipo de vínculo já resolvia. Remove `lodash.get` e
+  `@types/lodash.get` de vez (ambos marcados deprecated pelo próprio
+  autor) e corrige uma inconsistência real: path de seção era
+  case-sensitive enquanto chart/kpi/tabela já não eram.
+
+## 1.6.2 (2026-08-31)
 
 ### Quebra de compatibilidade (dependência peer)
 

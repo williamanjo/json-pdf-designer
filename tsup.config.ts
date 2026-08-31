@@ -13,5 +13,5 @@ export default defineConfig({
   // node_modules, por serem "dependencies" do package.json) — evita
   // duplicar pdf-lib/pdfjs-dist no dist e, principalmente, evita que o
   // tsup tente (e falhe) lidar com o worker separado do pdf.js.
-  external: ["react", "react-dom", "pdf-lib", "fontkit", "pdfjs-dist", "react-rnd", "lodash.get", "wawoff2", "tiny-inflate"],
+  external: ["react", "react-dom", "pdf-lib", "fontkit", "pdfjs-dist", "react-rnd", "wawoff2", "tiny-inflate"],
 });

@@ -170,4 +170,11 @@ describe("resolveSectionItems", () => {
     const data = { itens };
     expect(resolveSectionItems(sectionSchema, bindings, data)).toBe(itens);
   });
+
+  it("path do binding é case-insensitive, igual chart/kpi/tabela (getCaseInsensitive, não mais lodash.get)", () => {
+    const bindings: Binding[] = [{ schemaName: "secao", type: "section", path: "itens" }];
+    const itens = [{ produto: "A" }, { produto: "B" }];
+    const data = { Itens: itens };
+    expect(resolveSectionItems(sectionSchema, bindings, data)).toBe(itens);
+  });
 });
