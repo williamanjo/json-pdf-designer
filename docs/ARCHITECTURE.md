@@ -97,26 +97,45 @@ panel.
 ## PDF generation (`src/pdf/`)
 
 `generate.ts` is the entry point (`generatePdf(template, data,
-bindings, options?)`) — pure JS, no DOM, safe to run in Node. For each
-`schema` it resolves the value via `buildInputs`/`resolveToken` and
-delegates the actual drawing to a per-type module:
+bindings, options?)`) — pure JS, no DOM, safe to run in Node. It's a
+thin orchestrator: for each page-design it derives the body layout, runs
+a dry-run pass to know `{pageCount}` up front, then walks the same body
+items again to actually draw, delegating to `layout/` (the math) and
+`render/` (the drawing) below.
 
-- `drawTable.ts` — header/body/footer rows, per-column style overrides,
-  pagination when a table doesn't fit on one page.
-- `drawSection.ts` — repeats the group of member fields once per item of
-  the bound array, growing/paginating with the rest of the body.
-- `drawChart.ts` — pie/donut/bar, legend placement, color palette
-  (`src/chart/colors.ts`).
-- `drawKpi.ts` — the colored card + Material Symbols icon path (`src/materialIcons.ts`).
+- `layout/` — pure functions, no `pdf-lib` involved:
+  - `layoutTypes.ts` — `BodyItem`/`FlowBounds`/`PreparedPageDef` shapes
+    shared by the two files below.
+  - `bodyLayout.ts` — groups a page's schemas into `BodyItem`s ordered by
+    Y (`buildBodyItems`), plus the small helpers (`boundsOf`, `gapAfter`)
+    both the dry-run and the real draw loop use to walk that sequence.
+  - `pageLayout.ts` — `normalizePageDefs` (single-page `Template` vs.
+    multi-page `Template.pages`) and `countBodyPages`, the dry-run pass
+    that mirrors the real draw loop's pagination decisions without
+    touching `pdf-lib`.
+- `render/` — the actual drawing, one file per field type, dispatched by
+  `render/index.ts`'s `drawFieldOfType`:
+  - `renderTable.ts` — header/body/footer rows, per-column style
+    overrides, pagination when a table doesn't fit on one page.
+  - `renderSection.ts` — repeats the group of member fields once per item
+    of the bound array, growing/paginating with the rest of the body.
+  - `renderChart.ts` — pie/donut/bar, legend placement, color palette
+    (`src/chart/colors.ts`).
+  - `renderKpi.ts` — the colored card + Material Symbols icon path
+    (`src/materialIcons.ts`).
+  - `renderText.ts`/`renderImage.ts` — the two simplest field types;
+    `renderImage.ts` also owns the image size/count safety limits
+    (`MAX_IMAGE_BYTES`/`MAX_DISTINCT_IMAGES`).
 
-Supporting modules: `pagination.ts` (splitting the body across pages
-against `headerHeight`/`footerHeight`/`marginLeft`/`marginRight`, see
-`src/zones.ts` for how the editor classifies a field into header/footer/
-margin/body by position alone), `fontUtils.ts` (embedding a custom TTF
-via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts` (turning an
-uploaded PDF/PNG/JPEG into the page's background PNG), `color.ts`,
-`resolvers.ts`, and `pdfWorker.ts` (wiring up `pdf.js`'s worker for
-`PdfPreview`, browser-only).
+Supporting modules (still directly under `src/pdf/`, used by both
+`layout/` and `render/`): `pagination.ts` (splitting the body across
+pages against `headerHeight`/`footerHeight`/`marginLeft`/`marginRight`,
+see `src/zones.ts` for how the editor classifies a field into
+header/footer/margin/body by position alone), `fontUtils.ts` (embedding
+a custom TTF via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts`
+(turning an uploaded PDF/PNG/JPEG into the page's background PNG),
+`color.ts`, `resolvers.ts`, and `pdfWorker.ts` (wiring up `pdf.js`'s
+worker for `PdfPreview`, browser-only).
 
 Only `downloadPdf`, `Designer`, `PdfPreview*`, and the UI components
 touch the DOM. Everything else under `src/pdf/`, `src/bindings/`, and

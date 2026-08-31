@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { PDFFont, PDFPage } from "pdf-lib";
-import { drawTableSlice } from "../../src/pdf/drawTable";
-import type { TableSchema } from "../../src/types";
+import { drawTableSlice } from "../../../src/pdf/render/renderTable";
+import type { TableSchema } from "../../../src/types";
 
 // drawTableSlice só chama drawText/drawRectangle/drawSvgPath no `page`
 // recebido — um objeto falso que só grava as chamadas é suficiente pra
 // testar posição/presença sem montar um PDFDocument de verdade (mesma
-// técnica já usada em test/pdf/drawKpi.test.ts).
+// técnica já usada em test/pdf/render/renderKpi.test.ts).
 function makeFakePage() {
   const texts: { text: string; x: number; y: number; size: number }[] = [];
   const rects: { x: number; y: number; width: number; height: number; borderColor?: unknown }[] = [];

@@ -77,6 +77,61 @@ describe("resolveToken — aritmética e aninhamento", () => {
   it("path sem correspondência no dado vira string vazia", () => {
     expect(resolveToken("nao.existe", { a: 1 })).toBe("");
   });
+
+  it("duas chamadas de função combinadas por operador SUBTRAI de verdade (bug corrigido, regex guloso não vaza mais)", () => {
+    const data = { a: [{ v: 10 }, { v: 5 }], b: [{ v: 3 }] };
+    expect(resolveToken("SUM(a.v) - SUM(b.v)", data)).toBe("12");
+    expect(resolveToken("SUM(a.v) + SUM(b.v)", data)).toBe("18");
+  });
+
+  it("chamada aninhada de verdade continua funcionando (regressão da correção acima)", () => {
+    const data = { rows: [{ total: 100 }, { total: 50 }] };
+    expect(resolveToken('CURRENCY(SUM(rows.total), "R$", 2)', data)).toBe("R$ 150,00");
+  });
+
+  it("profundidade de aninhamento além do limite lança erro claro, em vez de estourar a call stack", () => {
+    const nested = "CURRENCY(".repeat(50) + "1" + ")".repeat(50);
+    expect(() => resolveToken(nested, {})).toThrow(/nesting too deep/i);
+  });
+
+  it("aninhamento razoável (bem abaixo do limite) continua resolvendo normalmente", () => {
+    const nested = "CURRENCY(".repeat(5) + "1" + ")".repeat(5);
+    expect(() => resolveToken(nested, {})).not.toThrow();
+  });
+});
+
+describe("resolveToken — IF", () => {
+  it('comparação de igualdade (texto): escolhe o 2º ou 3º argumento', () => {
+    expect(resolveToken('IF(status == "paid", "Pago", "Pendente")', { status: "paid" })).toBe("Pago");
+    expect(resolveToken('IF(status == "paid", "Pago", "Pendente")', { status: "open" })).toBe("Pendente");
+  });
+
+  it("comparação numérica (>, >=, <, <=, !=)", () => {
+    expect(resolveToken('IF(total > 100, "alto", "baixo")', { total: 150 })).toBe("alto");
+    expect(resolveToken('IF(total > 100, "alto", "baixo")', { total: 50 })).toBe("baixo");
+    expect(resolveToken('IF(total >= 100, "sim", "nao")', { total: 100 })).toBe("sim");
+    expect(resolveToken('IF(total != 100, "sim", "nao")', { total: 100 })).toBe("nao");
+  });
+
+  it("sem operador de comparação: checa verdadeiro/falso do valor resolvido", () => {
+    expect(resolveToken('IF(ativo, "Sim", "Não")', { ativo: "true" })).toBe("Sim");
+    expect(resolveToken('IF(ativo, "Sim", "Não")', { ativo: "false" })).toBe("Não");
+    expect(resolveToken('IF(ativo, "Sim", "Não")', { ativo: "0" })).toBe("Não");
+    expect(resolveToken('IF(ativo, "Sim", "Não")', { ativo: "" })).toBe("Não");
+    expect(resolveToken('IF(ativo, "Sim", "Não")', { ativo: "qualquer coisa" })).toBe("Sim");
+  });
+
+  it("só resolve o lado escolhido — o outro não precisa nem existir", () => {
+    // "inexistente" não existe no dado — se IF resolvesse os DOIS lados
+    // sempre, isso ainda funcionaria (viraria string vazia), mas o ponto
+    // aqui é confirmar que o branch NÃO escolhido nem é avaliado.
+    expect(resolveToken('IF(status == "paid", inexistente, "Pendente")', { status: "open" })).toBe("Pendente");
+  });
+
+  it("aceita função aninhada nos branches (mesma recursão de qualquer outro argumento)", () => {
+    const data = { status: "paid", rows: [{ total: 10 }, { total: 5 }] };
+    expect(resolveToken('IF(status == "paid", SUM(rows.total), "0")', data)).toBe("15");
+  });
 });
 
 describe("renderTemplate", () => {

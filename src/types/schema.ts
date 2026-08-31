@@ -71,7 +71,7 @@ export type TableSchema = BaseSchema & {
   // sem entrada, ou array inteiro ausente) igual `columnStyles`. Coluna
   // sem largura própria divide, em partes iguais, o que sobra de `width`
   // depois de descontar as colunas COM largura explícita (ver
-  // resolveColumnWidthsMm em pdf/drawTable.ts) — sem nenhuma largura
+  // resolveColumnWidthsMm em pdf/render/renderTable.ts) — sem nenhuma largura
   // definida, cai na divisão igual de sempre. Mantido em sincronia
   // (adicionar/remover/reordenar coluna) por tableColumns.ts, igual
   // `columnStyles` já era.
@@ -161,7 +161,7 @@ export type ChartSchema = BaseSchema & {
   // Só importa quando chartType é "pie" — "donut" (rosca, com furo no
   // meio) ou "full" (pizza cheia, cada fatia vai até o centro). Opcional
   // pra não quebrar template salvo antes desse campo existir — trata
-  // ausente como "donut" (ver drawChart.ts/components/FieldBox/ChartField.tsx).
+  // ausente como "donut" (ver render/renderChart.ts/components/FieldBox/ChartField.tsx).
   pieStyle?: "donut" | "full";
   // Só importa quando chartType é "pie". "right"/"left" (default ausente
   // é "right") é a legenda em lista ao lado; "top"/"bottom" a mesma lista
@@ -189,7 +189,7 @@ export type ChartSchema = BaseSchema & {
   // Formato do valor bruto (não mexe na porcentagem) — "number" (default
   // ausente) é o de sempre (toLocaleString pt-BR, sem símbolo); "currency"
   // aplica `currencySymbol` (default "R$" ausente) + `decimals` (default 2
-  // ausente), mesma cara do CURRENCY(...) de texto/tabela (ver drawChart.ts).
+  // ausente), mesma cara do CURRENCY(...) de texto/tabela (ver render/renderChart.ts).
   valueFormat?: "number" | "currency";
   currencySymbol?: string;
   decimals?: number;
@@ -199,7 +199,7 @@ export type ChartSchema = BaseSchema & {
   thousandsSeparator?: boolean;
   // Tamanho de fonte (pt) da legenda (swatch + rótulo + valor) — só usada
   // quando chartType é "pie" e legendPosition não é "slices". Ausente cai
-  // no default (ver DEFAULT_CHART_LEGEND_FONT_SIZE em pdf/drawChart.ts).
+  // no default (ver DEFAULT_CHART_LEGEND_FONT_SIZE em pdf/render/renderChart.ts).
   legendFontSize?: number;
   // Critério de ordenação ANTES de cortar em topN — default (ausente) é
   // "value_desc" (maior primeiro), igual sempre foi.
@@ -223,7 +223,7 @@ export type KpiElementKey = "icon" | "title" | "value" | "subtitle";
 
 // Posição (mm) de um sub-elemento, relativa ao canto superior-esquerdo do
 // PRÓPRIO cartão — mesma convenção "distância a partir do topo" que
-// schema.y já usa pra página inteira (ver drawKpi.ts/KpiField.tsx).
+// schema.y já usa pra página inteira (ver render/renderKpi.ts/KpiField.tsx).
 export type KpiElementOffset = { x: number; y: number };
 
 // Cartão de indicador (KPI) — fundo colorido sólido, ícone + título +
@@ -233,7 +233,7 @@ export type KpiElementOffset = { x: number; y: number };
 // precisar de um Binding à parte (ver generate.ts). Cada um dos 4
 // sub-elementos é opcional (ausente = removido, não desenha) e pode ter
 // posição própria (offset) e trava própria (locked) — ausente em ambos
-// cai no layout fixo de sempre, travado (ver kpiFormat.ts/drawKpi.ts/
+// cai no layout fixo de sempre, travado (ver kpiFormat.ts/render/renderKpi.ts/
 // KpiField.tsx), retrocompatível com todo template salvo antes disso.
 export type KpiSchema = BaseSchema & {
   type: "kpi";

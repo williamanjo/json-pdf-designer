@@ -65,7 +65,7 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
   const hasFooter = Boolean(schema.footer && schema.footer.length > 0);
 
   // Alinhamento por bloco (cabeçalho/corpo/rodapé) — ausente = esquerda/
-  // meio, igual sempre foi (mesmos defaults de pdf/drawTable.ts).
+  // meio, igual sempre foi (mesmos defaults de pdf/render/renderTable.ts).
   const headAlign = schema.headAlign ?? "left";
   const headVAlign = schema.headVerticalAlign ?? "middle";
   const bodyAlign = schema.bodyAlign ?? "left";
@@ -77,7 +77,7 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
   }
 
   // Largura por coluna, em mm (fonte única da verdade, mesma função pura
-  // que pdf/drawTable.ts usa em pt) e já convertida pra px pro CSS —
+  // que pdf/render/renderTable.ts usa em pt) e já convertida pra px pro CSS —
   // ausente em tudo = divisão igual de sempre.
   const colWidthsMm = resolveColumnWidthsMm(schema.columnWidths, schema.head.length, schema.width);
   const colWidthsPx = colWidthsMm.map(mmToPx);
@@ -105,13 +105,13 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
   }
 
   // table-layout fixed trava a largura das colunas na divisão calculada
-  // (igual ao drawTable.ts na geração real) — sem isso, célula de rodapé
+  // (igual ao render/renderTable.ts na geração real) — sem isso, célula de rodapé
   // com token comprido (ex: "{SUM(faturas.total)}") força a coluna toda
   // mais larga que a tabela, estourando pra direita, fora da grid do campo.
   const cellClipStyle: React.CSSProperties = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
   // Aproximação visual de cantos arredondados — o canvas não precisa ser
-  // pixel-perfeito (o PDF gerado, via pdf/drawTable.ts, é a fonte da
+  // pixel-perfeito (o PDF gerado, via pdf/render/renderTable.ts, é a fonte da
   // verdade); um `overflow: hidden` recorta os 4 cantos da MOLDURA
   // inteira de uma vez, já que aqui (ao contrário do PDF) não tem como
   // "só" o cabeçalho ou "só" o rodapé terem fundo colorido recortado sem

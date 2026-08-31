@@ -23,17 +23,17 @@ function hasEstiloTab(type: Schema["type"]): boolean {
 export const FILTERABLE_TYPES = ["chart", "table", "kpi"] as const;
 
 export type OptionalTab = "dados" | "estilo" | "filtro";
-export type TabKey = "campos" | OptionalTab | "pagina";
+export type TabKey = "campos" | OptionalTab | "pagina" | "inspetor";
 // Abas fixáveis/escondíveis no "×" — as três de edição de campo mais
-// "Página". "Campos" fica de fora (sempre precisa de um jeito de
+// "Página"/"Inspetor". "Campos" fica de fora (sempre precisa de um jeito de
 // selecionar/adicionar campo, senão não tem como reabrir nada).
-export type HideableTab = OptionalTab | "pagina";
+export type HideableTab = OptionalTab | "pagina" | "inspetor";
 
 // Ordem das abas e quais estão fixadas/escondidas — preferência do
 // usuário, sobrevive a reload (localStorage). Tenta ler; se o navegador
 // bloquear (modo privado) ou não existir `localStorage` (SSR), cai pro
 // padrão sem quebrar — é só uma preferência de UI, não dado do relatório.
-const ALL_TAB_KEYS: TabKey[] = ["campos", "dados", "estilo", "filtro", "pagina"];
+const ALL_TAB_KEYS: TabKey[] = ["campos", "dados", "estilo", "filtro", "pagina", "inspetor"];
 const TAB_ORDER_STORAGE_KEY = "json-pdf-designer:tab-order";
 const HIDDEN_TABS_STORAGE_KEY = "json-pdf-designer:hidden-tabs";
 
@@ -58,7 +58,7 @@ function loadHiddenTabs(): ReadonlySet<HideableTab> {
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     if (!Array.isArray(parsed)) return new Set();
     return new Set(
-      parsed.filter((k): k is HideableTab => k === "dados" || k === "estilo" || k === "filtro" || k === "pagina")
+      parsed.filter((k): k is HideableTab => k === "dados" || k === "estilo" || k === "filtro" || k === "pagina" || k === "inspetor")
     );
   } catch {
     return new Set();
@@ -166,6 +166,10 @@ export function useTabBar({
       if (hiddenOptionalTabs.has("pagina")) setSidebarTab("campos");
       return;
     }
+    if (sidebarTab === "inspetor") {
+      if (hiddenOptionalTabs.has("inspetor")) setSidebarTab("campos");
+      return;
+    }
     if (!selected) {
       setSidebarTab("campos");
       return;
@@ -193,11 +197,12 @@ export function useTabBar({
       removable: true,
     },
     pagina: { label: t.tabBar.page, eligible: true, warning: false, removable: true },
+    inspetor: { label: t.tabBar.inspector, eligible: true, warning: false, removable: true },
   };
   const orderedVisibleTabs = tabOrder
     .map((key) => ({ key, ...tabDefs[key] }))
     .filter((tab) => tab.eligible && !(tab.removable && hiddenOptionalTabs.has(tab.key as HideableTab)));
-  const addableOptionalTabs = (["dados", "estilo", "filtro", "pagina"] as const)
+  const addableOptionalTabs = (["dados", "estilo", "filtro", "pagina", "inspetor"] as const)
     .map((key) => ({ key, ...tabDefs[key] }))
     .filter((tab) => tab.eligible && hiddenOptionalTabs.has(tab.key));
   const tabsCustomized = hiddenOptionalTabs.size > 0 || tabOrder.some((k, i) => k !== ALL_TAB_KEYS[i]);

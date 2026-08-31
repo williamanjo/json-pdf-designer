@@ -1,6 +1,6 @@
 // Resolve o conteúdo de um schema (texto/tabela) contra o dado real —
 // puro, sem nenhuma dependência de pdf-lib. Usado tanto pelo fluxo
-// principal (generate.ts) quanto pelo desenho de seção (drawSection.ts).
+// principal (generate.ts) quanto pelo desenho de seção (render/renderSection.ts).
 import type { Binding, TableSchema } from "../types";
 import { filteredArrayAt, renderTemplate } from "../bindings/bindings";
 

@@ -1,4 +1,4 @@
-import { tableRowsPerSlice, TABLE_ROW_HEIGHT_MM } from "./drawTable";
+import { tableRowsPerSlice, TABLE_ROW_HEIGHT_MM } from "./render/renderTable";
 
 // Decisões puras de paginação (mm, sem pdf-lib) — extraídas de generate.ts,
 // que antes calculava a mesma conta duas vezes: uma em countBodyPages (dry-

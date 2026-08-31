@@ -246,21 +246,28 @@ system's fixed-width field, like `"invoice": " 01156189"`; `{token}`/
 only goes away if you ask for it), `DATE(path, "output"[, "input"])`,
 `CURRENCY(path, "$")`, `NUMBER(path, decimals)` (like C's `%.2f` —
 controls how many decimal places, no thousands separator/symbol, that's
-`CURRENCY`), and **simple arithmetic** (`{qty * price}`,
-`{subtotal - discount}` — left to right, no operator precedence). A
-function CAN receive another function or an arithmetic expression as an
-argument (e.g. `{CURRENCY(SUM(rows.total), "$")}`), with two exceptions:
+`CURRENCY`), `IF(condition, "then", "else")` (see below), and **simple
+arithmetic** (`{qty * price}`, `{subtotal - discount}` — left to right,
+no operator precedence). A function CAN receive another function or an
+arithmetic expression as an argument (e.g.
+`{CURRENCY(SUM(rows.total), "$")}`), including two combined by an
+operator (`{SUM(a) - SUM(b)}` subtracts correctly), with one exception:
+**`SUM`, `COUNT`, and `AVG`'s own argument is always read as a raw
+array path**, never resolved as a nested function call or expression —
+`{SUM(CONCAT(a, b))}` doesn't work, the argument has to be a plain path
+like `rows.total`. Their *result*, though, can still be nested inside an
+outer function just fine (`{CURRENCY(SUM(rows.total), "$")}` above
+works because it's `CURRENCY` resolving its own argument, not `SUM`
+resolving one).
 
-- **Two function calls combined by an operator in the same expression**
-  (`{SUM(a) - SUM(b)}`) doesn't resolve correctly — in that case,
-  pre-compute the value in the JSON or split it into two tokens.
-- **`SUM`, `COUNT`, and `AVG`'s own argument is always read as a raw
-  array path**, never resolved as a nested function call or expression —
-  `{SUM(CONCAT(a, b))}` doesn't work, the argument has to be a plain
-  path like `rows.total`. Their *result*, though, can still be nested
-  inside an outer function just fine (`{CURRENCY(SUM(rows.total), "$")}`
-  above works because it's `CURRENCY` resolving its own argument, not
-  `SUM` resolving one).
+`IF(condition, "then", "else")` picks one of the two remaining
+arguments — `condition` is either a comparison (`status == "paid"`,
+`total > 100`; operators `==`, `!=`, `>`, `>=`, `<`, `<=`, always
+surrounded by spaces) or a bare path/expression, checked for
+true/false (empty string, `"0"`, and `"false"` count as false,
+anything else as true). Only the chosen branch is actually resolved —
+`{IF(hasDiscount, discountAmount, "0")}` won't fail even if
+`discountAmount` doesn't exist in the data when `hasDiscount` is false.
 
 `DATE`'s 3rd argument (optional) gives the **input format** — without
 it, JS's `new Date(raw)` tries to guess, and a date like `"10/04/2025"`
@@ -416,7 +423,7 @@ raw-value part — `currencySymbol` (default `"$"`) and `decimals`
 
 **Color palette** (`ChartSchema.colorPalette`) — the name of a
 ready-made palette (see `CHART_PALETTE_NAMES`/`CHART_PALETTE_LABELS` in
-`chartColors.ts`): `"default"`, `"classic"`, `"modern"`, `"vibrant"`,
+`chart/colors.ts`): `"default"`, `"classic"`, `"modern"`, `"vibrant"`,
 `"pastel"`, `"grayscale"` — ready-made color themes, same idea as any
 spreadsheet/chart editor. A loose string (not a closed union), absent
 falls back to `"default"` on its own — a template saved with a palette
@@ -721,13 +728,13 @@ src/
   table/
     columns.ts         -> keeps a table's head/content/footer/columnStyles in sync with its array binding
     colors.ts          -> Excel-style header/body/band color presets (Light/Medium/Dark groups)
-    layout.ts          -> resolveColumnWidthsMm — one source of truth shared by the canvas and drawTable.ts
+    layout.ts          -> resolveColumnWidthsMm — one source of truth shared by the canvas and render/renderTable.ts
     columnFormula.ts   -> parses/builds a calculated column's formula (CURRENCY/NUMBER/DATE/raw)
     columnResize.ts    -> the column-resize drag math (grow one side, shrink+clamp the other)
   chart/
     colors.ts          -> the chart's fixed categorical palettes + labels
     format.ts          -> chart number/label formatting
-    pieGeometry.ts     -> pie/donut slice path + label point math, shared by the canvas and drawChart.ts
+    pieGeometry.ts     -> pie/donut slice path + label point math, shared by the canvas and render/renderChart.ts
   i18n/
     en.ts, pt-BR.ts     -> the Designer's own UI text, one file per language (en is canonical)
     context.tsx, hooks.ts -> I18nProvider, useT, useLocale
@@ -739,17 +746,24 @@ src/
     columnParsing.ts   -> parses the table's free-text "col, Label={FUNCTION(...)}" input
     splitDelimited.ts  -> splits on a delimiter while respecting quotes/parens (used by the two above)
   pdf/
-    generate.ts        -> generates the real PDF (pdf-lib): unified pagination (table/section/text/image
-                          in a single sequence by Y), master-detail, repeated bands, background, font,
-                          multi-page (Template.pages) with continuous {pageNumber}/{pageCount}
-    drawTable.ts       -> draws a table in pdf-lib across page slices, header/value/footer with color/size
-    drawSection.ts     -> draws a repeated section, one pass per bound array item
-    drawChart.ts       -> draws pie (slices via drawSvgPath) or bar + legend in pdf-lib
-    drawKpi.ts         -> draws the KPI card (background + traced icon + title/value/caption)
+    generate.ts        -> thin orchestrator: derives body layout, dry-runs {pageCount}, then draws —
+                          delegating the math to layout/ and the drawing to render/ below
+    layout/
+      layoutTypes.ts   -> BodyItem/FlowBounds/PreparedPageDef shapes
+      bodyLayout.ts    -> buildBodyItems (groups schemas into BodyItems by Y) + boundsOf/gapAfter
+      pageLayout.ts    -> normalizePageDefs (single vs. multi-page) + countBodyPages (the dry-run pass)
+    render/
+      index.ts         -> drawFieldOfType, the per-type dispatcher (text/image/table/chart/kpi)
+      renderTable.ts   -> draws a table in pdf-lib across page slices, header/value/footer with color/size
+      renderSection.ts -> draws a repeated section, one pass per bound array item
+      renderChart.ts   -> draws pie (slices via drawSvgPath) or bar + legend in pdf-lib
+      renderKpi.ts     -> draws the KPI card (background + traced icon + title/value/caption)
+      renderText.ts, renderImage.ts -> the two simplest field types (renderImage.ts also owns the
+                          image size/count safety limits)
     pagination.ts      -> splits body content across pages against the header/footer/margin bands
-    svgShapes.ts       -> roundedRectPath (uniform or per-corner radius) shared by drawTable.ts/drawKpi.ts
-    textLayout.ts      -> alignX/alignY offset math + truncateToWidth, shared by drawTable.ts/generate.ts
-    resolvers.ts, color.ts -> small shared helpers for the draw* modules
+    svgShapes.ts       -> roundedRectPath (uniform or per-corner radius) shared by render/renderTable.ts/render/renderKpi.ts
+    textLayout.ts      -> alignX/alignY offset math + truncateToWidth, shared by render/renderTable.ts/render/renderText.ts
+    resolvers.ts, color.ts -> small shared helpers for layout/ and render/
     fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1; v2 needs the
                           optional peer dep `wawoff2`, lazy-loaded, not installed by default)
     pdfWorker.ts       -> shared pdf.js worker configuration
@@ -767,6 +781,7 @@ src/
     dragGesture.ts     -> shared mousedown -> window mousemove/mouseup drag-loop wiring (KPI drag, column resize)
     FieldBox/          -> renders text/table/image/section/chart/kpi on the canvas (one file per type)
     FieldList.tsx      -> the side field list (select/lock/remove, send-to-back/bring-to-front)
+    TemplateInspector.tsx -> read-only tree of the current page's fields, grouped by header/body/footer zone
     Toolbar.tsx        -> the "+ text/table/image/section/chart/kpi" buttons
     PropertyPanel.tsx  -> thin dispatcher to one PropertyPanel<Type>.tsx per schema type
     PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,

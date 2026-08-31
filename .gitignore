@@ -7,6 +7,10 @@ dist
 dist-ssr
 *.tsbuildinfo
 
+# `npm pack` (usado pra testar o tarball publicado — ver
+# test/pack-consumer/README.md e .github/workflows/ci.yml)
+*.tgz
+
 # Cache do Vite
 .vite
 

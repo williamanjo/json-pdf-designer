@@ -5,6 +5,114 @@
 All notable changes to this package are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Planned (not implemented yet)
+
+- **`pdfjs-dist` will move to a separate `json-pdf-designer/preview`
+  entry point** (same pattern as the existing `/server` entry) —
+  **breaking change** for anyone currently importing `PdfPreview`/
+  `PdfPreviewModal`/`configurePdfWorker` from the main
+  `"json-pdf-designer"` entry. Reason: `pdfjs-dist` is a heavy (~35MB
+  installed) dependency, and today it's pulled in for every consumer
+  the moment they import anything from the main entry (`PdfPreview.tsx`/
+  `pdfWorker.ts` are re-exported at the top of `index.ts`), even ones
+  who only use `<Designer>` and never render a PDF preview. Making it a
+  simple lazy `import()` inside those two files wasn't enough on its
+  own to fix this — since they're re-exported from the main entry's
+  top-level module graph, any bundler resolving `"json-pdf-designer"`
+  still needs `pdfjs-dist` resolvable at build time regardless. A
+  separate entry point sidesteps that: only code that imports from
+  `/preview` needs `pdfjs-dist` installed (as an optional peer
+  dependency, same treatment as `wawoff2`).
+
+## 1.6.4 (2026-08-31)
+
+Follows up on an external code review — fact-checked its claims against
+the actual codebase before acting on them (see the plan/audit for the
+full verdict; several claims turned out stale or overstated, e.g. the
+reported npm/GitHub version mismatch no longer exists, and the "no
+eval/new Function" security concern was already satisfied). This
+release covers the parts that checked out as real and worth fixing now,
+plus a couple of follow-up features and an internal reorg done in the
+same pass.
+
+### Fixed
+
+- **`{SUM(a) - SUM(b)}` now actually subtracts.** Before, the function-
+  call regex greedily matched the whole expression as a single call
+  (capturing `"a) - SUM(b"` as one argument), silently rendering `"0"`
+  instead of the difference. Any two function calls combined by an
+  operator in the same `{...}` now correctly falls through to
+  arithmetic instead.
+
+### Security
+
+- **Recursion depth limit on nested `{FUNCTION(...)}` calls** —
+  previously unbounded; a template with several thousand nested parens
+  (e.g. `{CURRENCY(CURRENCY(CURRENCY(...)))}`) could crash the process
+  with an uncaught stack overflow. Now throws a clear, catchable error
+  past ~40 nesting levels — far more than any legitimate template needs.
+- **Image size/count limits** — `ImageSchema.content` and
+  `Template.backgroundImage` now enforce a 15MB decoded-size cap per
+  image and a 200-distinct-image cap per document (both throw a clear
+  error instead of silently accepting anything). The browser-side
+  background upload (`fileToBackgroundImage`) also rejects files over
+  20MB before attempting to process them. Matters most for anyone
+  accepting templates from an untrusted source (multi-tenant).
+
+### Added
+
+- **Golden/torture test suite** (`test/pdf/generate.torture.test.ts` +
+  `test/pdf/fixtures/`) — runs the real `generatePdf` pipeline (not a
+  fake page, an actual `pdf-lib` document) against deliberately extreme
+  templates: empty table, a 600-row table spanning many physical pages,
+  a section taller than an entire page, missing/null bound data, and
+  the real text-encoding boundary (pt-BR accents work with the default
+  font, emoji/CJK correctly need `fontBytes` — now locked in as an
+  explicit, intentional test rather than an undocumented crash).
+- **CI now verifies the published tarball, not just the source** — a
+  new step runs `npm pack`, installs the resulting `.tgz` into a
+  throwaway consumer, and calls `generatePdf` from
+  `json-pdf-designer/server` for real. Catches `exports`/`files`/`.d.ts`
+  regressions that only show up in what actually gets published (see
+  `test/pack-consumer/`).
+- **`{IF(condition, "then", "else")}` template function** — `condition`
+  is either a comparison (`status == "paid"`, `total > 100`; operators
+  `==`, `!=`, `>`, `>=`, `<`, `<=`, always surrounded by spaces, reusing
+  the same eq/gt/lt logic chart/KPI filters already use) or a bare
+  path/expression checked for truthiness (empty string, `"0"`, and
+  `"false"` count as false). Only the chosen branch is resolved, so
+  `{IF(hasDiscount, discountAmount, "0")}` doesn't fail even when
+  `discountAmount` is missing from the data on the false branch. Added
+  to the function picker in the binding editor and the table column-
+  formula editor alongside `SUM`/`CONCAT`/etc.
+- **Template Inspector** — new optional/removable sidebar tab (same
+  show/hide/reorder pattern as "Data"/"Style"/"Filter"/"Page") showing a
+  read-only tree of every field on the current page, grouped by zone
+  (Header/Body/Footer/margins, reusing the existing `classifyZone`/
+  `isRedZone` from `src/zones.ts` — no new classification logic). Each
+  row shows the field's type, position, parent section (if it's a
+  section member), a short binding summary, and its z-index (same order
+  send-to-back/bring-to-front already uses). Clicking a row selects that
+  field on the canvas, reusing the existing selection handling — no
+  parallel selection mechanism.
+
+### Changed
+
+- **`src/pdf/` reorganized into `layout/` and `render/`** — pure
+  internal refactor, no public API change. `generate.ts` is now a thin
+  orchestrator; the pagination math (`buildBodyItems`, `boundsOf`/
+  `gapAfter`, `normalizePageDefs`, `countBodyPages`) moved into
+  `src/pdf/layout/`, and the actual `pdf-lib` drawing (previously
+  `drawTable.ts`/`drawSection.ts`/`drawChart.ts`/`drawKpi.ts`, plus two
+  new files split out of `generate.ts` for text/image) moved into
+  `src/pdf/render/` as `renderTable.ts`/`renderSection.ts`/
+  `renderChart.ts`/`renderKpi.ts`/`renderText.ts`/`renderImage.ts`,
+  dispatched by `render/index.ts`. Verified as a pure move: same test
+  count passing before and after, and the built bundle size is
+  unchanged. Only matters if you imported one of those internal files
+  directly (not part of the package's public entry points) — update the
+  import path if so.
+
 ## 1.6.3 (2026-08-31)
 
 ### Removed

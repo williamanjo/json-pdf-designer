@@ -1,12 +1,12 @@
 import type { PDFFont, PDFPage } from "pdf-lib";
 import { rgb } from "pdf-lib";
-import type { ChartItem } from "../bindings/bindings";
-import type { ChartSchema } from "../types";
-import { pieSlicePath, pointOnCircle } from "../chart/pieGeometry";
-import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../chart/format";
-import { formatPtBrNumber } from "../numberFormat";
-import { colorOrDefault } from "./color";
-import { truncateToWidth } from "./textLayout";
+import type { ChartItem } from "../../bindings/bindings";
+import type { ChartSchema } from "../../types";
+import { pieSlicePath, pointOnCircle } from "../../chart/pieGeometry";
+import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../../chart/format";
+import { formatPtBrNumber } from "../../numberFormat";
+import { colorOrDefault } from "../color";
+import { truncateToWidth } from "../textLayout";
 
 const SLICE_LABEL_TEXT = rgb(1, 1, 1);
 const SLICE_LABEL_FONT_SIZE = 7;
@@ -190,7 +190,7 @@ function drawBars(page: PDFPage, font: PDFFont, schema: ChartSchema, items: Char
 }
 
 // Retângulo de destino (x, topY = topo da caixa em pt, width, height) —
-// mesma convenção "topo pra baixo" usada em todo drawChart.ts.
+// mesma convenção "topo pra baixo" usada em todo render/renderChart.ts.
 type Box = { x: number; topY: number; width: number; height: number };
 
 // Calcula onde entram a pizza e a legenda dentro da caixa disponível, pra

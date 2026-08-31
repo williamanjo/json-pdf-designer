@@ -1,12 +1,12 @@
 import type { Color } from "pdf-lib";
 import type { PDFFont, PDFPage } from "pdf-lib";
 import { rgb } from "pdf-lib";
-import type { TableCornerRadii, TableSchema } from "../types";
-import { resolveColumnWidthsMm } from "../table/layout";
-import { mmToPt, ptToMm } from "../units";
-import { colorOrDefault, parseHex } from "./color";
-import { roundedRectPath } from "./svgShapes";
-import { alignX, alignY, truncateToWidth } from "./textLayout";
+import type { TableCornerRadii, TableSchema } from "../../types";
+import { resolveColumnWidthsMm } from "../../table/layout";
+import { mmToPt, ptToMm } from "../../units";
+import { colorOrDefault, parseHex } from "../color";
+import { roundedRectPath } from "../svgShapes";
+import { alignX, alignY, truncateToWidth } from "../textLayout";
 
 const CELL_PADDING_PT = mmToPt(1.5);
 const BORDER_COLOR = rgb(0.6, 0.6, 0.6);

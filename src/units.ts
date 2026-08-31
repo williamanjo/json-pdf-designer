@@ -18,7 +18,7 @@ export function ptToMm(pt: number): number {
   return pt / PT_PER_MM;
 }
 
-// Tamanho em pt (mesma unidade do PDF, ver pdf/drawKpi.ts, pdf/drawChart.ts)
+// Tamanho em pt (mesma unidade do PDF, ver pdf/render/renderKpi.ts, pdf/render/renderChart.ts)
 // convertido pra px do canvas — usado pelo preview de campos com tamanho de
 // fonte/ícone configurável, pra bater com o tamanho real do PDF gerado.
 export function ptToPx(pt: number): number {

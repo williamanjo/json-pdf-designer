@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { resolveSectionItems, sectionInstanceHeight, sectionMembersOf } from "../../src/pdf/drawSection";
-import { TABLE_ROW_HEIGHT_MM } from "../../src/pdf/drawTable";
-import type { Binding, SectionSchema, TableSchema, TemplatePage, TextSchema } from "../../src/types";
+import { resolveSectionItems, sectionInstanceHeight, sectionMembersOf } from "../../../src/pdf/render/renderSection";
+import { TABLE_ROW_HEIGHT_MM } from "../../../src/pdf/render/renderTable";
+import type { Binding, SectionSchema, TableSchema, TemplatePage, TextSchema } from "../../../src/types";
 
 function makeSection(overrides: Partial<SectionSchema> = {}): SectionSchema {
   return {

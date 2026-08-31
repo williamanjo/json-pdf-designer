@@ -2,7 +2,7 @@
 // de github.com/google/material-design-icons (licença Apache 2.0). Cada
 // path usa o grid 960 padrão do Material Symbols (viewBox "0 -960 960 960"),
 // desenhado tanto no preview do canvas (components/FieldBox/KpiField.tsx,
-// SVG comum) quanto no PDF de verdade (pdf/drawKpi.ts, via drawSvgPath) —
+// SVG comum) quanto no PDF de verdade (pdf/render/renderKpi.ts, via drawSvgPath) —
 // ver MATERIAL_ICON_GRID pra conta de como ancorar cada um.
 export const MATERIAL_ICON_GRID = 960;
 

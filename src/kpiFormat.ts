@@ -4,7 +4,7 @@ import { ptToMm } from "./units";
 import type { Dict } from "./i18n";
 
 // Defaults compartilhados entre o preview no canvas (components/FieldBox/KpiField.tsx)
-// e o desenho real no PDF (pdf/drawKpi.ts) — mesmo valor nos dois lugares
+// e o desenho real no PDF (pdf/render/renderKpi.ts) — mesmo valor nos dois lugares
 // pra preview bater com o PDF gerado quando o schema não define um tamanho.
 export const DEFAULT_KPI_TITLE_FONT_SIZE = 8;
 export const DEFAULT_KPI_VALUE_FONT_SIZE = 20;
@@ -38,19 +38,19 @@ export function formatKpiValue(value: string, format?: "none" | "plain" | "group
 }
 
 // Mesma folga de sempre ao redor do conteúdo do cartão (PADDING_PT em
-// pdf/drawKpi.ts), só que em mm — usada aqui pra calcular a posição
-// PADRÃO (sem offset customizado) de cada sub-elemento, em mm. drawKpi.ts
+// pdf/render/renderKpi.ts), só que em mm — usada aqui pra calcular a posição
+// PADRÃO (sem offset customizado) de cada sub-elemento, em mm. render/renderKpi.ts
 // mantém sua própria conta em pt pro caso sem offset (idêntica de sempre,
 // não refatorada, pra não arriscar regressão) — esta função é a posição
 // default usada pelo CANVAS (KpiField.tsx, sempre) e pelo PDF só quando
-// há um offset customizado (ver drawKpi.ts).
+// há um offset customizado (ver render/renderKpi.ts).
 const PADDING_MM = ptToMm(8);
 
 // Posição (canto superior-esquerdo, mm relativo ao cartão) de cada
 // sub-elemento QUANDO NENHUM offset customizado foi definido — ícone no
 // canto superior-direito, título no superior-esquerdo, valor centralizado
 // verticalmente à esquerda, legenda no canto inferior-esquerdo (mesmo
-// layout visual de sempre, ver pdf/drawKpi.ts).
+// layout visual de sempre, ver pdf/render/renderKpi.ts).
 export function defaultKpiElementPositions(
   schema: KpiSchema,
   sizesMm: Record<KpiElementKey, number>

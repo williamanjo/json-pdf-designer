@@ -1,5 +1,5 @@
 // Distribuição de largura de coluna — compartilhada entre o desenho real
-// (pdf/drawTable.ts, em pt) e o preview do canvas (components/FieldBox/
+// (pdf/render/renderTable.ts, em pt) e o preview do canvas (components/FieldBox/
 // TableField.tsx, em px) pra nunca divergir. Opera sempre em mm (mesma
 // unidade de TableSchema.columnWidths) — quem chama converte o resultado
 // pra pt/px no final (mmToPt/mmToPx), não aqui.

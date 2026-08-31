@@ -3,8 +3,8 @@ import { rgb, type Color } from "pdf-lib";
 // "#rgb"/"#rrggbb" -> canais normalizados (0-1) — undefined pra hex ausente/
 // inválido (comprimento errado, dígito não-hex), cai no default/preto de
 // quem chama. Núcleo único reaproveitado por colorOrDefault (abaixo) —
-// antes cada consumidor (generate.ts, drawTable.ts, drawChart.ts,
-// drawKpi.ts) reimplementava o mesmo parsing+fallback separado.
+// antes cada consumidor (generate.ts, render/renderTable.ts, render/renderChart.ts,
+// render/renderKpi.ts) reimplementava o mesmo parsing+fallback separado.
 export function parseHex(hex: string | undefined): { r: number; g: number; b: number } | undefined {
   if (!hex) return undefined;
   const clean = hex.replace("#", "");
@@ -17,7 +17,7 @@ export function parseHex(hex: string | undefined): { r: number; g: number; b: nu
 
 // "#rrggbb"/"#rgb" -> Color do pdf-lib, ou `fallback` se hex ausente/
 // inválido — wrapper único reaproveitado onde antes cada arquivo de
-// desenho (generate.ts/drawTable.ts/drawChart.ts/drawKpi.ts) tinha sua
+// desenho (generate.ts/render/renderTable.ts/render/renderChart.ts/render/renderKpi.ts) tinha sua
 // própria versão de "parseHex ou fallback".
 export function colorOrDefault(hex: string | undefined, fallback: Color): Color {
   const c = parseHex(hex);

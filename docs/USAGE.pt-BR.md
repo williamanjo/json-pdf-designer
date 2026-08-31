@@ -244,22 +244,29 @@ sistema legado com largura fixa, tipo `"fatura": " 01156189"`; `{token}`/
 `CONCAT` preservam o valor exatamente como veio, de propósito, então o
 espaço só some se você pedir), `DATE(caminho, "saída"[, "entrada"])`, `CURRENCY(caminho, "R$")`,
 `NUMBER(caminho, casas)` (tipo `%.2f` do C — controla quantas casas
-decimais, sem separador de milhar/símbolo, que é o `CURRENCY`), e
-**aritmética simples** (`{qtd * preco}`, `{subtotal - desconto}` — da
-esquerda pra direita, sem precedência de operador). Uma função PODE
-receber outra função ou uma expressão aritmética como argumento (ex:
-`{CURRENCY(SUM(rows.total), "R$")}`), com duas exceções:
+decimais, sem separador de milhar/símbolo, que é o `CURRENCY`),
+`IF(condição, "então", "senão")` (ver abaixo), e **aritmética simples**
+(`{qtd * preco}`, `{subtotal - desconto}` — da esquerda pra direita, sem
+precedência de operador). Uma função PODE receber outra função ou uma
+expressão aritmética como argumento (ex:
+`{CURRENCY(SUM(rows.total), "R$")}`), incluindo duas combinadas por
+operador (`{SUM(a) - SUM(b)}` subtrai certo), com uma exceção: **o
+argumento do próprio `SUM`, `COUNT` e `AVG` é sempre lido como um path
+de array cru**, nunca resolvido como outra chamada de função ou
+expressão aninhada — `{SUM(CONCAT(a, b))}` não funciona, o argumento
+tem que ser um path simples tipo `rows.total`. O *resultado* deles,
+porém, continua podendo entrar dentro de outra função por fora sem
+problema (`{CURRENCY(SUM(rows.total), "R$")}` acima funciona porque
+quem resolve o próprio argumento ali é o `CURRENCY`, não o `SUM`).
 
-- **Duas chamadas de função combinadas por operador na mesma
-  expressão** (`{SUM(a) - SUM(b)}`) não resolve certo — nesse caso,
-  pré-calcule o valor no JSON ou separe em dois tokens.
-- **O argumento do próprio `SUM`, `COUNT` e `AVG` é sempre lido como um
-  path de array cru**, nunca resolvido como outra chamada de função ou
-  expressão aninhada — `{SUM(CONCAT(a, b))}` não funciona, o argumento
-  tem que ser um path simples tipo `rows.total`. O *resultado* deles,
-  porém, continua podendo entrar dentro de outra função por fora sem
-  problema (`{CURRENCY(SUM(rows.total), "R$")}` acima funciona porque
-  quem resolve o próprio argumento ali é o `CURRENCY`, não o `SUM`).
+`IF(condição, "então", "senão")` escolhe um dos dois últimos
+argumentos — `condição` é uma comparação (`status == "paid"`,
+`total > 100`; operadores `==`, `!=`, `>`, `>=`, `<`, `<=`, sempre
+cercados de espaço) ou um path/expressão isolada, checado como
+verdadeiro/falso (string vazia, `"0"` e `"false"` contam como falso,
+qualquer outra coisa como verdadeiro). Só o lado escolhido é resolvido
+de verdade — `{IF(temDesconto, valorDesconto, "0")}` não quebra mesmo
+que `valorDesconto` não exista no dado quando `temDesconto` é falso.
 
 `DATE`'s 3º argumento (opcional) diz o **formato de entrada** — sem ele,
 `new Date(raw)` do JS tenta adivinhar, e uma data tipo `"10/04/2025"`
@@ -415,7 +422,7 @@ ou `"currency"`) formata a parte do valor bruto — `currencySymbol` (default
 
 **Paleta de cores** (`ChartSchema.colorPalette`) — nome de uma paleta
 pronta (ver `CHART_PALETTE_NAMES`/`CHART_PALETTE_LABELS` em
-`chartColors.ts`): `"default"`, `"classic"`, `"modern"`, `"vibrant"`,
+`chart/colors.ts`): `"default"`, `"classic"`, `"modern"`, `"vibrant"`,
 `"pastel"`, `"grayscale"` — temas de cores prontos, mesma ideia de
 qualquer editor de planilha/gráfico. String solta (não união fechada),
 ausente cai em `"default"` sozinho — template salvo com nome de paleta
@@ -719,13 +726,13 @@ src/
   table/
     columns.ts         -> mantém head/content/footer/columnStyles de uma tabela sincronizados com o vínculo array
     colors.ts          -> presets de cor estilo Excel (grupos Claro/Médio/Escuro) pra cabeçalho/corpo/zebra
-    layout.ts          -> resolveColumnWidthsMm — fonte única compartilhada pelo canvas e por drawTable.ts
+    layout.ts          -> resolveColumnWidthsMm — fonte única compartilhada pelo canvas e por render/renderTable.ts
     columnFormula.ts   -> parse/monta a fórmula de uma coluna calculada (CURRENCY/NUMBER/DATE/raw)
     columnResize.ts    -> a matemática do arrasto de redimensionar coluna (cresce um lado, encolhe+trava o outro)
   chart/
     colors.ts          -> paletas categóricas fixas do gráfico + rótulos
     format.ts          -> formatação de número/rótulo do gráfico
-    pieGeometry.ts     -> caminho da fatia de pizza/rosca + ponto do rótulo, compartilhado pelo canvas e drawChart.ts
+    pieGeometry.ts     -> caminho da fatia de pizza/rosca + ponto do rótulo, compartilhado pelo canvas e render/renderChart.ts
   i18n/
     en.ts, pt-BR.ts     -> texto da própria UI do Designer, um arquivo por idioma (en é o canônico)
     context.tsx, hooks.ts -> I18nProvider, useT, useLocale
@@ -737,17 +744,24 @@ src/
     columnParsing.ts   -> parse do texto livre "col, Rótulo={FUNÇÃO(...)}" da tabela
     splitDelimited.ts  -> separa por um delimitador respeitando aspas/parênteses (usado pelos dois acima)
   pdf/
-    generate.ts        -> gera o PDF de verdade (pdf-lib): paginação unificada (tabela/seção/texto/imagem
-                          numa sequência só por Y), mestre-detalhe, faixas repetidas, fundo, fonte,
-                          multi-página (Template.pages) com {pageNumber}/{pageCount} contínuo
-    drawTable.ts       -> desenha tabela no pdf-lib em fatias (paginação), cabeçalho/valor/rodapé com cor/tamanho
-    drawSection.ts     -> desenha uma seção repetida, uma passada por item do array vinculado
-    drawChart.ts       -> desenha pizza (fatias via drawSvgPath) ou barra + legenda no pdf-lib
-    drawKpi.ts         -> desenha o cartão de indicador (fundo + ícone traçado + título/valor/legenda)
+    generate.ts        -> orquestrador fino: deriva o layout do corpo, dry-run de {pageCount}, e desenha —
+                          delegando a conta pra layout/ e o desenho pra render/ abaixo
+    layout/
+      layoutTypes.ts   -> tipos BodyItem/FlowBounds/PreparedPageDef
+      bodyLayout.ts    -> buildBodyItems (agrupa schemas em BodyItems por Y) + boundsOf/gapAfter
+      pageLayout.ts    -> normalizePageDefs (página única vs. multi-página) + countBodyPages (a passagem dry-run)
+    render/
+      index.ts         -> drawFieldOfType, o dispatcher por tipo (texto/imagem/tabela/gráfico/indicador)
+      renderTable.ts   -> desenha tabela no pdf-lib em fatias (paginação), cabeçalho/valor/rodapé com cor/tamanho
+      renderSection.ts -> desenha uma seção repetida, uma passada por item do array vinculado
+      renderChart.ts   -> desenha pizza (fatias via drawSvgPath) ou barra + legenda no pdf-lib
+      renderKpi.ts     -> desenha o cartão de indicador (fundo + ícone traçado + título/valor/legenda)
+      renderText.ts, renderImage.ts -> os dois tipos de campo mais simples (renderImage.ts também guarda
+                          os limites de segurança de tamanho/contagem de imagem)
     pagination.ts      -> divide o conteúdo do corpo entre páginas contra as faixas de cabeçalho/rodapé/margem
-    svgShapes.ts       -> roundedRectPath (raio uniforme ou por canto), compartilhado por drawTable.ts/drawKpi.ts
-    textLayout.ts      -> matemática de deslocamento alignX/alignY + truncateToWidth, compartilhado por drawTable.ts/generate.ts
-    resolvers.ts, color.ts -> pequenos helpers compartilhados pelos módulos draw*
+    svgShapes.ts       -> roundedRectPath (raio uniforme ou por canto), compartilhado por render/renderTable.ts/render/renderKpi.ts
+    textLayout.ts      -> matemática de deslocamento alignX/alignY + truncateToWidth, compartilhado por render/renderTable.ts/render/renderText.ts
+    resolvers.ts, color.ts -> pequenos helpers compartilhados por layout/ e render/
     fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1; v2 precisa
                           da dependência peer opcional `wawoff2`, carregada sob demanda,
                           não instalada por padrão)
@@ -766,6 +780,7 @@ src/
     dragGesture.ts     -> encanamento compartilhado de mousedown -> window mousemove/mouseup (arrasto do KPI, redimensionar coluna)
     FieldBox/          -> renderiza texto/tabela/imagem/seção/gráfico/kpi no canvas (um arquivo por tipo)
     FieldList.tsx      -> lista lateral de campos (selecionar/travar/remover, enviar-pra-trás/trazer-pra-frente)
+    TemplateInspector.tsx -> árvore somente-leitura dos campos da página atual, agrupada por zona (header/corpo/rodapé)
     Toolbar.tsx        -> botões "+ texto/tabela/imagem/seção/gráfico/kpi"
     PropertyPanel.tsx  -> dispatcher fino pra um PropertyPanel<Tipo>.tsx por tipo de schema
     PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,

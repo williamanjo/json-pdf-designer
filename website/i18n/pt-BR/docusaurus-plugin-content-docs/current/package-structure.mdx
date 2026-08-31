@@ -13,42 +13,55 @@ src/
     dataSource.ts      -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
   units.ts             -> conversões mm <-> px <-> pt + grade (GRID_SIZE_MM, snapToGrid)
   zones.ts             -> classifica campo em header/footer/margem/corpo + trava de arrasto
-  chartColors.ts       -> paletas categóricas fixas do gráfico + rótulos
+  chart/
+    colors.ts          -> paletas categóricas fixas do gráfico + rótulos
+    format.ts          -> default de tamanho de fonte da legenda do gráfico, compartilhado preview + PDF
   materialIcons.ts     -> paths dos ícones Material Symbols + rótulos de busca EN/PT-BR (seletor do KPI)
   kpiFormat.ts         -> defaults de tamanho de fonte/raio de borda/formato de número do KPI + formatação
-  chartFormat.ts       -> default de tamanho de fonte da legenda do gráfico, compartilhado preview + PDF
   fieldWarnings.ts     -> mensagens de aviso "sem vínculo"/"filtro incompleto" (lista de campos, ícones de aba)
   pageSizes.ts         -> presets de tamanho de página + orientação (retrato/paisagem)
   schemaFactory.ts     -> cria schema novo (texto/tabela/imagem/seção/gráfico/indicador) + próximo Y livre
-  tableColumns.ts      -> mantém head/content/footer/columnStyles de uma tabela sincronizados com o vínculo array
+  table/
+    columns.ts         -> mantém head/content/footer/columnStyles de uma tabela sincronizados com o vínculo array
+    layout.ts          -> resolveColumnWidthsMm, compartilhado por render/renderTable.ts e o preview do canvas
   i18n/
     en.ts, pt-BR.ts    -> texto da própria UI do Designer, um arquivo por idioma (en é o canônico)
     context.tsx, hooks.ts -> I18nProvider, useT, useLocale
   bindings/
-    bindings.ts        -> resolve vínculos + funções (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER...) + aritmética
+    bindings.ts        -> resolve vínculos + funções (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER/IF...) + aritmética
                           + resolveChartItems/aggregateChartItems/resolveKpiValue
     columnParsing.ts   -> parse do texto livre "col, Rótulo={FUNÇÃO(...)}" da tabela
   pdf/
-    generate.ts        -> gera o PDF de verdade (pdf-lib): paginação unificada (tabela/seção/texto/imagem
-                          numa sequência só por Y), mestre-detalhe, faixas repetidas, fundo, fonte,
-                          multi-página (Template.pages) com {pageNumber}/{pageCount} contínuo
-    drawTable.ts       -> desenha tabela no pdf-lib em fatias (paginação), cabeçalho/valor/rodapé com cor/tamanho
-    drawSection.ts     -> desenha uma seção repetida, uma passada por item do array vinculado
-    drawChart.ts       -> desenha pizza (fatias via drawSvgPath) ou barra + legenda no pdf-lib
-    drawKpi.ts         -> desenha o cartão de indicador (fundo + ícone traçado + título/valor/legenda)
+    generate.ts        -> orquestrador fino: deriva o layout do corpo, dry-run de {pageCount}, e desenha —
+                          delegando a conta pra layout/ e o desenho pra render/ abaixo
+    layout/
+      layoutTypes.ts   -> tipos BodyItem/FlowBounds/PreparedPageDef
+      bodyLayout.ts    -> buildBodyItems (agrupa schemas em BodyItems por Y) + boundsOf/gapAfter
+      pageLayout.ts    -> normalizePageDefs (página única vs. multi-página) + countBodyPages (a passagem dry-run)
+    render/
+      index.ts         -> drawFieldOfType, o dispatcher por tipo (texto/imagem/tabela/gráfico/indicador)
+      renderTable.ts   -> desenha tabela no pdf-lib em fatias (paginação), cabeçalho/valor/rodapé com cor/tamanho
+      renderSection.ts -> desenha uma seção repetida, uma passada por item do array vinculado
+      renderChart.ts   -> desenha pizza (fatias via drawSvgPath) ou barra + legenda no pdf-lib
+      renderKpi.ts     -> desenha o cartão de indicador (fundo + ícone traçado + título/valor/legenda)
+      renderText.ts, renderImage.ts -> os dois tipos de campo mais simples (renderImage.ts também guarda
+                          os limites de segurança de tamanho/contagem de imagem)
     pagination.ts      -> divide o conteúdo do corpo entre páginas contra as faixas de cabeçalho/rodapé/margem
-    resolvers.ts, color.ts -> pequenos helpers compartilhados pelos módulos draw*
+    resolvers.ts, color.ts -> pequenos helpers compartilhados por layout/ e render/
     fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1; v2 precisa
                           da dependência peer opcional `wawoff2`, carregada sob demanda,
                           não instalada por padrão)
     pdfWorker.ts       -> configuração do worker do pdf.js (só navegador)
     backgroundImage.ts -> converte upload (PDF ou imagem) num PNG de fundo
-  Designer.tsx         -> orquestrador do canvas React — seleção, clipboard, barra de abas, toda mutação de Template/Binding[]
+  designer/
+    Designer.tsx       -> orquestrador do canvas React — seleção, clipboard, barra de abas, toda mutação de Template/Binding[]
+    useTabBar.ts, useSelection.ts, useClipboardAndDelete.ts, helpers.ts -> hooks/helpers puros extraídos
   components/
     PageCanvas.tsx     -> folha A4, réguas, zoom (zoom-aware drag/resize), grade, faixas vermelhas,
                           caixa de seleção, drag/resize/edição inline
     FieldBox/          -> renderiza texto/tabela/imagem/seção/gráfico/indicador no canvas (um arquivo por tipo)
     FieldList.tsx      -> lista lateral de campos (selecionar/travar/remover, enviar-pra-trás/trazer-pra-frente)
+    TemplateInspector.tsx -> árvore somente-leitura dos campos da página atual, agrupada por zona (header/corpo/rodapé)
     Toolbar.tsx        -> botões "+ texto/tabela/imagem/seção/gráfico/indicador"
     PropertyPanel.tsx  -> dispatcher fino pra um PropertyPanel<Tipo>.tsx por tipo de schema
     PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,

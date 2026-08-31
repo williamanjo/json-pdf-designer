@@ -34,7 +34,7 @@ type Props = {
 };
 
 // Um sub-elemento (ícone/título/valor/legenda) — posição absoluta (mm→px)
-// em vez de flex, pra bater ponto a ponto com drawKpi.ts (que usa a MESMA
+// em vez de flex, pra bater ponto a ponto com render/renderKpi.ts (que usa a MESMA
 // posição padrão, ver kpiFormat.ts). onMouseDown sempre foca o elemento
 // (onSelectElement); só inicia arrasto de verdade quando o card já tá
 // selecionado E o elemento está destravado (cadeado na aba Campos) —

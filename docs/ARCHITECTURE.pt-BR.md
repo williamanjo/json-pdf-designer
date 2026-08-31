@@ -99,22 +99,42 @@ reordenada/reformatada pelo painel.
 ## Geração do PDF (`src/pdf/`)
 
 `generate.ts` é o ponto de entrada (`generatePdf(template, data,
-bindings, options?)`) — JS puro, sem DOM, seguro de rodar em Node. Pra
-cada `schema`, resolve o valor via `buildInputs`/`resolveToken` e delega
-o desenho de verdade pra um módulo por tipo:
+bindings, options?)`) — JS puro, sem DOM, seguro de rodar em Node. É só
+um orquestrador fino: pra cada página-design, deriva o layout do corpo,
+roda uma passagem dry-run pra já saber `{pageCount}` de antemão, e
+percorre os mesmos itens de novo pra desenhar de verdade — delegando pra
+`layout/` (a conta) e `render/` (o desenho) abaixo.
 
-- `drawTable.ts` — linhas de cabeçalho/corpo/rodapé, override de estilo
-  por coluna, paginação quando a tabela não cabe numa página só.
-- `drawSection.ts` — repete o grupo de campos membros uma vez por item do
-  array vinculado, crescendo/paginando junto com o resto do corpo.
-- `drawChart.ts` — pizza/rosca ou barra, posição da legenda, paleta de
-  cores (`src/chart/colors.ts`).
-- `drawKpi.ts` — o cartão colorido + o path do ícone Material Symbols
-  (`src/materialIcons.ts`).
+- `layout/` — funções puras, sem `pdf-lib` nenhum:
+  - `layoutTypes.ts` — os tipos `BodyItem`/`FlowBounds`/`PreparedPageDef`
+    compartilhados pelos dois arquivos abaixo.
+  - `bodyLayout.ts` — agrupa os schemas de uma página em `BodyItem`s
+    ordenados por Y (`buildBodyItems`), mais os helpers pequenos
+    (`boundsOf`, `gapAfter`) que tanto o dry-run quanto o loop de desenho
+    de verdade usam pra percorrer essa sequência.
+  - `pageLayout.ts` — `normalizePageDefs` (`Template` de página única vs.
+    `Template.pages` multi-página) e `countBodyPages`, a passagem dry-run
+    que espelha as mesmas decisões de paginação do loop de desenho de
+    verdade sem tocar em `pdf-lib`.
+- `render/` — o desenho de verdade, um arquivo por tipo de campo,
+  despachado pelo `drawFieldOfType` de `render/index.ts`:
+  - `renderTable.ts` — linhas de cabeçalho/corpo/rodapé, override de
+    estilo por coluna, paginação quando a tabela não cabe numa página só.
+  - `renderSection.ts` — repete o grupo de campos membros uma vez por
+    item do array vinculado, crescendo/paginando junto com o resto do
+    corpo.
+  - `renderChart.ts` — pizza/rosca ou barra, posição da legenda, paleta
+    de cores (`src/chart/colors.ts`).
+  - `renderKpi.ts` — o cartão colorido + o path do ícone Material Symbols
+    (`src/materialIcons.ts`).
+  - `renderText.ts`/`renderImage.ts` — os dois tipos de campo mais
+    simples; `renderImage.ts` também guarda os limites de segurança de
+    tamanho/contagem de imagem (`MAX_IMAGE_BYTES`/`MAX_DISTINCT_IMAGES`).
 
-Módulos de apoio: `pagination.ts` (divide o corpo entre páginas contra
-`headerHeight`/`footerHeight`/`marginLeft`/`marginRight`, ver
-`src/zones.ts` pra como o editor classifica um campo em cabeçalho/
+Módulos de apoio (continuam direto sob `src/pdf/`, usados tanto por
+`layout/` quanto por `render/`): `pagination.ts` (divide o corpo entre
+páginas contra `headerHeight`/`footerHeight`/`marginLeft`/`marginRight`,
+ver `src/zones.ts` pra como o editor classifica um campo em cabeçalho/
 rodapé/margem/corpo só pela posição), `fontUtils.ts` (embute uma fonte
 TTF própria via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts`
 (transforma um PDF/PNG/JPEG enviado no PNG de fundo da página),

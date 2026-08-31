@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PDFFont, PDFPage } from "pdf-lib";
-import { drawKpi } from "../../src/pdf/drawKpi";
-import type { KpiSchema } from "../../src/types";
+import { drawKpi } from "../../../src/pdf/render/renderKpi";
+import type { KpiSchema } from "../../../src/types";
 
 // drawKpi só chama drawText/drawSvgPath no `page` recebido — um objeto
 // falso que só grava as chamadas é suficiente pra testar posição/presença
@@ -27,7 +27,7 @@ function makeFakePage() {
 const fakeFont = { widthOfTextAtSize: () => 0 } as unknown as PDFFont;
 
 const MM_TO_PT = 72 / 25.4;
-const PADDING_PT = 8; // mesmo valor de PADDING_PT em src/pdf/drawKpi.ts
+const PADDING_PT = 8; // mesmo valor de PADDING_PT em src/pdf/render/renderKpi.ts
 const TITLE_SIZE = 8; // DEFAULT_KPI_TITLE_FONT_SIZE
 
 function baseSchema(overrides: Partial<KpiSchema> = {}): KpiSchema {

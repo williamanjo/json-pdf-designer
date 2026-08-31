@@ -1,6 +1,13 @@
 import * as pdfjsLib from "pdfjs-dist";
 import { ensureWorker } from "./pdfWorker";
 
+// Mesmo espírito do limite em generate.ts — aqui protege a PRÓPRIA aba do
+// navegador de travar rasterizando/convertendo um arquivo enorme (o
+// generate.ts, do lado do servidor, tem seu próprio limite sobre o
+// data URI já convertido — este aqui é o portão de entrada, antes de
+// gastar CPU/memória processando o arquivo).
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB, arquivo original
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -45,6 +52,9 @@ function imageToPng(dataUrl: string): Promise<string> {
 // como fundo da página. PDF → rasteriza 1ª página; imagem → converte pra
 // PNG via canvas (garante que generate.ts sempre recebe PNG).
 export async function fileToBackgroundImage(file: File): Promise<string> {
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error(`Arquivo maior que o limite de ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB — reduza o tamanho antes de enviar.`);
+  }
   if (file.type === "application/pdf") {
     return rasterizeFirstPdfPage(await file.arrayBuffer());
   }

@@ -16,7 +16,7 @@ function legendPreviewFontSizePx(legendFontSize: number | undefined): number {
 // Preview de design só — 4 fatias/barras fixas de exemplo, só pra mostrar
 // que o campo é um gráfico, qual tipo e (agora) qual paleta de cor foi
 // escolhida (pronta ou personalizada). O dado (e a agregação em cima do
-// vínculo real) só entra na hora de gerar o PDF (ver pdf/drawChart.ts).
+// vínculo real) só entra na hora de gerar o PDF (ver pdf/render/renderChart.ts).
 function chartPreview(colorPalette: string | undefined, customPaletteColors: string[] | undefined) {
   const palette = resolveChartColors(colorPalette, customPaletteColors);
   const values = [40, 25, 20, 15];

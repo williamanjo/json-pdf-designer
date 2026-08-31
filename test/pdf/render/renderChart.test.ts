@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { PDFFont, PDFPage } from "pdf-lib";
-import { drawChart } from "../../src/pdf/drawChart";
-import type { ChartSchema } from "../../src/types";
-import type { ChartItem } from "../../src/bindings/bindings";
+import { drawChart } from "../../../src/pdf/render/renderChart";
+import type { ChartSchema } from "../../../src/types";
+import type { ChartItem } from "../../../src/bindings/bindings";
 
 // drawChart só chama drawText/drawRectangle/drawSvgPath no `page` recebido
-// — mesma técnica de fake-page-spy já usada em drawKpi.test.ts/
-// drawTable.test.ts: um objeto falso que só grava as chamadas, sem montar
+// — mesma técnica de fake-page-spy já usada em renderKpi.test.ts/
+// renderTable.test.ts: um objeto falso que só grava as chamadas, sem montar
 // um PDFDocument de verdade.
 function makeFakePage() {
   const texts: { text: string; x: number; y: number; size: number }[] = [];
@@ -71,7 +71,7 @@ describe("drawChart", () => {
     drawChart(page, fakeFont, schema, data, total, 0, 200, 156, 99);
 
     // drawLegend desenha 1 drawRectangle (swatch) por item, nada mais usa
-    // drawRectangle em drawChart.ts.
+    // drawRectangle em render/renderChart.ts.
     expect(rects.length).toBe(data.length);
   });
 

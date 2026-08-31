@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PDFDocument, PDFFont, PDFImage, PDFPage } from "pdf-lib";
-import { buildBodyItems, drawFieldOfType, type DrawFieldContext } from "../../src/pdf/generate";
+import { buildBodyItems } from "../../src/pdf/layout/bodyLayout";
+import { drawFieldOfType, type DrawFieldContext } from "../../src/pdf/render";
 import type { TableSchema, TextSchema } from "../../src/types";
 
 // buildBodyItems é pura (sem pdf-lib) — cobre só o agrupamento em BodyItem,
@@ -79,8 +80,8 @@ describe("buildBodyItems", () => {
   });
 });
 
-// drawFieldOfType — mesma técnica de fake-page-spy de drawTable.test.ts/
-// drawKpi.test.ts, sem montar um PDFDocument de verdade. Cobre só o caso
+// drawFieldOfType — mesma técnica de fake-page-spy de render/renderTable.test.ts/
+// render/renderKpi.test.ts, sem montar um PDFDocument de verdade. Cobre só o caso
 // "text": os outros tipos (image/table/chart/kpi) já dependem de mais peça
 // (pdf-lib de verdade pra embedPng/embedJpg, ou funções de bindings.ts) —
 // exercitados de ponta a ponta pelos testes de generate.*.test.ts

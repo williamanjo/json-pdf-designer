@@ -19,3 +19,17 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+      # Testa o pacote PUBLICADO (tarball do `npm pack`), não o código-fonte
+      # direto — pega regressão que só aparece no que é instalado de
+      # verdade (exports/package.json errado, arquivo faltando em `files`,
+      # .d.ts não gerado, entry "/server" quebrado). Ver
+      # test/pack-consumer/README.md.
+      - name: Verify published tarball works standalone
+        run: |
+          npm pack
+          mkdir -p /tmp/pack-consumer
+          cp json-pdf-designer-*.tgz /tmp/pack-consumer/pkg.tgz
+          cp test/pack-consumer/package.json test/pack-consumer/generate-check.mjs /tmp/pack-consumer/
+          cd /tmp/pack-consumer
+          npm install ./pkg.tgz
+          node generate-check.mjs

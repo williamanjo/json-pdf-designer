@@ -39,6 +39,7 @@ import { PropertyPanel } from "../components/PropertyPanel";
 import { FilterTab } from "../components/FilterTab";
 import { PositionFields } from "../components/PropertyPanelFields";
 import { FieldList } from "../components/FieldList";
+import { TemplateInspector } from "../components/TemplateInspector";
 import { Toolbar } from "../components/Toolbar";
 import { Badge, Button, Card, CardHeader, Input, Select, TabPanel } from "../components/ui";
 import { IconAlertTriangle, IconPlus, IconUpload, IconX } from "../components/ui/icons";
@@ -842,6 +843,10 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
                 {isolateBands ? t.pageSettings.isolateOn : t.pageSettings.isolateOff}
               </Button>
             </div>
+          )}
+
+          {sidebarTab === "inspetor" && (
+            <TemplateInspector template={template} bindings={bindings} selectedIds={selectedIds} onSelect={handleSelect} />
           )}
           </TabPanel>
         </Card>

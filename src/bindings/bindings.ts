@@ -116,9 +116,18 @@ export const CUSTOM_FIELD_FUNCTIONS = [
   { name: "DATE", snippet: 'DATE(caminho, "DD/MM/YYYY", "DD/MM/YYYY")', hintKey: "date" },
   { name: "CURRENCY", snippet: 'CURRENCY(caminho, "R$", 2)', hintKey: "currency" },
   { name: "NUMBER", snippet: "NUMBER(caminho, 2)", hintKey: "number" },
+  { name: "IF", snippet: 'IF(caminho == "valor", "então", "senão")', hintKey: "if" },
 ] as const satisfies readonly { name: string; snippet: string; hintKey: keyof Dict["fieldFunctions"] }[];
 
-function resolveArg(arg: string, data: unknown): string {
+// Limite de aninhamento de {FUNCAO(FUNCAO(...))} — sem isso, um template
+// mal-formado (ou malicioso, em cenário multi-tenant onde o template vem de
+// fonte não confiável) tipo `{CURRENCY(CURRENCY(CURRENCY(...)))}` repetido
+// milhares de vezes estoura a call stack do V8 silenciosamente (crash, não
+// erro tratável). 40 níveis cobre qualquer aninhamento legítimo de verdade
+// (uso real observado nunca passa de 2-3) com folga generosa.
+const MAX_EXPRESSION_DEPTH = 40;
+
+function resolveArg(arg: string, data: unknown, depth: number): string {
   const quoted = arg.match(/^"(.*)"$/);
   if (quoted) return quoted[1];
   // Literal numérico puro — ex: o "2" de NUMBER(valor, 2). Sem isso viraria
@@ -130,7 +139,7 @@ function resolveArg(arg: string, data: unknown): string {
   // CURRENCY(SUM(...)) ou NUMBER(qtd * preco, 2) nunca resolveriam (a busca
   // de path olharia pra string inteira "SUM(...)"/"qtd * preco" como se
   // fosse uma chave, e não achando nada, ficava vazio).
-  if (/\(.*\)/.test(arg) || /\s[+\-*/]\s/.test(arg)) return resolveToken(arg, data);
+  if (/\(.*\)/.test(arg) || /\s[+\-*/]\s/.test(arg)) return resolveToken(arg, data, depth + 1);
   return stringifyOrEmpty(getCaseInsensitive(data, arg));
 }
 
@@ -218,15 +227,15 @@ function formatCurrency(raw: string, symbol: string, decimals: number): string {
 // argumento normal. Não mexe em texto entre aspas nem em chamada de função
 // (FUNC(...)) — só entra em jogo se sobrar operador de verdade separado
 // por espaço dos dois lados.
-function resolveArithmetic(trimmed: string, data: unknown): string | null {
+function resolveArithmetic(trimmed: string, data: unknown, depth: number): string | null {
   if (/^".*"$/.test(trimmed)) return null;
   const parts = trimmed.split(/\s+([+\-*/])\s+/);
   if (parts.length < 3 || parts.length % 2 === 0) return null;
-  let acc = Number(resolveArg(parts[0], data));
+  let acc = Number(resolveArg(parts[0], data, depth));
   if (Number.isNaN(acc)) return null;
   for (let i = 1; i < parts.length; i += 2) {
     const op = parts[i];
-    const rhs = Number(resolveArg(parts[i + 1], data));
+    const rhs = Number(resolveArg(parts[i + 1], data, depth));
     if (Number.isNaN(rhs)) return null;
     if (op === "+") acc += rhs;
     else if (op === "-") acc -= rhs;
@@ -240,74 +249,147 @@ function resolveArithmetic(trimmed: string, data: unknown): string | null {
   return String(Math.round(acc * 1e6) / 1e6);
 }
 
-export function resolveToken(token: string, data: unknown): string {
+// Comparação usada por {IF(condição, "então", "senão")} — mesma ordem de
+// prioridade que resolveArithmetic usa (2 caracteres antes de 1, pra ">="
+// não ser lido como ">" seguido de sobra) e mesmo formato "operando ESPAÇO
+// operador ESPAÇO operando" de sempre. Reaproveita matchesFilterCondition
+// (mais abaixo, mesma lógica de "compara como número quando os dois lados
+// são numéricos, senão como texto" que os filtros de chart/kpi já usam) em
+// vez de reimplementar a comparação do zero.
+const IF_OPERATORS: { token: string; op: ChartFilterOp }[] = [
+  { token: "==", op: "eq" },
+  { token: "!=", op: "neq" },
+  { token: ">=", op: "gte" },
+  { token: "<=", op: "lte" },
+  { token: ">", op: "gt" },
+  { token: "<", op: "lt" },
+];
+
+function resolveCondition(condition: string, data: unknown, depth: number): boolean {
+  for (const { token, op } of IF_OPERATORS) {
+    const marker = ` ${token} `;
+    const idx = condition.indexOf(marker);
+    if (idx === -1) continue;
+    const lhs = resolveArg(condition.slice(0, idx).trim(), data, depth);
+    const rhs = resolveArg(condition.slice(idx + marker.length).trim(), data, depth);
+    return matchesFilterCondition(lhs, op, rhs);
+  }
+  // Sem operador de comparação — checa se o próprio valor resolvido é
+  // "verdadeiro": vazio, "0" ou "false" (sem diferenciar maiúsculas) contam
+  // como falso, qualquer outra coisa como verdadeiro. Ex: {IF(pago, "Sim",
+  // "Não")} com `pago` sendo um path que resolve pra "true"/"1"/"Sim" etc.
+  const resolved = resolveArg(condition.trim(), data, depth).trim().toLowerCase();
+  return resolved !== "" && resolved !== "0" && resolved !== "false";
+}
+
+// Confere se `s` tem parênteses balanceados (nunca fecha antes de abrir, e
+// termina em 0) — mesma ideia de profundidade que splitDelimited.ts usa pra
+// vírgula, aqui só pra VALIDAR se o que o regex guloso de baixo capturou é
+// de fato uma lista de argumentos de UMA chamada, não um "vazamento" por
+// cima de um operador fora dos parênteses (ver comentário em resolveToken).
+function hasBalancedParens(s: string): boolean {
+  let depth = 0;
+  for (const ch of s) {
+    if (ch === "(") depth++;
+    else if (ch === ")") {
+      depth--;
+      if (depth < 0) return false;
+    }
+  }
+  return depth === 0;
+}
+
+export function resolveToken(token: string, data: unknown, depth = 0): string {
+  if (depth > MAX_EXPRESSION_DEPTH) {
+    throw new Error(
+      `Expression nesting too deep (over ${MAX_EXPRESSION_DEPTH} levels) — check the template for a malformed or unexpectedly deep {FUNCTION(...)} chain.`
+    );
+  }
   const trimmed = token.trim();
   const call = trimmed.match(/^([A-Za-z]+)\((.*)\)$/s);
-  if (!call) {
-    const arithmetic = resolveArithmetic(trimmed, data);
-    return arithmetic ?? resolveArg(trimmed, data);
+  // `call` só é confiável quando o conteúdo capturado (call[2]) tem
+  // parênteses balanceados — senão o regex guloso (ancorado do primeiro "("
+  // ao ÚLTIMO ")" da string inteira) "vazou" por cima de um operador fora
+  // dos parênteses, tipo "SUM(a) - SUM(b)" (captura "a) - SUM(b", que fecha
+  // antes de abrir — não é uma chamada de função só). Nesse caso cai pra
+  // aritmética/arg normal abaixo, em vez de tratar tudo como argumento de
+  // uma função (bug real: antes disso, {SUM(a) - SUM(b)} sempre virava "0"
+  // ao invés de subtrair).
+  if (call && hasBalancedParens(call[2])) {
+    const fn = call[1].toUpperCase();
+    const args = splitDelimited(call[2]);
+
+    switch (fn) {
+      case "SUM":
+        return String(numbersFromArrayPath(data, args[0] ?? "").reduce((a, b) => a + b, 0));
+      case "COUNT": {
+        const { arrayPath } = splitArrayPath(args[0] ?? "");
+        const arr = getCaseInsensitive(data, arrayPath);
+        return String(Array.isArray(arr) ? arr.length : 0);
+      }
+      case "AVG": {
+        const nums = numbersFromArrayPath(data, args[0] ?? "");
+        return nums.length ? String(nums.reduce((a, b) => a + b, 0) / nums.length) : "0";
+      }
+      case "CONCAT":
+        return args.map((a) => resolveArg(a, data, depth)).join("");
+      case "UPPER":
+        return resolveArg(args[0] ?? "", data, depth).toUpperCase();
+      case "LOWER":
+        return resolveArg(args[0] ?? "", data, depth).toLowerCase();
+      case "TRIM":
+        // Tira espaço do início/fim — comum em export de sistema legado com
+        // campo de largura fixa (ex: "fatura": " 01156189"). {CONCAT}/{token}
+        // direto preservam o valor exatamente como veio (de propósito); pra
+        // tirar o espaço sem depender do efeito colateral de Number(" x")
+        // (que também comeria zero à esquerda), use TRIM explícito.
+        return resolveArg(args[0] ?? "", data, depth).trim();
+      case "DATE":
+        // 3º arg (opcional) diz o formato de ENTRADA — ex: DATE(vencto,
+        // "DD/MM/YYYY", "DD/MM/YYYY") lê "10/04/2025" como 10 de abril, não
+        // deixa o new Date(...) do JS adivinhar (americano, viraria outubro).
+        return formatDate(
+          resolveArg(args[0] ?? "", data, depth),
+          args[1] ? resolveArg(args[1], data, depth) : "DD/MM/YYYY",
+          args[2] ? resolveArg(args[2], data, depth) : undefined
+        );
+      case "CURRENCY": {
+        // 3º arg (opcional) = casas decimais — default 2 (padrão de moeda).
+        const rawDecimals = args[2] ? resolveArg(args[2], data, depth) : "";
+        return formatCurrency(
+          resolveArg(args[0] ?? "", data, depth),
+          args[1] ? resolveArg(args[1], data, depth) : "",
+          rawDecimals === "" ? 2 : Number(rawDecimals)
+        );
+      }
+      case "NUMBER": {
+        // Casas decimais controladas — tipo "%.2f" do C. Ex: NUMBER(qtd *
+        // preco, 2) -> "160.00". Sem separador de milhar/símbolo (isso é o
+        // CURRENCY) — só arredonda e fixa a quantidade de casas.
+        const n = Number(resolveArg(args[0] ?? "", data, depth));
+        // Number("") é 0, não NaN — se o 2º arg não resolver pra nada
+        // (path errado etc), "" não pode virar 0 casas decimais silenciosamente.
+        const rawDecimals = args[1] ? resolveArg(args[1], data, depth) : "";
+        const decimals = rawDecimals === "" ? 2 : Number(rawDecimals);
+        return Number.isNaN(n) ? "" : n.toFixed(Number.isNaN(decimals) ? 2 : decimals);
+      }
+      case "IF": {
+        // {IF(condição, "então", "senão")} — condição pode ser uma
+        // comparação ("status == \"paid\"", "total > 100") ou um path/
+        // expressão isolada (checagem de verdadeiro/falso, ver
+        // resolveCondition acima). Só resolve o lado escolhido — o outro
+        // nem é avaliado (senão {IF(existe, valor, "N/A")} quebraria
+        // quando `valor` não existe, mesmo do lado que nunca é usado).
+        const isTrue = resolveCondition(args[0] ?? "", data, depth);
+        return resolveArg(isTrue ? (args[1] ?? "") : (args[2] ?? ""), data, depth);
+      }
+      default:
+        return "";
+    }
   }
 
-  const fn = call[1].toUpperCase();
-  const args = splitDelimited(call[2]);
-
-  switch (fn) {
-    case "SUM":
-      return String(numbersFromArrayPath(data, args[0] ?? "").reduce((a, b) => a + b, 0));
-    case "COUNT": {
-      const { arrayPath } = splitArrayPath(args[0] ?? "");
-      const arr = getCaseInsensitive(data, arrayPath);
-      return String(Array.isArray(arr) ? arr.length : 0);
-    }
-    case "AVG": {
-      const nums = numbersFromArrayPath(data, args[0] ?? "");
-      return nums.length ? String(nums.reduce((a, b) => a + b, 0) / nums.length) : "0";
-    }
-    case "CONCAT":
-      return args.map((a) => resolveArg(a, data)).join("");
-    case "UPPER":
-      return resolveArg(args[0] ?? "", data).toUpperCase();
-    case "LOWER":
-      return resolveArg(args[0] ?? "", data).toLowerCase();
-    case "TRIM":
-      // Tira espaço do início/fim — comum em export de sistema legado com
-      // campo de largura fixa (ex: "fatura": " 01156189"). {CONCAT}/{token}
-      // direto preservam o valor exatamente como veio (de propósito); pra
-      // tirar o espaço sem depender do efeito colateral de Number(" x")
-      // (que também comeria zero à esquerda), use TRIM explícito.
-      return resolveArg(args[0] ?? "", data).trim();
-    case "DATE":
-      // 3º arg (opcional) diz o formato de ENTRADA — ex: DATE(vencto,
-      // "DD/MM/YYYY", "DD/MM/YYYY") lê "10/04/2025" como 10 de abril, não
-      // deixa o new Date(...) do JS adivinhar (americano, viraria outubro).
-      return formatDate(
-        resolveArg(args[0] ?? "", data),
-        args[1] ? resolveArg(args[1], data) : "DD/MM/YYYY",
-        args[2] ? resolveArg(args[2], data) : undefined
-      );
-    case "CURRENCY": {
-      // 3º arg (opcional) = casas decimais — default 2 (padrão de moeda).
-      const rawDecimals = args[2] ? resolveArg(args[2], data) : "";
-      return formatCurrency(
-        resolveArg(args[0] ?? "", data),
-        args[1] ? resolveArg(args[1], data) : "",
-        rawDecimals === "" ? 2 : Number(rawDecimals)
-      );
-    }
-    case "NUMBER": {
-      // Casas decimais controladas — tipo "%.2f" do C. Ex: NUMBER(qtd *
-      // preco, 2) -> "160.00". Sem separador de milhar/símbolo (isso é o
-      // CURRENCY) — só arredonda e fixa a quantidade de casas.
-      const n = Number(resolveArg(args[0] ?? "", data));
-      // Number("") é 0, não NaN — se o 2º arg não resolver pra nada
-      // (path errado etc), "" não pode virar 0 casas decimais silenciosamente.
-      const rawDecimals = args[1] ? resolveArg(args[1], data) : "";
-      const decimals = rawDecimals === "" ? 2 : Number(rawDecimals);
-      return Number.isNaN(n) ? "" : n.toFixed(Number.isNaN(decimals) ? 2 : decimals);
-    }
-    default:
-      return "";
-  }
+  const arithmetic = resolveArithmetic(trimmed, data, depth);
+  return arithmetic ?? resolveArg(trimmed, data, depth);
 }
 
 // Array de objetos -> array de linhas (uma por item, uma célula por
@@ -387,7 +469,7 @@ export function buildInputs(data: unknown, bindings: Binding[]): Record<string, 
         // inteiro) — não tem um valor único pra pré-computar aqui.
         break;
       case "chart":
-        // Resolvido à parte (ver drawChart.ts) — precisa do array bruto pra
+        // Resolvido à parte (ver render/renderChart.ts) — precisa do array bruto pra
         // agregar, não de uma string pré-computada.
         break;
       case "kpi":

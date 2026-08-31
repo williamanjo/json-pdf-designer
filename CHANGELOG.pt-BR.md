@@ -6,6 +6,122 @@ Todas as mudanças relevantes deste pacote ficam documentadas aqui.
 Formato inspirado, sem seguir à risca, em
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## Planejado (ainda não implementado)
+
+- **`pdfjs-dist` vai mudar pra um entry point separado
+  `json-pdf-designer/preview`** (mesmo padrão do `/server` já
+  existente) — **quebra de compatibilidade** pra quem hoje importa
+  `PdfPreview`/`PdfPreviewModal`/`configurePdfWorker` direto do entry
+  principal `"json-pdf-designer"`. Motivo: `pdfjs-dist` é uma
+  dependência pesada (~35MB instalado), e hoje ela é puxada pra TODO
+  consumidor assim que importa qualquer coisa do entry principal
+  (`PdfPreview.tsx`/`pdfWorker.ts` são reexportados no topo do
+  `index.ts`), mesmo quem só usa `<Designer>` e nunca renderiza um
+  preview de PDF. Só tornar o `import()` preguiçoso dentro desses dois
+  arquivos não resolve sozinho — como eles são reexportados no grafo de
+  módulos do entry principal, qualquer bundler resolvendo
+  `"json-pdf-designer"` continua precisando do `pdfjs-dist` resolvível
+  em tempo de build de qualquer jeito. Um entry point separado escapa
+  disso: só quem importa de `/preview` precisa ter `pdfjs-dist`
+  instalado (como peer dependency opcional, mesmo tratamento do
+  `wawoff2`).
+
+## 1.6.4 (2026-08-31)
+
+Resposta a uma auditoria externa de código — conferi as afirmações
+contra o código de verdade antes de agir em cima delas (ver o
+plano/auditoria pra veredito completo; várias afirmações estavam
+desatualizadas ou exageradas, ex: a divergência de versão npm/GitHub
+reportada não existe mais, e a preocupação de segurança "sem eval/new
+Function" já estava satisfeita). Esta versão cobre as partes que se
+confirmaram reais e que valia a pena corrigir agora, mais algumas
+features de acompanhamento e uma reorganização interna feitas na mesma
+leva.
+
+### Corrigido
+
+- **`{SUM(a) - SUM(b)}` agora subtrai de verdade.** Antes, o regex de
+  chamada de função casava gulosamente a expressão inteira como UMA
+  chamada só (capturando `"a) - SUM(b"` como argumento), renderizando
+  silenciosamente `"0"` em vez da diferença. Duas chamadas de função
+  combinadas por operador no mesmo `{...}` agora caem corretamente pra
+  aritmética em vez disso.
+
+### Segurança
+
+- **Limite de profundidade de recursão em `{FUNCAO(...)}` aninhadas** —
+  antes sem limite nenhum; um template com milhares de parênteses
+  aninhados (ex: `{CURRENCY(CURRENCY(CURRENCY(...)))}`) podia derrubar
+  o processo com um estouro de call stack não tratado. Agora lança um
+  erro claro e capturável além de ~40 níveis de aninhamento — bem mais
+  do que qualquer template legítimo precisa.
+- **Limites de tamanho/contagem de imagem** — `ImageSchema.content` e
+  `Template.backgroundImage` agora respeitam um teto de 15MB
+  decodificado por imagem e 200 imagens distintas por documento (os
+  dois lançam erro claro em vez de aceitar qualquer coisa
+  silenciosamente). O upload de fundo pelo navegador
+  (`fileToBackgroundImage`) também rejeita arquivo maior que 20MB antes
+  de tentar processar. Importa mais pra quem aceita template de fonte
+  não confiável (multi-tenant).
+
+### Adicionado
+
+- **Suíte de testes golden/torture**
+  (`test/pdf/generate.torture.test.ts` + `test/pdf/fixtures/`) — roda o
+  pipeline `generatePdf` de verdade (não uma página falsa, um documento
+  `pdf-lib` real) contra templates propositalmente extremos: tabela
+  vazia, tabela de 600 linhas espalhada por muitas páginas físicas,
+  seção maior que uma página inteira, dado vinculado ausente/null, e a
+  fronteira real de codificação de texto (acentuação pt-BR funciona com
+  a fonte padrão, emoji/CJK corretamente precisam de `fontBytes` —
+  agora travado como teste explícito e intencional, não um crash
+  sem documentação).
+- **CI agora verifica o tarball publicado, não só o código-fonte** — um
+  passo novo roda `npm pack`, instala o `.tgz` resultante num
+  consumidor descartável, e chama `generatePdf` de
+  `json-pdf-designer/server` de verdade. Pega regressão de
+  `exports`/`files`/`.d.ts` que só aparece no que é publicado de fato
+  (ver `test/pack-consumer/`).
+- **Função de template `{IF(condição, "então", "senão")}`** —
+  `condição` é uma comparação (`status == "paid"`, `total > 100`;
+  operadores `==`, `!=`, `>`, `>=`, `<`, `<=`, sempre cercados de
+  espaço, reaproveitando a mesma lógica de eq/gt/lt que os filtros de
+  chart/KPI já usam) ou um path/expressão isolada checado como
+  verdadeiro/falso (string vazia, `"0"` e `"false"` contam como falso).
+  Só o lado escolhido é resolvido de verdade, então
+  `{IF(temDesconto, valorDesconto, "0")}` não quebra mesmo quando
+  `valorDesconto` não existe no dado no lado falso. Adicionada ao
+  seletor de função do editor de vínculo e do editor de fórmula de
+  coluna de tabela, junto de `SUM`/`CONCAT`/etc.
+- **Inspetor de Template** — nova aba opcional/removível na barra
+  lateral (mesmo padrão de mostrar/esconder/reordenar de "Dados"/
+  "Estilo"/"Filtro"/"Página") mostrando uma árvore somente-leitura de
+  todo campo da página atual, agrupada por zona (Header/Body/Footer/
+  margens, reaproveitando `classifyZone`/`isRedZone` já existentes em
+  `src/zones.ts` — sem lógica de classificação nova). Cada linha mostra
+  tipo do campo, posição, seção-pai (se membro de seção), um resumo
+  curto do vínculo, e o z-index (mesma ordem que enviar-pra-trás/trazer-
+  pra-frente já usa). Clicar numa linha seleciona o campo no canvas,
+  reaproveitando a seleção já existente — sem mecanismo de seleção
+  paralelo.
+
+### Alterado
+
+- **`src/pdf/` reorganizado em `layout/` e `render/`** — refatoração
+  interna pura, sem mudança de API pública. `generate.ts` agora é só um
+  orquestrador fino; a matemática de paginação (`buildBodyItems`,
+  `boundsOf`/`gapAfter`, `normalizePageDefs`, `countBodyPages`) foi pra
+  `src/pdf/layout/`, e o desenho de verdade no `pdf-lib` (antes
+  `drawTable.ts`/`drawSection.ts`/`drawChart.ts`/`drawKpi.ts`, mais dois
+  arquivos novos separados de `generate.ts` pra texto/imagem) foi pra
+  `src/pdf/render/` como `renderTable.ts`/`renderSection.ts`/
+  `renderChart.ts`/`renderKpi.ts`/`renderText.ts`/`renderImage.ts`,
+  despachados por `render/index.ts`. Verificado como movimentação pura:
+  mesma contagem de testes passando antes e depois, e o tamanho do
+  bundle final ficou inalterado. Só importa pra quem importava um desses
+  arquivos internos direto (não fazem parte dos entry points públicos do
+  pacote) — atualize o caminho do import se for o caso.
+
 ## 1.6.3 (2026-08-31)
 
 ### Removido

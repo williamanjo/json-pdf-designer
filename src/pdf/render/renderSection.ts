@@ -6,11 +6,11 @@
 // repetições/quanto espaço cada uma ocupa antes de desenhar (paginação),
 // drawSectionInstance pra desenhar de verdade.
 import type { PDFFont, PDFPage } from "pdf-lib";
-import { getCaseInsensitive } from "../bindings/bindings";
-import type { Binding, Schema, SectionSchema, TableSchema, TemplatePage } from "../types";
-import { mmToPt } from "../units";
-import { drawTableSlice, TABLE_ROW_HEIGHT_MM } from "./drawTable";
-import { resolveFooterRow, resolveNestedTableRows, resolveTextValue } from "./resolvers";
+import { getCaseInsensitive } from "../../bindings/bindings";
+import type { Binding, Schema, SectionSchema, TableSchema, TemplatePage } from "../../types";
+import { mmToPt } from "../../units";
+import { drawTableSlice, TABLE_ROW_HEIGHT_MM } from "./renderTable";
+import { resolveFooterRow, resolveNestedTableRows, resolveTextValue } from "../resolvers";
 
 // Campos membros de uma seção — qualquer schema do template com
 // sectionId apontando pra ela (ver PageCanvas.tsx: arrastar em cima
