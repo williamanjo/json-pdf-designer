@@ -12,19 +12,11 @@ import {
   kpiBorderRadius,
 } from "../kpiFormat";
 import { colorOrDefault } from "./color";
-import { truncateToWidth } from "./drawTable";
+import { truncateToWidth } from "./textLayout";
+import { roundedRectPath } from "./svgShapes";
 import { mmToPt } from "../units";
 
 const PADDING_PT = 8;
-
-// Retângulo com cantos arredondados — pdf-lib não tem essa forma pronta
-// (drawRectangle só faz cantos retos), então desenha via drawSvgPath.
-// Coordenadas locais (0,0) = canto superior-esquerdo, y cresce pra baixo
-// (convenção SVG) — ver pieGeometry.ts pra mesma lógica de ancoragem.
-function roundedRectPath(width: number, height: number, radius: number): string {
-  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
-  return `M ${r},0 H ${width - r} A ${r},${r} 0 0 1 ${width},${r} V ${height - r} A ${r},${r} 0 0 1 ${width - r},${height} H ${r} A ${r},${r} 0 0 1 0,${height - r} V ${r} A ${r},${r} 0 0 1 ${r},0 Z`;
-}
 
 // Ícone do Material Symbols (mesmo path do preview no canvas, ver
 // components/FieldBox/KpiField.tsx) — path autorado no grid 960 padrão
@@ -42,23 +34,33 @@ function drawIcon(page: PDFPage, icon: string, cx: number, cy: number, size: num
 
 // Converte um offset customizado (mm, canto superior-esquerdo do
 // sub-elemento relativo ao cartão — ver KpiElementOffset) pro ponto (pt,
-// espaço da página) que `drawText`/`drawIcon` esperam. `anchor` decide a
-// conta: "baseline" (texto — a caixa some `sizePt` de altura, a baseline
-// fica embaixo dela) ou "center" (ícone — `drawIcon` já espera o centro).
-function offsetToPoint(
+// espaço da página) que `drawText` espera: a caixa some `fontSizePt` de
+// altura, a baseline fica embaixo dela.
+function offsetToBaselinePoint(
   offset: KpiElementOffset,
   xPt: number,
   yPt: number,
   heightPt: number,
-  sizePt: number,
-  anchor: "baseline" | "center"
+  fontSizePt: number
 ): { x: number; y: number } {
   const boxX = xPt + mmToPt(offset.x);
   const boxTopY = yPt + heightPt - mmToPt(offset.y);
-  if (anchor === "center") {
-    return { x: boxX + sizePt / 2, y: boxTopY - sizePt / 2 };
-  }
-  return { x: boxX, y: boxTopY - sizePt };
+  return { x: boxX, y: boxTopY - fontSizePt };
+}
+
+// Converte um offset customizado (mm, canto superior-esquerdo do
+// sub-elemento relativo ao cartão — ver KpiElementOffset) pro ponto (pt,
+// espaço da página) que `drawIcon` espera (`drawIcon` já espera o centro).
+function offsetToCenterPoint(
+  offset: KpiElementOffset,
+  xPt: number,
+  yPt: number,
+  heightPt: number,
+  iconSizePt: number
+): { x: number; y: number } {
+  const boxX = xPt + mmToPt(offset.x);
+  const boxTopY = yPt + heightPt - mmToPt(offset.y);
+  return { x: boxX + iconSizePt / 2, y: boxTopY - iconSizePt / 2 };
 }
 
 // Cartão de indicador: fundo sólido com cantos arredondados, ícone + título
@@ -95,7 +97,7 @@ export function drawKpi(
 
   if (title !== undefined) {
     const p = schema.titleOffset
-      ? offsetToPoint(schema.titleOffset, xPt, yPt, heightPt, titleSize, "baseline")
+      ? offsetToBaselinePoint(schema.titleOffset, xPt, yPt, heightPt, titleSize)
       : { x: xPt + PADDING_PT, y: topY - titleSize };
     page.drawText(truncateToWidth(title.toUpperCase(), font, titleSize, Math.max(innerWidth, 10)), {
       x: p.x,
@@ -108,7 +110,7 @@ export function drawKpi(
 
   if (hasIcon) {
     const p = schema.iconOffset
-      ? offsetToPoint(schema.iconOffset, xPt, yPt, heightPt, iconSize, "center")
+      ? offsetToCenterPoint(schema.iconOffset, xPt, yPt, heightPt, iconSize)
       : { x: xPt + widthPt - PADDING_PT - iconSize / 2, y: topY - titleSize / 2 };
     drawIcon(page, schema.icon, p.x, p.y, iconSize, fg);
   }
@@ -116,7 +118,7 @@ export function drawKpi(
   if (value !== undefined) {
     const displayValue = formatKpiValue(value, schema.numberFormat);
     const p = schema.valueOffset
-      ? offsetToPoint(schema.valueOffset, xPt, yPt, heightPt, valueSize, "baseline")
+      ? offsetToBaselinePoint(schema.valueOffset, xPt, yPt, heightPt, valueSize)
       : { x: xPt + PADDING_PT, y: yPt + heightPt / 2 - valueSize / 3 };
     page.drawText(truncateToWidth(displayValue, font, valueSize, widthPt - PADDING_PT * 2), {
       x: p.x,
@@ -129,7 +131,7 @@ export function drawKpi(
 
   if (subtitle !== undefined) {
     const p = schema.subtitleOffset
-      ? offsetToPoint(schema.subtitleOffset, xPt, yPt, heightPt, subtitleSize, "baseline")
+      ? offsetToBaselinePoint(schema.subtitleOffset, xPt, yPt, heightPt, subtitleSize)
       : { x: xPt + PADDING_PT, y: yPt + PADDING_PT };
     page.drawText(truncateToWidth(subtitle, font, subtitleSize, widthPt - PADDING_PT * 2), {
       x: p.x,

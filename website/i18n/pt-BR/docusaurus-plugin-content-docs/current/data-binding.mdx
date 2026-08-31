@@ -44,10 +44,18 @@ qualquer lugar):
 precedência de operador.
 
 Uma função pode receber outra função ou uma expressão aritmética como
-argumento (`{CURRENCY(SUM(rows.total), "R$")}`), com uma exceção:
-**duas chamadas de função combinadas por operador na mesma expressão**
-(`{SUM(a) - SUM(b)}`) não resolve certo — pré-calcule o valor no JSON
-ou separe em dois tokens.
+argumento (`{CURRENCY(SUM(rows.total), "R$")}`), com duas exceções:
+
+- **Duas chamadas de função combinadas por operador na mesma
+  expressão** (`{SUM(a) - SUM(b)}`) não resolve certo — pré-calcule o
+  valor no JSON ou separe em dois tokens.
+- **O argumento do próprio `SUM`, `COUNT` e `AVG` é sempre lido como um
+  path de array cru**, nunca resolvido como outra chamada de função
+  aninhada — `{SUM(CONCAT(a, b))}` não funciona, tem que ser um path
+  simples tipo `rows.total`. O *resultado* deles continua podendo
+  entrar dentro de outra função por fora sem problema (é isso que faz
+  `{CURRENCY(SUM(rows.total), "R$")}` acima funcionar — quem resolve o
+  próprio argumento ali é o `CURRENCY`, não o `SUM`).
 
 ## Datas são sempre lidas/escritas em UTC
 

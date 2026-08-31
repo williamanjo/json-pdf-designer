@@ -11,8 +11,8 @@
 // acima de onde essas funções são chamadas: um "orgao" foi parar sob o
 // rótulo "fatura" porque um clique rápido leu bindings de ANTES do clique
 // anterior aplicar).
-import type { Binding, DataSourceColumnType, TableColumn, TableColumnStyle, TableSchema } from "./types";
-import { columnLabel } from "./bindings/bindings";
+import type { Binding, DataSourceColumnType, TableColumn, TableColumnStyle, TableSchema } from "../types";
+import { columnLabel } from "../bindings/bindings";
 
 type ArrayBinding = Extract<Binding, { type: "array" }>;
 

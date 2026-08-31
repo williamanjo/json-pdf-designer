@@ -14,8 +14,8 @@ import {
   reorderTableColumn,
   setColumnFormulaOnArrayBinding,
   setColumnStyle,
-} from "../src/tableColumns";
-import type { Binding, TableSchema } from "../src/types";
+} from "../../src/table/columns";
+import type { Binding, TableSchema } from "../../src/types";
 
 function makeTable(overrides: Partial<TableSchema> = {}): TableSchema {
   return {

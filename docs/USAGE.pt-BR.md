@@ -248,10 +248,18 @@ decimais, sem separador de milhar/símbolo, que é o `CURRENCY`), e
 **aritmética simples** (`{qtd * preco}`, `{subtotal - desconto}` — da
 esquerda pra direita, sem precedência de operador). Uma função PODE
 receber outra função ou uma expressão aritmética como argumento (ex:
-`{CURRENCY(SUM(rows.total), "R$")}`), com uma exceção: **duas chamadas de
-função combinadas por operador na mesma expressão** (`{SUM(a) - SUM(b)}`)
-não resolve certo — nesse caso, pré-calcule o valor no JSON ou separe em
-dois tokens.
+`{CURRENCY(SUM(rows.total), "R$")}`), com duas exceções:
+
+- **Duas chamadas de função combinadas por operador na mesma
+  expressão** (`{SUM(a) - SUM(b)}`) não resolve certo — nesse caso,
+  pré-calcule o valor no JSON ou separe em dois tokens.
+- **O argumento do próprio `SUM`, `COUNT` e `AVG` é sempre lido como um
+  path de array cru**, nunca resolvido como outra chamada de função ou
+  expressão aninhada — `{SUM(CONCAT(a, b))}` não funciona, o argumento
+  tem que ser um path simples tipo `rows.total`. O *resultado* deles,
+  porém, continua podendo entrar dentro de outra função por fora sem
+  problema (`{CURRENCY(SUM(rows.total), "R$")}` acima funciona porque
+  quem resolve o próprio argumento ali é o `CURRENCY`, não o `SUM`).
 
 `DATE`'s 3º argumento (opcional) diz o **formato de entrada** — sem ele,
 `new Date(raw)` do JS tenta adivinhar, e uma data tipo `"10/04/2025"`
@@ -694,19 +702,33 @@ src/
     dataSource.ts       -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
   units.ts             -> conversões mm <-> px <-> pt + grade (GRID_SIZE_MM, snapToGrid)
   zones.ts             -> classifica campo em header/footer/margem/corpo + trava de arrasto
-  chartColors.ts       -> paletas categóricas fixas do gráfico + rótulos
   materialIcons.ts     -> paths dos ícones Material Symbols + rótulos de busca EN/PT-BR (seletor do KPI)
   fieldWarnings.ts     -> mensagens de aviso "sem vínculo"/"filtro incompleto" (lista de campos, ícones de aba)
   pageSizes.ts         -> presets de tamanho de página + orientação (retrato/paisagem)
-  schemaFactory.ts     -> cria schema novo (texto/tabela/imagem/seção/gráfico/indicador) + próximo Y livre
-  tableColumns.ts      -> mantém head/content/footer/columnStyles de uma tabela sincronizados com o vínculo array
+  numberFormat.ts      -> formatação de número pt-BR, compartilhada pelo cartão de KPI e por CURRENCY/NUMBER em bindings.ts
+  schemaFactory.ts     -> cria schema novo (texto/tabela/imagem/seção/gráfico/kpi) + próximo Y livre
+  kpiFormat.ts         -> formatação de valor do KPI + posição/trava por elemento (ícone/título/valor/legenda)
+  errorUtils.ts        -> normaliza qualquer valor lançado numa mensagem de erro segura pra mostrar
+  table/
+    columns.ts         -> mantém head/content/footer/columnStyles de uma tabela sincronizados com o vínculo array
+    colors.ts          -> presets de cor estilo Excel (grupos Claro/Médio/Escuro) pra cabeçalho/corpo/zebra
+    layout.ts          -> resolveColumnWidthsMm — fonte única compartilhada pelo canvas e por drawTable.ts
+    columnFormula.ts   -> parse/monta a fórmula de uma coluna calculada (CURRENCY/NUMBER/DATE/raw)
+    columnResize.ts    -> a matemática do arrasto de redimensionar coluna (cresce um lado, encolhe+trava o outro)
+  chart/
+    colors.ts          -> paletas categóricas fixas do gráfico + rótulos
+    format.ts          -> formatação de número/rótulo do gráfico
+    pieGeometry.ts     -> caminho da fatia de pizza/rosca + ponto do rótulo, compartilhado pelo canvas e drawChart.ts
   i18n/
     en.ts, pt-BR.ts     -> texto da própria UI do Designer, um arquivo por idioma (en é o canônico)
     context.tsx, hooks.ts -> I18nProvider, useT, useLocale
+    withInlineCode.tsx -> transforma os trechos `` `código` `` de uma string traduzida em <code> de verdade
   bindings/
     bindings.ts        -> resolve vínculos + funções (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER...) + aritmética
                           + resolveChartItems/aggregateChartItems (vínculo "chart")
+    builders.ts        -> os builders puros de vínculo por tipo de schema usados pelo BindingEditor.tsx, testáveis sem React
     columnParsing.ts   -> parse do texto livre "col, Rótulo={FUNÇÃO(...)}" da tabela
+    splitDelimited.ts  -> separa por um delimitador respeitando aspas/parênteses (usado pelos dois acima)
   pdf/
     generate.ts        -> gera o PDF de verdade (pdf-lib): paginação unificada (tabela/seção/texto/imagem
                           numa sequência só por Y), mestre-detalhe, faixas repetidas, fundo, fonte,
@@ -716,18 +738,26 @@ src/
     drawChart.ts       -> desenha pizza (fatias via drawSvgPath) ou barra + legenda no pdf-lib
     drawKpi.ts         -> desenha o cartão de indicador (fundo + ícone traçado + título/valor/legenda)
     pagination.ts      -> divide o conteúdo do corpo entre páginas contra as faixas de cabeçalho/rodapé/margem
+    svgShapes.ts       -> roundedRectPath (raio uniforme ou por canto), compartilhado por drawTable.ts/drawKpi.ts
+    textLayout.ts      -> matemática de deslocamento alignX/alignY + truncateToWidth, compartilhado por drawTable.ts/generate.ts
     resolvers.ts, color.ts -> pequenos helpers compartilhados pelos módulos draw*
     fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1, WASM pro v2)
     pdfWorker.ts       -> configuração do worker do pdf.js (compartilhada)
     backgroundImage.ts -> converte upload (PDF ou imagem) num PNG de fundo
     thirdParty.d.ts    -> tipos ambient pra wawoff2/tiny-inflate (sem @types próprio)
-  Designer.tsx         -> orquestrador do canvas React — seleção, clipboard, barra de abas, toda mutação de Template/Binding[]
+  designer/
+    Designer.tsx       -> orquestrador do canvas React — seleção, clipboard, barra de abas, toda mutação de Template/Binding[]
+    useTabBar.ts, useSelection.ts, useClipboardAndDelete.ts -> os hooks que compõem o Designer.tsx
+    helpers.ts         -> helpers puros de posição de spawn/dedupe de nome/busca de fonte de dados usados pelo Designer.tsx
   components/
     PageCanvas.tsx     -> folha A4, réguas, zoom (zoom-aware drag/resize), grade, faixas vermelhas,
                           caixa de seleção, drag/resize/edição inline
-    FieldBox/          -> renderiza texto/tabela/imagem/seção/gráfico/indicador no canvas (um arquivo por tipo)
+    canvasGeometry.ts  -> matemática de hit-test de seção + seleção por caixa do PageCanvas.tsx (pura, testável)
+    dragField.ts       -> lê o payload de um "chip" de campo arrastado do explorador de JSON
+    dragGesture.ts     -> encanamento compartilhado de mousedown -> window mousemove/mouseup (arrasto do KPI, redimensionar coluna)
+    FieldBox/          -> renderiza texto/tabela/imagem/seção/gráfico/kpi no canvas (um arquivo por tipo)
     FieldList.tsx      -> lista lateral de campos (selecionar/travar/remover, enviar-pra-trás/trazer-pra-frente)
-    Toolbar.tsx        -> botões "+ texto/tabela/imagem/seção/gráfico/indicador"
+    Toolbar.tsx        -> botões "+ texto/tabela/imagem/seção/gráfico/kpi"
     PropertyPanel.tsx  -> dispatcher fino pra um PropertyPanel<Tipo>.tsx por tipo de schema
     PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,
     PropertyPanelChart.tsx, PropertyPanelKpi.tsx, PropertyPanelFields.tsx -> conteúdo Dados/Estilo por tipo
@@ -735,12 +765,13 @@ src/
     Ruler.tsx          -> régua em mm (SVG)
     PdfPreview.tsx     -> preview do PDF gerado via pdf.js
     PdfPreviewModal.tsx-> modal completo em volta do PdfPreview (exportado, ver acima)
-    ui/                -> Button, Input, Card, Select, Textarea, TabPanel, ícones — exportados (ver acima),
-                          usados por dentro do próprio Designer (PropertyPanel/Toolbar/BindingEditor)
+    ui/                -> Button, Input, Card, Select, Textarea, TabPanel, PalettePicker, CollapsibleSection,
+                          ClearFieldButton, ícones — exportados (ver acima), usados por dentro do próprio Designer
   index.ts             -> exports públicos do pacote
 examples/
   report-builder/      -> app completo (fontes JSON, explorador de campos) usando a UI pronta do pacote
   custom-ui/           -> mesma ideia, casca 100% própria (CSS na mão, sem nenhum componente do pacote)
+  headless-designer/   -> canvas feito à mão sobre json-pdf-designer/server, sem <Designer>/UI nenhuma do pacote
 ```
 
 ## Exemplos

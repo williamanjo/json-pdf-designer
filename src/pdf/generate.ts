@@ -5,7 +5,7 @@ import type { PDFFont, PDFImage, PDFPage } from "pdf-lib";
 import * as fontkit from "fontkit";
 import type { Binding, ImageSchema, Schema, SectionSchema, TableSchema, Template, TemplatePage, TextSchema } from "../types";
 import { aggregateChartItems, buildInputs, renderTemplate, resolveChartItems, resolveKpiValue } from "../bindings/bindings";
-import { resolveChartColors } from "../chartColors";
+import { resolveChartColors } from "../chart/colors";
 import { drawChart } from "./drawChart";
 import { drawKpi } from "./drawKpi";
 import { drawSectionInstance, resolveSectionItems, sectionInstanceHeight, type SectionDrawContext } from "./drawSection";
@@ -16,6 +16,7 @@ import { classifyZone } from "../zones";
 import { normalizeFontBytes } from "./fontUtils";
 import { colorOrDefault } from "./color";
 import { computeTableSlice, needsNewPageForItem } from "./pagination";
+import { alignX } from "./textLayout";
 
 export type GeneratePdfOptions = {
   // Bytes de uma fonte TTF/OTF/WOFF/WOFF2 (ex: baixados do @fontsource/inter)
@@ -35,12 +36,17 @@ export type GeneratePdfOptions = {
 // sequencial reescreve o Y de cada item pelo cursor — sem essa junção,
 // cada um vira seu próprio "próximo item da sequência" e perde a posição
 // relativa aos vizinhos da mesma linha.
-type BodyItem =
+export type BodyItem =
   | { kind: "table"; schema: TableSchema }
   | { kind: "section"; schema: SectionSchema }
   | { kind: "row"; schemas: Schema[]; y: number; height: number };
 
-function boundsOf(item: BodyItem): { y: number; height: number } {
+// Forma comum de "onde/quanto espaço" um BodyItem ocupa no fluxo — usada
+// por boundsOf (retorno) e gapAfter (parâmetros) em vez de tipagem
+// estrutural inferida.
+export type FlowBounds = { y: number; height: number };
+
+function boundsOf(item: BodyItem): FlowBounds {
   return item.kind === "row" ? { y: item.y, height: item.height } : { y: item.schema.y, height: item.schema.height };
 }
 
@@ -49,7 +55,7 @@ function boundsOf(item: BodyItem): { y: number; height: number } {
 // (texto/imagem/gráfico/indicador) que compartilhe o MESMO y autorado com
 // o item anterior entra na mesma "row" em vez de virar um item à parte
 // (ver comentário do BodyItem acima pro motivo).
-function buildBodyItems(bodySchemas: Schema[]): BodyItem[] {
+export function buildBodyItems(bodySchemas: Schema[]): BodyItem[] {
   const bodyItems: BodyItem[] = [];
   for (const s of bodySchemas.slice().sort((a, b) => a.y - b.y)) {
     if (s.type === "table") {
@@ -76,7 +82,7 @@ function buildBodyItems(bodySchemas: Schema[]): BodyItem[] {
 // onde o próximo foi posicionado e onde o anterior "deveria" terminar,
 // segundo a altura autorada), nunca um valor fixo. Negativo (blocos
 // sobrepostos no editor) vira 0 — não faz sentido empurrar pra cima.
-function gapAfter(prev: { y: number; height: number }, next: { y: number; height: number }): number {
+function gapAfter(prev: FlowBounds, next: FlowBounds): number {
   return Math.max(next.y - (prev.y + prev.height), 0);
 }
 
@@ -124,12 +130,9 @@ function drawTextField(
   const textColor = colorOrDefault(schema.fontColor || "#000000", rgb(0, 0, 0));
   const text = value ?? schema.content;
   const textWidth = font.widthOfTextAtSize(text, schema.fontSize);
-  const alignOffset =
-    schema.alignment === "center"
-      ? Math.max(0, (widthPt - textWidth) / 2)
-      : schema.alignment === "right"
-        ? Math.max(0, widthPt - textWidth)
-        : 0;
+  // Mesma fórmula de alignX (drawTable.ts usa a mesma), aqui sem padding
+  // nenhum (paddingPt = 0) — igual ao ternário que isto substituiu.
+  const alignOffset = alignX(schema.alignment, widthPt, textWidth, 0);
   page.drawText(text, {
     x: xPt + alignOffset,
     y: yPt + heightPt - schema.fontSize,
@@ -297,6 +300,83 @@ type PreparedPageDef = {
   pageCount: number;
 };
 
+// O que drawFieldOfType precisa emprestado de renderPageDef pra desenhar
+// UM campo (texto/imagem/tabela repetida/gráfico/indicador) — extraído do
+// que era um closure (drawField, dentro de renderPageDef) pra função de
+// módulo, testável sem montar o resto do fluxo de desenho.
+export type DrawFieldContext = {
+  doc: PDFDocument;
+  font: PDFFont;
+  pageHeightPt: number;
+  imageCache: Map<string, PDFImage>;
+  bindings: Binding[];
+  data: unknown;
+  inputs: Record<string, string>;
+};
+
+// Desenha UM campo já resolvido (texto/imagem/tabela repetida/gráfico/
+// indicador) — dispatcher por schema.type. "section" nunca chega aqui
+// direto (ver drawSection.ts).
+export async function drawFieldOfType(ctx: DrawFieldContext, page: PDFPage, schema: Schema, value: string | undefined): Promise<void> {
+  const { doc, font, pageHeightPt, imageCache, bindings, data, inputs } = ctx;
+  const xPt = mmToPt(schema.x);
+  const widthPt = mmToPt(schema.width);
+  const heightPt = mmToPt(schema.height);
+  const yPt = pageHeightPt - mmToPt(schema.y) - heightPt;
+
+  if (schema.type === "text") {
+    drawTextField(page, font, schema, value, xPt, yPt, widthPt, heightPt);
+    return;
+  }
+
+  if (schema.type === "image") {
+    await drawImageField(doc, page, schema, imageCache, xPt, yPt, widthPt, heightPt);
+    return;
+  }
+
+  if (schema.type === "table") {
+    // Só cai aqui uma tabela repetida (header/footer/margem) — as do
+    // corpo são tratadas à parte, no loop sequencial abaixo.
+    const rows = resolveTopLevelTableRows(schema, bindings, data, inputs);
+    const topYPt = pageHeightPt - mmToPt(schema.y);
+    drawTableSlice(page, font, schema, rows, xPt, topYPt, widthPt, true, resolveFooterRow(schema, data));
+    return;
+  }
+
+  // chart sem binding não desenha nada (nunca teve dado nenhum pra
+  // mostrar), enquanto kpi sem binding cai pro template livre (abaixo) —
+  // assimetria intencional, não esquecimento: KPI sempre tem título/
+  // legenda pra mostrar mesmo sem vínculo (era o único modo antes do
+  // vínculo "kpi" existir), chart sem array não tem o que desenhar.
+  if (schema.type === "chart") {
+    const binding = bindings.find(
+      (b): b is Extract<Binding, { type: "chart" }> => b.schemaName === schema.name && b.type === "chart"
+    );
+    if (binding) {
+      const raw = resolveChartItems(binding, data);
+      const { items, total } = aggregateChartItems(raw, schema.topN ?? 7, schema.sortBy ?? "value_desc", resolveChartColors(schema.colorPalette, schema.customPaletteColors));
+      drawChart(page, font, schema, items, total, xPt, yPt + heightPt, widthPt, heightPt);
+    }
+    return;
+  }
+
+  if (schema.type === "kpi") {
+    const title = schema.title !== undefined ? renderTemplate(schema.title, data) : undefined;
+    const kpiBinding = bindings.find(
+      (b): b is Extract<Binding, { type: "kpi" }> => b.schemaName === schema.name && b.type === "kpi"
+    );
+    const value = kpiBinding
+      ? String(resolveKpiValue(kpiBinding, data))
+      : schema.value !== undefined
+        ? renderTemplate(schema.value, data)
+        : undefined;
+    const subtitle = schema.subtitle !== undefined ? renderTemplate(schema.subtitle, data) : undefined;
+    drawKpi(page, font, schema, title, value, subtitle, xPt, yPt, widthPt, heightPt);
+  }
+
+  // "section" nunca chega aqui direto — ver drawSection.ts.
+}
+
 // Desenha UMA página-design (todas as suas páginas físicas) dentro do
 // PDFDocument/font compartilhados por todo o Template — `startPageNumber`/
 // `totalPages` já vêm prontos (somados entre TODAS as páginas do template,
@@ -318,77 +398,25 @@ async function renderPageDef(
   const pageWidthPt = mmToPt(pageDef.page.width);
   const pageHeightPt = mmToPt(pageDef.page.height);
   const background = pageDef.backgroundImage ? await doc.embedPng(pageDef.backgroundImage) : null;
+  const fieldCtx: DrawFieldContext = { doc, font, pageHeightPt, imageCache, bindings, data, inputs };
 
-  async function drawField(page: PDFPage, schema: Schema, value: string | undefined) {
-    const xPt = mmToPt(schema.x);
-    const widthPt = mmToPt(schema.width);
-    const heightPt = mmToPt(schema.height);
-    const yPt = pageHeightPt - mmToPt(schema.y) - heightPt;
-
-    if (schema.type === "text") {
-      drawTextField(page, font, schema, value, xPt, yPt, widthPt, heightPt);
-      return;
-    }
-
-    if (schema.type === "image") {
-      await drawImageField(doc, page, schema, imageCache, xPt, yPt, widthPt, heightPt);
-      return;
-    }
-
-    if (schema.type === "table") {
-      // Só cai aqui uma tabela repetida (header/footer/margem) — as do
-      // corpo são tratadas à parte, no loop sequencial abaixo.
-      const rows = resolveTopLevelTableRows(schema, bindings, data, inputs);
-      const topYPt = pageHeightPt - mmToPt(schema.y);
-      drawTableSlice(page, font, schema, rows, xPt, topYPt, widthPt, true, resolveFooterRow(schema, data));
-      return;
-    }
-
-    // chart sem binding não desenha nada (nunca teve dado nenhum pra
-    // mostrar), enquanto kpi sem binding cai pro template livre (abaixo) —
-    // assimetria intencional, não esquecimento: KPI sempre tem título/
-    // legenda pra mostrar mesmo sem vínculo (era o único modo antes do
-    // vínculo "kpi" existir), chart sem array não tem o que desenhar.
-    if (schema.type === "chart") {
-      const binding = bindings.find(
-        (b): b is Extract<Binding, { type: "chart" }> => b.schemaName === schema.name && b.type === "chart"
-      );
-      if (binding) {
-        const raw = resolveChartItems(binding, data);
-        const { items, total } = aggregateChartItems(raw, schema.topN ?? 7, schema.sortBy ?? "value_desc", resolveChartColors(schema.colorPalette, schema.customPaletteColors));
-        drawChart(page, font, schema, items, total, xPt, yPt + heightPt, widthPt, heightPt);
-      }
-      return;
-    }
-
-    if (schema.type === "kpi") {
-      const title = schema.title !== undefined ? renderTemplate(schema.title, data) : undefined;
-      const kpiBinding = bindings.find(
-        (b): b is Extract<Binding, { type: "kpi" }> => b.schemaName === schema.name && b.type === "kpi"
-      );
-      const value = kpiBinding
-        ? String(resolveKpiValue(kpiBinding, data))
-        : schema.value !== undefined
-          ? renderTemplate(schema.value, data)
-          : undefined;
-      const subtitle = schema.subtitle !== undefined ? renderTemplate(schema.subtitle, data) : undefined;
-      drawKpi(page, font, schema, title, value, subtitle, xPt, yPt, widthPt, heightPt);
-    }
-
-    // "section" nunca chega aqui direto — ver drawSection.ts.
-  }
-
-  const sectionCtx: SectionDrawContext = { template: pageDef, bindings, font, pageHeightPt, drawField };
+  const sectionCtx: SectionDrawContext = {
+    template: pageDef,
+    bindings,
+    font,
+    pageHeightPt,
+    drawField: (page, schema, value) => drawFieldOfType(fieldCtx, page, schema, value),
+  };
 
   async function drawRepeating(page: PDFPage, pageNumber: number, pageCount: number) {
     for (const schema of repeatingSchemas) {
       if (schema.type !== "text") {
-        await drawField(page, schema, inputs[schema.name]);
+        await drawFieldOfType(fieldCtx, page, schema, inputs[schema.name]);
         continue;
       }
       const binding = bindings.find((b) => b.schemaName === schema.name);
       const text = resolveTextValue(schema.content, binding, pageData(data, pageNumber, pageCount));
-      await drawField(page, schema, text);
+      await drawFieldOfType(fieldCtx, page, schema, text);
     }
   }
 
@@ -440,7 +468,7 @@ async function renderPageDef(
             schema.type === "text"
               ? resolveTextValue(schema.content, bindings.find((b) => b.schemaName === schema.name), data)
               : inputs[schema.name];
-          await drawField(lastPage, shifted, value);
+          await drawFieldOfType(fieldCtx, lastPage, shifted, value);
         }
         cursorTopMm += item.height;
         continue;

@@ -249,10 +249,18 @@ controls how many decimal places, no thousands separator/symbol, that's
 `CURRENCY`), and **simple arithmetic** (`{qty * price}`,
 `{subtotal - discount}` — left to right, no operator precedence). A
 function CAN receive another function or an arithmetic expression as an
-argument (e.g. `{CURRENCY(SUM(rows.total), "$")}`), with one exception:
-**two function calls combined by an operator in the same expression**
-(`{SUM(a) - SUM(b)}`) doesn't resolve correctly — in that case,
-pre-compute the value in the JSON or split it into two tokens.
+argument (e.g. `{CURRENCY(SUM(rows.total), "$")}`), with two exceptions:
+
+- **Two function calls combined by an operator in the same expression**
+  (`{SUM(a) - SUM(b)}`) doesn't resolve correctly — in that case,
+  pre-compute the value in the JSON or split it into two tokens.
+- **`SUM`, `COUNT`, and `AVG`'s own argument is always read as a raw
+  array path**, never resolved as a nested function call or expression —
+  `{SUM(CONCAT(a, b))}` doesn't work, the argument has to be a plain
+  path like `rows.total`. Their *result*, though, can still be nested
+  inside an outer function just fine (`{CURRENCY(SUM(rows.total), "$")}`
+  above works because it's `CURRENCY` resolving its own argument, not
+  `SUM` resolving one).
 
 `DATE`'s 3rd argument (optional) gives the **input format** — without
 it, JS's `new Date(raw)` tries to guess, and a date like `"10/04/2025"`
@@ -696,19 +704,33 @@ src/
     dataSource.ts       -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
   units.ts             -> mm <-> px <-> pt conversions + grid (GRID_SIZE_MM, snapToGrid)
   zones.ts             -> classifies a field into header/footer/margin/body + drag lock
-  chartColors.ts       -> the chart's fixed categorical palettes + labels
   materialIcons.ts     -> Material Symbols icon paths + EN/PT-BR search labels (KPI icon picker)
   fieldWarnings.ts     -> "missing binding"/"incomplete filter" warning messages (Fields list, tab icons)
   pageSizes.ts         -> page size presets + orientation (portrait/landscape)
-  schemaFactory.ts     -> creates a new schema (text/table/image/section/chart/indicator) + next free Y
-  tableColumns.ts      -> keeps a table's head/content/footer/columnStyles in sync with its array binding
+  numberFormat.ts      -> pt-BR number formatting, shared by the KPI card and bindings.ts's CURRENCY/NUMBER
+  schemaFactory.ts     -> creates a new schema (text/table/image/section/chart/kpi) + next free Y
+  kpiFormat.ts         -> KPI value formatting + per-element (icon/title/value/caption) position/lock helpers
+  errorUtils.ts        -> normalizes any thrown value into a display-safe error message
+  table/
+    columns.ts         -> keeps a table's head/content/footer/columnStyles in sync with its array binding
+    colors.ts          -> Excel-style header/body/band color presets (Light/Medium/Dark groups)
+    layout.ts          -> resolveColumnWidthsMm — one source of truth shared by the canvas and drawTable.ts
+    columnFormula.ts   -> parses/builds a calculated column's formula (CURRENCY/NUMBER/DATE/raw)
+    columnResize.ts    -> the column-resize drag math (grow one side, shrink+clamp the other)
+  chart/
+    colors.ts          -> the chart's fixed categorical palettes + labels
+    format.ts          -> chart number/label formatting
+    pieGeometry.ts     -> pie/donut slice path + label point math, shared by the canvas and drawChart.ts
   i18n/
     en.ts, pt-BR.ts     -> the Designer's own UI text, one file per language (en is canonical)
     context.tsx, hooks.ts -> I18nProvider, useT, useLocale
+    withInlineCode.tsx -> renders a translated string's `` `code` `` spans as real <code>
   bindings/
     bindings.ts        -> resolves bindings + functions (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER...) + arithmetic
                           + resolveChartItems/aggregateChartItems ("chart" binding)
+    builders.ts        -> pure per-schema-type binding builders used by BindingEditor.tsx, testable without React
     columnParsing.ts   -> parses the table's free-text "col, Label={FUNCTION(...)}" input
+    splitDelimited.ts  -> splits on a delimiter while respecting quotes/parens (used by the two above)
   pdf/
     generate.ts        -> generates the real PDF (pdf-lib): unified pagination (table/section/text/image
                           in a single sequence by Y), master-detail, repeated bands, background, font,
@@ -718,18 +740,26 @@ src/
     drawChart.ts       -> draws pie (slices via drawSvgPath) or bar + legend in pdf-lib
     drawKpi.ts         -> draws the KPI card (background + traced icon + title/value/caption)
     pagination.ts      -> splits body content across pages against the header/footer/margin bands
+    svgShapes.ts       -> roundedRectPath (uniform or per-corner radius) shared by drawTable.ts/drawKpi.ts
+    textLayout.ts      -> alignX/alignY offset math + truncateToWidth, shared by drawTable.ts/generate.ts
     resolvers.ts, color.ts -> small shared helpers for the draw* modules
     fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1, WASM for v2)
     pdfWorker.ts       -> shared pdf.js worker configuration
     backgroundImage.ts -> turns an upload (PDF or image) into a background PNG
     thirdParty.d.ts    -> ambient types for wawoff2/tiny-inflate (no official @types)
-  Designer.tsx         -> React canvas orchestrator — selection, clipboard, tab bar, all Template/Binding[] mutations
+  designer/
+    Designer.tsx       -> React canvas orchestrator — selection, clipboard, tab bar, all Template/Binding[] mutations
+    useTabBar.ts, useSelection.ts, useClipboardAndDelete.ts -> the hooks Designer.tsx is built from
+    helpers.ts         -> pure spawn-position/name-dedup/data-source-lookup helpers Designer.tsx calls into
   components/
     PageCanvas.tsx     -> the A4 sheet, rulers, zoom (zoom-aware drag/resize), grid, red bands,
                           marquee selection, drag/resize/inline editing
-    FieldBox/          -> renders text/table/image/section/chart/indicator on the canvas (one file per type)
+    canvasGeometry.ts  -> PageCanvas.tsx's section hit-test + marquee-selection math (pure, testable)
+    dragField.ts       -> reads a dropped field-tree chip's payload (drag-and-drop from the JSON explorer)
+    dragGesture.ts     -> shared mousedown -> window mousemove/mouseup drag-loop wiring (KPI drag, column resize)
+    FieldBox/          -> renders text/table/image/section/chart/kpi on the canvas (one file per type)
     FieldList.tsx      -> the side field list (select/lock/remove, send-to-back/bring-to-front)
-    Toolbar.tsx        -> the "+ text/table/image/section/chart/indicator" buttons
+    Toolbar.tsx        -> the "+ text/table/image/section/chart/kpi" buttons
     PropertyPanel.tsx  -> thin dispatcher to one PropertyPanel<Type>.tsx per schema type
     PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,
     PropertyPanelChart.tsx, PropertyPanelKpi.tsx, PropertyPanelFields.tsx -> per-type Data/Style content
@@ -737,12 +767,13 @@ src/
     Ruler.tsx          -> the mm ruler (SVG)
     PdfPreview.tsx     -> preview of the generated PDF via pdf.js
     PdfPreviewModal.tsx-> a full modal around PdfPreview (exported, see above)
-    ui/                -> Button, Input, Card, Select, Textarea, TabPanel, icons — exported (see above),
-                          used internally by Designer itself (PropertyPanel/Toolbar/BindingEditor)
+    ui/                -> Button, Input, Card, Select, Textarea, TabPanel, PalettePicker, CollapsibleSection,
+                          ClearFieldButton, icons — exported (see above), used internally by Designer itself
   index.ts             -> the package's public exports
 examples/
   report-builder/      -> a full app (JSON data sources, field explorer) using the package's ready-made UI
   custom-ui/           -> the same idea, a 100% custom shell (hand-written CSS, no package component)
+  headless-designer/   -> a hand-built canvas over json-pdf-designer/server, no <Designer>/package UI at all
 ```
 
 ## Examples

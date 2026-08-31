@@ -40,7 +40,7 @@ about — an A4 sheet is 210×297mm). Converted to **px** only to render on
 the editor canvas (`src/units.ts`, `mmToPx`/`pxToMm`) and to **pt** when
 drawing the real PDF via pdf-lib (`mmToPt`).
 
-## Editor (`src/Designer.tsx` + `src/components/`)
+## Editor (`src/designer/Designer.tsx` + `src/components/`)
 
 `Designer.tsx` owns selection state, the tab bar (Fields/Data/Style/
 Filter/Page), clipboard (copy/paste), keyboard shortcuts, and every
@@ -64,7 +64,7 @@ binding, resize page bands...). It renders two children:
 Selection, editing, and binding all live in the same React tree — no
 module bridge, no imperative API between the canvas and the panel.
 
-## Bindings and templates (`src/bindings/`, `src/tableColumns.ts`)
+## Bindings and templates (`src/bindings/`, `src/table/columns.ts`)
 
 `bindings.ts` is pure logic over strings/plain objects, with no
 third-party dependency:
@@ -89,7 +89,7 @@ third-party dependency:
   summaries used only in the editor UI (accept an optional `Dict` for
   the active `locale`, default English).
 
-`tableColumns.ts` holds the pure functions that keep a `TableSchema`'s
+`table/columns.ts` holds the pure functions that keep a `TableSchema`'s
 `head`/`content`/`footer`/`columnStyles` in sync with its `Binding`
 (array) when a column is added/removed/reordered/reformatted from the
 panel.
@@ -106,7 +106,7 @@ delegates the actual drawing to a per-type module:
 - `drawSection.ts` — repeats the group of member fields once per item of
   the bound array, growing/paginating with the rest of the body.
 - `drawChart.ts` — pie/donut/bar, legend placement, color palette
-  (`src/chartColors.ts`).
+  (`src/chart/colors.ts`).
 - `drawKpi.ts` — the colored card + Material Symbols icon path (`src/materialIcons.ts`).
 
 Supporting modules: `pagination.ts` (splitting the body across pages

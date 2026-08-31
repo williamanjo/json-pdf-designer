@@ -41,10 +41,17 @@ Simple **arithmetic** works too: `{qty * price}`, `{subtotal - discount}`
 — evaluated left to right, no operator precedence.
 
 A function can receive another function or an arithmetic expression as
-an argument (`{CURRENCY(SUM(rows.total), "$")}`), with one exception:
-**two function calls combined by an operator in the same expression**
-(`{SUM(a) - SUM(b)}`) doesn't resolve correctly — pre-compute the value
-in the JSON or split it into two tokens instead.
+an argument (`{CURRENCY(SUM(rows.total), "$")}`), with two exceptions:
+
+- **Two function calls combined by an operator in the same expression**
+  (`{SUM(a) - SUM(b)}`) doesn't resolve correctly — pre-compute the
+  value in the JSON or split it into two tokens instead.
+- **`SUM`, `COUNT`, and `AVG`'s own argument is always read as a raw
+  array path**, never resolved as a nested function call — `{SUM(CONCAT(a, b))}`
+  doesn't work, it has to be a plain path like `rows.total`. Their
+  *result* can still be nested inside an outer function just fine
+  (that's what makes `{CURRENCY(SUM(rows.total), "$")}` above work —
+  `CURRENCY` is resolving its own argument, not `SUM`).
 
 ## Dates are always read/written in UTC
 

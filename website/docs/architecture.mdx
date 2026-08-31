@@ -9,7 +9,7 @@ A map of the source tree grouped by responsibility, not by import
 order — useful context if you're modifying the package itself rather
 than just consuming it.
 
-## Editor (`src/Designer.tsx` + `src/components/`)
+## Editor (`src/designer/Designer.tsx` + `src/components/`)
 
 `Designer.tsx` owns selection state, the tab bar (Fields/Data/Style/
 Filter/Page), clipboard (copy/paste), keyboard shortcuts, and every
@@ -31,7 +31,7 @@ binding, resize page bands…). It renders two children:
 Selection, editing, and binding all live in the same React tree — no
 module bridge, no imperative API between the canvas and the panel.
 
-## Bindings and templates (`src/bindings/`, `src/tableColumns.ts`)
+## Bindings and templates (`src/bindings/`, `src/table/columns.ts`)
 
 `bindings.ts` is pure logic over strings/plain objects, with no
 third-party dependency:
@@ -55,7 +55,7 @@ third-party dependency:
 - `describeBinding`/`describeBindingShort` — short human-readable
   summaries used only in the editor UI.
 
-`tableColumns.ts` holds the pure functions that keep a `TableSchema`'s
+`table/columns.ts` holds the pure functions that keep a `TableSchema`'s
 `head`/`content`/`footer`/`columnStyles` in sync with its `Binding`
 (array) when a column is added/removed/reordered/reformatted from the
 panel.
@@ -73,7 +73,7 @@ actual drawing to a per-type module:
 - `drawSection.ts` — repeats the group of member fields once per item
   of the bound array, growing/paginating with the rest of the body.
 - `drawChart.ts` — pie/donut/bar, legend placement (font size
-  configurable), color palette (`src/chartColors.ts`).
+  configurable), color palette (`src/chart/colors.ts`).
 - `drawKpi.ts` — the colored card + Material Symbols icon path
   (`src/materialIcons.ts`), configurable font sizes/icon size/corner
   radius (defaults in `src/kpiFormat.ts`).

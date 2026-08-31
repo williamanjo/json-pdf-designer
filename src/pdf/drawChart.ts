@@ -2,11 +2,11 @@ import type { PDFFont, PDFPage } from "pdf-lib";
 import { rgb } from "pdf-lib";
 import type { ChartItem } from "../bindings/bindings";
 import type { ChartSchema } from "../types";
-import { pieSlicePath, pointOnCircle } from "../pieGeometry";
-import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../chartFormat";
+import { pieSlicePath, pointOnCircle } from "../chart/pieGeometry";
+import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../chart/format";
 import { formatPtBrNumber } from "../numberFormat";
 import { colorOrDefault } from "./color";
-import { truncateToWidth } from "./drawTable";
+import { truncateToWidth } from "./textLayout";
 
 const SLICE_LABEL_TEXT = rgb(1, 1, 1);
 const SLICE_LABEL_FONT_SIZE = 7;
@@ -189,6 +189,65 @@ function drawBars(page: PDFPage, font: PDFFont, schema: ChartSchema, items: Char
   });
 }
 
+// Retângulo de destino (x, topY = topo da caixa em pt, width, height) —
+// mesma convenção "topo pra baixo" usada em todo drawChart.ts.
+type Box = { x: number; topY: number; width: number; height: number };
+
+// Calcula onde entram a pizza e a legenda dentro da caixa disponível, pra
+// cada valor de `legendPosition` — geometria idêntica à que cada branch
+// calculava separadamente antes deste refactor (só a ordem de chamada de
+// drawPieSlices/drawLegend mudava por branch). `legendBox` null = sem
+// legenda nenhuma ("slices": rótulo vai em cima da própria fatia, ver
+// `directLabels`).
+function computePieLayout(
+  schema: ChartSchema,
+  legendPosition: NonNullable<ChartSchema["legendPosition"]>,
+  items: ChartItem[],
+  xPt: number,
+  topYPt: number,
+  widthPt: number,
+  heightPt: number
+): { pieBox: Box; legendBox: Box | null; directLabels: boolean } {
+  if (legendPosition === "slices") {
+    return { pieBox: { x: xPt, topY: topYPt, width: widthPt, height: heightPt }, legendBox: null, directLabels: true };
+  }
+
+  if (legendPosition === "top" || legendPosition === "bottom") {
+    const legendHeightPt = Math.min(items.length * legendMetrics(schema).rowHeight, heightPt * 0.5);
+    const pieHeightPt = heightPt - legendHeightPt;
+    if (legendPosition === "top") {
+      return {
+        legendBox: { x: xPt, topY: topYPt, width: widthPt, height: legendHeightPt },
+        pieBox: { x: xPt, topY: topYPt - legendHeightPt, width: widthPt, height: pieHeightPt },
+        directLabels: false,
+      };
+    }
+    return {
+      pieBox: { x: xPt, topY: topYPt, width: widthPt, height: pieHeightPt },
+      legendBox: { x: xPt, topY: topYPt - pieHeightPt, width: widthPt, height: legendHeightPt },
+      directLabels: false,
+    };
+  }
+
+  const legendWidthPt = Math.min(Math.max(widthPt * 0.4, 60), 160);
+  const pieAreaWidthPt = Math.max(0, widthPt - legendWidthPt);
+
+  if (legendPosition === "left") {
+    return {
+      legendBox: { x: xPt, topY: topYPt, width: legendWidthPt, height: heightPt },
+      pieBox: { x: xPt + legendWidthPt, topY: topYPt, width: pieAreaWidthPt, height: heightPt },
+      directLabels: false,
+    };
+  }
+
+  // "right" (default)
+  return {
+    pieBox: { x: xPt, topY: topYPt, width: pieAreaWidthPt, height: heightPt },
+    legendBox: { x: xPt + pieAreaWidthPt, topY: topYPt, width: legendWidthPt, height: heightPt },
+    directLabels: false,
+  };
+}
+
 // Desenha o gráfico dentro da caixa (xPt, topYPt = topo da caixa em pt,
 // widthPt, heightPt) — pizza (legenda à direita/em cima/embaixo/em cada
 // fatia, ver ChartSchema.legendPosition) ou barras horizontais com rótulo
@@ -202,35 +261,10 @@ export function drawChart(page: PDFPage, font: PDFFont, schema: ChartSchema, ite
   }
 
   const legendPosition = schema.legendPosition ?? "right";
+  const { pieBox, legendBox, directLabels } = computePieLayout(schema, legendPosition, items, xPt, topYPt, widthPt, heightPt);
 
-  if (legendPosition === "slices") {
-    drawPieSlices(page, font, schema, items, total, xPt, topYPt, widthPt, heightPt, true);
-    return;
+  drawPieSlices(page, font, schema, items, total, pieBox.x, pieBox.topY, pieBox.width, pieBox.height, directLabels);
+  if (legendBox) {
+    drawLegend(page, font, items, total, schema, legendBox.x, legendBox.topY, legendBox.width, legendBox.height);
   }
-
-  if (legendPosition === "top" || legendPosition === "bottom") {
-    const legendHeightPt = Math.min(items.length * legendMetrics(schema).rowHeight, heightPt * 0.5);
-    const pieHeightPt = heightPt - legendHeightPt;
-    if (legendPosition === "top") {
-      drawLegend(page, font, items, total, schema, xPt, topYPt, widthPt, legendHeightPt);
-      drawPieSlices(page, font, schema, items, total, xPt, topYPt - legendHeightPt, widthPt, pieHeightPt, false);
-    } else {
-      drawPieSlices(page, font, schema, items, total, xPt, topYPt, widthPt, pieHeightPt, false);
-      drawLegend(page, font, items, total, schema, xPt, topYPt - pieHeightPt, widthPt, legendHeightPt);
-    }
-    return;
-  }
-
-  const legendWidthPt = Math.min(Math.max(widthPt * 0.4, 60), 160);
-  const pieAreaWidthPt = Math.max(0, widthPt - legendWidthPt);
-
-  if (legendPosition === "left") {
-    drawLegend(page, font, items, total, schema, xPt, topYPt, legendWidthPt, heightPt);
-    drawPieSlices(page, font, schema, items, total, xPt + legendWidthPt, topYPt, pieAreaWidthPt, heightPt, false);
-    return;
-  }
-
-  // "right" (default)
-  drawPieSlices(page, font, schema, items, total, xPt, topYPt, pieAreaWidthPt, heightPt, false);
-  drawLegend(page, font, items, total, schema, xPt + pieAreaWidthPt, topYPt, legendWidthPt, heightPt);
 }

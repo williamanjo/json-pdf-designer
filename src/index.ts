@@ -53,7 +53,7 @@ export {
   resolveChartColors,
   type ChartPaletteName,
   type ChartPresetName,
-} from "./chartColors";
+} from "./chart/colors";
 export {
   MATERIAL_ICON_GRID,
   MATERIAL_ICON_PATHS,
@@ -69,7 +69,7 @@ export { mmToPx, pxToMm, mmToPt } from "./units";
 export { PAGE_SIZE_PRESETS, orientationOf, applyOrientation, matchPreset, type Orientation } from "./pageSizes";
 export { classifyZone, isRedZone, clampToZone, type Zone, type Bands } from "./zones";
 export { normalizeFontBytes } from "./pdf/fontUtils";
-export { default as Designer } from "./Designer";
+export { default as Designer } from "./designer/Designer";
 export { PdfPreview } from "./components/PdfPreview";
 export { configurePdfWorker } from "./pdf/pdfWorker";
 export { default as PdfPreviewModal } from "./components/PdfPreviewModal";

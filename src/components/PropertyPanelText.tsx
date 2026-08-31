@@ -1,8 +1,7 @@
 import type { TextSchema } from "../types";
 import { useT } from "../i18n";
 import { allowDrop, readDroppedField } from "./dragField";
-import { BulkLocked, Button, ColorInput, Input, Select, Textarea } from "./ui";
-import { IconX } from "./ui/icons";
+import { BulkLocked, ClearFieldButton, ColorInput, Input, Select, Textarea } from "./ui";
 
 type Props = {
   schema: TextSchema;
@@ -60,9 +59,7 @@ export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema 
                 onChange={(e) => onChangeSchema({ backgroundColor: e.target.value })}
               />
               {schema.backgroundColor && (
-                <Button variant="ghost" size="icon" onClick={() => onChangeSchema({ backgroundColor: undefined })} title={t.text.removeBackground}>
-                  <IconX />
-                </Button>
+                <ClearFieldButton onClick={() => onChangeSchema({ backgroundColor: undefined })} label={t.text.removeBackground} />
               )}
             </div>
             <div className="flex items-end gap-1">
@@ -72,9 +69,7 @@ export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema 
                 onChange={(e) => onChangeSchema({ borderColor: e.target.value, borderWidth: schema.borderWidth ?? 0.5 })}
               />
               {schema.borderColor && (
-                <Button variant="ghost" size="icon" onClick={() => onChangeSchema({ borderColor: undefined })} title={t.text.removeBorder}>
-                  <IconX />
-                </Button>
+                <ClearFieldButton onClick={() => onChangeSchema({ borderColor: undefined })} label={t.text.removeBorder} />
               )}
             </div>
           </div>

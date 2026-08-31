@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://williamanjo.github.io/json-pdf-designer/sitemap.xml

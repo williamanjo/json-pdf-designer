@@ -57,7 +57,7 @@ export {
   resolveChartColors,
   type ChartPaletteName,
   type ChartPresetName,
-} from "./chartColors";
+} from "./chart/colors";
 export {
   MATERIAL_ICON_GRID,
   MATERIAL_ICON_PATHS,

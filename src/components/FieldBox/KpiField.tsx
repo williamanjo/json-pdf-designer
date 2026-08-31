@@ -13,7 +13,8 @@ import {
   kpiElementOffset,
   kpiElementOffsetPatch,
 } from "../../kpiFormat";
-import { mmToPx, ptToMm, ptToPx } from "../../units";
+import { mmToPx, ptToMm, ptToPx, pxToMm } from "../../units";
+import { startDragGesture } from "../dragGesture";
 
 type Props = {
   schema: KpiSchema;
@@ -101,23 +102,15 @@ export function KpiField({ schema, selected = false, zoom = 1, selectedElement =
     onSelectElement?.(el);
     if (!selected || !onUpdate || kpiElementLocked(schema, el)) return;
 
-    const startClientX = e.clientX;
-    const startClientY = e.clientY;
     const start = kpiElementOffset(schema, el) ?? defaults[el];
 
-    function onMouseMove(ev: MouseEvent) {
-      const dxMm = (ev.clientX - startClientX) / zoom / (96 / 25.4);
-      const dyMm = (ev.clientY - startClientY) / zoom / (96 / 25.4);
+    startDragGesture(e, (dx, dy) => {
+      const dxMm = pxToMm(dx / zoom);
+      const dyMm = pxToMm(dy / zoom);
       const nextX = Math.min(Math.max(0, start.x + dxMm), schema.width);
       const nextY = Math.min(Math.max(0, start.y + dyMm), schema.height);
       onUpdate?.(kpiElementOffsetPatch(el, { x: nextX, y: nextY }));
-    }
-    function onMouseUp() {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    }
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    });
   }
 
   const widthPx = mmToPx(schema.width);

@@ -40,7 +40,7 @@ Unidade de medida: **mm** em todo o modelo de dados (fácil de raciocinar
 do editor (`src/units.ts`, `mmToPx`/`pxToMm`) e pra **pt** na hora de
 desenhar o PDF de verdade via pdf-lib (`mmToPt`).
 
-## Editor (`src/Designer.tsx` + `src/components/`)
+## Editor (`src/designer/Designer.tsx` + `src/components/`)
 
 `Designer.tsx` guarda o estado de seleção, a barra de abas (Campos/Dados/
 Estilo/Filtro/Página), clipboard (copiar/colar), atalhos de teclado, e
@@ -67,7 +67,7 @@ Renderiza dois filhos:
 Seleção, edição e vínculo vivem todos na mesma árvore React — sem ponte
 de módulo, sem API imperativa entre canvas e painel.
 
-## Vínculos e templates (`src/bindings/`, `src/tableColumns.ts`)
+## Vínculos e templates (`src/bindings/`, `src/table/columns.ts`)
 
 `bindings.ts` é lógica pura sobre strings/objetos simples, sem
 dependência de terceiros:
@@ -91,7 +91,7 @@ dependência de terceiros:
   na UI do editor (aceitam um `Dict` opcional pro `locale` ativo, default
   inglês).
 
-`tableColumns.ts` guarda as funções puras que mantêm `head`/`content`/
+`table/columns.ts` guarda as funções puras que mantêm `head`/`content`/
 `footer`/`columnStyles` de uma `TableSchema` sincronizados com o
 `Binding` dela (array) quando uma coluna é adicionada/removida/
 reordenada/reformatada pelo painel.
@@ -108,7 +108,7 @@ o desenho de verdade pra um módulo por tipo:
 - `drawSection.ts` — repete o grupo de campos membros uma vez por item do
   array vinculado, crescendo/paginando junto com o resto do corpo.
 - `drawChart.ts` — pizza/rosca ou barra, posição da legenda, paleta de
-  cores (`src/chartColors.ts`).
+  cores (`src/chart/colors.ts`).
 - `drawKpi.ts` — o cartão colorido + o path do ícone Material Symbols
   (`src/materialIcons.ts`).
 

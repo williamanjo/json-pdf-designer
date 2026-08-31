@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import type { KpiElementKey, PageSize, Schema, SectionColumnDragPayload } from "../types";
+import { findSectionAt, schemasInRect } from "./canvasGeometry";
 import { SECTION_COLUMN_MIME } from "../schemaFactory";
 import { GRID_SIZE_MM, mmToPx, pxToMm, snapToGrid } from "../units";
 import { classifyZone, clampToZone, isRedZone } from "../zones";
@@ -59,11 +60,6 @@ const RULER_THICKNESS = 16;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.1;
-// Altura (mm) da barra "section-drag-handle" no topo da seção
-// (FieldBox/SectionField.tsx, h-4 = 16px) — usada pra caixa de seleção só
-// pegar a seção quando cruza
-// essa faixa, não o corpo inteiro.
-const SECTION_HEADER_HEIGHT_MM = pxToMm(16);
 
 // A "folha" — tamanho real em mm convertido pra px, com sombra de papel.
 // Cada campo é um <Rnd> (react-rnd) livre pra arrastar/redimensionar.
@@ -180,16 +176,7 @@ export function PageCanvas({
         x2: pxToMm((Math.max(start.x, ev.clientX) - pageRect.left) / zoom),
         y2: pxToMm((Math.max(start.y, ev.clientY) - pageRect.top) / zoom),
       };
-      // Seção só entra na seleção se a caixa cruzar a faixa do HEADER dela
-      // (mesma altura da barra "section-drag-handle") — cruzar só o corpo
-      // (onde os campos membros ficam desenhados) nunca seleciona a seção,
-      // só os campos que estiverem por baixo da caixa.
-      const hit = visibleSchemas
-        .filter((s) => {
-          const testHeight = s.type === "section" ? Math.min(s.height, SECTION_HEADER_HEIGHT_MM) : s.height;
-          return s.x < rectMm.x2 && s.x + s.width > rectMm.x1 && s.y < rectMm.y2 && s.y + testHeight > rectMm.y1;
-        })
-        .map((s) => s.id);
+      const hit = schemasInRect(visibleSchemas, rectMm).map((s) => s.id);
       onSelectMany?.(hit, additive);
     }
 
@@ -212,16 +199,6 @@ export function PageCanvas({
       return;
     }
     onCanvasDrop?.(e);
-  }
-
-  // Centro do campo caindo dentro do retângulo de uma seção = vira membro
-  // dela (sectionId) — fora de qualquer seção = limpa o vínculo de grupo.
-  function findSectionAt(x: number, y: number, width: number, height: number, excludeId: string) {
-    const cx = x + width / 2;
-    const cy = y + height / 2;
-    return schemas.find(
-      (s) => s.id !== excludeId && s.type === "section" && cx >= s.x && cx <= s.x + s.width && cy >= s.y && cy <= s.y + s.height
-    );
   }
 
   function clampZoom(z: number) {
@@ -430,7 +407,7 @@ export function PageCanvas({
                     const snappedY = shiftHeld ? rawY : snapToGrid(rawY, gridSizeMm);
                     const clamped = clampToZone(zone, snappedX, snappedY, schema.width, schema.height, page, bands);
                     if (schema.type === "text" || schema.type === "image" || schema.type === "table") {
-                      const target = findSectionAt(clamped.x, clamped.y, schema.width, schema.height, schema.id);
+                      const target = findSectionAt(schemas, clamped.x, clamped.y, schema.width, schema.height, schema.id);
                       onUpdateSchema(schema.id, { ...clamped, sectionId: target?.id });
                     } else {
                       onUpdateSchema(schema.id, clamped);

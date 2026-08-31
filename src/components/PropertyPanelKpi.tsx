@@ -13,9 +13,9 @@ import {
   kpiElementOffset,
   kpiElementOffsetPatch,
   kpiElementPresent,
+  kpiElementRestorePatch,
 } from "../kpiFormat";
-import { BulkLocked, Button, ColorInput, Input, MaterialIcon, Select } from "./ui";
-import { IconX } from "./ui/icons";
+import { BulkLocked, Button, ClearFieldButton, ColorInput, Input, MaterialIcon, Select } from "./ui";
 
 type Props = {
   schema: KpiSchema;
@@ -104,11 +104,7 @@ function ResetPositionButton({ schema, el, label, onChangeSchema }: {
   onChangeSchema: (patch: Partial<KpiSchema>) => void;
 }) {
   if (!kpiElementOffset(schema, el)) return null;
-  return (
-    <Button variant="ghost" size="icon" onClick={() => onChangeSchema(kpiElementOffsetPatch(el, undefined))} title={label}>
-      <IconX />
-    </Button>
-  );
+  return <ClearFieldButton onClick={() => onChangeSchema(kpiElementOffsetPatch(el, undefined))} label={label} />;
 }
 
 export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, binding, onChangeBinding, dataSources, selectedElement, onSelectElement }: Props) {
@@ -142,16 +138,8 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
   // input numérico aqui — ver KpiField.tsx).
   function elementStyleFields(el: KpiElementKey) {
     if (!kpiElementPresent(schema, el)) {
-      const restore =
-        el === "icon"
-          ? { icon: "bar_chart" }
-          : el === "title"
-            ? { title: t.kpi.title }
-            : el === "value"
-              ? { value: "0" }
-              : { subtitle: t.kpi.subtitle };
       return (
-        <Button variant="outline" onClick={() => onChangeSchema(restore)}>
+        <Button variant="outline" onClick={() => onChangeSchema(kpiElementRestorePatch(el, t))}>
           {t.kpi.addElement}
         </Button>
       );

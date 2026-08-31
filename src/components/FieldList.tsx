@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { Binding, KpiElementKey, KpiSchema, Schema } from "../types";
+import type { Binding, KpiElementKey, Schema } from "../types";
 import { fieldWarning } from "../fieldWarnings";
-import { kpiElementLocked, kpiElementLockedPatch, kpiElementPresent } from "../kpiFormat";
+import { kpiElementLocked, kpiElementLockedPatch, kpiElementPresent, kpiElementRestorePatch } from "../kpiFormat";
 import { useT } from "../i18n";
 import { Button } from "./ui";
 import { IconAlertTriangle, IconBringToFront, IconLock, IconLockOpen, IconPlus, IconSendToBack, IconTrash } from "./ui/icons";
@@ -30,13 +30,6 @@ type Props = {
 };
 
 const KPI_ELEMENTS: KpiElementKey[] = ["icon", "title", "value", "subtitle"];
-
-function kpiElementRestorePatch(el: KpiElementKey, t: ReturnType<typeof useT>): Partial<KpiSchema> {
-  if (el === "icon") return { icon: "bar_chart" };
-  if (el === "title") return { title: t.kpi.title };
-  if (el === "value") return { value: "0" };
-  return { subtitle: t.kpi.subtitle };
-}
 
 // Lista de todo campo já colocado na página — clique seleciona (abre o
 // Field Edit logo abaixo); cadeado trava/destrava mover/redimensionar no

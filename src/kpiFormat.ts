@@ -1,6 +1,7 @@
 import type { KpiElementKey, KpiElementOffset, KpiSchema } from "./types";
 import { formatPtBrNumber } from "./numberFormat";
 import { ptToMm } from "./units";
+import type { Dict } from "./i18n";
 
 // Defaults compartilhados entre o preview no canvas (components/FieldBox/KpiField.tsx)
 // e o desenho real no PDF (pdf/drawKpi.ts) — mesmo valor nos dois lugares
@@ -103,4 +104,15 @@ export function kpiElementLockedPatch(el: KpiElementKey, locked: boolean): Parti
   if (el === "title") return { titleLocked: locked };
   if (el === "value") return { valueLocked: locked };
   return { subtitleLocked: locked };
+}
+
+// Valor padrão pra "readicionar" um sub-elemento removido (botão "+" na
+// aba Campos, ver FieldList.tsx, e botão "Adicionar" na aba Estilo, ver
+// PropertyPanelKpi.tsx) — mesmo default de sempre por tipo, título/legenda
+// usam o rótulo traduzido (ver i18n) como texto de placeholder inicial.
+export function kpiElementRestorePatch(el: KpiElementKey, t: Dict): Partial<KpiSchema> {
+  if (el === "icon") return { icon: "bar_chart" };
+  if (el === "title") return { title: t.kpi.title };
+  if (el === "value") return { value: "0" };
+  return { subtitle: t.kpi.subtitle };
 }

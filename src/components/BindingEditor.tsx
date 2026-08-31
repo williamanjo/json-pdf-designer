@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { Binding, DataSourceColumnType, DataSourceOption, KpiAggregation, Schema } from "../types";
+import { buildChartBinding, buildKpiBinding, buildSectionBinding, buildTableBinding, buildTemplateBinding } from "../bindings/builders";
 import { CUSTOM_FIELD_FUNCTIONS, describeBindingShort } from "../bindings/bindings";
-import { parseColumnsInput, stringifyColumns } from "../bindings/columnParsing";
-import { splitDelimited } from "../bindings/splitDelimited";
+import { stringifyColumns } from "../bindings/columnParsing";
 import { useT, withInlineCode } from "../i18n";
 import { allowDrop, readDroppedField } from "./dragField";
 import { Button, Input, Select } from "./ui";
@@ -131,63 +131,24 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
     value?: string;
     aggregation?: KpiAggregation;
   } = {}) {
-    if (schema.type === "section") {
-      if (!draft.trim()) return;
-      onChangeBinding({ schemaName: schema.name, type: "section", path: draft.trim() });
-      return;
+    let next: Binding | undefined;
+    switch (schema.type) {
+      case "section":
+        next = buildSectionBinding(schema.name, draft);
+        break;
+      case "chart":
+        next = buildChartBinding(schema.name, draft, label, value, binding);
+        break;
+      case "table":
+        next = buildTableBinding(schema.name, draft, cols, binding);
+        break;
+      case "kpi":
+        next = buildKpiBinding(schema.name, draft, value, aggregation, binding);
+        break;
+      default:
+        next = buildTemplateBinding(schema.name, draft);
     }
-    if (schema.type === "chart") {
-      if (!draft.trim() || !label || !value) return;
-      // Filtro (aba própria "Filtro" no painel do gráfico, ver
-      // PropertyPanelChart.tsx) não é editado aqui — só preserva o que já
-      // tava salvo quando o resto do vínculo muda (fonte/coluna).
-      onChangeBinding({
-        schemaName: schema.name,
-        type: "chart",
-        path: draft.trim(),
-        labelColumn: label,
-        valueColumn: value,
-        filters: binding?.type === "chart" ? binding.filters : undefined,
-      });
-      return;
-    }
-    if (schema.type === "table") {
-      const path = draft.trim();
-      if (path) {
-        const columns = parseColumnsInput(cols);
-        if (columns.length === 0) return;
-        // Filtro (aba própria "Filtro", ver Designer.tsx) não é editado
-        // aqui — só preserva o que já tava salvo quando o resto do
-        // vínculo muda (fonte/colunas), mesma regra do chart acima.
-        onChangeBinding({
-          schemaName: schema.name,
-          type: "array",
-          path,
-          columns,
-          filters: binding?.type === "array" ? binding.filters : undefined,
-        });
-      } else {
-        const paths = splitDelimited(cols);
-        if (paths.length === 0) return;
-        onChangeBinding({ schemaName: schema.name, type: "keyvalue", paths });
-      }
-      return;
-    }
-    if (schema.type === "kpi") {
-      if (!draft.trim()) return;
-      if (aggregation !== "count" && !value) return;
-      onChangeBinding({
-        schemaName: schema.name,
-        type: "kpi",
-        path: draft.trim(),
-        valueColumn: aggregation === "count" ? undefined : value,
-        aggregation,
-        filters: binding?.type === "kpi" ? binding.filters : undefined,
-      });
-      return;
-    }
-    if (!draft.trim()) return;
-    onChangeBinding({ schemaName: schema.name, type: "template", template: draft });
+    if (next) onChangeBinding(next);
   }
 
   function insertFunctionIntoBinding(snippet: string) {

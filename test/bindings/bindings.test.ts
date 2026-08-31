@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { buildInputs, renderTemplate, resolveKpiValue, resolveToken, rowsFromArrayBinding } from "../../src/bindings/bindings";
+import {
+  aggregateChartItems,
+  buildInputs,
+  columnKey,
+  columnLabel,
+  describeBinding,
+  describeBindingShort,
+  filteredArrayAt,
+  matchesFilterGroups,
+  renderTemplate,
+  resolveChartItems,
+  resolveKpiValue,
+  resolveToken,
+  rowsFromArrayBinding,
+} from "../../src/bindings/bindings";
+import { en } from "../../src/i18n/en";
+import { CHART_OTHER_COLOR } from "../../src/chart/colors";
 import type { Binding } from "../../src/types";
 
 describe("resolveToken — funções", () => {
@@ -185,5 +201,254 @@ describe("rowsFromArrayBinding", () => {
       ["A", "R$ 10,00"],
       ["B", "R$ 20,00"],
     ]);
+  });
+});
+
+describe("columnLabel / columnKey", () => {
+  it("columnLabel retorna a própria string pra coluna crua, e o label pra calculada", () => {
+    expect(columnLabel("produto")).toBe("produto");
+    expect(columnLabel({ label: "Total", formula: "SUM(x)" })).toBe("Total");
+  });
+
+  it("columnKey retorna a própria string pra coluna crua, e 'formula:label' pra calculada", () => {
+    expect(columnKey("produto")).toBe("produto");
+    expect(columnKey({ label: "Total", formula: "SUM(x)" })).toBe("formula:Total");
+  });
+});
+
+describe("describeBinding", () => {
+  it("scalar retorna o path", () => {
+    expect(describeBinding({ schemaName: "s", type: "scalar", path: "cliente" })).toBe("cliente");
+  });
+
+  it("template retorna o template", () => {
+    expect(describeBinding({ schemaName: "s", type: "template", template: "Olá, {nome}!" })).toBe("Olá, {nome}!");
+  });
+
+  it("array retorna path + colunas entre colchetes", () => {
+    const binding: Binding = {
+      schemaName: "s",
+      type: "array",
+      path: "rows",
+      columns: ["produto", { label: "Total", formula: "SUM(x)" }],
+    };
+    expect(describeBinding(binding)).toBe("rows [produto, Total]");
+  });
+
+  it("keyvalue retorna o rótulo genérico + paths entre colchetes", () => {
+    const binding: Binding = { schemaName: "s", type: "keyvalue", paths: ["cliente", "total"] };
+    expect(describeBinding(binding)).toBe(`${en.binding.keyValue} [cliente, total]`);
+  });
+
+  it("section retorna path + rótulo de seção repetida", () => {
+    const binding: Binding = { schemaName: "s", type: "section", path: "rows" };
+    expect(describeBinding(binding)).toBe(`rows ${en.binding.repeatedSection}`);
+  });
+
+  it("chart retorna path + labelColumn/valueColumn", () => {
+    const binding: Binding = { schemaName: "s", type: "chart", path: "rows", labelColumn: "produto", valueColumn: "qtd" };
+    expect(describeBinding(binding)).toBe("rows [produto / qtd]");
+  });
+
+  it("kpi com valueColumn inclui a coluna após a barra", () => {
+    const binding: Binding = { schemaName: "s", type: "kpi", path: "rows", valueColumn: "qtd", aggregation: "sum" };
+    expect(describeBinding(binding)).toBe("rows [sum/qtd]");
+  });
+
+  it("kpi sem valueColumn (ex: count) não inclui a barra", () => {
+    const binding: Binding = { schemaName: "s", type: "kpi", path: "rows", aggregation: "count" };
+    expect(describeBinding(binding)).toBe("rows [count]");
+  });
+});
+
+describe("describeBindingShort", () => {
+  it("array omite as colunas, só o path", () => {
+    const binding: Binding = { schemaName: "s", type: "array", path: "rows", columns: ["produto", "qtd"] };
+    expect(describeBindingShort(binding)).toBe("rows");
+  });
+
+  it("keyvalue omite os paths, só o rótulo genérico", () => {
+    const binding: Binding = { schemaName: "s", type: "keyvalue", paths: ["cliente", "total"] };
+    expect(describeBindingShort(binding)).toBe(en.binding.keyValue);
+  });
+
+  it("chart e kpi retornam só o path, sem colunas/agregação", () => {
+    const chart: Binding = { schemaName: "s", type: "chart", path: "rows", labelColumn: "produto", valueColumn: "qtd" };
+    const kpi: Binding = { schemaName: "s", type: "kpi", path: "rows", aggregation: "sum", valueColumn: "qtd" };
+    expect(describeBindingShort(chart)).toBe("rows");
+    expect(describeBindingShort(kpi)).toBe("rows");
+  });
+});
+
+describe("matchesFilterGroups", () => {
+  const item = { produto: "B", qtd: 5 };
+
+  it("groups undefined ou vazio sempre bate", () => {
+    expect(matchesFilterGroups(item, undefined)).toBe(true);
+    expect(matchesFilterGroups(item, [])).toBe(true);
+  });
+
+  it("OU entre grupos — basta um grupo bater", () => {
+    const groups = [
+      [{ column: "produto", op: "eq" as const, value: "Z" }],
+      [{ column: "produto", op: "eq" as const, value: "B" }],
+    ];
+    expect(matchesFilterGroups(item, groups)).toBe(true);
+  });
+
+  it("E dentro de um grupo — todas as condições do grupo precisam bater", () => {
+    const groupsAllMatch = [
+      [
+        { column: "produto", op: "eq" as const, value: "B" },
+        { column: "qtd", op: "eq" as const, value: "5" },
+      ],
+    ];
+    expect(matchesFilterGroups(item, groupsAllMatch)).toBe(true);
+
+    const groupsOneFails = [
+      [
+        { column: "produto", op: "eq" as const, value: "B" },
+        { column: "qtd", op: "eq" as const, value: "9" },
+      ],
+    ];
+    expect(matchesFilterGroups(item, groupsOneFails)).toBe(false);
+  });
+});
+
+describe("filteredArrayAt", () => {
+  const data = {
+    rows: [
+      { produto: "A", qtd: 1 },
+      { produto: "B", qtd: 2 },
+    ],
+  };
+
+  it("path que não aponta pra array retorna undefined", () => {
+    expect(filteredArrayAt(data, "produto_inexistente", undefined)).toBeUndefined();
+    expect(filteredArrayAt({ rows: "não é array" }, "rows", undefined)).toBeUndefined();
+  });
+
+  it("sem filtros retorna o array completo", () => {
+    expect(filteredArrayAt(data, "rows", undefined)).toEqual(data.rows);
+  });
+
+  it("com filtros retorna só o subconjunto que bate", () => {
+    const filters = [[{ column: "produto", op: "eq" as const, value: "B" }]];
+    expect(filteredArrayAt(data, "rows", filters)).toEqual([{ produto: "B", qtd: 2 }]);
+  });
+});
+
+describe("resolveChartItems", () => {
+  const data = {
+    rows: [
+      { produto: "A", qtd: 1 },
+      { produto: "B", qtd: "não é número" },
+      { produto: "C" },
+      { produto: "D", qtd: 4 },
+    ],
+  };
+
+  it("extrai label/value das colunas indicadas — valueColumn ausente/não-numérica vira 0", () => {
+    const binding: Binding = { schemaName: "c", type: "chart", path: "rows", labelColumn: "produto", valueColumn: "qtd" };
+    expect(resolveChartItems(binding, data)).toEqual([
+      { label: "A", value: 1 },
+      { label: "B", value: 0 },
+      { label: "C", value: 0 },
+      { label: "D", value: 4 },
+    ]);
+  });
+
+  it("aplica filters antes de extrair label/value", () => {
+    const binding: Binding = {
+      schemaName: "c",
+      type: "chart",
+      path: "rows",
+      labelColumn: "produto",
+      valueColumn: "qtd",
+      filters: [[{ column: "produto", op: "eq", value: "D" }]],
+    };
+    expect(resolveChartItems(binding, data)).toEqual([{ label: "D", value: 4 }]);
+  });
+});
+
+describe("aggregateChartItems", () => {
+  const raw = [
+    { label: "A", value: 10 },
+    { label: "B", value: 30 },
+    { label: "C", value: 20 },
+  ];
+
+  it("value_desc (default) ordena do maior pro menor valor", () => {
+    const { items } = aggregateChartItems(raw);
+    expect(items.map((i) => i.label)).toEqual(["B", "C", "A"]);
+  });
+
+  it("value_asc ordena do menor pro maior valor", () => {
+    const { items } = aggregateChartItems(raw, 7, "value_asc");
+    expect(items.map((i) => i.label)).toEqual(["A", "C", "B"]);
+  });
+
+  it("label_asc ordena por rótulo A-Z", () => {
+    const { items } = aggregateChartItems(raw, 7, "label_asc");
+    expect(items.map((i) => i.label)).toEqual(["A", "B", "C"]);
+  });
+
+  it("label_desc ordena por rótulo Z-A", () => {
+    const { items } = aggregateChartItems(raw, 7, "label_desc");
+    expect(items.map((i) => i.label)).toEqual(["C", "B", "A"]);
+  });
+
+  it("topN <= 0 desliga o agrupamento — mostra tudo, sem 'Outros'", () => {
+    const { items } = aggregateChartItems(raw, 0);
+    expect(items).toHaveLength(3);
+    expect(items.some((i) => i.label.startsWith("Outros"))).toBe(false);
+  });
+
+  it("itens além de topN colapsam numa fatia 'Outros (n)'", () => {
+    const many = [
+      { label: "A", value: 5 },
+      { label: "B", value: 4 },
+      { label: "C", value: 3 },
+      { label: "D", value: 2 },
+      { label: "E", value: 1 },
+    ];
+    const { items } = aggregateChartItems(many, 2);
+    expect(items).toHaveLength(3);
+    expect(items[2]).toEqual({ label: "Outros (3)", value: 6, color: CHART_OTHER_COLOR });
+  });
+
+  it("cor de cada item cicla pela paleta via i % palette.length", () => {
+    const palette = ["#111111", "#222222"];
+    const many = [
+      { label: "A", value: 3 },
+      { label: "B", value: 2 },
+      { label: "C", value: 1 },
+    ];
+    const { items } = aggregateChartItems(many, 3, "value_desc", palette);
+    expect(items.map((i) => i.color)).toEqual(["#111111", "#222222", "#111111"]);
+  });
+
+  it("total soma todos os itens, inclusive os agrupados em 'Outros'", () => {
+    const { total } = aggregateChartItems(raw);
+    expect(total).toBe(60);
+  });
+});
+
+describe("resolveKpiValue — casos extras", () => {
+  it("agregação não-count sem valueColumn não lança e não propaga NaN — cai em 0", () => {
+    const data = {
+      rows: [{ produto: "A" }, { produto: "B" }],
+    };
+    const binding: Binding = { schemaName: "k", type: "kpi", path: "rows", aggregation: "sum" };
+    expect(resolveKpiValue(binding, data)).toBe(0);
+  });
+
+  it("path que não resolve pra array (filteredArrayAt undefined) resolve sem lançar", () => {
+    const data = { outraCoisa: "x" };
+    const binding: Binding = { schemaName: "k", type: "kpi", path: "rows", valueColumn: "qtd", aggregation: "sum" };
+    expect(resolveKpiValue(binding, data)).toBe(0);
+
+    const bindingCount: Binding = { schemaName: "k", type: "kpi", path: "rows", aggregation: "count" };
+    expect(resolveKpiValue(bindingCount, data)).toBe(0);
   });
 });

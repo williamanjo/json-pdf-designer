@@ -1,11 +1,11 @@
 import type { Binding, ChartFilterCondition, ChartFilterGroup, ChartFilterOp, TableColumn } from "../types";
 import { splitDelimited } from "./splitDelimited";
 import { formatPtBrNumber } from "../numberFormat";
-import { CHART_COLORS, CHART_OTHER_COLOR } from "../chartColors";
+import { CHART_COLORS, CHART_OTHER_COLOR } from "../chart/colors";
 import { en } from "../i18n/en";
 import type { Dict } from "../i18n";
 
-function ciGet(obj: unknown, path: string): unknown {
+function getCaseInsensitive(obj: unknown, path: string): unknown {
   if (!path) return obj;
   const parts = path.split(".");
   let cur = obj;
@@ -18,6 +18,31 @@ function ciGet(obj: unknown, path: string): unknown {
     cur = rec[key];
   }
   return cur;
+}
+
+// "campo/valor ausente" -> "" — regra repetida em todo lugar que serializa
+// um valor cru do JSON pra string de saída (path não bate, ou bate em
+// null/undefined).
+function stringifyOrEmpty(v: unknown): string {
+  return v === undefined || v === null ? "" : String(v);
+}
+
+// Normaliza um item de array pra Record antes de indexar por chave — item
+// pode não ser objeto (string solta, número, null) num array "sujo"; nesse
+// caso trata como sem nenhuma chave, em vez de deixar o indexamento explodir.
+function asRecord(item: unknown): Record<string, unknown> {
+  return item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+}
+
+// "rows.total_amount" -> array "rows" + coluna "total_amount" (sempre o
+// último pedaço depois do ponto). Usada tanto pra extrair números
+// (numbersFromArrayPath) quanto pra só contar itens (COUNT).
+function splitArrayPath(rawPath: string): { arrayPath: string; column: string } {
+  const lastDot = rawPath.lastIndexOf(".");
+  return {
+    arrayPath: lastDot === -1 ? rawPath : rawPath.slice(0, lastDot),
+    column: lastDot === -1 ? "" : rawPath.slice(lastDot + 1),
+  };
 }
 
 export function columnLabel(col: TableColumn): string {
@@ -36,42 +61,42 @@ export function columnKey(col: TableColumn): string {
 // com colunas). `t` só entra pro rótulo genérico de "chave/valor"/"seção
 // repetida" — o resto (path, nomes de coluna) é o dado real, alheio a
 // idioma.
-export function describeBinding(b: Binding, t: Dict = en): string {
-  switch (b.type) {
+export function describeBinding(binding: Binding, t: Dict = en): string {
+  switch (binding.type) {
     case "scalar":
-      return b.path;
+      return binding.path;
     case "template":
-      return b.template;
+      return binding.template;
     case "array":
-      return `${b.path} [${b.columns.map(columnLabel).join(", ")}]`;
+      return `${binding.path} [${binding.columns.map(columnLabel).join(", ")}]`;
     case "keyvalue":
-      return `${t.binding.keyValue} [${b.paths.join(", ")}]`;
+      return `${t.binding.keyValue} [${binding.paths.join(", ")}]`;
     case "section":
-      return `${b.path} ${t.binding.repeatedSection}`;
+      return `${binding.path} ${t.binding.repeatedSection}`;
     case "chart":
-      return `${b.path} [${b.labelColumn} / ${b.valueColumn}]`;
+      return `${binding.path} [${binding.labelColumn} / ${binding.valueColumn}]`;
     case "kpi":
-      return `${b.path} [${b.aggregation}${b.valueColumn ? "/" + b.valueColumn : ""}]`;
+      return `${binding.path} [${binding.aggregation}${binding.valueColumn ? "/" + binding.valueColumn : ""}]`;
   }
 }
 
 // Versão curta — só a fonte do dado, sem listar colunas (pra espaço apertado).
-export function describeBindingShort(b: Binding, t: Dict = en): string {
-  switch (b.type) {
+export function describeBindingShort(binding: Binding, t: Dict = en): string {
+  switch (binding.type) {
     case "scalar":
-      return b.path;
+      return binding.path;
     case "template":
-      return b.template;
+      return binding.template;
     case "array":
-      return b.path;
+      return binding.path;
     case "keyvalue":
       return t.binding.keyValue;
     case "section":
-      return b.path;
+      return binding.path;
     case "chart":
-      return b.path;
+      return binding.path;
     case "kpi":
-      return b.path;
+      return binding.path;
   }
 }
 
@@ -106,17 +131,14 @@ function resolveArg(arg: string, data: unknown): string {
   // de path olharia pra string inteira "SUM(...)"/"qtd * preco" como se
   // fosse uma chave, e não achando nada, ficava vazio).
   if (/\(.*\)/.test(arg) || /\s[+\-*/]\s/.test(arg)) return resolveToken(arg, data);
-  const v = ciGet(data, arg);
-  return v === undefined || v === null ? "" : String(v);
+  return stringifyOrEmpty(getCaseInsensitive(data, arg));
 }
 
 // "rows.total_amount" -> soma/conta a coluna "total_amount" do array "rows".
 // O nome da coluna é sempre o último pedaço depois do ponto.
 function numbersFromArrayPath(data: unknown, rawPath: string): number[] {
-  const lastDot = rawPath.lastIndexOf(".");
-  const arrayPath = lastDot === -1 ? rawPath : rawPath.slice(0, lastDot);
-  const column = lastDot === -1 ? "" : rawPath.slice(lastDot + 1);
-  const arr = ciGet(data, arrayPath);
+  const { arrayPath, column } = splitArrayPath(rawPath);
+  const arr = getCaseInsensitive(data, arrayPath);
   if (!Array.isArray(arr)) return [];
   return arr
     .map((item) => Number(column ? item?.[column] : item))
@@ -233,10 +255,8 @@ export function resolveToken(token: string, data: unknown): string {
     case "SUM":
       return String(numbersFromArrayPath(data, args[0] ?? "").reduce((a, b) => a + b, 0));
     case "COUNT": {
-      const rawPath = args[0] ?? "";
-      const lastDot = rawPath.lastIndexOf(".");
-      const arrayPath = lastDot === -1 ? rawPath : rawPath.slice(0, lastDot);
-      const arr = ciGet(data, arrayPath);
+      const { arrayPath } = splitArrayPath(args[0] ?? "");
+      const arr = getCaseInsensitive(data, arrayPath);
       return String(Array.isArray(arr) ? arr.length : 0);
     }
     case "AVG": {
@@ -306,7 +326,7 @@ export function rowsFromArrayBinding(list: unknown[], columns: TableColumn[]): s
         return renderTemplate(col.formula.trim(), item);
       }
       const v = item ? (item as Record<string, unknown>)[col] : undefined;
-      return v === undefined || v === null ? "" : String(v);
+      return stringifyOrEmpty(v);
     })
   );
 }
@@ -318,6 +338,28 @@ export function renderTemplate(template: string, data: unknown): string {
   return template.replace(/\{([^{}]+)\}/g, (_, inner) => resolveToken(inner, data));
 }
 
+function resolveScalarInput(binding: Extract<Binding, { type: "scalar" }>, data: unknown): string {
+  return stringifyOrEmpty(getCaseInsensitive(data, binding.path));
+}
+
+function resolveTemplateInput(binding: Extract<Binding, { type: "template" }>, data: unknown): string {
+  return renderTemplate(binding.template, data);
+}
+
+// Tabela "campo / valor": cada linha é um path escolhido manualmente, não um
+// item de array.
+function resolveKeyValueInput(binding: Extract<Binding, { type: "keyvalue" }>, data: unknown): string {
+  const rows2d = binding.paths.map((path) => [path, stringifyOrEmpty(getCaseInsensitive(data, path))]);
+  return JSON.stringify(rows2d);
+}
+
+// Transforma o array de objetos em array de arrays (uma linha por item, uma
+// coluna por chave), já filtrado (binding.filters).
+function resolveArrayInput(binding: Extract<Binding, { type: "array" }>, data: unknown): string {
+  const filtered = filteredArrayAt(data, binding.path, binding.filters) ?? [];
+  return JSON.stringify(rowsFromArrayBinding(filtered, binding.columns));
+}
+
 /**
  * Recebe o JSON real retornado pela sua query (ex: { rows: [...] }) e a
  * lista de bindings feitos no editor, e monta o objeto "inputs" — uma
@@ -326,51 +368,33 @@ export function renderTemplate(template: string, data: unknown): string {
 export function buildInputs(data: unknown, bindings: Binding[]): Record<string, string> {
   const input: Record<string, string> = {};
 
-  for (const b of bindings) {
-    if (b.type === "scalar") {
-      const value = ciGet(data, b.path);
-      input[b.schemaName] = value === undefined || value === null ? "" : String(value);
-      continue;
+  for (const binding of bindings) {
+    switch (binding.type) {
+      case "scalar":
+        input[binding.schemaName] = resolveScalarInput(binding, data);
+        break;
+      case "template":
+        input[binding.schemaName] = resolveTemplateInput(binding, data);
+        break;
+      case "keyvalue":
+        input[binding.schemaName] = resolveKeyValueInput(binding, data);
+        break;
+      case "array":
+        input[binding.schemaName] = resolveArrayInput(binding, data);
+        break;
+      case "section":
+        // Resolvida à parte no generate.ts, item por item (repete o schema
+        // inteiro) — não tem um valor único pra pré-computar aqui.
+        break;
+      case "chart":
+        // Resolvido à parte (ver drawChart.ts) — precisa do array bruto pra
+        // agregar, não de uma string pré-computada.
+        break;
+      case "kpi":
+        // Resolvido à parte (ver generate.ts) — precisa do array bruto pra
+        // filtrar/agregar, não de uma string pré-computada.
+        break;
     }
-
-    if (b.type === "template") {
-      input[b.schemaName] = renderTemplate(b.template, data);
-      continue;
-    }
-
-    if (b.type === "keyvalue") {
-      // Tabela "campo / valor": cada linha é um path escolhido manualmente,
-      // não um item de array.
-      const rows2d = b.paths.map((path) => {
-        const v = ciGet(data, path);
-        return [path, v === undefined || v === null ? "" : String(v)];
-      });
-      input[b.schemaName] = JSON.stringify(rows2d);
-      continue;
-    }
-
-    if (b.type === "section") {
-      // Resolvida à parte no generate.ts, item por item (repete o schema
-      // inteiro) — não tem um valor único pra pré-computar aqui.
-      continue;
-    }
-
-    if (b.type === "chart") {
-      // Resolvido à parte (ver drawChart.ts) — precisa do array bruto pra
-      // agregar, não de uma string pré-computada.
-      continue;
-    }
-
-    if (b.type === "kpi") {
-      // Resolvido à parte (ver generate.ts) — precisa do array bruto pra
-      // filtrar/agregar, não de uma string pré-computada.
-      continue;
-    }
-
-    // "array": transforma o array de objetos em array de arrays (uma
-    // linha por item, uma coluna por chave), já filtrado (b.filters).
-    const filtered = filteredArrayAt(data, b.path, b.filters) ?? [];
-    input[b.schemaName] = JSON.stringify(rowsFromArrayBinding(filtered, b.columns));
   }
 
   return input;
@@ -405,19 +429,19 @@ export function matchesFilterGroups(item: Record<string, unknown>, groups: Chart
   return groups.some((group) => group.every((cond: ChartFilterCondition) => matchesFilterCondition(item[cond.column], cond.op, cond.value)));
 }
 
-// Array bruto no `path` (ciGet — mesma busca case-insensitive de qualquer
-// outro vínculo), já filtrado por `filters`. `undefined` (não `[]`) quando
-// o path não resolve pra array de verdade — distinção que quem chama
-// precisa pra saber se cai num fallback (ex: conteúdo estático de design)
-// ou se é só "array existe mas filtro zerou tudo" (aí É `[]` mesmo).
+// Array bruto no `path` (getCaseInsensitive — mesma busca case-insensitive
+// de qualquer outro vínculo), já filtrado por `filters`. `undefined` (não
+// `[]`) quando o path não resolve pra array de verdade — distinção que quem
+// chama precisa pra saber se cai num fallback (ex: conteúdo estático de
+// design) ou se é só "array existe mas filtro zerou tudo" (aí É `[]` mesmo).
 // Usada por buildInputs/resolveChartItems/resolveKpiValue aqui e por
 // resolveTopLevelTableRows/resolveNestedTableRows (pdf/resolvers.ts) —
 // um lugar só pra "pega array no path, filtra", em vez de cada consumidor
-// reimplementar o próprio ciGet+filter.
+// reimplementar o próprio getCaseInsensitive+filter.
 export function filteredArrayAt(data: unknown, path: string, filters: ChartFilterGroup[] | undefined): unknown[] | undefined {
-  const arr = ciGet(data, path);
+  const arr = getCaseInsensitive(data, path);
   if (!Array.isArray(arr)) return undefined;
-  return arr.filter((item) => matchesFilterGroups(item && typeof item === "object" ? (item as Record<string, unknown>) : {}, filters));
+  return arr.filter((item) => matchesFilterGroups(asRecord(item), filters));
 }
 
 // Lê o array bruto do vínculo "chart", aplica `filters` (grupos OU de
@@ -427,11 +451,11 @@ export function resolveChartItems(binding: Extract<Binding, { type: "chart" }>, 
   const filtered = filteredArrayAt(data, binding.path, binding.filters) ?? [];
   return filtered
     .map((item) => {
-      const obj = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const obj = asRecord(item);
       const rawLabel = obj[binding.labelColumn];
       const rawValue = Number(obj[binding.valueColumn]);
       return {
-        label: rawLabel === undefined || rawLabel === null ? "" : String(rawLabel),
+        label: stringifyOrEmpty(rawLabel),
         value: Number.isNaN(rawValue) ? 0 : rawValue,
       };
     });
@@ -444,7 +468,7 @@ export function resolveKpiValue(binding: Extract<Binding, { type: "kpi" }>, data
   const filtered = filteredArrayAt(data, binding.path, binding.filters) ?? [];
   if (binding.aggregation === "count") return filtered.length;
   const nums = filtered
-    .map((item) => Number(item && typeof item === "object" ? (item as Record<string, unknown>)[binding.valueColumn ?? ""] : undefined))
+    .map((item) => Number(asRecord(item)[binding.valueColumn ?? ""]))
     .filter((n) => !Number.isNaN(n));
   if (nums.length === 0) return 0;
   switch (binding.aggregation) {

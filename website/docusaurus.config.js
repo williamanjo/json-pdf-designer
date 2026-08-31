@@ -40,10 +40,25 @@ const config = {
           sidebarPath: "./sidebars.js",
           routeBasePath: "docs",
           editUrl: "https://github.com/williamanjo/json-pdf-designer/edit/master/website/",
+          // Data real do último commit de cada página (via git) — precisa
+          // estar ligado pro `lastmod: "date"` do sitemap (abaixo) ter de
+          // onde tirar a data; também aparece como "Last updated on..." no
+          // rodapé de cada página de doc.
+          showLastUpdateTime: true,
         },
         blog: false,
         theme: {
           customCss: "./src/css/custom.css",
+        },
+        // changefreq/priority não trazem benefício real pro Google hoje
+        // (a própria Docusaurus já marca as duas opções como "TODO: remover
+        // em v4") — null tira os dois do sitemap gerado. lastmod: "date"
+        // usa a data REAL do último commit de cada rota (via git, mesmo
+        // mecanismo do "Last updated" no rodapé da doc) — não inventa data.
+        sitemap: {
+          changefreq: null,
+          priority: null,
+          lastmod: "date",
         },
       }),
     ],

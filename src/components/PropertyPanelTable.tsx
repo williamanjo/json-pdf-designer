@@ -1,144 +1,14 @@
 import { useState } from "react";
 import type { Binding, DataSourceOption, TableColumnStyle, TableCornerRadii, TableSchema } from "../types";
 import { CUSTOM_FIELD_FUNCTIONS } from "../bindings/bindings";
-import { splitDelimited } from "../bindings/splitDelimited";
 import { useT, withInlineCode } from "../i18n";
-import { TABLE_PALETTES, TABLE_PALETTE_GROUPS, type TableStylePresetName } from "../tableColors";
+import { TABLE_PALETTES, TABLE_PALETTE_GROUPS, type TableStylePresetName } from "../table/colors";
+import { buildColumnFormula, parseColumnFormula } from "../table/columnFormula";
 import { BindingEditor } from "./BindingEditor";
-import { Button, ColorInput, Input, Select } from "./ui";
+import { Button, ClearFieldButton, ColorInput, Input, PalettePicker, Select } from "./ui";
+import { CollapsibleSection } from "./ui/CollapsibleSection";
 import { IconDots, IconGrip, IconPlus, IconX } from "./ui/icons";
-
-// Uma fileira de bolinhas de cor — mesma ideia do PaletteSwatches que
-// PropertyPanelChart.tsx já tem pro gráfico (ver PalettePicker lá).
-function PaletteSwatches({ colors }: { colors: string[] }) {
-  return (
-    <div className="flex gap-0.5">
-      {colors.map((c, i) => (
-        <span key={i} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: c }} />
-      ))}
-    </div>
-  );
-}
-
-// Dropdown de presets prontos (tipo "Formatar como tabela" do Excel) —
-// agrupados Claro/Médio/Escuro (TABLE_PALETTE_GROUPS). Clicar aplica o
-// preset inteiro nos campos DE VERDADE (headBackgroundColor/headTextColor/
-// bodyBandColor) de uma vez — colorPalette só guarda o NOME pra saber qual
-// mostrar destacado da próxima vez que abrir, não é lido pelo gerador de
-// PDF (ver pdf/drawTable.ts).
-function TablePalettePicker({ value, onApply }: { value: string | undefined; onApply: (name: TableStylePresetName) => void }) {
-  const t = useT();
-  const [open, setOpen] = useState(false);
-  const groupLabel: Record<string, string> = {
-    light: t.table.paletteGroupLight,
-    medium: t.table.paletteGroupMedium,
-    dark: t.table.paletteGroupDark,
-  };
-  const currentPreset = value && value !== "custom" ? TABLE_PALETTES[value as TableStylePresetName] : undefined;
-
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[11px] font-medium text-slate-600 dark:text-gray-300">{t.table.paletteLabel}</span>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between gap-2 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:border-sky-400 dark:border-gray-600 dark:text-gray-200 dark:hover:border-blue-400"
-      >
-        <span className="flex items-center gap-2">
-          {currentPreset ? (
-            <PaletteSwatches colors={[currentPreset.headBackgroundColor, currentPreset.bandColor, currentPreset.borderColor]} />
-          ) : (
-            <span className="text-slate-400 dark:text-gray-500">—</span>
-          )}
-          <span>{value && value !== "custom" ? value : t.table.paletteCustom}</span>
-        </span>
-        <span className="text-slate-400">▾</span>
-      </button>
-      {open && (
-        <div className="flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-200 p-1.5 dark:border-gray-600">
-          {TABLE_PALETTE_GROUPS.map((group) => (
-            <div key={group.label} className="flex flex-col gap-1">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-gray-500">
-                {groupLabel[group.label] ?? group.label}
-              </span>
-              <div className="grid grid-cols-2 gap-1">
-                {group.names.map((name) => {
-                  const preset = TABLE_PALETTES[name];
-                  return (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => {
-                        onApply(name);
-                        setOpen(false);
-                      }}
-                      className={`flex items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] hover:bg-sky-50 dark:hover:bg-blue-400/10 ${
-                        name === value ? "bg-sky-50 dark:bg-blue-400/10" : ""
-                      }`}
-                    >
-                      <PaletteSwatches colors={[preset.headBackgroundColor, preset.bandColor, preset.borderColor]} />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Formula de coluna sem estado extra: tudo é derivado da PRÓPRIA string
-// (parse) e reescrito nela (build) a cada troca do seletor "Tipo de dado"
-// — só funciona pra um formato "limpo" (vazio, {path} nu, ou UMA chamada
-// de função só, tipo {CURRENCY(preco, "R$", 2)}); fórmula com prefixo
-// literal misturado (ex: "FAT-{fatura}") cai pra "raw" e só mostra o
-// campo de texto livre de sempre — não dá pra decompor isso num seletor
-// sem perder o prefixo.
-type ParsedColumnFormula =
-  | { kind: "empty" }
-  | { kind: "bare"; path: string }
-  | { kind: "func"; fn: string; path: string; symbol: string; decimals: string; outFormat: string; inFormat: string }
-  | { kind: "raw" };
-
-function unquote(s: string): string {
-  const m = s.match(/^"(.*)"$/);
-  return m ? m[1] : s;
-}
-
-function parseColumnFormula(formula: string): ParsedColumnFormula {
-  const trimmed = formula.trim();
-  if (!trimmed) return { kind: "empty" };
-  const wrapped = trimmed.match(/^\{(.*)\}$/s);
-  if (!wrapped) return { kind: "raw" };
-  const inner = wrapped[1];
-  const call = inner.match(/^([A-Za-z]+)\((.*)\)$/s);
-  if (call) {
-    const fn = call[1].toUpperCase();
-    const args = splitDelimited(call[2]);
-    return {
-      kind: "func",
-      fn,
-      path: args[0] ?? "",
-      symbol: fn === "CURRENCY" ? unquote(args[1] ?? "R$") : "",
-      decimals: fn === "CURRENCY" ? args[2] ?? "2" : fn === "NUMBER" ? args[1] ?? "2" : "",
-      outFormat: fn === "DATE" ? unquote(args[1] ?? "DD/MM/YYYY") : "",
-      inFormat: fn === "DATE" ? unquote(args[2] ?? "") : "",
-    };
-  }
-  if (/^[\w.]+$/.test(inner)) return { kind: "bare", path: inner };
-  return { kind: "raw" };
-}
-
-function buildColumnFormula(fn: string, path: string, symbol: string, decimals: string, outFormat: string, inFormat: string): string {
-  if (!path.trim()) return "";
-  if (!fn) return `{${path.trim()}}`;
-  if (fn === "CURRENCY") return `{CURRENCY(${path.trim()}, "${symbol || "R$"}", ${decimals || "2"})}`;
-  if (fn === "NUMBER") return `{NUMBER(${path.trim()}, ${decimals || "2"})}`;
-  if (fn === "DATE") return `{DATE(${path.trim()}, "${outFormat || "DD/MM/YYYY"}"${inFormat ? `, "${inFormat}"` : ""})}`;
-  return `{${fn}(${path.trim()})}`;
-}
+import type { PaletteGroup } from "./ui/PalettePicker";
 
 type HAlign = "left" | "center" | "right";
 type VAlign = "top" | "middle" | "bottom";
@@ -256,6 +126,24 @@ export function PropertyPanelTable({
   const [styleColIndex, setStyleColIndex] = useState<number | null>(null);
   const [formulaColIndex, setFormulaColIndex] = useState<number | null>(null);
   const bindingColumns = binding?.type === "array" ? binding.columns : null;
+
+  // Grupos Claro/Médio/Escuro (TABLE_PALETTE_GROUPS) traduzidos pro formato
+  // genérico do PalettePicker — cada preset vira só as 3 cores mostradas nas
+  // bolinhas (cabeçalho/faixa/borda), igual o TablePalettePicker local fazia.
+  const tablePaletteGroupLabel: Record<string, string> = {
+    light: t.table.paletteGroupLight,
+    medium: t.table.paletteGroupMedium,
+    dark: t.table.paletteGroupDark,
+  };
+  const tablePaletteGroups: PaletteGroup[] = TABLE_PALETTE_GROUPS.map((group) => ({
+    label: tablePaletteGroupLabel[group.label] ?? group.label,
+    items: group.names.map((name) => {
+      const preset = TABLE_PALETTES[name];
+      return { name, colors: [preset.headBackgroundColor, preset.bandColor, preset.borderColor] };
+    }),
+  }));
+  const currentTablePreset =
+    schema.colorPalette && schema.colorPalette !== "custom" ? TABLE_PALETTES[schema.colorPalette as TableStylePresetName] : undefined;
 
   return (
     <>
@@ -401,8 +289,7 @@ export function PropertyPanelTable({
                               }
                             />
                           </div>
-                          <button
-                            type="button"
+                          <ClearFieldButton
                             onClick={() =>
                               onSetColumnStyle?.(i, {
                                 headBackgroundColor: undefined,
@@ -413,10 +300,9 @@ export function PropertyPanelTable({
                                 cellFontSize: undefined,
                               })
                             }
-                            className="self-start text-[10px] text-slate-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-                          >
-                            {t.table.clearColumnStyle}
-                          </button>
+                            label={t.table.clearColumnStyle}
+                            variant="text"
+                          />
                         </div>
                       )}
                       {formulaOpen && (
@@ -532,13 +418,7 @@ export function PropertyPanelTable({
                             ))}
                           </Select>
                           {currentFormula && (
-                            <button
-                              type="button"
-                              onClick={() => onSetColumnFormula?.(i, "")}
-                              className="self-start text-[10px] text-slate-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-                            >
-                              {t.table.clearFormula}
-                            </button>
+                            <ClearFieldButton onClick={() => onSetColumnFormula?.(i, "")} label={t.table.clearFormula} variant="text" />
                           )}
                         </div>
                       )}
@@ -584,17 +464,30 @@ export function PropertyPanelTable({
 
       {activeTab === "estilo" && (
         <>
-          <TablePalettePicker
-            value={schema.colorPalette}
-            onApply={(name) => {
-              const preset = TABLE_PALETTES[name];
+          <PalettePicker
+            label={t.table.paletteLabel}
+            currentName={schema.colorPalette ?? ""}
+            currentColors={
+              currentTablePreset
+                ? [currentTablePreset.headBackgroundColor, currentTablePreset.bandColor, currentTablePreset.borderColor]
+                : []
+            }
+            currentLabel={schema.colorPalette && schema.colorPalette !== "custom" ? schema.colorPalette : t.table.paletteCustom}
+            onSelect={(name) => {
+              const preset = TABLE_PALETTES[name as TableStylePresetName];
               onChangeSchema({
-                colorPalette: name,
+                colorPalette: name as TableStylePresetName,
                 headBackgroundColor: preset.headBackgroundColor,
                 headTextColor: preset.headTextColor,
                 bodyBandColor: preset.bandColor,
               });
             }}
+            groups={tablePaletteGroups}
+            variant="grid"
+            swatchSize="h-3.5 w-3.5"
+            swatchGap="gap-0.5"
+            swatchShrink={false}
+            staticArrow
           />
           <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">
             <input
@@ -604,89 +497,79 @@ export function PropertyPanelTable({
             />
             {t.table.repeatHeader}
           </label>
-          <details className="rounded-lg border border-dashed border-slate-300 p-2 dark:border-gray-600">
-            <summary className="cursor-pointer select-none text-[10px] font-medium text-slate-500 dark:text-gray-400">
-              {t.table.headerRow}
-            </summary>
-            <div className="mt-2 flex flex-col gap-1.5">
-              <div className="grid grid-cols-2 gap-2">
-                <ColorInput
-                  label={t.table.background}
-                  value={schema.headBackgroundColor ?? "#0284c7"}
-                  onChange={(e) => onChangeSchema({ headBackgroundColor: e.target.value })}
-                />
-                <ColorInput
-                  label={t.table.text}
-                  value={schema.headTextColor ?? "#ffffff"}
-                  onChange={(e) => onChangeSchema({ headTextColor: e.target.value })}
-                />
-              </div>
-              <Input
-                label={t.table.fontSize}
-                type="number"
-                step={0.5}
-                value={schema.headFontSize ?? ""}
-                placeholder="9"
-                onChange={(e) => onChangeSchema({ headFontSize: e.target.value === "" ? undefined : Number(e.target.value) })}
-              />
-              <AlignSelects
-                align={schema.headAlign ?? "left"}
-                vAlign={schema.headVerticalAlign ?? "middle"}
-                onAlign={(headAlign) => onChangeSchema({ headAlign })}
-                onVAlign={(headVerticalAlign) => onChangeSchema({ headVerticalAlign })}
-              />
-              <CornerInputs
-                radii={schema.headBorderRadius}
-                corners={["topLeft", "topRight"]}
-                onChange={(patch) => onChangeSchema({ headBorderRadius: { ...schema.headBorderRadius, ...patch } })}
-              />
-            </div>
-          </details>
-
-          <details className="rounded-lg border border-dashed border-slate-300 p-2 dark:border-gray-600">
-            <summary className="cursor-pointer select-none text-[10px] font-medium text-slate-500 dark:text-gray-400">
-              {t.table.bodyRow}
-            </summary>
-            <div className="mt-2 flex flex-col gap-1.5">
-              <div className="grid grid-cols-2 gap-2">
-                <ColorInput
-                  label={t.table.background}
-                  value={schema.bodyBackgroundColor ?? "#ffffff"}
-                  onChange={(e) => onChangeSchema({ bodyBackgroundColor: e.target.value })}
-                />
-                <ColorInput
-                  label={t.table.text}
-                  value={schema.bodyTextColor ?? "#000000"}
-                  onChange={(e) => onChangeSchema({ bodyTextColor: e.target.value })}
-                />
-              </div>
+          <CollapsibleSection title={t.table.headerRow}>
+            <div className="grid grid-cols-2 gap-2">
               <ColorInput
-                label={t.table.bandColor}
-                value={schema.bodyBandColor ?? "#ffffff"}
-                onChange={(e) => onChangeSchema({ bodyBandColor: e.target.value })}
+                label={t.table.background}
+                value={schema.headBackgroundColor ?? "#0284c7"}
+                onChange={(e) => onChangeSchema({ headBackgroundColor: e.target.value })}
               />
-              <Input
-                label={t.table.fontSize}
-                type="number"
-                step={0.5}
-                value={schema.bodyFontSize ?? ""}
-                placeholder="9"
-                onChange={(e) => onChangeSchema({ bodyFontSize: e.target.value === "" ? undefined : Number(e.target.value) })}
-              />
-              <AlignSelects
-                align={schema.bodyAlign ?? "left"}
-                vAlign={schema.bodyVerticalAlign ?? "middle"}
-                onAlign={(bodyAlign) => onChangeSchema({ bodyAlign })}
-                onVAlign={(bodyVerticalAlign) => onChangeSchema({ bodyVerticalAlign })}
-              />
-              <CornerInputs
-                radii={schema.bodyBorderRadius}
-                corners={schema.footer && schema.footer.length > 0 ? [] : ["bottomLeft", "bottomRight"]}
-                disabledHint={schema.footer && schema.footer.length > 0 ? t.table.bodyBottomCornerDisabledHint : undefined}
-                onChange={(patch) => onChangeSchema({ bodyBorderRadius: { ...schema.bodyBorderRadius, ...patch } })}
+              <ColorInput
+                label={t.table.text}
+                value={schema.headTextColor ?? "#ffffff"}
+                onChange={(e) => onChangeSchema({ headTextColor: e.target.value })}
               />
             </div>
-          </details>
+            <Input
+              label={t.table.fontSize}
+              type="number"
+              step={0.5}
+              value={schema.headFontSize ?? ""}
+              placeholder="9"
+              onChange={(e) => onChangeSchema({ headFontSize: e.target.value === "" ? undefined : Number(e.target.value) })}
+            />
+            <AlignSelects
+              align={schema.headAlign ?? "left"}
+              vAlign={schema.headVerticalAlign ?? "middle"}
+              onAlign={(headAlign) => onChangeSchema({ headAlign })}
+              onVAlign={(headVerticalAlign) => onChangeSchema({ headVerticalAlign })}
+            />
+            <CornerInputs
+              radii={schema.headBorderRadius}
+              corners={["topLeft", "topRight"]}
+              onChange={(patch) => onChangeSchema({ headBorderRadius: { ...schema.headBorderRadius, ...patch } })}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection title={t.table.bodyRow}>
+            <div className="grid grid-cols-2 gap-2">
+              <ColorInput
+                label={t.table.background}
+                value={schema.bodyBackgroundColor ?? "#ffffff"}
+                onChange={(e) => onChangeSchema({ bodyBackgroundColor: e.target.value })}
+              />
+              <ColorInput
+                label={t.table.text}
+                value={schema.bodyTextColor ?? "#000000"}
+                onChange={(e) => onChangeSchema({ bodyTextColor: e.target.value })}
+              />
+            </div>
+            <ColorInput
+              label={t.table.bandColor}
+              value={schema.bodyBandColor ?? "#ffffff"}
+              onChange={(e) => onChangeSchema({ bodyBandColor: e.target.value })}
+            />
+            <Input
+              label={t.table.fontSize}
+              type="number"
+              step={0.5}
+              value={schema.bodyFontSize ?? ""}
+              placeholder="9"
+              onChange={(e) => onChangeSchema({ bodyFontSize: e.target.value === "" ? undefined : Number(e.target.value) })}
+            />
+            <AlignSelects
+              align={schema.bodyAlign ?? "left"}
+              vAlign={schema.bodyVerticalAlign ?? "middle"}
+              onAlign={(bodyAlign) => onChangeSchema({ bodyAlign })}
+              onVAlign={(bodyVerticalAlign) => onChangeSchema({ bodyVerticalAlign })}
+            />
+            <CornerInputs
+              radii={schema.bodyBorderRadius}
+              corners={schema.footer && schema.footer.length > 0 ? [] : ["bottomLeft", "bottomRight"]}
+              disabledHint={schema.footer && schema.footer.length > 0 ? t.table.bodyBottomCornerDisabledHint : undefined}
+              onChange={(patch) => onChangeSchema({ bodyBorderRadius: { ...schema.bodyBorderRadius, ...patch } })}
+            />
+          </CollapsibleSection>
 
           <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2 dark:border-gray-600">
             <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">

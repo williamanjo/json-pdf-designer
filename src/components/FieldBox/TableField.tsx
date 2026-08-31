@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { Schema, TableSchema } from "../../types";
-import { resolveColumnWidthsMm } from "../../tableLayout";
+import { resolveColumnWidthsMm } from "../../table/layout";
 import { mmToPx, pxToMm } from "../../units";
+import { displayCell } from "../../table/columnFormula";
+import { resizeColumnPair } from "../../table/columnResize";
+import { startDragGesture } from "../dragGesture";
 
 type Props = {
   schema: TableSchema;
@@ -81,37 +84,24 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
 
   // Arrasta o divisor entre a coluna `index` e a seguinte — ajusta as DUAS
   // (delta oposto), mantendo a largura TOTAL da tabela constante, igual
-  // uma planilha. stopPropagation (sem <Rnd> aninhado) + loop manual de
-  // mousemove/mouseup, mesmo padrão do KpiField.tsx nesta mesma sessão.
+  // uma planilha. Wiring do arrasto via startDragGesture (mesmo padrão de
+  // KpiField.tsx); a matemática de clamp/giveback vive em resizeColumnPair.
   function startColumnResize(index: number, e: React.MouseEvent) {
-    e.stopPropagation();
     e.preventDefault();
     if (!onUpdate) return;
-    const startClientX = e.clientX;
     const startLeft = colWidthsMm[index];
     const startRight = colWidthsMm[index + 1];
     const widths = schema.columnWidths ? schema.columnWidths.slice() : schema.head.map(() => undefined);
 
-    function onMouseMove(ev: MouseEvent) {
-      const dxMm = pxToMm((ev.clientX - startClientX) / zoom);
+    startDragGesture(e, (dx) => {
+      const dxMm = pxToMm(dx / zoom);
       const minMm = 10;
-      const nextLeft = Math.max(minMm, startLeft + dxMm);
-      const grown = nextLeft - startLeft;
-      const nextRight = Math.max(minMm, startRight - grown);
-      // Se a coluna direita bateu no mínimo, não puxa mais largura dela do
-      // que ela tem — reajusta o quanto a esquerda realmente cresceu.
-      const actualGrown = startRight - nextRight;
+      const { left, right } = resizeColumnPair(startLeft, startRight, dxMm, minMm);
       const next = widths.slice();
-      next[index] = startLeft + actualGrown;
-      next[index + 1] = nextRight;
+      next[index] = left;
+      next[index + 1] = right;
       onUpdate?.({ columnWidths: next });
-    }
-    function onMouseUp() {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    }
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    });
   }
 
   // table-layout fixed trava a largura das colunas na divisão calculada
@@ -119,21 +109,6 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
   // com token comprido (ex: "{SUM(faturas.total)}") força a coluna toda
   // mais larga que a tabela, estourando pra direita, fora da grid do campo.
   const cellClipStyle: React.CSSProperties = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
-
-  // Fora do modo de edição, esconde a função por trás do token (ex:
-  // "{CURRENCY(tarKandir, "R$", 2)}" vira só "{tarKandir}") — o tipo de
-  // dado (ver PropertyPanel) continua valendo na hora de gerar o PDF, só
-  // não polui o preview do canvas com a fórmula inteira. Célula com texto
-  // fixo + token misturado (ex: "FAT-{fatura}") não bate no formato função
-  // isolada, então fica como está.
-  function displayCell(cell: string): string {
-    const wrapped = cell.trim().match(/^\{(.*)\}$/s);
-    if (!wrapped) return cell;
-    const call = wrapped[1].match(/^[A-Za-z]+\((.*)\)$/s);
-    if (!call) return cell;
-    const path = call[1].split(",")[0]?.trim();
-    return path ? `{${path}}` : cell;
-  }
 
   // Aproximação visual de cantos arredondados — o canvas não precisa ser
   // pixel-perfeito (o PDF gerado, via pdf/drawTable.ts, é a fonte da

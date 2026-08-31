@@ -2,9 +2,11 @@ import type { Color } from "pdf-lib";
 import type { PDFFont, PDFPage } from "pdf-lib";
 import { rgb } from "pdf-lib";
 import type { TableCornerRadii, TableSchema } from "../types";
-import { resolveColumnWidthsMm } from "../tableLayout";
+import { resolveColumnWidthsMm } from "../table/layout";
 import { mmToPt, ptToMm } from "../units";
 import { colorOrDefault, parseHex } from "./color";
+import { roundedRectPath } from "./svgShapes";
+import { alignX, alignY, truncateToWidth } from "./textLayout";
 
 const CELL_PADDING_PT = mmToPt(1.5);
 const BORDER_COLOR = rgb(0.6, 0.6, 0.6);
@@ -27,20 +29,6 @@ function hexToColor(hex: string | undefined): Color | undefined {
   return c ? rgb(c.r, c.g, c.b) : undefined;
 }
 
-// Retângulo com até 4 cantos independentes (mesma ideia do roundedRectPath
-// uniforme de drawKpi.ts, só que um raio por canto) — usado só quando pelo
-// menos um dos 4 é > 0; o caller decide ISSO (ver drawRowBackground
-// abaixo), senão continua um page.drawRectangle reto de sempre. Cada raio
-// é limitado a metade do lado menor, pra não estourar a forma.
-function roundedCornersPath(width: number, height: number, tl: number, tr: number, br: number, bl: number): string {
-  const half = Math.min(width, height) / 2;
-  const rtl = Math.max(0, Math.min(tl, half));
-  const rtr = Math.max(0, Math.min(tr, half));
-  const rbr = Math.max(0, Math.min(br, half));
-  const rbl = Math.max(0, Math.min(bl, half));
-  return `M ${rtl},0 H ${width - rtr} A ${rtr},${rtr} 0 0 1 ${width},${rtr} V ${height - rbr} A ${rbr},${rbr} 0 0 1 ${width - rbr},${height} H ${rbl} A ${rbl},${rbl} 0 0 1 0,${height - rbl} V ${rtl} A ${rtl},${rtl} 0 0 1 ${rtl},0 Z`;
-}
-
 // Quantas linhas de corpo cabem numa fatia com essa altura disponível —
 // reserva 1 linha pro cabeçalho só se ele for desenhar nessa fatia
 // (schema.repeatHeader === false libera essa linha nas fatias de
@@ -48,6 +36,72 @@ function roundedCornersPath(width: number, height: number, tl: number, tr: numbe
 export function tableRowsPerSlice(availableHeightMm: number, includeHead = true): number {
   const rows = Math.floor(availableHeightMm / TABLE_ROW_HEIGHT_MM) - (includeHead ? 1 : 0);
   return Math.max(0, rows);
+}
+
+// Resolve as cores/tamanhos/alinhamentos de cabeçalho/corpo/rodapé —
+// override do schema (schema.headBackgroundColor etc.) com fallback pro
+// default embutido de cada bloco. Extraído de drawTableSlice pra função
+// pura (sem depender de nada além do schema), reaproveitável/testável à
+// parte.
+function resolveTableStyles(schema: TableSchema): {
+  headBg: Color;
+  headColor: Color;
+  headSize: number;
+  headAlign: HAlign;
+  headVAlign: VAlign;
+  bodyBg: Color | undefined;
+  bodyBandBg: Color | undefined;
+  bodyColor: Color;
+  bodySize: number;
+  bodyAlign: HAlign;
+  bodyVAlign: VAlign;
+  footerBg: Color;
+  footerColor: Color;
+  footerSize: number;
+  footerAlign: HAlign;
+  footerVAlign: VAlign;
+} {
+  return {
+    headBg: colorOrDefault(schema.headBackgroundColor, DEFAULT_HEAD_BG),
+    headColor: colorOrDefault(schema.headTextColor, DEFAULT_HEAD_COLOR),
+    headSize: schema.headFontSize ?? HEAD_FONT_SIZE,
+    headAlign: schema.headAlign ?? "left",
+    headVAlign: schema.headVerticalAlign ?? "middle",
+    bodyBg: hexToColor(schema.bodyBackgroundColor),
+    bodyBandBg: hexToColor(schema.bodyBandColor),
+    bodyColor: colorOrDefault(schema.bodyTextColor, rgb(0, 0, 0)),
+    bodySize: schema.bodyFontSize ?? BODY_FONT_SIZE,
+    bodyAlign: schema.bodyAlign ?? "left",
+    bodyVAlign: schema.bodyVerticalAlign ?? "middle",
+    footerBg: colorOrDefault(schema.footerBackgroundColor, DEFAULT_FOOTER_BG),
+    footerColor: colorOrDefault(schema.footerTextColor, DEFAULT_FOOTER_COLOR),
+    footerSize: schema.footerFontSize ?? BODY_FONT_SIZE,
+    footerAlign: schema.footerAlign ?? "left",
+    footerVAlign: schema.footerVerticalAlign ?? "middle",
+  };
+}
+
+// Trunca o texto da célula, mede a largura resultante e calcula a posição
+// final (x, y absolutos) já alinhada dentro da célula — extraído de
+// drawRow pra função à parte (usada tanto pro texto de célula quanto,
+// futuramente, por qualquer outro bloco de texto alinhado numa caixa).
+function cellTextPosition(
+  cellX: number,
+  cursorY: number,
+  colWidth: number,
+  rowHeightPt: number,
+  align: HAlign,
+  vAlign: VAlign,
+  text: string,
+  font: PDFFont,
+  fontSize: number,
+  paddingPt: number
+): { x: number; y: number; truncated: string } {
+  const truncated = truncateToWidth(text, font, fontSize, colWidth - paddingPt * 2);
+  const textWidth = font.widthOfTextAtSize(truncated, fontSize);
+  const x = cellX + alignX(align, colWidth, textWidth, paddingPt);
+  const y = cursorY + alignY(vAlign, rowHeightPt, fontSize, paddingPt);
+  return { x, y, truncated };
 }
 
 // Desenha (opcionalmente) cabeçalho + um bloco de linhas começando no topo
@@ -95,22 +149,24 @@ export function drawTableSlice(
   const rowHeightPt = mmToPt(TABLE_ROW_HEIGHT_MM);
   let cursorY = topYPt;
 
-  const headBg = colorOrDefault(schema.headBackgroundColor, DEFAULT_HEAD_BG);
-  const headColor = colorOrDefault(schema.headTextColor, DEFAULT_HEAD_COLOR);
-  const headSize = schema.headFontSize ?? HEAD_FONT_SIZE;
-  const headAlign: HAlign = schema.headAlign ?? "left";
-  const headVAlign: VAlign = schema.headVerticalAlign ?? "middle";
-  const bodyBg = hexToColor(schema.bodyBackgroundColor);
-  const bodyBandBg = hexToColor(schema.bodyBandColor);
-  const bodyColor = colorOrDefault(schema.bodyTextColor, rgb(0, 0, 0));
-  const bodySize = schema.bodyFontSize ?? BODY_FONT_SIZE;
-  const bodyAlign: HAlign = schema.bodyAlign ?? "left";
-  const bodyVAlign: VAlign = schema.bodyVerticalAlign ?? "middle";
-  const footerBg = colorOrDefault(schema.footerBackgroundColor, DEFAULT_FOOTER_BG);
-  const footerColor = colorOrDefault(schema.footerTextColor, DEFAULT_FOOTER_COLOR);
-  const footerSize = schema.footerFontSize ?? BODY_FONT_SIZE;
-  const footerAlign: HAlign = schema.footerAlign ?? "left";
-  const footerVAlign: VAlign = schema.footerVerticalAlign ?? "middle";
+  const {
+    headBg,
+    headColor,
+    headSize,
+    headAlign,
+    headVAlign,
+    bodyBg,
+    bodyBandBg,
+    bodyColor,
+    bodySize,
+    bodyAlign,
+    bodyVAlign,
+    footerBg,
+    footerColor,
+    footerSize,
+    footerAlign,
+    footerVAlign,
+  } = resolveTableStyles(schema);
 
   // Tabela TEM rodapé (em alguma fatia, não necessariamente esta) — corpo
   // nunca arredonda o próprio canto de baixo quando isso é verdade (quem
@@ -140,7 +196,7 @@ export function drawTableSlice(
   ): boolean {
     const rounded = Boolean(corners && (corners.tl || corners.tr || corners.bl || corners.br));
     if (rounded) {
-      page.drawSvgPath(roundedCornersPath(width, rowHeightPt, corners!.tl, corners!.tr, corners!.br, corners!.bl), {
+      page.drawSvgPath(roundedRectPath(width, rowHeightPt, corners!), {
         x: xPt,
         y: y + rowHeightPt,
         color: fillColor,
@@ -158,17 +214,23 @@ export function drawTableSlice(
   // Fundo/cor/tamanho: override por coluna (mais específico) > estilo da
   // linha toda (header/valor/rodapé, campos da tabela acima) > default
   // embutido. Rodapé não tem override por coluna, só linha toda.
-  function drawRow(cells: string[], variant: "head" | "body" | "footer", roundTop: boolean, roundBottom: boolean, banded: boolean) {
+  function drawRow(
+    cells: string[],
+    variant: "head" | "body" | "footer",
+    allowTopRadius: boolean,
+    allowBottomRadius: boolean,
+    banded: boolean
+  ) {
     cursorY -= rowHeightPt;
     const rowWidthPt = colOffsetsPt[colCount - 1] + colWidthsPt[colCount - 1];
     // Cada bloco só arredonda o(s) canto(s) que fazem sentido pra ELE —
     // cabeçalho é sempre o topo (nunca o próprio fundo, o corpo desenha
     // logo abaixo); rodapé é sempre a base (nunca o próprio topo); corpo
-    // só arredonda a base, e só na linha REALMENTE final (roundBottom),
+    // só arredonda a base, e só na linha REALMENTE final (allowBottomRadius),
     // nunca o topo (o cabeçalho já cobre isso). Ver comentário de
     // TableCornerRadii em types/schema.ts.
     const corners =
-      roundTop || roundBottom
+      allowTopRadius || allowBottomRadius
         ? variant === "head"
           ? { ...radiiOrZero(schema.headBorderRadius), bl: 0, br: 0 }
           : variant === "footer"
@@ -206,20 +268,7 @@ export function drawTableSlice(
         page.drawRectangle({ x: cellX, y: cursorY, width: colWidth, height: rowHeightPt, color: cellBg });
       }
       const text = cells[c] ?? "";
-      const truncated = truncateToWidth(text, font, fontSize, colWidth - CELL_PADDING_PT * 2);
-      const textWidth = font.widthOfTextAtSize(truncated, fontSize);
-      const x =
-        align === "center"
-          ? cellX + Math.max(0, (colWidth - textWidth) / 2)
-          : align === "right"
-            ? cellX + Math.max(0, colWidth - textWidth - CELL_PADDING_PT)
-            : cellX + CELL_PADDING_PT;
-      const y =
-        vAlign === "top"
-          ? cursorY + rowHeightPt - CELL_PADDING_PT - fontSize
-          : vAlign === "bottom"
-            ? cursorY + CELL_PADDING_PT
-            : cursorY + rowHeightPt / 2 - fontSize / 2.8;
+      const { x, y, truncated } = cellTextPosition(cellX, cursorY, colWidth, rowHeightPt, align, vAlign, text, font, fontSize, CELL_PADDING_PT);
       page.drawText(truncated, { x, y, size: fontSize, font, color: textColor });
       // Quando a linha teve o contorno externo já desenhado arredondado
       // (drawRowFrame acima), NÃO redesenha um retângulo reto de 4 lados
@@ -252,18 +301,9 @@ export function drawTableSlice(
 
   if (includeHead) drawRow(head, "head", true, false, false);
   rows.forEach((row, i) => {
-    const isVeryLastBodyRow = isLastSlice && i === rows.length - 1 && !footerRow;
-    drawRow(row, "body", false, isVeryLastBodyRow && !tableHasFooter, i % 2 === 1);
+    const isFinalBodyRow = isLastSlice && i === rows.length - 1 && !footerRow;
+    drawRow(row, "body", false, isFinalBodyRow && !tableHasFooter, i % 2 === 1);
   });
   if (footerRow) drawRow(footerRow, "footer", false, true, false);
   return cursorY;
-}
-
-export function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
-  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
-  let truncated = text;
-  while (truncated.length > 1 && font.widthOfTextAtSize(`${truncated}…`, size) > maxWidth) {
-    truncated = truncated.slice(0, -1);
-  }
-  return `${truncated}…`;
 }

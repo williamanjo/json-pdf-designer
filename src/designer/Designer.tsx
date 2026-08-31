@@ -1,17 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type {
   Binding,
-  DataSourceColumnType,
   DataSourceOption,
-  KpiElementKey,
   Schema,
   SectionColumnDragPayload,
   SectionSchema,
   TableColumnStyle,
+  TableSchema,
   Template,
-} from "./types";
-import { makeChartSchema, makeImageSchema, makeKpiSchema, makeSectionColumnPair, makeSectionSchema, makeTableSchema, makeTextSchema, nextFreeY, uid } from "./schemaFactory";
-import { columnLabel } from "./bindings/bindings";
+} from "../types";
+import { makeChartSchema, makeImageSchema, makeKpiSchema, makeSectionColumnPair, makeSectionSchema, makeTableSchema, makeTextSchema, nextFreeY } from "../schemaFactory";
+import { columnLabel } from "../bindings/bindings";
 import {
   addColumnToArrayBinding,
   addColumnToTable,
@@ -27,76 +26,25 @@ import {
   setColumnFormulaOnArrayBinding,
   setColumnStyle as setColumnStylePure,
   setColumnWidth as setColumnWidthPure,
-} from "./tableColumns";
-import { classifyZone, isRedZone } from "./zones";
-import { GRID_SIZE_MM, snapToGrid } from "./units";
-import { fileToBackgroundImage } from "./pdf/backgroundImage";
-import { toErrorMessage } from "./errorUtils";
-import { filterIncomplete } from "./fieldWarnings";
-import { I18nProvider, useT, type Locale } from "./i18n";
-import { applyOrientation, matchPreset, orientationOf, PAGE_SIZE_PRESETS } from "./pageSizes";
-import { PageCanvas } from "./components/PageCanvas";
-import { PropertyPanel } from "./components/PropertyPanel";
-import { FilterTab } from "./components/FilterTab";
-import { PositionFields } from "./components/PropertyPanelFields";
-import { FieldList } from "./components/FieldList";
-import { Toolbar } from "./components/Toolbar";
-import { Badge, Button, Card, CardHeader, Input, Select, TabPanel } from "./components/ui";
-import { IconAlertTriangle, IconPlus, IconUpload, IconX } from "./components/ui/icons";
-
-// Tipo do campo selecionado tem aba "Estilo" própria? Texto/tabela/
-// gráfico/KPI têm conteúdo visual pra separar de "Dados" — imagem (só um
-// data URI) e seção (só um grupo + vínculo) não têm nada pra pôr lá.
-function hasEstiloTab(type: Schema["type"]): boolean {
-  return type === "text" || type === "table" || type === "chart" || type === "kpi";
-}
-
-// Tipos de campo que podem ganhar a aba "Filtro" — todos com vínculo de
-// array por trás (chart/table diretos, kpi quando vinculado).
-const FILTERABLE_TYPES = ["chart", "table", "kpi"] as const;
-
-type OptionalTab = "dados" | "estilo" | "filtro";
-type TabKey = "campos" | OptionalTab | "pagina";
-// Abas fixáveis/escondíveis no "×" — as três de edição de campo mais
-// "Página". "Campos" fica de fora (sempre precisa de um jeito de
-// selecionar/adicionar campo, senão não tem como reabrir nada).
-type HideableTab = OptionalTab | "pagina";
-
-// Ordem das abas e quais estão fixadas/escondidas — preferência do
-// usuário, sobrevive a reload (localStorage). Tenta ler; se o navegador
-// bloquear (modo privado) ou não existir `localStorage` (SSR), cai pro
-// padrão sem quebrar — é só uma preferência de UI, não dado do relatório.
-const ALL_TAB_KEYS: TabKey[] = ["campos", "dados", "estilo", "filtro", "pagina"];
-const TAB_ORDER_STORAGE_KEY = "json-pdf-designer:tab-order";
-const HIDDEN_TABS_STORAGE_KEY = "json-pdf-designer:hidden-tabs";
-
-function loadTabOrder(): TabKey[] {
-  try {
-    const raw = localStorage.getItem(TAB_ORDER_STORAGE_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (!Array.isArray(parsed)) return [...ALL_TAB_KEYS];
-    const valid = parsed.filter((k): k is TabKey => ALL_TAB_KEYS.includes(k));
-    // Chave nova que uma versão futura adicione entra no fim, em vez de
-    // sumir porque a ordem salva é de antes dela existir.
-    const missing = ALL_TAB_KEYS.filter((k) => !valid.includes(k));
-    return [...valid, ...missing];
-  } catch {
-    return [...ALL_TAB_KEYS];
-  }
-}
-
-function loadHiddenTabs(): ReadonlySet<HideableTab> {
-  try {
-    const raw = localStorage.getItem(HIDDEN_TABS_STORAGE_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (!Array.isArray(parsed)) return new Set();
-    return new Set(
-      parsed.filter((k): k is HideableTab => k === "dados" || k === "estilo" || k === "filtro" || k === "pagina")
-    );
-  } catch {
-    return new Set();
-  }
-}
+} from "../table/columns";
+import { classifyZone, isRedZone } from "../zones";
+import { computeSpawnPosition, findTableDataSource } from "./helpers";
+import { fileToBackgroundImage } from "../pdf/backgroundImage";
+import { toErrorMessage } from "../errorUtils";
+import { filterIncomplete } from "../fieldWarnings";
+import { I18nProvider, useT, type Locale } from "../i18n";
+import { applyOrientation, matchPreset, orientationOf, PAGE_SIZE_PRESETS } from "../pageSizes";
+import { PageCanvas } from "../components/PageCanvas";
+import { PropertyPanel } from "../components/PropertyPanel";
+import { FilterTab } from "../components/FilterTab";
+import { PositionFields } from "../components/PropertyPanelFields";
+import { FieldList } from "../components/FieldList";
+import { Toolbar } from "../components/Toolbar";
+import { Badge, Button, Card, CardHeader, Input, Select, TabPanel } from "../components/ui";
+import { IconAlertTriangle, IconPlus, IconUpload, IconX } from "../components/ui/icons";
+import { useTabBar, FILTERABLE_TYPES, type HideableTab, type TabKey } from "./useTabBar";
+import { useSelection } from "./useSelection";
+import { useClipboardAndDelete } from "./useClipboardAndDelete";
 
 type Props = {
   template: Template;
@@ -135,59 +83,23 @@ export default function Designer({ locale = "en", ...props }: Props) {
 
 function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings, onCanvasDrop, dataSources }: Omit<Props, "locale">) {
   const t = useT();
-  // Seleção múltipla (Ctrl/Cmd+clique) — o último clicado é o "principal"
-  // (quem aparece no painel de propriedades); os demais só ganham
-  // destaque no canvas e movem junto quando o principal é arrastado.
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const selectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
-  // Sub-elemento de KPI focado (ícone/título/valor/legenda) — só faz
-  // sentido com exatamente 1 KPI selecionado (ver KpiField.tsx/
-  // FieldList.tsx/PropertyPanelKpi.tsx); qualquer troca de seleção
-  // (campo diferente, ou virando seleção múltipla) limpa o foco.
-  const [selectedKpiElement, setSelectedKpiElement] = useState<KpiElementKey | null>(null);
-  useEffect(() => {
-    setSelectedKpiElement(null);
-  }, [selectedId, selectedIds.length]);
-  // Abas "Dados"/"Estilo"/"Filtro" que o usuário fechou no "×" (ver botão
-  // na própria aba) — fica fora da barra até ele reabrir pelo "+", mesmo
-  // pra outros campos cujo tipo normalmente mostraria essa aba. É um
-  // "fixar/desafixar" simples: não é por campo, é global pro designer
-  // inteiro (uma preferência de "eu não uso a aba Estilo", não uma
-  // memória por campo).
-  const [hiddenOptionalTabs, setHiddenOptionalTabs] = useState<ReadonlySet<HideableTab>>(loadHiddenTabs);
+  // Aba do painel lateral direito — "Campos" (lista) e "Página"
+  // (tamanho/orientação/margem/fundo) sempre acessíveis; "Dados"/"Estilo"/
+  // "Filtro" só existem enquanto um campo está selecionado (ver guarda
+  // dentro de useTabBar, que troca de volta pra "campos" quando a seleção
+  // some). Declarado cedo (junto com sidebarCollapsed/tabMenuOpen) porque
+  // useSelection/useTabBar abaixo precisam dos setters já prontos.
+  const [sidebarTab, setSidebarTab] = useState<TabKey>("campos");
+  // Duplo clique na aba ativa fecha (encolhe) o conteúdo; clique simples
+  // reabre — ver TabPanel/comentário equivalente em PropertyPanelChart.tsx.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Menu "+" (lista as abas escondidas que caberiam pro campo atual).
+  const [tabMenuOpen, setTabMenuOpen] = useState(false);
 
-  function handleSelect(id: string | null, additive?: boolean) {
-    if (id === null) {
-      setSelectedIds([]);
-      return;
-    }
-    // Não força troca de aba — fica onde o usuário já estava (Campos
-    // continua Campos, Estilo continua Estilo se o novo campo também tem
-    // Estilo, etc.). Só reabre se a aba tava fechada (duplo clique). A
-    // guarda mais abaixo (useEffect) cuida de sair de uma aba que não faz
-    // mais sentido pro tipo do novo campo (ex: tava em "Filtro" e
-    // selecionou uma seção).
-    setSidebarCollapsed(false);
-    if (!additive) {
-      setSelectedIds([id]);
-      return;
-    }
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
-  // Caixa de seleção (arrastar no fundo do canvas) — substitui a seleção
-  // pelos ids que caíram dentro da caixa, ou soma (Ctrl/Cmd segurado).
-  function handleSelectMany(ids: string[], additive?: boolean) {
-    if (ids.length > 0) {
-      setSidebarCollapsed(false);
-    }
-    setSelectedIds((prev) => {
-      if (!additive) return ids;
-      const merged = new Set(prev);
-      for (const id of ids) merged.add(id);
-      return Array.from(merged);
-    });
-  }
+  // Seleção de campos do canvas (Ctrl/Cmd+clique, caixa de seleção) e
+  // sub-elemento de KPI focado — ver src/designer/useSelection.ts.
+  const { selectedIds, setSelectedIds, selectedId, selectedKpiElement, setSelectedKpiElement, handleSelect, handleSelectMany } =
+    useSelection(setSidebarCollapsed);
 
   // Modo isolado: esconde o corpo, mostra só cabeçalho/rodapé/margem, pra
   // editar essas faixas sem o resto da página atrapalhar.
@@ -199,47 +111,6 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   // rejeitar — sem isso a promise quebrava em silêncio (console only),
   // upload "sumia" sem o usuário entender por quê.
   const [backgroundUploadError, setBackgroundUploadError] = useState<string | null>(null);
-  // Aba do painel lateral direito — "Campos" (lista) e "Página"
-  // (tamanho/orientação/margem/fundo) sempre acessíveis; "Dados"/"Estilo"/
-  // "Filtro" só existem enquanto um campo está selecionado (ver guarda
-  // logo abaixo, que troca de volta pra "campos" quando a seleção some).
-  const [sidebarTab, setSidebarTab] = useState<TabKey>("campos");
-  // Duplo clique na aba ativa fecha (encolhe) o conteúdo; clique simples
-  // reabre — ver TabPanel/comentário equivalente em PropertyPanelChart.tsx.
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  // Ordem de exibição das 5 abas — arrastar uma em cima da outra troca de
-  // posição (ver reorderTabs), independente de estar visível ou não no
-  // momento (uma aba escondida guarda o lugar dela pra quando reaparecer).
-  const [tabOrder, setTabOrder] = useState<TabKey[]>(loadTabOrder);
-  const [draggedTab, setDraggedTab] = useState<TabKey | null>(null);
-  // Aba sobrevoada durante o arraste — mostra a barrinha indicadora (a
-  // arrastada vai parar ANTES dela, ver reorderTabs).
-  const [dragOverTab, setDragOverTab] = useState<TabKey | null>(null);
-
-  function reorderTabs(from: TabKey, to: TabKey) {
-    if (from === to) return;
-    setTabOrder((prev) => {
-      const next = prev.filter((k) => k !== from);
-      next.splice(next.indexOf(to), 0, from);
-      return next;
-    });
-  }
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(tabOrder));
-    } catch {
-      // Modo privado, storage cheio, ou sem localStorage (SSR) — a
-      // preferência simplesmente não persiste, sem quebrar o designer.
-    }
-  }, [tabOrder]);
-  useEffect(() => {
-    try {
-      localStorage.setItem(HIDDEN_TABS_STORAGE_KEY, JSON.stringify([...hiddenOptionalTabs]));
-    } catch {
-      // Idem.
-    }
-  }, [hiddenOptionalTabs]);
 
   function updateSchema(id: string, patch: Partial<Schema>) {
     onChangeTemplate((prev) => ({
@@ -320,52 +191,10 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
     });
   }
 
-  // Enquanto isolado, campo novo nasce dentro da primeira faixa vermelha
-  // disponível (header > footer > margem esquerda > direita) em vez da
-  // posição padrão no corpo — senão nasceria escondido. maxHeight/maxWidth
-  // limita o tamanho padrão do schema (ex: tabela de 30mm) pra não
-  // extrapolar a faixa e cair de volta pro corpo por conta própria altura.
-  function bandSpawnPosition(): { x: number; y: number; maxHeight?: number; maxWidth?: number } | null {
-    const { headerHeight = 0, footerHeight = 0, marginLeft = 0, marginRight = 0, page } = template;
-    if (headerHeight > 2) return { x: marginLeft + 2, y: 2, maxHeight: headerHeight - 3 };
-    if (footerHeight > 2) return { x: marginLeft + 2, y: page.height - footerHeight + 2, maxHeight: footerHeight - 3 };
-    if (marginLeft > 2) return { x: 2, y: 2, maxWidth: marginLeft - 3 };
-    if (marginRight > 2) return { x: page.width - marginRight + 2, y: 2, maxWidth: marginRight - 3 };
-    return null;
-  }
-
+  // Posição de nascimento (centro do corpo, ou dentro da faixa vermelha
+  // quando isolado) — ver computeSpawnPosition em helpers.ts.
   function addSchema(schema: Schema): Schema {
-    let placed = schema;
-    if (isolateBands) {
-      const spawn = bandSpawnPosition();
-      if (spawn) {
-        placed = { ...schema, x: spawn.x, y: spawn.y };
-        if (spawn.maxHeight !== undefined) placed.height = Math.max(2, Math.min(placed.height, spawn.maxHeight));
-        if (spawn.maxWidth !== undefined) placed.width = Math.max(5, Math.min(placed.width, spawn.maxWidth));
-      }
-    } else {
-      // Nasce sempre no CENTRO da área do corpo — não empilha mais embaixo
-      // do último campo. Empilhar dependia de nextFreeY olhar só campos já
-      // classificados como "corpo" (classifyZone), mas essa classificação
-      // é só GEOMÉTRICA: um campo de rodapé posicionado um pouco fora do
-      // footerHeight configurado (ex: y menor que page.height-footerHeight)
-      // conta como corpo por acidente, virava o novo "chão", e todo campo
-      // novo nascia empilhado logo abaixo dele — inclusive fora da página,
-      // cada "+" clicado empurrando mais pra baixo em sequência. Nascer no
-      // centro elimina essa dependência: a posição do próximo campo não
-      // depende mais de onde os outros campos (mal classificados ou não)
-      // já estão.
-      const { headerHeight = 0, footerHeight = 0, marginLeft = 0, marginRight = 0, page } = template;
-      // Seção sempre nasce esticada de ponta a ponta (esquerda/direita,
-      // respeitando margem) — só a altura fica livre pra ajustar depois.
-      const isSection = schema.type === "section";
-      const width = isSection ? Math.max(20, page.width - marginLeft - marginRight) : schema.width;
-      const bodyTop = headerHeight;
-      const bodyBottom = page.height - footerHeight;
-      const x = isSection ? marginLeft : Math.max(marginLeft + 2, marginLeft + (page.width - marginLeft - marginRight - width) / 2);
-      const y = Math.max(bodyTop + 2, bodyTop + (bodyBottom - bodyTop - schema.height) / 2);
-      placed = { ...schema, x: snapToGrid(x), y: snapToGrid(y), width };
-    }
+    const placed = computeSpawnPosition(template, schema, isolateBands);
     onChangeTemplate((prev) => ({ ...prev, schemas: [...prev.schemas, placed] }));
     setSelectedIds([placed.id]);
     return placed;
@@ -409,115 +238,9 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
     setSelectedIds([]);
   }
 
-  // Delete/Backspace apaga TODOS os campos selecionados — só quando o foco
-  // não tá num input/textarea/select/contenteditable, senão comeria o
-  // backspace/delete de digitação normal (nome do campo, edição inline etc).
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
-      if (selectedIds.length === 0) return;
-      const target = e.target as HTMLElement | null;
-      const isEditable =
-        !!target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable);
-      if (isEditable) return;
-      e.preventDefault();
-      const removedIds = new Set(selectedIds);
-      const removedNames = template.schemas.filter((s) => removedIds.has(s.id)).map((s) => s.name);
-      onChangeTemplate((prev) => ({
-        ...prev,
-        schemas: prev.schemas
-          .filter((s) => !removedIds.has(s.id))
-          .map((s) => (s.sectionId && removedIds.has(s.sectionId) ? { ...s, sectionId: undefined } : s)),
-      }));
-      onChangeBindings((prev) => prev.filter((b) => !removedNames.includes(b.schemaName)));
-      setSelectedIds([]);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedIds, template.schemas, onChangeTemplate, onChangeBindings]);
-
-  // Copiar/colar (Ctrl+C / Ctrl+V) — clipboard próprio guardado num ref
-  // (não usa o clipboard do sistema, sem pedir permissão de navegador).
-  // Colar cria cópia com id/nome novos, deslocada (+8mm) da original, já
-  // selecionada pra dar pra arrastar de cara. Campo membro de seção
-  // mantém o MESMO sectionId da seção original (ela ainda existe, não foi
-  // duplicada) — só remapeia pra seção nova quando ela TAMBÉM tava
-  // selecionada no copiar (grupo copiado inteiro fica junto na cópia, sem
-  // se juntar à seção antiga).
-  const clipboardRef = useRef<{ schemas: Schema[]; bindings: Binding[] } | null>(null);
-  useEffect(() => {
-    function isEditable(target: EventTarget | null): boolean {
-      if (!(target instanceof HTMLElement)) return false;
-      return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable;
-    }
-
-    function onKeyDown(e: KeyboardEvent) {
-      const mod = e.ctrlKey || e.metaKey;
-      const key = e.key.toLowerCase();
-      if (!mod || (key !== "c" && key !== "v")) return;
-      if (isEditable(document.activeElement)) return;
-
-      if (key === "c") {
-        if (selectedIds.length === 0) return;
-        e.preventDefault();
-        const idSet = new Set(selectedIds);
-        const schemas = template.schemas.filter((s) => idSet.has(s.id));
-        if (schemas.length === 0) return;
-        const names = new Set(schemas.map((s) => s.name));
-        const copiedBindings = bindings.filter((b) => names.has(b.schemaName));
-        clipboardRef.current = JSON.parse(JSON.stringify({ schemas, bindings: copiedBindings }));
-        return;
-      }
-
-      const clip = clipboardRef.current;
-      if (!clip || clip.schemas.length === 0) return;
-      e.preventDefault();
-      const idMap = new Map<string, string>();
-      clip.schemas.forEach((s) => idMap.set(s.id, uid()));
-      const usedNames = new Set(template.schemas.map((s) => s.name));
-      function freshName(base: string): string {
-        let candidate = `${base}_${t.schemaDefaults.pasteSuffix}`;
-        while (usedNames.has(candidate)) candidate = `${base}_${t.schemaDefaults.pasteSuffix}_${Math.random().toString(36).slice(2, 5)}`;
-        usedNames.add(candidate);
-        return candidate;
-      }
-      const nameMap = new Map<string, string>();
-      const pasted = clip.schemas.map((s) => {
-        const newName = freshName(s.name);
-        nameMap.set(s.name, newName);
-        // Desloca +1 passo de grade (não +8mm cru — arrastar SEMPRE cai num
-        // múltiplo de GRID_SIZE_MM via snapToGrid; colar sem alinhar deixa
-        // fora da grade até o usuário arrastar manual pra "recolocar no
-        // lugar"). Trava dentro da página por cima — campo já encostado na
-        // borda (tabela larga com x+width quase no fim) não sai do grid.
-        // Arredonda o limite pra BAIXO (não snapToGrid, que arredonda pro
-        // mais próximo e podia estourar a página por até meio passo).
-        const maxX = Math.floor(Math.max(0, template.page.width - s.width) / GRID_SIZE_MM) * GRID_SIZE_MM;
-        const maxY = Math.floor(Math.max(0, template.page.height - s.height) / GRID_SIZE_MM) * GRID_SIZE_MM;
-        return {
-          ...s,
-          id: idMap.get(s.id) as string,
-          name: newName,
-          x: Math.min(snapToGrid(s.x + GRID_SIZE_MM), maxX),
-          y: Math.min(snapToGrid(s.y + GRID_SIZE_MM), maxY),
-          sectionId: s.sectionId && idMap.has(s.sectionId) ? idMap.get(s.sectionId) : s.sectionId,
-        };
-      });
-      const pastedBindings = clip.bindings
-        .filter((b) => nameMap.has(b.schemaName))
-        .map((b) => ({ ...b, schemaName: nameMap.get(b.schemaName) as string }));
-      onChangeTemplate((prev) => ({ ...prev, schemas: [...prev.schemas, ...pasted] }));
-      onChangeBindings((prev) => [...prev, ...pastedBindings]);
-      setSelectedIds(pasted.map((s) => s.id));
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedIds, template.schemas, template.page.width, template.page.height, bindings, onChangeTemplate, onChangeBindings, t]);
+  // Delete/Backspace (apaga selecionados) e Ctrl+C/Ctrl+V (copiar/colar) —
+  // ver src/designer/useClipboardAndDelete.ts.
+  useClipboardAndDelete({ template, bindings, selectedIds, setSelectedIds, onChangeTemplate, onChangeBindings, t });
 
   function setBinding(schemaName: string, binding: Binding | null) {
     onChangeBindings((prev) => {
@@ -577,86 +300,21 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
       ? dataSources?.find((d) => d.path === selectedBinding.path)?.columns ?? []
       : [];
 
-  // Menu "+" (lista as abas escondidas que caberiam pro campo atual).
-  const [tabMenuOpen, setTabMenuOpen] = useState(false);
-  // "×" na própria aba — fixa ela como escondida (guarda logo acima tira
-  // o usuário de cima dela se for a ativa). "+" reabre (ver JSX da barra
-  // de abas) chamando de volta com o mesmo nome.
-  function hideOptionalTab(tab: HideableTab) {
-    setHiddenOptionalTabs((prev) => new Set(prev).add(tab));
-  }
-  function showOptionalTab(tab: HideableTab) {
-    setHiddenOptionalTabs((prev) => {
-      const next = new Set(prev);
-      next.delete(tab);
-      return next;
-    });
-    setSidebarTab(tab);
-    setSidebarCollapsed(false);
-    setTabMenuOpen(false);
-  }
-
-  // Guarda contra aba órfã — "Campos" sempre existe, nunca precisa de
-  // guarda; "Página" só precisa checar se o usuário não a escondeu;
-  // "Dados"/"Estilo"/"Filtro" também dependem de ter campo selecionado
-  // do tipo certo. Qualquer aba que deixe de valer pra situação atual
-  // (seleção sumiu, mudou de tipo, ou o usuário fechou a ativa no "×")
-  // cai pra "Campos" — nunca fica sem nenhuma aba marcada.
-  useEffect(() => {
-    if (sidebarTab === "campos") return;
-    if (sidebarTab === "pagina") {
-      if (hiddenOptionalTabs.has("pagina")) setSidebarTab("campos");
-      return;
-    }
-    if (!selected) {
-      setSidebarTab("campos");
-      return;
-    }
-    const stillEligible =
-      (sidebarTab === "dados" && !hiddenOptionalTabs.has("dados")) ||
-      (sidebarTab === "estilo" && hasEstiloTab(selected.type) && !hiddenOptionalTabs.has("estilo")) ||
-      (sidebarTab === "filtro" && FILTERABLE_TYPES.includes(selected.type as (typeof FILTERABLE_TYPES)[number]) && !hiddenOptionalTabs.has("filtro"));
-    if (!stillEligible) setSidebarTab("campos");
-  }, [selected, sidebarTab, hiddenOptionalTabs]);
-
-  // Fonte de dados conhecida da tabela, pra mostrar a lista de colunas
-  // disponíveis pra adicionar com "+" (ver PropertyPanel.tsx) — dois casos:
-  // 1) Tabela membro de uma seção (sectionId) — puxa a MESMA fonte da
-  //    seção dona dela.
-  // 2) Tabela solta (ou com vínculo próprio) já vinculada (type "array")
-  //    a um path que bate com um dataSources conhecido — usa as colunas
-  //    dele direto, mesmo fora de seção.
-  function findTableDataSource(
-    schema: Schema | null
-  ): { path: string; columns: string[]; columnTypes?: Record<string, DataSourceColumnType> } | undefined {
-    if (!schema || schema.type !== "table") return undefined;
-    if (schema.sectionId) {
-      const section = template.schemas.find(
-        (s): s is SectionSchema => s.id === schema.sectionId && s.type === "section"
-      );
-      const sectionBinding = section
-        ? bindings.find(
-            (b): b is Extract<Binding, { type: "section" }> => b.schemaName === section.name && b.type === "section"
-          )
-        : undefined;
-      if (sectionBinding) {
-        const source = dataSources?.find((d) => d.path === sectionBinding.path);
-        if (source?.columns && source.columns.length > 0) {
-          return { path: source.path, columns: source.columns, columnTypes: source.columnTypes };
-        }
-      }
-    }
-    const ownBinding = bindings.find(
-      (b): b is Extract<Binding, { type: "array" }> => b.schemaName === schema.name && b.type === "array"
-    );
-    if (ownBinding) {
-      const source = dataSources?.find((d) => d.path === ownBinding.path);
-      if (source?.columns && source.columns.length > 0) {
-        return { path: source.path, columns: source.columns, columnTypes: source.columnTypes };
-      }
-    }
-    return undefined;
-  }
+  // Barra de abas do painel lateral (ordem/fixar-esconder/elegibilidade) —
+  // ver src/designer/useTabBar.ts.
+  const {
+    orderedVisibleTabs,
+    addableOptionalTabs,
+    tabsCustomized,
+    reorderTabs,
+    hideOptionalTab,
+    showOptionalTab,
+    restoreDefaultTabs,
+    draggedTab,
+    setDraggedTab,
+    dragOverTab,
+    setDragOverTab,
+  } = useTabBar({ t, selected, dadosWarning, filtroWarning, sidebarTab, setSidebarTab, setSidebarCollapsed, setTabMenuOpen });
 
   // "+" na lista de campos da seção (dentro do painel da tabela) — adiciona
   // a coluna no cabeçalho da tabela e já escreve "{coluna}" na célula (em
@@ -692,14 +350,28 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   // valores lidos do closure — o CONTEÚDO (head/content/columns/...) vem
   // sempre do `prev` de dentro do callback, que reflete a cadeia real de
   // atualizações já aplicadas, clique a clique.
-  function setTableHead(newHead: string[]) {
+  //
+  // updateSelectedTable centraliza o find/guard/map repetido nas 7 funções
+  // abaixo (acha a tabela selecionada dentro do `prev` funcional, confere
+  // que é mesmo type "table", aplica o `mutator` recebido e substitui de
+  // volta no array) — cada função só passa a lógica de coluna que muda
+  // (delegada pras funções puras de src/tableColumns.ts, que não mudam).
+  // `mutator` pode devolver undefined pra "sem mudança" (ex: coluna
+  // duplicada em addColumnToTable), mesmo padrão que já existia.
+  function updateSelectedTable(mutator: (table: TableSchema) => TableSchema | null | undefined) {
     if (!selectedId) return;
     onChangeTemplate((prev) => {
       const table = prev.schemas.find((s) => s.id === selectedId);
       if (!table || table.type !== "table") return prev;
-      const newTable = reindexTableForNewHead(table, newHead);
+      const newTable = mutator(table);
+      if (!newTable) return prev;
       return { ...prev, schemas: prev.schemas.map((s) => (s.id === selectedId ? newTable : s)) };
     });
+  }
+
+  function setTableHead(newHead: string[]) {
+    if (!selectedId) return;
+    updateSelectedTable((table) => reindexTableForNewHead(table, newHead));
     onChangeBindings((prev) => {
       const schemaName = selected?.name;
       const existingBinding = prev.find((b) => b.schemaName === schemaName);
@@ -717,15 +389,9 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   // Texto/outro tipo continua exatamente como sempre (token cru).
   function addTableColumn(column: string) {
     if (!selectedId) return;
-    const columnType = findTableDataSource(selected)?.columnTypes?.[column];
+    const columnType = findTableDataSource(selected, template.schemas, bindings, dataSources)?.columnTypes?.[column];
     const cell = buildColumnCell(column, columnType);
-    onChangeTemplate((prev) => {
-      const table = prev.schemas.find((s) => s.id === selectedId);
-      if (!table || table.type !== "table") return prev;
-      const newTable = addColumnToTable(table, column, cell);
-      if (!newTable) return prev;
-      return { ...prev, schemas: prev.schemas.map((s) => (s.id === selectedId ? newTable : s)) };
-    });
+    updateSelectedTable((table) => addColumnToTable(table, column, cell));
     onChangeBindings((prev) => {
       const schemaName = selected?.name;
       const existingBinding = prev.find((b) => b.schemaName === schemaName);
@@ -749,12 +415,10 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   function removeTableColumn(index: number) {
     if (!selectedId) return;
     let removedName: string | undefined;
-    onChangeTemplate((prev) => {
-      const table = prev.schemas.find((s) => s.id === selectedId);
-      if (!table || table.type !== "table") return prev;
+    updateSelectedTable((table) => {
       const result = removeColumnFromTable(table, index);
       removedName = result.removedName;
-      return { ...prev, schemas: prev.schemas.map((s) => (s.id === selectedId ? result.table : s)) };
+      return result.table;
     });
     onChangeBindings((prev) => {
       const schemaName = selected?.name;
@@ -773,12 +437,7 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   // sob rótulo errado (mesma cautela do remove por nome).
   function reorderTableColumn(fromIndex: number, toIndex: number) {
     if (!selectedId || fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
-    onChangeTemplate((prev) => {
-      const table = prev.schemas.find((s) => s.id === selectedId);
-      if (!table || table.type !== "table") return prev;
-      const newTable = reorderTableColumnPure(table, fromIndex, toIndex);
-      return { ...prev, schemas: prev.schemas.map((s) => (s.id === selectedId ? newTable : s)) };
-    });
+    updateSelectedTable((table) => reorderTableColumnPure(table, fromIndex, toIndex));
     onChangeBindings((prev) => {
       const schemaName = selected?.name;
       const existingBinding = prev.find((b) => b.schemaName === schemaName);
@@ -795,12 +454,7 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   // no resto (undefined num campo do patch limpa só aquele campo).
   function setColumnStyle(index: number, patch: Partial<TableColumnStyle>) {
     if (!selectedId) return;
-    onChangeTemplate((prev) => {
-      const table = prev.schemas.find((s) => s.id === selectedId);
-      if (!table || table.type !== "table") return prev;
-      const newTable = setColumnStylePure(table, index, patch);
-      return { ...prev, schemas: prev.schemas.map((s) => (s.id === selectedId ? newTable : s)) };
-    });
+    updateSelectedTable((table) => setColumnStylePure(table, index, patch));
   }
 
   // Largura de UMA coluna — input numérico do painel (arrastar a divisão
@@ -808,12 +462,7 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   // ver TableField.tsx). Mesmo padrão funcional de setColumnStyle acima.
   function setColumnWidth(index: number, widthMm: number | undefined) {
     if (!selectedId) return;
-    onChangeTemplate((prev) => {
-      const table = prev.schemas.find((s) => s.id === selectedId);
-      if (!table || table.type !== "table") return prev;
-      const newTable = setColumnWidthPure(table, index, widthMm);
-      return { ...prev, schemas: prev.schemas.map((s) => (s.id === selectedId ? newTable : s)) };
-    });
+    updateSelectedTable((table) => setColumnWidthPure(table, index, widthMm));
   }
 
   // Fórmula de UMA coluna do vínculo "array" — botão "ƒx" na lista de
@@ -829,12 +478,7 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
     const currentCell = selected && selected.type === "table" ? selected.content[0]?.[index] : undefined;
     const headFallback = selected && selected.type === "table" ? selected.head[index] : undefined;
     const { cell, rawPath } = computeColumnFormulaCell(formula, currentCell, headFallback);
-    onChangeTemplate((prev) => {
-      const table = prev.schemas.find((s) => s.id === selectedId);
-      if (!table || table.type !== "table") return prev;
-      const newTable = applyColumnCellToTable(table, index, cell);
-      return { ...prev, schemas: prev.schemas.map((s) => (s.id === selectedId ? newTable : s)) };
-    });
+    updateSelectedTable((table) => applyColumnCellToTable(table, index, cell));
     onChangeBindings((prev) => {
       const schemaName = selected?.name;
       const existingBinding = prev.find((b) => b.schemaName === schemaName);
@@ -893,37 +537,6 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
     } catch (err) {
       setBackgroundUploadError(toErrorMessage(err, t.pageSettings.backgroundUploadError));
     }
-  }
-
-  // "Campos" é a única fixa de verdade (sem "×") — precisa de um jeito
-  // sempre disponível de selecionar/adicionar campo. As outras quatro
-  // entram e saem conforme o tipo do campo selecionado (Dados/Estilo/
-  // Filtro) e o que o usuário já escondeu (hiddenOptionalTabs, inclui
-  // "Página"). "removable" só marca quem pode ganhar o "×" quando ativa.
-  const tabDefs: Record<TabKey, { label: string; eligible: boolean; warning: boolean; removable: boolean }> = {
-    campos: { label: t.tabBar.fields, eligible: true, warning: false, removable: false },
-    dados: { label: t.tabBar.data, eligible: !!selected, warning: dadosWarning, removable: true },
-    estilo: { label: t.tabBar.style, eligible: !!selected && hasEstiloTab(selected.type), warning: false, removable: true },
-    filtro: {
-      label: t.tabBar.filter,
-      eligible: !!selected && (FILTERABLE_TYPES as readonly string[]).includes(selected.type),
-      warning: filtroWarning,
-      removable: true,
-    },
-    pagina: { label: t.tabBar.page, eligible: true, warning: false, removable: true },
-  };
-  const orderedVisibleTabs = tabOrder
-    .map((key) => ({ key, ...tabDefs[key] }))
-    .filter((t) => t.eligible && !(t.removable && hiddenOptionalTabs.has(t.key as HideableTab)));
-  const addableOptionalTabs = (["dados", "estilo", "filtro", "pagina"] as const)
-    .map((key) => ({ key, ...tabDefs[key] }))
-    .filter((t) => t.eligible && hiddenOptionalTabs.has(t.key));
-  const tabsCustomized = hiddenOptionalTabs.size > 0 || tabOrder.some((k, i) => k !== ALL_TAB_KEYS[i]);
-
-  function restoreDefaultTabs() {
-    setTabOrder([...ALL_TAB_KEYS]);
-    setHiddenOptionalTabs(new Set());
-    setTabMenuOpen(false);
   }
 
   return (
@@ -1128,7 +741,7 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
                   onChangeSchema={(patch) => (bulkEditActive ? updateSchemas(selectedIds, patch) : updateSchema(selected.id, patch))}
                   onChangeBinding={(b) => handleChangeBinding(selected.name, b)}
                   dataSources={dataSources}
-                  tableDataSource={findTableDataSource(selected)}
+                  tableDataSource={findTableDataSource(selected, template.schemas, bindings, dataSources)}
                   onSetHeadList={setTableHead}
                   onAddTableColumn={addTableColumn}
                   onRemoveTableColumn={removeTableColumn}
