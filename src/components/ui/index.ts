@@ -13,6 +13,8 @@ export { CollapsibleSection } from "./CollapsibleSection";
 export { MaterialIcon } from "./MaterialIcon";
 export {
   IconPlus,
+  IconChevronLeft,
+  IconChevronRight,
   IconX,
   IconTrash,
   IconGrip,

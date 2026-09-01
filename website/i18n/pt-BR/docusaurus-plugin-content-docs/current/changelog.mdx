@@ -9,6 +9,24 @@ Todas as mudanças relevantes deste pacote ficam documentadas aqui.
 Formato inspirado, sem seguir à risca, em
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## 2.1.1 (2026-09-01)
+
+### Corrigido
+
+- **A barra de abas do painel lateral rola, em vez de cortar uma aba.** Com as
+  seis abas à mostra (Campos/Dados/Estilo/Filtro/Página/Inspetor) a barra
+  precisava de mais que os 320px do painel — medido: 335px de abas em 290px de
+  espaço em português, com o "Inspetor" cortado em 45px, e o "×" de fixar (que
+  só a aba ativa desenha) respondendo pelos últimos 12px. Agora a faixa rola na
+  horizontal, sem barra de rolagem visível (ela comeria metade de uma faixa de
+  30px de altura) e com a aba ativa trazida pra vista sempre que muda —
+  inclusive quando quem muda é outra coisa, como selecionar um campo, que troca
+  pra "Dados" por conta própria. O "+" que reabre aba escondida fica **fora** da
+  faixa que rola, pra não ser a primeira coisa a sair de alcance.
+  - Alargar o painel conforme a contagem de abas era a outra saída, e é pior:
+    Dados/Estilo/Filtro aparecem e desaparecem conforme o tipo do campo
+    selecionado, então o canvas pularia a cada troca de seleção.
+
 ## 2.1.0 (2026-09-01)
 
 Fase 1 da roadmap pós-2.0.0: a fundação de que o resto depende —

@@ -116,6 +116,8 @@ export {
   Textarea,
   Select,
   IconPlus,
+  IconChevronLeft,
+  IconChevronRight,
   IconX,
   IconTrash,
   IconGrip,

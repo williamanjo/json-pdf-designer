@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   Binding,
   DataSourceOption,
@@ -43,7 +43,7 @@ import { FieldList } from "../components/FieldList";
 import { TemplateInspector } from "../components/TemplateInspector";
 import { Toolbar } from "../components/Toolbar";
 import { Badge, Button, Card, CardHeader, Input, Select, TabPanel } from "../components/ui";
-import { IconAlertTriangle, IconPlus, IconUpload, IconX } from "../components/ui/icons";
+import { IconAlertTriangle, IconChevronLeft, IconChevronRight, IconPlus, IconUpload, IconX } from "../components/ui/icons";
 import { useTabBar, FILTERABLE_TYPES, type HideableTab, type TabKey } from "./useTabBar";
 import { useSelection } from "./useSelection";
 import { useClipboardAndDelete } from "./useClipboardAndDelete";
@@ -95,6 +95,13 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   // Duplo clique na aba ativa fecha (encolhe) o conteúdo; clique simples
   // reabre — ver TabPanel/comentário equivalente em PropertyPanelChart.tsx.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Faixa das abas (rola na horizontal, sem barra visível — ver .jpd-scroll-x
+  // em style.css).
+  const tabStripRef = useRef<HTMLDivElement>(null);
+  // Dá pra rolar pra cada lado? Decide se cada seta aparece. Com a barra de
+  // rolagem escondida, sem as setas não haveria pista nenhuma de que há aba
+  // fora da vista.
+  const [tabScroll, setTabScroll] = useState({ left: false, right: false });
   // Menu "+" (lista as abas escondidas que caberiam pro campo atual).
   const [tabMenuOpen, setTabMenuOpen] = useState(false);
 
@@ -340,6 +347,55 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
     dragOverTab,
     setDragOverTab,
   } = useTabBar({ t, selected, dadosWarning, filtroWarning, sidebarTab, setSidebarTab, setSidebarCollapsed, setTabMenuOpen });
+
+  // Traz a aba ativa pra vista na faixa que rola. Sem isto, trocar de aba por
+  // outro caminho (selecionar um campo troca pra "dados" por conta própria,
+  // ver useTabBar) deixaria a aba ativa fora da vista, sem barra de rolagem
+  // pra dar a dica. Ajusta `scrollLeft` na mão em vez de `scrollIntoView`
+  // porque este último também rola a PÁGINA em alguns navegadores.
+  // Lê a posição da faixa e diz pra onde ainda dá pra rolar. A margem de 1px
+  // é pro arredondamento de scrollLeft fracionário (zoom do navegador).
+  function syncTabScroll() {
+    const strip = tabStripRef.current;
+    if (!strip) return;
+    const max = strip.scrollWidth - strip.clientWidth;
+    setTabScroll({ left: strip.scrollLeft > 1, right: strip.scrollLeft < max - 1 });
+  }
+
+  // Um passo de seta: 80% da largura visível, pra sempre sobrar uma aba de
+  // referência entre um clique e o seguinte.
+  //
+  // Sem `behavior: "smooth"` de propósito: há ambiente onde o scroll suave
+  // simplesmente não roda (medido: `scrollBy` instantâneo move a faixa,
+  // `scrollBy` suave deixa scrollLeft em 0 mesmo segundos depois), e aí a
+  // seta parece morta. Um salto sem animação é pior visualmente e melhor
+  // funcionalmente.
+  function nudgeTabs(direction: -1 | 1) {
+    const strip = tabStripRef.current;
+    if (!strip) return;
+    strip.scrollLeft += direction * Math.round(strip.clientWidth * 0.8);
+    syncTabScroll();
+  }
+
+  useEffect(() => {
+    const strip = tabStripRef.current;
+    const active = strip?.querySelector<HTMLElement>('[data-active="true"]');
+    if (!strip) return;
+    syncTabScroll();
+    if (!active) return;
+    // Retângulos, não `offsetLeft`: os botões são `position: relative` e a
+    // faixa não, então o `offsetParent` deles é um ancestral mais acima e o
+    // `offsetLeft` mede a partir do lugar errado.
+    const strato = strip.getBoundingClientRect();
+    const aba = active.getBoundingClientRect();
+    if (aba.left < strato.left) strip.scrollLeft -= strato.left - aba.left;
+    else if (aba.right > strato.right) strip.scrollLeft += aba.right - strato.right;
+    // De novo depois de mexer: a atribuição acima muda scrollLeft na hora, mas
+    // o evento de scroll só chega depois — sem isto as setas ficariam um
+    // clique atrasadas.
+    syncTabScroll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sidebarTab, orderedVisibleTabs.length]);
 
   // "+" na lista de campos da seção (dentro do painel da tabela) — adiciona
   // a coluna no cabeçalho da tabela e já escreve "{coluna}" na célula (em
@@ -598,11 +654,34 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
         </div>
 
         <Card className="flex w-80 flex-shrink-0 flex-col gap-3 p-3.5">
-          <div className="flex flex-nowrap items-center gap-0.5 border-b border-slate-200 dark:border-gray-700">
+          <div className="flex items-center gap-0.5 border-b border-slate-200 dark:border-gray-700">
+            {/* Setas de rolagem — só aparecem do lado que tem aba escondida.
+                Ficam fora da faixa, como o "+": uma seta que rola junto com o
+                conteúdo não serviria de nada. */}
+            {tabScroll.left && (
+              <button
+                type="button"
+                onClick={() => nudgeTabs(-1)}
+                aria-label={t.tabBar.scrollTabsLeft}
+                title={t.tabBar.scrollTabsLeft}
+                className="flex-shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-gray-500 dark:hover:bg-gray-700"
+              >
+                <IconChevronLeft className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {/* A faixa das abas rola; o "+" abaixo fica FORA dela, senão ele
+                seria a primeira coisa a sair de vista justamente quando há
+                aba escondida pra reabrir. */}
+            <div
+              ref={tabStripRef}
+              onScroll={syncTabScroll}
+              className="jpd-scroll-x flex min-w-0 flex-1 flex-nowrap items-center gap-0.5"
+            >
             {orderedVisibleTabs.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
+                data-active={sidebarTab === tab.key}
                 draggable
                 onDragStart={(e) => { setDraggedTab(tab.key); e.dataTransfer.effectAllowed = "move"; }}
                 onDragOver={(e) => { e.preventDefault(); if (draggedTab && draggedTab !== tab.key) setDragOverTab(tab.key); }}
@@ -646,6 +725,19 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
                 )}
               </button>
             ))}
+            </div>
+
+            {tabScroll.right && (
+              <button
+                type="button"
+                onClick={() => nudgeTabs(1)}
+                aria-label={t.tabBar.scrollTabsRight}
+                title={t.tabBar.scrollTabsRight}
+                className="flex-shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-gray-500 dark:hover:bg-gray-700"
+              >
+                <IconChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )}
 
             {/* "+" sempre no final da barra — reabre aba escondida e/ou
                 restaura ordem/visibilidade padrão. Só aparece quando há

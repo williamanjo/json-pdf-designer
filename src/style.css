@@ -3,3 +3,22 @@
 
 /* Enable class-based dark mode (html.dark) */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Faixa que rola na horizontal sem mostrar barra de rolagem.
+   Usada na barra de abas do painel lateral: com 6 abas em português ela passa
+   dos 320px do painel (medido: 335px de conteúdo em 290 de espaço, com o
+   "Inspetor" cortado). Rolar é a saída certa — a largura do painel não pode
+   depender da contagem de abas, porque Dados/Estilo/Filtro aparecem e
+   desaparecem conforme o tipo do campo selecionado, e o canvas pularia a cada
+   troca de seleção.
+
+   A barra é escondida porque numa faixa de 28px de altura ela come metade do
+   espaço; a aba ativa é trazida pra vista por código (ver Designer.tsx), e
+   roda de mouse/trackpad continua rolando. */
+.jpd-scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.jpd-scroll-x::-webkit-scrollbar {
+  display: none;
+}

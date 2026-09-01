@@ -13,6 +13,10 @@ export const en = {
     page: "Page",
     inspector: "Inspector",
     dragToReorder: "Drag to reorder tabs",
+    // Setas de rolagem da barra de abas — só aparecem quando as abas não
+    // cabem na largura do painel.
+    scrollTabsLeft: "Scroll tabs left",
+    scrollTabsRight: "Scroll tabs right",
     pinAria: (label: string) => `Pin tab ${label} as hidden`,
     pinTitle: (label: string) => `Pin tab "${label}" as hidden — reopen from the "+"`,
     reopenOrRestoreTitle: "Reopen hidden tab / restore tabs",

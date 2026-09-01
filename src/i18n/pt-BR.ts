@@ -12,6 +12,8 @@ export const ptBR: Dict = {
     page: "Página",
     inspector: "Inspetor",
     dragToReorder: "Arraste pra reordenar as abas",
+    scrollTabsLeft: "Rolar abas pra esquerda",
+    scrollTabsRight: "Rolar abas pra direita",
     pinAria: (label) => `Fixar aba ${label} como escondida`,
     pinTitle: (label) => `Fixar aba "${label}" como escondida — reabre pelo "+"`,
     reopenOrRestoreTitle: "Reabrir aba escondida / restaurar abas",
