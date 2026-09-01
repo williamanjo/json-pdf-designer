@@ -9,6 +9,7 @@ import type { ExampleDefinition } from "./types";
 // ({NUMBER(qtd * preco, 2)}); o total geral soma um campo de verdade do
 // item (SUM(pedidos.valorTotal)) formatado como moeda.
 const template: Template = {
+  version: 1,
   page: { width: 210, height: 297 },
   schemas: [
     {

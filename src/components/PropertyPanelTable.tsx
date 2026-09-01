@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { Binding, DataSourceOption, TableColumnStyle, TableCornerRadii, TableSchema } from "../types";
-import { CUSTOM_FIELD_FUNCTIONS } from "../bindings/bindings";
 import { useT, withInlineCode } from "../i18n";
+import type { FieldSources } from "../designer/helpers";
 import { TABLE_PALETTES, TABLE_PALETTE_GROUPS, type TableStylePresetName } from "../table/colors";
-import { buildColumnFormula, parseColumnFormula } from "../table/columnFormula";
 import { BindingEditor } from "./BindingEditor";
+import { FormulaButton } from "./FormulaButton";
 import { Button, ClearFieldButton, ColorInput, Input, PalettePicker, Select } from "./ui";
 import { CollapsibleSection } from "./ui/CollapsibleSection";
 import { IconDots, IconGrip, IconPlus, IconX } from "./ui/icons";
@@ -103,6 +103,9 @@ type Props = {
   onSetColumnStyle?: (index: number, patch: Partial<TableColumnStyle>) => void;
   onSetColumnFormula?: (index: number, formula: string) => void;
   onSetColumnWidth?: (index: number, widthMm: number | undefined) => void;
+  // Campos que este schema alcança — a lista da esquerda do modal de
+  // fórmula (ver designer/helpers.ts, fieldSourcesFor).
+  fieldSources?: FieldSources;
 };
 
 export function PropertyPanelTable({
@@ -120,12 +123,20 @@ export function PropertyPanelTable({
   onSetColumnStyle,
   onSetColumnFormula,
   onSetColumnWidth,
+  fieldSources,
 }: Props) {
   const t = useT();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [styleColIndex, setStyleColIndex] = useState<number | null>(null);
-  const [formulaColIndex, setFormulaColIndex] = useState<number | null>(null);
   const bindingColumns = binding?.type === "array" ? binding.columns : null;
+
+  // Uma célula da linha de totais — escrita pelo campo direto e pelo modal
+  // de fórmula, daí a função em vez do handler inline.
+  function setFooterCell(index: number, value: string) {
+    const footer = (schema.footer ?? []).slice();
+    footer[index] = value;
+    onChangeSchema({ footer });
+  }
 
   // Grupos Claro/Médio/Escuro (TABLE_PALETTE_GROUPS) traduzidos pro formato
   // genérico do PalettePicker — cada preset vira só as 3 cores mostradas nas
@@ -184,16 +195,8 @@ export function PropertyPanelTable({
                 {schema.head.map((col, i) => {
                   const colStyle = schema.columnStyles?.[i];
                   const styleOpen = styleColIndex === i;
-                  const formulaOpen = formulaColIndex === i;
                   const bindingCol = bindingColumns?.[i];
                   const currentFormula = bindingCol && typeof bindingCol !== "string" ? bindingCol.formula : "";
-                  const parsedFormula = parseColumnFormula(currentFormula);
-                  const formulaPath =
-                    parsedFormula.kind === "func" || parsedFormula.kind === "bare"
-                      ? parsedFormula.path
-                      : typeof bindingCol === "string"
-                        ? bindingCol
-                        : "";
                   return (
                     <li key={`${col}-${i}`} className="flex flex-col gap-1">
                       <div
@@ -216,15 +219,17 @@ export function PropertyPanelTable({
                         <IconGrip className="text-slate-400" />
                         <span className="flex-1">{col}</span>
                         {bindingColumns && (
-                          <button
-                            type="button"
-                            onClick={() => setFormulaColIndex(formulaOpen ? null : i)}
-                            aria-label={t.table.formulaAria(col)}
-                            title={t.table.formulaTitle}
-                            className={`font-serif italic ${formulaOpen || currentFormula ? "text-sky-600 dark:text-blue-400" : "text-slate-400 hover:text-sky-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
-                          >
-                            ƒx
-                          </button>
+                          <FormulaButton
+                            active={Boolean(currentFormula)}
+                            sources={fieldSources}
+                            showDataType
+                            target={{
+                              label: t.formulaModal.columnTarget(col),
+                              value: currentFormula,
+                              pathPlaceholder: col,
+                              onSave: (next) => onSetColumnFormula?.(i, next),
+                            }}
+                          />
                         )}
                         <button
                           type="button"
@@ -322,123 +327,6 @@ export function PropertyPanelTable({
                             label={t.table.clearColumnStyle}
                             variant="text"
                           />
-                        </div>
-                      )}
-                      {formulaOpen && (
-                        <div className="flex flex-col gap-2 rounded border border-sky-200 bg-sky-50/60 p-2 dark:border-blue-800 dark:bg-blue-900/20">
-                          {parsedFormula.kind !== "raw" && (
-                            <div className="flex flex-col gap-1.5 rounded border border-slate-200 bg-white p-1.5 dark:border-gray-600 dark:bg-gray-800">
-                              <div className="grid grid-cols-2 gap-2">
-                                <Select
-                                  label={t.table.dataType}
-                                  value={parsedFormula.kind === "func" ? parsedFormula.fn : ""}
-                                  onChange={(e) => {
-                                    const fn = e.target.value;
-                                    const symbol = parsedFormula.kind === "func" ? parsedFormula.symbol : "R$";
-                                    const decimals = parsedFormula.kind === "func" ? parsedFormula.decimals : "2";
-                                    const outFormat = parsedFormula.kind === "func" ? parsedFormula.outFormat : "DD/MM/YYYY";
-                                    const inFormat = parsedFormula.kind === "func" ? parsedFormula.inFormat : "";
-                                    onSetColumnFormula?.(i, buildColumnFormula(fn, formulaPath, symbol, decimals, outFormat, inFormat));
-                                  }}
-                                >
-                                  <option value="">{t.table.plainText}</option>
-                                  <option value="NUMBER">{t.table.number}</option>
-                                  <option value="CURRENCY">{t.table.currency}</option>
-                                  <option value="DATE">{t.table.date}</option>
-                                  <option value="UPPER">{t.table.uppercase}</option>
-                                  <option value="LOWER">{t.table.lowercase}</option>
-                                  <option value="TRIM">{t.table.trimEdges}</option>
-                                </Select>
-                                <Input
-                                  label={t.table.fieldPath}
-                                  mono
-                                  placeholder={col}
-                                  value={formulaPath}
-                                  onChange={(e) => {
-                                    const fn = parsedFormula.kind === "func" ? parsedFormula.fn : "";
-                                    const symbol = parsedFormula.kind === "func" ? parsedFormula.symbol : "R$";
-                                    const decimals = parsedFormula.kind === "func" ? parsedFormula.decimals : "2";
-                                    const outFormat = parsedFormula.kind === "func" ? parsedFormula.outFormat : "DD/MM/YYYY";
-                                    const inFormat = parsedFormula.kind === "func" ? parsedFormula.inFormat : "";
-                                    onSetColumnFormula?.(i, buildColumnFormula(fn, e.target.value, symbol, decimals, outFormat, inFormat));
-                                  }}
-                                />
-                              </div>
-                              {parsedFormula.kind === "func" && parsedFormula.fn === "CURRENCY" && (
-                                <div className="grid grid-cols-2 gap-2">
-                                  <Input
-                                    label={t.table.symbol}
-                                    value={parsedFormula.symbol}
-                                    onChange={(e) =>
-                                      onSetColumnFormula?.(i, buildColumnFormula("CURRENCY", formulaPath, e.target.value, parsedFormula.decimals, "", ""))
-                                    }
-                                  />
-                                  <Input
-                                    label={t.table.decimalPlaces}
-                                    type="number"
-                                    min={0}
-                                    value={parsedFormula.decimals}
-                                    onChange={(e) =>
-                                      onSetColumnFormula?.(i, buildColumnFormula("CURRENCY", formulaPath, parsedFormula.symbol, e.target.value, "", ""))
-                                    }
-                                  />
-                                </div>
-                              )}
-                              {parsedFormula.kind === "func" && parsedFormula.fn === "NUMBER" && (
-                                <Input
-                                  label={t.table.decimalPlaces}
-                                  type="number"
-                                  min={0}
-                                  value={parsedFormula.decimals}
-                                  onChange={(e) => onSetColumnFormula?.(i, buildColumnFormula("NUMBER", formulaPath, "", e.target.value, "", ""))}
-                                />
-                              )}
-                              {parsedFormula.kind === "func" && parsedFormula.fn === "DATE" && (
-                                <div className="grid grid-cols-2 gap-2">
-                                  <Input
-                                    label={t.table.outputFormat}
-                                    mono
-                                    value={parsedFormula.outFormat}
-                                    onChange={(e) =>
-                                      onSetColumnFormula?.(i, buildColumnFormula("DATE", formulaPath, "", "", e.target.value, parsedFormula.inFormat))
-                                    }
-                                  />
-                                  <Input
-                                    label={t.table.inputFormat}
-                                    mono
-                                    placeholder={t.table.inputFormatPlaceholder}
-                                    value={parsedFormula.inFormat}
-                                    onChange={(e) =>
-                                      onSetColumnFormula?.(i, buildColumnFormula("DATE", formulaPath, "", "", parsedFormula.outFormat, e.target.value))
-                                    }
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.table.formulaHelp)}</p>
-                          <Input
-                            mono
-                            placeholder={col}
-                            value={currentFormula}
-                            onChange={(e) => onSetColumnFormula?.(i, e.target.value)}
-                          />
-                          <Select
-                            value=""
-                            onChange={(e) => {
-                              if (e.target.value) onSetColumnFormula?.(i, `${currentFormula}{${e.target.value}}`);
-                            }}
-                          >
-                            <option value="">{t.table.insertFunction}</option>
-                            {CUSTOM_FIELD_FUNCTIONS.map((fn) => (
-                              <option key={fn.name} value={fn.snippet} title={t.fieldFunctions[fn.hintKey]}>
-                                {fn.name} — {t.fieldFunctions[fn.hintKey]}
-                              </option>
-                            ))}
-                          </Select>
-                          {currentFormula && (
-                            <ClearFieldButton onClick={() => onSetColumnFormula?.(i, "")} label={t.table.clearFormula} variant="text" />
-                          )}
                         </div>
                       )}
                     </li>
@@ -635,17 +523,24 @@ export function PropertyPanelTable({
                   <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.table.footerHelp)}</p>
                   <div className="flex flex-col gap-1">
                     {schema.footer.map((cell, i) => (
-                      <Input
-                        key={i}
-                        mono
-                        placeholder={schema.head[i] ?? t.table.footerCellPlaceholder(i + 1)}
-                        value={cell}
-                        onChange={(e) => {
-                          const footer = schema.footer!.slice();
-                          footer[i] = e.target.value;
-                          onChangeSchema({ footer });
-                        }}
-                      />
+                      <div key={i} className="flex items-center gap-1">
+                        <Input
+                          className="flex-1"
+                          mono
+                          placeholder={schema.head[i] ?? t.table.footerCellPlaceholder(i + 1)}
+                          value={cell}
+                          onChange={(e) => setFooterCell(i, e.target.value)}
+                        />
+                        <FormulaButton
+                          active={Boolean(cell)}
+                          sources={fieldSources}
+                          target={{
+                            label: t.formulaModal.footerTarget(schema.head[i] ?? String(i + 1)),
+                            value: cell,
+                            onSave: (next) => setFooterCell(i, next),
+                          }}
+                        />
+                      </div>
                     ))}
                   </div>
                   <div className="grid grid-cols-2 gap-2">

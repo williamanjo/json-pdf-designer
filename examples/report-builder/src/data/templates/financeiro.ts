@@ -12,6 +12,7 @@ import type { ExampleDefinition } from "./types";
 // de todos (limitação documentada em generate.ts); a categoria de cada
 // tabela aqui é o próprio cabeçalho colorido, não um texto à parte.
 const template: Template = {
+  version: 1,
   page: { width: 210, height: 297 },
   schemas: [
     {
@@ -70,6 +71,27 @@ const template: Template = {
       fontSize: 11,
       fontColor: "#111111",
       alignment: "right",
+    },
+    {
+      id: "financeiro-alerta",
+      name: "financeiro_alerta_deficit",
+      type: "text",
+      x: 10,
+      y: 122,
+      width: 190,
+      height: 9,
+      content: "ATENÇÃO: despesas acima das receitas no período.",
+      fontSize: 10,
+      fontColor: "#b91c1c",
+      alignment: "center",
+      backgroundColor: "#fef2f2",
+      borderColor: "#fecaca",
+      borderWidth: 0.3,
+      // Condição COMPOSTA: comparação entre dois paths e `AND`. Os operadores
+      // lógicos (AND/OR/NOT) e os de comparação seguem a mesma regra do
+      // formato — só valem cercados de espaço em branco dos dois lados, o que
+      // é o que permite uma chave JSON ter hífen ou espaço no nome.
+      visibleWhen: "resumoFinanceiro.totalDespesas > resumoFinanceiro.totalReceitas AND COUNT(despesas) > 0",
     },
   ],
 };

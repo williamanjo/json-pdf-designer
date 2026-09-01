@@ -36,10 +36,19 @@ export async function drawImageField(
   xPt: number,
   yPt: number,
   widthPt: number,
-  heightPt: number
+  heightPt: number,
+  // Valor do vínculo já resolvido (um data URI vindo do JSON). Tem prioridade
+  // sobre `schema.content`, que é a imagem escolhida em tempo de design.
+  // Vazio/ausente cai no content — é o que faz um campo sem vínculo continuar
+  // desenhando o que foi colocado no editor.
+  boundValue?: string
 ): Promise<void> {
-  const dataUri = schema.content;
+  const dataUri = boundValue?.trim() ? boundValue : schema.content;
   if (!dataUri) return;
+  // Vínculo que resolveu pra algo que não é data URI (path errado, URL http,
+  // texto solto) não é motivo pra derrubar o documento — o campo fica vazio,
+  // igual a um vínculo de texto que não resolve.
+  if (!dataUri.startsWith("data:")) return;
   let embedded = imageCache.get(dataUri);
   if (!embedded) {
     if (imageCache.size >= MAX_DISTINCT_IMAGES) {

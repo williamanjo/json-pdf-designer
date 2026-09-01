@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden estruturado > mestre-detalhe (seção repetida com tabela membro) 1`] = `
+"page 1 (single) — 0 placement(s)
+page 2 (single) — 1 placement(s)
+  sectionRepeat secao_gigante y=0.0 index=0
+page 3 (single) — 1 placement(s)
+  sectionRepeat secao_gigante y=0.0 index=1"
+`;
+
+exports[`golden estruturado > tabela que pagina 1`] = `
+"page 1 (single) — 1 placement(s)
+  tableSlice tabela_grande y=20.0 rows=25 +head last"
+`;

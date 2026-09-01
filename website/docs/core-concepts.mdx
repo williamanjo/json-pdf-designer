@@ -11,6 +11,7 @@ description: Template, Schema, and Binding — the shapes everything else builds
 type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
 
 type Template = {
+  version?: TemplateVersion; // document format version — absent = 1, see "Template versioning"
   page: PageSize; // { width, height } in mm
   headerHeight?: number; // static bands (mm) repeated on every generated page
   footerHeight?: number;

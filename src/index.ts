@@ -17,6 +17,7 @@ export type {
   Schema,
   Template,
   TemplatePage,
+  TemplateVersion,
   TableColumn,
   Binding,
   KpiAggregation,
@@ -63,6 +64,29 @@ export {
   type MaterialIconName,
 } from "./materialIcons";
 export { generatePdf, downloadPdf, type GeneratePdfOptions } from "./pdf/generate";
+export { migrateTemplate, CURRENT_TEMPLATE_VERSION } from "./template/migrate";
+// Erros de geração, como classes — pra quem chama poder distinguir sem casar
+// mensagem: um backend responde 413 pra PageLimitError e 400 pra
+// UnsupportedGlyphError, por exemplo. Ver docs: "Modos de falha".
+export { PageLimitError, DEFAULT_MAX_PAGES } from "./pdf/layout/layoutDocument";
+export { UnsupportedGlyphError } from "./pdf/textSafety";
+export { ExpressionError, ExpressionSyntaxError, ExpressionDepthError } from "./expressions/errors";
+
+// Validação de expressão — pra quem monta a própria UI e quer apontar o erro
+// como o <Designer> aponta. A GERAÇÃO é tolerante de propósito (expressão
+// inválida vira campo vazio, não derruba o PDF), então sem isto o problema
+// ficaria invisível. Ver docs: "Visibilidade condicional".
+export { expressionError, templateExpressionErrors } from "./expressions/resolve";
+export { suspiciousOperator, templateSuspiciousOperators } from "./expressions/suspicious";
+export { ALL_SUGGESTIONS, applySuggestion, insertAtCaret, suggestAt, wordAtCaret } from "./expressions/suggest";
+export type { Suggestion } from "./expressions/suggest";
+export { braceError, tokenAtCaret } from "./expressions/templateText";
+export type { TokenSpan } from "./expressions/templateText";
+export { fieldWarning, expressionErrors, filterIncomplete } from "./fieldWarnings";
+// Dicionário como valor, pra chamar fieldWarning fora de um componente React.
+export { dictFor } from "./i18n/dictionaries";
+export type { SchemaExpressionError } from "./expressions/schemaExpressions";
+
 export { makeChartSchema, makeKpiSchema, makeSectionColumnPair } from "./schemaFactory";
 export { I18nProvider, useT, useLocale, withInlineCode, type Locale, type Dict } from "./i18n";
 export { mmToPx, pxToMm, mmToPt } from "./units";
@@ -86,6 +110,7 @@ export {
   CardTitle,
   Badge,
   TabPanel,
+  Modal,
   Input,
   ColorInput,
   Textarea,

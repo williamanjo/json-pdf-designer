@@ -9,6 +9,8 @@ const sidebars = {
     "server-only-usage",
     "core-concepts",
     "data-binding",
+    "conditional-visibility",
+    "failure-modes",
     "tables",
     "repeated-sections",
     "charts",

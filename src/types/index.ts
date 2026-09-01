@@ -15,6 +15,7 @@ export type {
   Schema,
   Template,
   TemplatePage,
+  TemplateVersion,
 } from "./schema";
 
 export type { TableColumn, Binding, ChartFilterOp, ChartFilterCondition, ChartFilterGroup, KpiAggregation } from "./binding";

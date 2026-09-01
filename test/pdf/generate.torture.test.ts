@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { generatePdf } from "../../src/pdf/generate";
+import { UnsupportedGlyphError } from "../../src/pdf/textSafety";
+import type { Binding, Template } from "../../src/types";
 import { emptyTableTemplate } from "./fixtures/emptyTable";
 import { hugeTableTemplate } from "./fixtures/hugeTable";
 import { sectionLargerThanPageTemplate } from "./fixtures/sectionLargerThanPage";
@@ -58,11 +60,41 @@ describe("generatePdf — torture tests (pipeline inteiro, casos extremos)", () 
   });
 
   it("emoji sem fonte customizada lança um erro reconhecível (fronteira documentada, não regressão silenciosa)", async () => {
-    // Comportamento ATUAL e esperado do pdf-lib (WinAnsi não cobre emoji) —
-    // este teste existe pra travar essa fronteira de propósito: se um dia
-    // isso passar a NÃO lançar mais (ex: alguém adicionar sanitização), o
-    // teste quebra e avisa que a documentação sobre "use fontBytes pra
-    // unicode completo" pode precisar de revisão.
-    await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(/WinAnsi cannot encode/i);
+    // Fronteira DELIBERADA: WinAnsi não cobre emoji, e descartar o caractere
+    // em silêncio seria pior — um relatório é documento assinado. Este teste
+    // existe pra travar isso: se um dia passar a NÃO lançar, a documentação
+    // sobre "use fontBytes pra unicode completo" precisa de revisão.
+    //
+    // A mensagem agora é nossa (UnsupportedGlyphError), não o "WinAnsi cannot
+    // encode …" cru do pdf-lib, que não dizia QUAL campo nem o que fazer.
+    await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(UnsupportedGlyphError);
+    await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(/Campo "texto_emoji"/);
+    await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(/U\+1F389|fontBytes/);
+  });
+
+  it("caractere de CONTROLE no dado NÃO derruba o documento (vira espaço)", async () => {
+    // O oposto do caso acima, e o mais comum em dado real: um LF vindo de um
+    // textarea, endereço com quebra, import de CSV. Controle não tem glifo em
+    // fonte NENHUMA, então trocar por espaço é a única renderização possível —
+    // não é perda de conteúdo.
+    const template: Template = {
+      page: { width: 210, height: 297 },
+      schemas: [
+        {
+          id: "t", name: "campo", type: "text", x: 10, y: 20, width: 180, height: 10,
+          content: "{nome}", fontSize: 10, fontColor: "#000000", alignment: "left",
+        },
+        {
+          id: "tab", name: "tab", type: "table", x: 10, y: 40, width: 190, height: 20,
+          head: ["Nome"], content: [],
+        },
+      ],
+    };
+    const bindings: Binding[] = [{ schemaName: "tab", type: "array", path: "rows", columns: ["nome"] }];
+    const LF = String.fromCharCode(10);
+    const TAB = String.fromCharCode(9);
+    const data = { nome: `a${LF}b${TAB}c`, rows: [{ nome: `linha${LF}com quebra` }] };
+    const doc = await PDFDocument.load(await generatePdf(template, data, bindings));
+    expect(doc.getPageCount()).toBeGreaterThanOrEqual(1);
   });
 });

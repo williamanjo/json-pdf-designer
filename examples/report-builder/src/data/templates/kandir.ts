@@ -9,6 +9,7 @@ import type { ExampleDefinition } from "./types";
 // {SUM(...)}, fechamento). Cobre os 3 recursos: fundo/borda em texto,
 // cor de cabeçalho de tabela, e rodapé nativo com agregação.
 const template: Template = {
+  version: 1,
   page: { width: 210, height: 297 },
   footerHeight: 10,
   schemas: [

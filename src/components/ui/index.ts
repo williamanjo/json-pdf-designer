@@ -4,6 +4,7 @@ export { Textarea } from "./Textarea";
 export { Select } from "./Select";
 export { Card, CardHeader, CardTitle, Badge } from "./Card";
 export { TabPanel } from "./TabPanel";
+export { Modal } from "./Modal";
 export { BulkLocked } from "./BulkLocked";
 export { PalettePicker } from "./PalettePicker";
 export { PaletteSwatches } from "./PaletteSwatches";

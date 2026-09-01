@@ -6,53 +6,15 @@
 // repetições/quanto espaço cada uma ocupa antes de desenhar (paginação),
 // drawSectionInstance pra desenhar de verdade.
 import type { PDFFont, PDFPage } from "pdf-lib";
-import { getCaseInsensitive } from "../../bindings/bindings";
-import type { Binding, Schema, SectionSchema, TableSchema, TemplatePage } from "../../types";
+import type { Binding, Schema, SectionSchema, TemplatePage } from "../../types";
 import { mmToPt } from "../../units";
-import { drawTableSlice, TABLE_ROW_HEIGHT_MM } from "./renderTable";
+import { drawTableSlice } from "./renderTable";
+// Medição da seção mora em layout/sectionLayout.ts (matemática pura, precisa
+// rodar antes de desenhar); aqui ficou só o desenho. Reexportadas porque há
+// quem importe por este caminho.
+export { resolveSectionItems, sectionInstanceHeight, sectionMembersOf } from "../layout/sectionLayout";
+import { sectionMembersOf, tableGrowth } from "../layout/sectionLayout";
 import { resolveFooterRow, resolveNestedTableRows, resolveTextValue } from "../resolvers";
-
-// Campos membros de uma seção — qualquer schema do template com
-// sectionId apontando pra ela (ver PageCanvas.tsx: arrastar em cima
-// absorve, arrastar pra fora limpa).
-export function sectionMembersOf(pageDef: TemplatePage, section: SectionSchema): Schema[] {
-  return pageDef.schemas.filter((s) => s.sectionId === section.id);
-}
-
-// Crescimento (mm) de UMA tabela membro além do próprio placeholder, pro
-// item atual — nunca negativo (não encolhe abaixo do desenhado). Conta a
-// linha de totais (footer) como +1 linha extra, se houver.
-function tableGrowth(tableMember: TableSchema, item: unknown, bindings: Binding[]): number {
-  const rows = resolveNestedTableRows(tableMember, item, bindings);
-  const footerRows = tableMember.footer && tableMember.footer.length > 0 ? 1 : 0;
-  const actualHeight = (rows.length + 1 + footerRows) * TABLE_ROW_HEIGHT_MM; // +1 = linha de cabeçalho
-  return Math.max(0, actualHeight - tableMember.height);
-}
-
-// Altura real desta repetição da seção pro item atual — a altura
-// autorada (section.height) serve de mínimo; a soma do crescimento de
-// TODAS as tabelas membro (mestre-detalhe) é o quanto falta caber a
-// mais, já que cada uma empurra pra baixo tudo que vem depois dela (ver
-// drawSectionInstance) — com 1 tabela só é só o crescimento dela mesma.
-export function sectionInstanceHeight(pageDef: TemplatePage, section: SectionSchema, item: unknown, bindings: Binding[]): number {
-  let totalGrowth = 0;
-  for (const member of sectionMembersOf(pageDef, section)) {
-    if (member.type !== "table") continue;
-    totalGrowth += tableGrowth(member, item, bindings);
-  }
-  return section.height + totalGrowth;
-}
-
-// Itens do array vinculado a uma seção — sem vínculo, desenha 1 instância
-// só com o conteúdo de design (preview), igual à tabela sem vínculo.
-export function resolveSectionItems(sectionSchema: SectionSchema, bindings: Binding[], data: unknown): unknown[] {
-  const binding = bindings.find(
-    (b): b is Extract<Binding, { type: "section" }> => b.schemaName === sectionSchema.name && b.type === "section"
-  );
-  if (!binding) return [undefined];
-  const arr = getCaseInsensitive(data, binding.path);
-  return Array.isArray(arr) && arr.length > 0 ? arr : [undefined];
-}
 
 // O que drawSectionInstance precisa emprestado de generatePdf — só o
 // necessário pra desenhar um membro que NÃO é tabela (drawField já sabe

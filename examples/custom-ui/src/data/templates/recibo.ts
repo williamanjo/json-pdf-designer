@@ -6,6 +6,7 @@ import type { ExampleDefinition } from "./types";
 // {DATE(...)}/{CURRENCY(...)} e a caixa de destaque (fundo+borda) num
 // texto qualquer.
 const template: Template = {
+  version: 1,
   page: { width: 210, height: 297 },
   schemas: [
     {

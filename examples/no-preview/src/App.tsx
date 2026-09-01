@@ -8,6 +8,7 @@ import { Designer, generatePdf, downloadPdf, type Binding, type Template } from 
 // Suficiente pra provar que a geração completa (texto + tabela + paginação)
 // funciona sem pdf.js — o report-builder cobre o caminho cheio de recursos.
 const INITIAL_TEMPLATE: Template = {
+  version: 1,
   page: { width: 210, height: 297 },
   schemas: [
     {

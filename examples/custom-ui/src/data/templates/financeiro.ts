@@ -12,6 +12,7 @@ import type { ExampleDefinition } from "./types";
 // de todos (limitação documentada em generate.ts); a categoria de cada
 // tabela aqui é o próprio cabeçalho colorido, não um texto à parte.
 const template: Template = {
+  version: 1,
   page: { width: 210, height: 297 },
   schemas: [
     {

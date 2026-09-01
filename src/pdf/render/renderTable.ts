@@ -7,6 +7,8 @@ import { mmToPt, ptToMm } from "../../units";
 import { colorOrDefault, parseHex } from "../color";
 import { roundedRectPath } from "../svgShapes";
 import { alignX, alignY, truncateToWidth } from "../textLayout";
+import { TABLE_ROW_HEIGHT_MM } from "../tableMetrics";
+import { withGlyphContext } from "../textSafety";
 
 const CELL_PADDING_PT = mmToPt(1.5);
 const BORDER_COLOR = rgb(0.6, 0.6, 0.6);
@@ -16,7 +18,10 @@ const DEFAULT_FOOTER_BG = rgb(0.9, 0.9, 0.92);
 const DEFAULT_FOOTER_COLOR = rgb(0, 0, 0);
 const BODY_FONT_SIZE = 9;
 const HEAD_FONT_SIZE = 9;
-export const TABLE_ROW_HEIGHT_MM = 7;
+
+// Métricas moram em ../tableMetrics.ts (sem pdf-lib, pro layout poder usar).
+// Reexportadas daqui porque há quem já importe por este caminho.
+export { TABLE_ROW_HEIGHT_MM, tableRowsPerSlice } from "../tableMetrics";
 
 type HAlign = "left" | "center" | "right";
 type VAlign = "top" | "middle" | "bottom";
@@ -27,15 +32,6 @@ type VAlign = "top" | "middle" | "bottom";
 function hexToColor(hex: string | undefined): Color | undefined {
   const c = parseHex(hex);
   return c ? rgb(c.r, c.g, c.b) : undefined;
-}
-
-// Quantas linhas de corpo cabem numa fatia com essa altura disponível —
-// reserva 1 linha pro cabeçalho só se ele for desenhar nessa fatia
-// (schema.repeatHeader === false libera essa linha nas fatias de
-// continuação, já que o cabeçalho não repete).
-export function tableRowsPerSlice(availableHeightMm: number, includeHead = true): number {
-  const rows = Math.floor(availableHeightMm / TABLE_ROW_HEIGHT_MM) - (includeHead ? 1 : 0);
-  return Math.max(0, rows);
 }
 
 // Resolve as cores/tamanhos/alinhamentos de cabeçalho/corpo/rodapé —
@@ -134,6 +130,30 @@ export function drawTableSlice(
   // ex: só na última fatia de uma tabela que pagina — ver generate.ts).
   footerRow?: string[],
   isLastSlice = true
+): number {
+  // Envolve a função INTEIRA: os três caminhos de tabela (corpo, faixa
+  // repetida, aninhada numa seção) passam por aqui, então um lugar só cobre
+  // todos. O provedor de texto é lazy — só roda se já houve erro.
+  return withGlyphContext(
+    schema.name,
+    () => [...schema.head, ...rows.flat(), ...(footerRow ?? [])],
+    font,
+    schema.bodyFontSize ?? 9,
+    () => drawTableSliceInner(page, font, schema, rows, xPt, topYPt, widthPt, includeHead, footerRow, isLastSlice)
+  );
+}
+
+function drawTableSliceInner(
+  page: PDFPage,
+  font: PDFFont,
+  schema: TableSchema,
+  rows: string[][],
+  xPt: number,
+  topYPt: number,
+  widthPt: number,
+  includeHead: boolean,
+  footerRow: string[] | undefined,
+  isLastSlice: boolean
 ): number {
   const head = schema.head;
   const colCount = head.length || (rows[0]?.length ?? footerRow?.length ?? 1);

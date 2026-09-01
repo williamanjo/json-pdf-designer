@@ -18,6 +18,24 @@ export type BaseSchema = {
   // schemas nem mudar de coordenada (x/y continuam absolutos, iguais a
   // qualquer outro campo). Arrastar pra fora da seção limpa isso de novo.
   sectionId?: string;
+  // Visibilidade condicional — uma expressão avaliada contra o JSON de
+  // verdade na hora de gerar; o campo só é desenhado quando ela é verdadeira
+  // (regra de verdade/falsidade do formato: vazio, "0" e "false" são falsos).
+  // SEM as chaves — é a expressão nua, ex: `cliente.tipo == "empresa"`,
+  // `total > 1000`, `pago AND NOT cancelado`.
+  //
+  // Ausente = sempre visível (todo template de antes deste campo existir).
+  // Expressão inválida também conta como visível: um erro de digitação não
+  // pode fazer um campo desaparecer do relatório em silêncio — o editor avisa
+  // e o campo continua aparecendo até alguém consertar.
+  //
+  // Efeito no fluxo: esconder um item recupera a ALTURA dele e nada mais — o
+  // que vem depois sobe exatamente essa altura, e o espaçamento autorado nos
+  // dois lados continua valendo. Esconder UM campo de uma linha que tem
+  // vizinhos visíveis deixa o buraco, porque a linha continua existindo pros
+  // outros; escondendo todos, a linha inteira sai. Ver
+  // pdf/layout/layoutDocument.ts.
+  visibleWhen?: string;
 };
 
 export type TextSchema = BaseSchema & {
@@ -295,7 +313,17 @@ export type TemplatePage = {
   schemas: Schema[];
 };
 
+// Versão do FORMATO do documento — ver src/template/migrate.ts. União de um
+// só membro de propósito: quando existir a versão 2, trocar por `1 | 2` faz o
+// compilador apontar todo lugar que precisa decidir entre as duas, em vez de
+// aceitar `number` em silêncio.
+export type TemplateVersion = 1;
+
 export type Template = {
+  // Ausente = formato 1 (todo template salvo antes deste campo existir).
+  // `migrateTemplate` estampa a versão corrente na saída, então um template
+  // que passou por lá nunca vem sem.
+  version?: TemplateVersion;
   page: PageSize;
   // Faixas estáticas (mm) que se repetem em toda página gerada — um campo
   // do corpo entra automaticamente no cabeçalho/rodapé quando sua posição Y

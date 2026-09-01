@@ -20,13 +20,13 @@ I18nProvider, useT, useLocale, withInlineCode
 type Locale, type Dict
 
 // UI pronta (opcional — ver "Componentes de UI prontos")
-Button, Card, CardHeader, CardTitle, Badge, TabPanel, Input, ColorInput, Textarea, Select
+Button, Card, CardHeader, CardTitle, Badge, TabPanel, Modal, Input, ColorInput, Textarea, Select
 IconPlus, IconX, IconTrash, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
 IconArrowsVertical, IconDots, IconUpload, IconLock, IconLockOpen, IconBringToFront,
 IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle
 
 // Geração (também em json-pdf-designer/server, exceto downloadPdf)
-generatePdf(template, data, bindings, { fontBytes? }) => Promise<Uint8Array>
+generatePdf(template, data, bindings, { fontBytes?, maxPages? }) => Promise<Uint8Array>
 downloadPdf(bytes, filename?)              // só navegador (document/Blob) — não está no /server
 normalizeFontBytes(bytes)                  // detecta WOFF/WOFF2 e descomprime
 
@@ -66,8 +66,32 @@ mmToPx, pxToMm, mmToPt
 PAGE_SIZE_PRESETS                          // A4/A3/A5/Carta/Ofício, sempre em retrato
 orientationOf(page), applyOrientation(page, orientation), matchPreset(page)
 
+// Versão do formato de template (também em json-pdf-designer/server)
+migrateTemplate(input) => Template         // normaliza template vindo de banco/arquivo/API
+CURRENT_TEMPLATE_VERSION                   // versão de formato que este build escreve
+
+// Erros de geração, como classes (também em json-pdf-designer/server) — ver Modos de falha
+PageLimitError                             // documento acima do maxPages
+UnsupportedGlyphError                      // caractere sem glifo na fonte
+ExpressionError                            // base dos dois abaixo
+ExpressionSyntaxError, ExpressionDepthError
+DEFAULT_MAX_PAGES                          // 5000
+
+// Validação de expressão (também em json-pdf-designer/server) — ver Visibilidade condicional
+expressionError(source) => string | null   // uma expressão: o erro de sintaxe, ou null
+templateExpressionErrors(template)         // todo {...} ruim de um template, com a mensagem
+expressionErrors(schema, binding)          // toda expressão que um campo carrega
+suspiciousOperator(source)                 // operador de um lado só: sintaxe válida, quase certamente engano
+templateSuspiciousOperators(template)       // o mesmo, token a token
+suggestAt(text, caret), applySuggestion(text, caret, s), insertAtCaret(text, caret, insert), wordAtCaret(text, caret), ALL_SUGGESTIONS
+tokenAtCaret(template, caret), braceError(template, t?)     // o {...} em que o caret está; chave desbalanceada
+fieldWarning(schema, binding, t?)          // a mensagem de alerta do editor pra um campo
+dictFor(locale)                            // dicionário de tradução como valor, pro `t` acima
+filterIncomplete(binding)
+type SchemaExpressionError
+
 // Tipos (também em json-pdf-designer/server)
-Template, TemplatePage, Schema, TextSchema, TableSchema, TableColumnStyle, TableCornerRadii,
+Template, TemplatePage, TemplateVersion, Schema, TextSchema, TableSchema, TableColumnStyle, TableCornerRadii,
 ImageSchema, SectionSchema, ChartSchema, KpiSchema, KpiIcon, KpiElementKey, KpiElementOffset,
 BaseSchema, PageSize, Binding, KpiAggregation, TableColumn, DataSourceOption,
 SectionColumnDragPayload, Zone, Bands, GeneratePdfOptions, Orientation

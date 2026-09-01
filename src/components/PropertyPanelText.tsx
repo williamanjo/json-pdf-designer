@@ -1,6 +1,8 @@
 import type { TextSchema } from "../types";
 import { useT } from "../i18n";
+import type { FieldSources } from "../designer/helpers";
 import { allowDrop, readDroppedField } from "./dragField";
+import { FormulaButton } from "./FormulaButton";
 import { BulkLocked, ClearFieldButton, ColorInput, Input, Select, Textarea } from "./ui";
 
 type Props = {
@@ -8,24 +10,40 @@ type Props = {
   activeTab: "dados" | "estilo";
   bulkEdit?: boolean;
   onChangeSchema: (patch: Partial<TextSchema>) => void;
+  // Campos que este schema alcança — a lista da esquerda do modal de
+  // fórmula (ver designer/helpers.ts, fieldSourcesFor).
+  fieldSources?: FieldSources;
 };
 
-export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema }: Props) {
+export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema, fieldSources }: Props) {
   const t = useT();
   const textarea = (
-    <Textarea
-      label={t.text.designText}
-      value={schema.content}
-      onChange={(e) => onChangeSchema({ content: e.target.value })}
-      onDragOver={allowDrop}
-      onDrop={(e) => {
-        const f = readDroppedField(e);
-        if (!f) return;
-        e.preventDefault();
-        const token = `{${f.path}}`;
-        onChangeSchema({ content: schema.content ? `${schema.content} ${token}` : token });
-      }}
-    />
+    <div className="flex flex-col gap-1">
+      <Textarea
+        label={t.text.designText}
+        value={schema.content}
+        onChange={(e) => onChangeSchema({ content: e.target.value })}
+        onDragOver={allowDrop}
+        onDrop={(e) => {
+          const f = readDroppedField(e);
+          if (!f) return;
+          e.preventDefault();
+          const token = `{${f.path}}`;
+          onChangeSchema({ content: schema.content ? `${schema.content} ${token}` : token });
+        }}
+      />
+      <div className="flex justify-end">
+        <FormulaButton
+          active={schema.content.includes("{")}
+          sources={fieldSources}
+          target={{
+            label: t.text.designText,
+            value: schema.content,
+            onSave: (next) => onChangeSchema({ content: next }),
+          }}
+        />
+      </div>
+    </div>
   );
   return (
     <>

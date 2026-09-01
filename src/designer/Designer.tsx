@@ -17,6 +17,7 @@ import {
   applyColumnCellToTable,
   buildColumnCell,
   computeColumnFormulaCell,
+  mirrorCellsToArrayBinding,
   reindexArrayBindingForNewHead,
   reindexTableForNewHead,
   removeColumnFromArrayBinding,
@@ -28,7 +29,7 @@ import {
   setColumnWidth as setColumnWidthPure,
 } from "../table/columns";
 import { classifyZone, isRedZone } from "../zones";
-import { computeSpawnPosition, findTableDataSource } from "./helpers";
+import { computeSpawnPosition, fieldSourcesFor, findTableDataSource } from "./helpers";
 import { fileToBackgroundImage } from "../pdf/backgroundImage";
 import { toErrorMessage } from "../errorUtils";
 import { filterIncomplete } from "../fieldWarnings";
@@ -37,7 +38,7 @@ import { applyOrientation, matchPreset, orientationOf, PAGE_SIZE_PRESETS } from 
 import { PageCanvas } from "../components/PageCanvas";
 import { PropertyPanel } from "../components/PropertyPanel";
 import { FilterTab } from "../components/FilterTab";
-import { PositionFields } from "../components/PropertyPanelFields";
+import { PositionFields, VisibleWhenField } from "../components/PropertyPanelFields";
 import { FieldList } from "../components/FieldList";
 import { TemplateInspector } from "../components/TemplateInspector";
 import { Toolbar } from "../components/Toolbar";
@@ -114,10 +115,33 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   const [backgroundUploadError, setBackgroundUploadError] = useState<string | null>(null);
 
   function updateSchema(id: string, patch: Partial<Schema>) {
+    const before = template.schemas.find((s) => s.id === id);
     onChangeTemplate((prev) => ({
       ...prev,
       schemas: prev.schemas.map((s) => (s.id === id ? ({ ...s, ...patch } as Schema) : s)),
     }));
+    // Célula de tabela editada direto no canvas: a célula É a fórmula da
+    // coluna (generate.ts resolve a linha a partir de `content`), então o
+    // vínculo tem de acompanhar. Sem isto o painel "ƒx" seguia mostrando a
+    // fórmula antiga — dois valores pra mesma coisa, e o que aparecia no
+    // painel não era o que ia sair no PDF. O caminho contrário (editar pelo
+    // ƒx) já espelhava, em setColumnFormula.
+    // `patch` é Partial<Schema> (união), e `content` não existe em
+    // SectionSchema — o acesso precisa do estreitamento explícito.
+    const nextContent = (patch as Partial<TableSchema>).content;
+    if (before?.type === "table" && Array.isArray(nextContent)) {
+      mirrorTableCellsToBinding(before, nextContent);
+    }
+  }
+
+  function mirrorTableCellsToBinding(table: TableSchema, nextContent: string[][]) {
+    onChangeBindings((prev) => {
+      const binding = prev.find((b) => b.schemaName === table.name);
+      if (binding?.type !== "array") return prev;
+      const columns = mirrorCellsToArrayBinding(binding, table.head, table.content[0], nextContent[0]);
+      if (!columns) return prev;
+      return prev.map((b) => (b === binding ? { ...b, columns } : b));
+    });
   }
 
   // Renomear pela aba Campos (FieldList.tsx) — nome vazio ou já usado por
@@ -543,25 +567,35 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-start gap-4">
-        <PageCanvas
-          page={template.page}
-          schemas={template.schemas}
-          headerHeight={template.headerHeight}
-          footerHeight={template.footerHeight}
-          marginLeft={template.marginLeft}
-          marginRight={template.marginRight}
-          isolateBands={isolateBands}
-          backgroundImage={template.backgroundImage}
-          selectedIds={selectedIds}
-          onSelect={handleSelect}
-          onSelectMany={handleSelectMany}
-          onUpdateSchema={updateSchema}
-          onMoveGroup={moveGroup}
-          onCanvasDrop={onCanvasDrop}
-          onDropSectionColumn={dropSectionColumn}
-          selectedKpiElement={selectedKpiElement}
-          onSelectKpiElement={setSelectedKpiElement}
-        />
+        {/* O canvas tem largura INLINE fixa (contentWidth * zoom, em
+            PageCanvas), então ele não encolhe — `flex-shrink` não vence uma
+            largura declarada. Sem esta caixa, uma página A4 a 100% (810px)
+            mais o painel de 320px passavam da largura do container e o painel
+            saía da viewport, visível só rolando a página toda pra direita.
+            `min-w-0` deixa a caixa encolher abaixo do conteúdo dela, e
+            `overflow-x-auto` põe a rolagem AQUI, no canvas, em vez de empurrar
+            o painel pra fora. */}
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <PageCanvas
+            page={template.page}
+            schemas={template.schemas}
+            headerHeight={template.headerHeight}
+            footerHeight={template.footerHeight}
+            marginLeft={template.marginLeft}
+            marginRight={template.marginRight}
+            isolateBands={isolateBands}
+            backgroundImage={template.backgroundImage}
+            selectedIds={selectedIds}
+            onSelect={handleSelect}
+            onSelectMany={handleSelectMany}
+            onUpdateSchema={updateSchema}
+            onMoveGroup={moveGroup}
+            onCanvasDrop={onCanvasDrop}
+            onDropSectionColumn={dropSectionColumn}
+            selectedKpiElement={selectedKpiElement}
+            onSelectKpiElement={setSelectedKpiElement}
+          />
+        </div>
 
         <Card className="flex w-80 flex-shrink-0 flex-col gap-3 p-3.5">
           <div className="flex flex-nowrap items-center gap-0.5 border-b border-slate-200 dark:border-gray-700">
@@ -729,7 +763,10 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
               )}
 
               {sidebarTab === "dados" && (
-                <PositionFields schema={selected} onChangeSchema={(patch) => updateSchema(selected.id, patch)} />
+                <>
+                  <PositionFields schema={selected} onChangeSchema={(patch) => updateSchema(selected.id, patch)} />
+                  <VisibleWhenField schema={selected} onChangeSchema={(patch) => updateSchema(selected.id, patch)} />
+                </>
               )}
 
               {(sidebarTab === "dados" || sidebarTab === "estilo") && (
@@ -743,6 +780,7 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
                   onChangeBinding={(b) => handleChangeBinding(selected.name, b)}
                   dataSources={dataSources}
                   tableDataSource={findTableDataSource(selected, template.schemas, bindings, dataSources)}
+                  fieldSources={fieldSourcesFor(selected, template.schemas, bindings, dataSources)}
                   onSetHeadList={setTableHead}
                   onAddTableColumn={addTableColumn}
                   onRemoveTableColumn={removeTableColumn}

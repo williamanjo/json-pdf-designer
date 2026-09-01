@@ -21,6 +21,7 @@ export type {
   Schema,
   Template,
   TemplatePage,
+  TemplateVersion,
   TableColumn,
   Binding,
   KpiAggregation,
@@ -68,6 +69,28 @@ export {
 } from "./materialIcons";
 // downloadPdf fica de fora (usa document/Blob — só faz sentido no browser).
 export { generatePdf, type GeneratePdfOptions } from "./pdf/generate";
+export { migrateTemplate, CURRENT_TEMPLATE_VERSION } from "./template/migrate";
+// Erros de geração, como classes — pra quem chama poder distinguir sem casar
+// mensagem: um backend responde 413 pra PageLimitError e 400 pra
+// UnsupportedGlyphError, por exemplo. Ver docs: "Modos de falha".
+export { PageLimitError, DEFAULT_MAX_PAGES } from "./pdf/layout/layoutDocument";
+export { UnsupportedGlyphError } from "./pdf/textSafety";
+export { ExpressionError, ExpressionSyntaxError, ExpressionDepthError } from "./expressions/errors";
+
+
+// Validação de expressão — um backend usa isto pra recusar um template com
+// expressão inválida ANTES de salvar, em vez de descobrir na hora de gerar
+// (quando o campo já sai vazio, ver expressions/resolve.ts).
+export { expressionError, templateExpressionErrors } from "./expressions/resolve";
+export { suspiciousOperator, templateSuspiciousOperators } from "./expressions/suspicious";
+export { ALL_SUGGESTIONS, applySuggestion, insertAtCaret, suggestAt, wordAtCaret } from "./expressions/suggest";
+export type { Suggestion } from "./expressions/suggest";
+export { braceError, tokenAtCaret } from "./expressions/templateText";
+export type { TokenSpan } from "./expressions/templateText";
+export { expressionErrors } from "./fieldWarnings";
+// Dicionário como valor, pra chamar fieldWarning fora de um componente React.
+export { dictFor } from "./i18n/dictionaries";
+export type { SchemaExpressionError } from "./expressions/schemaExpressions";
 export { makeChartSchema, makeKpiSchema, makeSectionColumnPair } from "./schemaFactory";
 export type { Locale, Dict } from "./i18n";
 export { mmToPx, pxToMm, mmToPt } from "./units";

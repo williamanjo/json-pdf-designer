@@ -9,6 +9,7 @@ import type { ExampleDefinition } from "./types";
 // ({NUMBER(qtd * preco, 2)}); o total geral soma um campo de verdade do
 // item (SUM(pedidos.valorTotal)) formatado como moeda.
 const template: Template = {
+  version: 1,
   page: { width: 210, height: 297 },
   schemas: [
     {
@@ -101,6 +102,27 @@ const template: Template = {
       fontSize: 11,
       fontColor: "#111111",
       alignment: "right",
+      // `visibleWhen` num BLOCO: sem nenhum pedido, a linha de total não faz
+      // sentido — e esconder um bloco devolve a altura dele, então o que vem
+      // depois sobe. Expressão sem chaves, avaliada contra o JSON inteiro.
+      visibleWhen: "COUNT(pedidos) > 0",
+    },
+    {
+      id: "pedidos-aviso-vazio",
+      name: "pedidos_aviso_vazio",
+      type: "text",
+      x: 10,
+      y: 64,
+      width: 190,
+      height: 8,
+      content: "Nenhum pedido no período selecionado.",
+      fontSize: 11,
+      fontColor: "#a16207",
+      alignment: "center",
+      // O complemento do de cima: os dois ocupam o MESMO y, e a condição
+      // oposta garante que exatamente um aparece. `NOT` é um dos operadores
+      // lógicos do formato (AND/OR/NOT), sempre cercados de espaço.
+      visibleWhen: "NOT COUNT(pedidos) > 0",
     },
   ],
 };

@@ -28,16 +28,25 @@ src/
     en.ts, pt-BR.ts    -> texto da própria UI do Designer, um arquivo por idioma (en é o canônico)
     context.tsx, hooks.ts -> I18nProvider, useT, useLocale
   bindings/
-    bindings.ts        -> resolve vínculos + funções (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER/IF...) + aritmética
+    bindings.ts        -> resolve vínculos (scalar/array/keyvalue/template/section/chart/kpi)
                           + resolveChartItems/aggregateChartItems/resolveKpiValue
     columnParsing.ts   -> parse do texto livre "col, Rótulo={FUNÇÃO(...)}" da tabela
+  expressions/         -> o motor de {token}/{FUNÇÃO(...)}: parse -> AST -> evaluate
+    tokenize.ts        -> caracteres -> tokens (operador só vale cercado de espaço)
+    parse.ts           -> tokens -> AST, com precedência de operador e agrupamento de verdade
+    evaluate.ts        -> AST + dado -> valor (sem eval/new Function)
+    functions.ts       -> o registry de SUM/COUNT/AVG/CONCAT/DATE/CURRENCY/NUMBER/IF
+    dataAccess.ts      -> busca de path + comparação de valor, compartilhados com os filtros de vínculo
+    formatters.ts      -> formatação de DATE/CURRENCY (UTC-safe, número pt-BR)
   pdf/
-    generate.ts        -> orquestrador fino: deriva o layout do corpo, dry-run de {pageCount}, e desenha —
-                          delegando a conta pra layout/ e o desenho pra render/ abaixo
-    layout/
-      layoutTypes.ts   -> tipos BodyItem/FlowBounds/PreparedPageDef
+    generate.ts        -> orquestrador fino: pergunta pro layout/ onde tudo cai e desenha —
+                          sem decisão de paginação própria
+    layout/            -> matemática pura, sem pdf-lib
+      layoutDocument.ts-> A travessia de paginação: Template+dado -> LayoutDocument (páginas de Placements)
+      layoutTypes.ts   -> tipos BodyItem/FlowBounds
       bodyLayout.ts    -> buildBodyItems (agrupa schemas em BodyItems por Y) + boundsOf/gapAfter
-      pageLayout.ts    -> normalizePageDefs (página única vs. multi-página) + countBodyPages (a passagem dry-run)
+      pageLayout.ts    -> normalizePageDefs (página única vs. multi-página)
+      sectionLayout.ts -> medição de seção (quantas repetições, quanto cada uma ocupa)
     render/
       index.ts         -> drawFieldOfType, o dispatcher por tipo (texto/imagem/tabela/gráfico/indicador)
       renderTable.ts   -> desenha tabela no pdf-lib em fatias (paginação), cabeçalho/valor/rodapé com cor/tamanho
@@ -47,6 +56,8 @@ src/
       renderText.ts, renderImage.ts -> os dois tipos de campo mais simples (renderImage.ts também guarda
                           os limites de segurança de tamanho/contagem de imagem)
     pagination.ts      -> divide o conteúdo do corpo entre páginas contra as faixas de cabeçalho/rodapé/margem
+    textSafety.ts      -> sanitiza caractere de controle + erro de glifo com nome do campo
+    tableMetrics.ts    -> altura de linha de tabela + linhas por fatia (sem pdf-lib, compartilhado com layout/)
     resolvers.ts, color.ts -> pequenos helpers compartilhados por layout/ e render/
     fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1; v2 precisa
                           da dependência peer opcional `wawoff2`, carregada sob demanda,

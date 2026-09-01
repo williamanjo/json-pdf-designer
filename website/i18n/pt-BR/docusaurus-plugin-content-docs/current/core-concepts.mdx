@@ -11,6 +11,7 @@ description: Template, Schema e Binding — as formas em que tudo mais se apoia.
 type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
 
 type Template = {
+  version?: TemplateVersion; // versão do formato — ausente = 1, ver "Versionamento de template"
   page: PageSize; // { width, height } em mm
   headerHeight?: number; // faixas estáticas (mm) repetidas em toda página gerada
   footerHeight?: number;

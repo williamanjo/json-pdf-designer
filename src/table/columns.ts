@@ -185,3 +185,33 @@ export function setColumnFormulaOnArrayBinding(
   columns[index] = formula.trim() ? { label, formula: formula.trim() } : rawPath ?? label;
   return columns;
 }
+
+// --- espelho do sentido contrário: célula editada no canvas -> vínculo ---
+
+// A célula da tabela É a fórmula da coluna: `generate.ts` resolve a linha a
+// partir de `schema.content`, e `setColumnFormula` (o botão "ƒx" do painel)
+// grava nos dois lugares justamente por isso. Faltava o inverso — editar a
+// célula direto no canvas gravava só o `content`, então o painel continuava
+// mostrando a fórmula ANTIGA do vínculo, que não é a que sai no PDF. Dois
+// valores diferentes pra mesma coisa na tela, e o errado em evidência.
+//
+// Devolve as colunas atualizadas, ou null quando nenhuma célula mudou (aí
+// quem chama não toca no estado dos vínculos — evita re-render por nada).
+export function mirrorCellsToArrayBinding(
+  binding: ArrayBinding,
+  head: string[],
+  before: string[] | undefined,
+  after: string[] | undefined
+): TableColumn[] | null {
+  if (!after) return null;
+  let columns: TableColumn[] | null = null;
+  for (let i = 0; i < after.length; i++) {
+    const cell = after[i];
+    if (cell === before?.[i]) continue;
+    // Mesmas regras do "ƒx": célula vazia devolve a coluna crua (só o nome),
+    // célula com texto vira { label, formula }.
+    const rawPath = extractColumnPath(cell) ?? extractColumnPath(before?.[i]) ?? head[i];
+    columns = setColumnFormulaOnArrayBinding({ ...binding, columns: columns ?? binding.columns }, i, cell, rawPath, head[i]);
+  }
+  return columns;
+}

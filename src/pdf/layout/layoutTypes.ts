@@ -1,4 +1,4 @@
-import type { Schema, SectionSchema, TableSchema, TemplatePage } from "../../types";
+import type { Schema, SectionSchema, TableSchema } from "../../types";
 
 // Um item do corpo, na ordem em que aparece na página — tabela e seção
 // paginam de verdade (podem consumir várias fatias/repetições, inclusive
@@ -19,16 +19,3 @@ export type BodyItem =
 // Forma comum de "onde/quanto espaço" um BodyItem ocupa no fluxo — usada
 // por boundsOf (retorno) e gapAfter (parâmetros), em bodyLayout.ts.
 export type FlowBounds = { y: number; height: number };
-
-// Tudo que renderPageDef (generate.ts) precisa de UMA página-design já
-// pré-processada — computado uma vez em generatePdf (deriveBodyLayout +
-// countBodyPages), reusado tanto pro dry-run de {pageCount} quanto pro
-// desenho de verdade.
-export type PreparedPageDef = {
-  pageDef: TemplatePage;
-  repeatingSchemas: Schema[];
-  bodyItems: BodyItem[];
-  headerHeight: number;
-  bodyBottomMm: number;
-  pageCount: number;
-};

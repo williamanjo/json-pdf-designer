@@ -1,4 +1,5 @@
 import type { Template, Binding } from "json-pdf-designer";
+import { migrateTemplate } from "json-pdf-designer";
 
 // Exporta template + vínculos como um JSON pra baixar — "projeto" no
 // sentido de "dá pra recarregar depois" (ver parseProjectFile).
@@ -32,7 +33,11 @@ export function parseProjectFile(file: File): Promise<{ template: Template; bind
           reject(new Error('Arquivo de projeto inválido: "bindings" precisa ser uma lista.'));
           return;
         }
-        resolve({ template: payload.template, bindings: payload.bindings ?? [] });
+        // Template vindo de FORA (arquivo salvo por outra versão do app)
+        // passa pela migração antes de virar estado — é o ponto em que um
+        // formato antigo é normalizado. generatePdf também migra por dentro,
+        // mas aqui garante que o EDITOR já trabalhe no formato corrente.
+        resolve({ template: migrateTemplate(payload.template), bindings: payload.bindings ?? [] });
       } catch {
         reject(new Error("Arquivo de projeto inválido: JSON malformado."));
       }

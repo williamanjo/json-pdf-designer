@@ -61,26 +61,97 @@ dependência de terceiros:
 `Binding` dela (array) quando uma coluna é adicionada/removida/
 reordenada/reformatada pelo painel.
 
+### Degradar ou falhar: onde está a linha
+
+O `src/pdf/textSafety.ts` guarda as duas metades de uma decisão, e a divisão
+vale entender antes de mexer em qualquer uma.
+
+Problema no **dado** degrada. Caractere de controle (`
+`, `	`, NUL) vira
+espaço em todo caminho que chega ao papel — o `truncateToWidth` é o funil de
+célula de tabela, KPI e rótulo de gráfico, e o `renderText.ts` sanitiza o
+próprio valor porque é o único caminho que não trunca. Fonte nenhuma tem glifo
+pra caractere de controle, nem uma Unicode completa, então isso é a única
+renderização possível, não perda de conteúdo. Antes disso, um `
+` no nome de um
+cliente fazia o documento inteiro falhar.
+
+Caractere que uma fonte *completa* renderizaria, mas esta não, falha — e o
+`withGlyphContext` é o que torna a falha útil. Ele envolve uma chamada de
+desenho e, no erro, acha o caractere culpado testando os candidatos um por um
+contra a fonte, em vez de casar a mensagem de erro do pdf-lib (o mesmo erro que
+a hierarquia de erros do motor de expressões existe pra evitar). A lista de
+candidatos é uma função **lazy**, então resolver os rótulos de um gráfico ou
+achatar as linhas de uma tabela não custa nada no caminho normal. É aplicado em
+cinco pontos: o campo de texto, o KPI e o gráfico no `render/index.ts`, e dentro
+do `drawTableSlice`, que é o funil dos três caminhos de tabela (corpo, faixa
+repetida, aninhada em seção).
+
+O `docs/USAGE.pt-BR.md`, "O que pode e o que não pode derrubar uma geração", é a
+versão da mesma tabela voltada pra quem usa — mantenha as duas em sincronia.
+
+## O motor de expressões (`src/expressions/`)
+
+`parse -> AST -> evaluate`, em quatro arquivos: `tokenize.ts`, `parse.ts`,
+`evaluate.ts`, mais o registry `functions.ts` (os 11 nomes de
+`CUSTOM_FIELD_FUNCTIONS`). O `dataAccess.ts` e o `formatters.ts` guardam a
+busca de path, a comparação de valor e a formatação de DATE/CURRENCY — moram
+aqui, e não em `bindings.ts`, porque o `bindings.ts` importa o motor, então o
+motor não pode importar de volta.
+
+Três decisões que vale conhecer antes de mexer:
+
+- **Um operador só é operador quando cercado de espaço em branco dos dois
+  lados.** `{my-key}` e `{my key}` são paths; `{a - b}` é subtração; `{a -b}`
+  não é nenhum dos dois. Não é uma esquisitice pra limpar — é o que permite
+  uma chave JSON com hífen ou com espaço, template em produção depende disso, e
+  um tokenizador convencional quebraria `{my-key}` em três tokens e devolveria
+  0. O `tokenize.ts` implementa isso explicitamente, com testes.
+- **Valores intermediários são `string | number`, coagidos na fronteira de
+  cada operador.** O motor que isto substituiu mantinha todo intermediário
+  como string e reparseava em cada nível de aninhamento — daí ele não ter
+  precedência de operador (`{a + b * c}` dava 20, não 14), nem agrupamento por
+  parêntese (`{(a + b) * c}` dava 0), e estourar em `{"x" + 1}` e `{a / 0}`:
+  esses dois caíam numa recursão infinita que o guarda de aninhamento pegava,
+  reportando um problema de profundidade que não existia.
+- **`SUM`/`COUNT`/`AVG` recebem um path de array cru, não um valor.** Em
+  `SUM(itens.total)`, `itens.total` quer dizer "a coluna `total` do array
+  `itens`". É por isso que os nós `call` guardam `argSources` (o texto
+  original) ao lado dos `args` já parseados.
+
+Sem `eval`/`new Function`: um template pode vir de fonte não confiável, então o
+avaliador percorre a AST. O `MAX_EXPRESSION_DEPTH` (40) protege a call stack do
+V8 contra template mal-formado ou malicioso.
+
+Os erros são uma hierarquia de dois membros em `errors.ts` —
+`ExpressionSyntaxError` e `ExpressionDepthError`, os dois sob
+`ExpressionError`. A classe base é o que o `resolve.ts` captura, e isso
+importa: a geração engole problema de **template** (o campo renderiza vazio, o
+editor aponta) e deixa passar o resto, porque engolir tudo esconderia bug do
+motor. Reconhecer um deles casando a mensagem seria o mesmo erro com outra
+cara — e foi: o erro de profundidade era um `Error` cru farejado por regex, e
+por isso uma expressão aninhada demais derrubava o PDF inteiro.
+
 ## Geração do PDF (`src/pdf/`)
 
 `generate.ts` é o ponto de entrada (`generatePdf(template, data,
-bindings, options?)`) — JS puro, sem DOM, seguro de rodar em Node. É só
-um orquestrador fino: pra cada página-design, deriva o layout do corpo,
-roda uma passagem dry-run pra já saber `{pageCount}` de antemão, e
-percorre os mesmos itens de novo pra desenhar de verdade — delegando pra
-`layout/` (a conta) e `render/` (o desenho) abaixo.
+bindings, options?)`) — JS puro, sem DOM, seguro de rodar em Node. É só um
+orquestrador fino: pergunta pro `layout/` onde tudo cai e desenha o que volta.
+Não contém nenhuma decisão de paginação própria (ver "Layout e desenho"
+abaixo).
 
 - `layout/` — funções puras, sem `pdf-lib` nenhum:
-  - `layoutTypes.ts` — os tipos `BodyItem`/`FlowBounds`/`PreparedPageDef`
-    compartilhados pelos dois arquivos abaixo.
+  - `layoutDocument.ts` — **A** travessia de paginação: entram `Template` +
+    dado + vínculos, sai um `LayoutDocument` (páginas de `Placement`s já
+    posicionados e com valor resolvido).
+  - `layoutTypes.ts` — os tipos `BodyItem`/`FlowBounds`.
   - `bodyLayout.ts` — agrupa os schemas de uma página em `BodyItem`s
-    ordenados por Y (`buildBodyItems`), mais os helpers pequenos
-    (`boundsOf`, `gapAfter`) que tanto o dry-run quanto o loop de desenho
-    de verdade usam pra percorrer essa sequência.
+    ordenados por Y (`buildBodyItems`), mais os helpers (`boundsOf`,
+    `gapAfter`) que a travessia usa pra percorrer essa sequência.
   - `pageLayout.ts` — `normalizePageDefs` (`Template` de página única vs.
-    `Template.pages` multi-página) e `countBodyPages`, a passagem dry-run
-    que espelha as mesmas decisões de paginação do loop de desenho de
-    verdade sem tocar em `pdf-lib`.
+    `Template.pages` multi-página).
+  - `sectionLayout.ts` — quantas repetições uma seção vinculada tem e
+    quanto cada uma ocupa depois das tabelas mestre-detalhe crescerem.
 - `render/` — o desenho de verdade, um arquivo por tipo de campo,
   despachado pelo `drawFieldOfType` de `render/index.ts`:
   - `renderTable.ts` — linhas de cabeçalho/corpo/rodapé, override de
@@ -96,6 +167,49 @@ percorre os mesmos itens de novo pra desenhar de verdade — delegando pra
   - `renderText.ts`/`renderImage.ts` — os dois tipos de campo mais
     simples; `renderImage.ts` também guarda os limites de segurança de
     tamanho/contagem de imagem (`MAX_IMAGE_BYTES`/`MAX_DISTINCT_IMAGES`).
+
+### Layout e desenho: uma travessia, depois pintura
+
+O `layout/layoutDocument.ts` decide **toda** a paginação de um Template + dado
++ vínculos, sem desenhar nada e sem tocar em pdf-lib. Devolve um
+`LayoutDocument`: uma entrada por página física, cada uma com `Placement`s já
+posicionados (`yMm` vindo do cursor do fluxo) e já resolvidos (o valor do
+texto, as linhas de uma fatia de tabela). O `generate.ts` então percorre esse
+array e pinta; não contém nenhuma decisão de paginação.
+
+Essa forma é recente e vale entender, porque substituiu um risco de verdade. A
+paginação era calculada **duas vezes**: o laço de desenho decidia quebra de
+página e desenhava na mesma passada, e o `countBodyPages` percorria o corpo uma
+segunda vez só pra produzir o total — o `{pageCount}` tem que estar certo já na
+primeira página física, então a contagem precisa terminar antes do primeiro
+traço. As duas compartilhavam só as decisões atômicas de `pagination.ts`
+(`needsNewPageForItem`, `computeTableSlice`); o avanço de cursor, o laço de
+fatiar tabela e a repetição de seção existiam em duas cópias. Uma mudança em
+uma delas significava "o dry-run disse 7 páginas, o desenho fez 8" — silencioso
+e muito difícil de rastrear.
+
+Hoje a contagem de páginas é `pages.length`, então a divergência é
+estruturalmente impossível.
+
+Duas consequências que vale manter:
+
+- **O cursor depois de uma tabela avança por `computeTableSlice().heightMm`,**
+  não pelo Y que o `drawTableSlice` devolve. A geometria de tabela é
+  determinística (`TABLE_ROW_HEIGHT_MM` é fixo e a célula trunca em vez de
+  quebrar linha), então a altura é função da CONTAGEM de linhas — que é
+  exatamente o que permite o layout saber onde a tabela termina sem
+  desenhá-la.
+- **O `layout/` não pode importar do `render/`.** A medição de seção mora em
+  `layout/sectionLayout.ts` e as métricas de tabela em `pdf/tableMetrics.ts`
+  por esse motivo; o `render/renderTable.ts` importa `rgb` do pdf-lib como
+  valor, e arrastar isso pro grafo do layout custaria a independência dele — a
+  propriedade que permite o mesmo `LayoutDocument` alimentar outra coisa além
+  do pdf-lib mais adiante.
+
+`{pageNumber}`/`{pageCount}` são resolvidos pelo **renderizador**, não pelo
+layout, e só pras faixas repetidas (cabeçalho/rodapé/margem) — nenhum campo do
+corpo os usa. É isso que remove o ovo-e-galinha que tornava o dry-run
+necessário.
 
 Módulos de apoio (continuam direto sob `src/pdf/`, usados tanto por
 `layout/` quanto por `render/`): `pagination.ts` (divide o corpo entre

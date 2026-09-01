@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { Template, TemplatePage, Binding, Locale } from "json-pdf-designer";
-import { generatePdf, Button, IconDownload, IconFolderUp } from "json-pdf-designer";
+import { generatePdf, Button, IconDownload, IconFolderUp, CURRENT_TEMPLATE_VERSION, DEFAULT_MAX_PAGES } from "json-pdf-designer";
 // Preview (pdf.js) mora no entry "/preview" — peer opcional pdfjs-dist,
 // instalado por este example justamente porque ele usa o preview.
 import { PdfPreviewModal } from "json-pdf-designer/preview";
@@ -8,6 +8,10 @@ import FieldTree from "./components/FieldTree";
 import DesignerPanel from "./components/DesignerPanel";
 import PageTabs from "./components/PageTabs";
 import DataSourcePanel, { type JsonSource } from "./components/DataSourcePanel";
+import ProblemsPanel from "./components/ProblemsPanel";
+import GenerationErrorBanner from "./components/GenerationErrorBanner";
+import { templateProblems } from "./lib/templateProblems";
+import { describeGenerationError, type GenerationProblem } from "./lib/generationError";
 import { extractFields, type FieldNode } from "./lib/jsonExplorer";
 import { loadDefaultFont } from "./lib/font";
 import { uid } from "./lib/uid";
@@ -35,12 +39,19 @@ export default function App() {
     return extractFields(initialSample);
   });
   const [errorsById, setErrorsById] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
+  // Falha de geração já TRADUZIDA (ver lib/generationError.ts) — não a mensagem
+  // crua do erro. O pacote exporta os erros como classes justamente pra isso.
+  const [genError, setGenError] = useState<GenerationProblem | null>(null);
   const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
   const [generating, setGenerating] = useState(false);
   // Idioma da UI do <Designer> (botões/abas/avisos) — demonstra o prop
   // `locale`, não afeta o PDF gerado.
   const [locale, setLocale] = useState<Locale>("en");
+
+  // Recalcula a cada render: é varredura de string sobre o template em memória,
+  // barata o suficiente pra não valer memo — e assim o painel reage na hora em
+  // que alguém digita uma expressão torta.
+  const problems = templateProblems(template, bindings, locale);
 
   useUndoRedo(template, bindings, setTemplate, setBindings);
   useAutosave(template, bindings, sources);
@@ -87,16 +98,20 @@ export default function App() {
   }
 
   async function handleGenerate() {
-    setError(null);
+    setGenError(null);
     setGenerating(true);
     try {
       const { data, errorsById: nextErrors } = mergeSources(sources);
       setErrorsById(nextErrors);
       const fontBytes = await loadDefaultFont();
-      const bytes = await generatePdf(template, data, bindings, { fontBytes });
+      // `maxPages` explícito, no default do pacote: deixa claro que existe um
+      // teto e que estourá-lo dá PageLimitError em vez de um PDF truncado.
+      const bytes = await generatePdf(template, data, bindings, { fontBytes, maxPages: DEFAULT_MAX_PAGES });
       setPreviewBytes(bytes);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // Sem `err.message` cru: describeGenerationError decide por `instanceof`
+      // na classe exportada e devolve título + o que fazer + de quem é a culpa.
+      setGenError(describeGenerationError(err));
     } finally {
       setGenerating(false);
     }
@@ -111,9 +126,12 @@ export default function App() {
         setTemplate(ensurePages(template));
         setBindings(bindings);
         setActivePageIndex(0);
-        setError(null);
+        setGenError(null);
       })
-      .catch((err: Error) => setError(err.message));
+      // parseProjectFile já chama migrateTemplate; um formato mais novo que
+      // este build entende chega aqui como erro, e vira a mesma mensagem
+      // acionável de qualquer outra falha.
+      .catch((err: unknown) => setGenError(describeGenerationError(err)));
   }
 
   // Exemplos prontos — cada um troca template/binding E a fonte de dados
@@ -135,7 +153,14 @@ export default function App() {
   return (
     <div className="flex h-screen flex-col bg-slate-100">
       <header className="flex items-center justify-between bg-slate-900 px-5 py-3 text-white shadow-sm">
-        <h1 className="text-lg font-semibold">Gerador de Relatórios</h1>
+        <h1 className="flex items-baseline gap-2 text-lg font-semibold">
+          Gerador de Relatórios
+          {/* Versão do FORMATO do template (não do pacote) — o que um projeto
+              salvo carrega, e o que o migrateTemplate normaliza ao carregar. */}
+          <span className="text-[10px] font-normal text-white/50" title="Versão do formato de template">
+            formato v{CURRENT_TEMPLATE_VERSION} · até {DEFAULT_MAX_PAGES} páginas
+          </span>
+        </h1>
         <div className="flex gap-2">
           <select
             className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-medium text-white"
@@ -177,9 +202,7 @@ export default function App() {
         </div>
       </header>
 
-      {error && (
-        <div className="bg-red-50 px-5 py-2 text-xs text-red-700">{error}</div>
-      )}
+      {genError && <GenerationErrorBanner problem={genError} onDismiss={() => setGenError(null)} />}
 
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-[320px] flex-col gap-4 overflow-y-auto border-r border-slate-200 bg-white p-3">
@@ -189,6 +212,13 @@ export default function App() {
             onResync={handleResync}
             fieldCount={fields.length}
             errorsById={errorsById}
+          />
+          <ProblemsPanel
+            problems={problems}
+            // O <Designer> é dono da seleção (não há prop pra dirigi-la de
+            // fora), então o clique navega até a PÁGINA do campo — é o mais
+            // longe que dá pra levar hoje.
+            onGoTo={(pageIndex) => setActivePageIndex(pageIndex)}
           />
           <FieldTree
             fields={fields}

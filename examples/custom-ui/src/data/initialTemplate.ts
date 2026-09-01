@@ -10,6 +10,7 @@ import initialSample from "./samples/initialSample.json";
 export { initialSample };
 
 export const initialTemplate: Template = {
+  version: 1,
   page: { width: 210, height: 297 }, // A4 em mm
   headerHeight: 15,
   footerHeight: 15,

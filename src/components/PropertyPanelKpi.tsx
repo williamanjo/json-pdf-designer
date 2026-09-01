@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { Binding, DataSourceOption, KpiElementKey, KpiSchema } from "../types";
+import type { FieldSources } from "../designer/helpers";
 import { BindingEditor } from "./BindingEditor";
+import { FormulaButton } from "./FormulaButton";
 import { allowDrop, readDroppedField } from "./dragField";
 import { MATERIAL_ICON_NAMES, materialIconLabels } from "../materialIcons";
 import { useLocale, useT, withInlineCode, type Locale } from "../i18n";
@@ -25,6 +27,9 @@ type Props = {
   binding: Binding | undefined;
   onChangeBinding: (b: Binding | null) => void;
   dataSources?: DataSourceOption[];
+  // Campos que este schema alcança — a lista da esquerda do modal de
+  // fórmula (ver designer/helpers.ts, fieldSourcesFor).
+  fieldSources?: FieldSources;
   // Sub-elemento focado (ver Designer.tsx/FieldList.tsx/KpiField.tsx) —
   // null/ausente = Estilo mostra os controles do CARTÃO inteiro
   // (fundo/texto/arredondamento); definido = mostra só os controles
@@ -107,27 +112,57 @@ function ResetPositionButton({ schema, el, label, onChangeSchema }: {
   return <ClearFieldButton onClick={() => onChangeSchema(kpiElementOffsetPatch(el, undefined))} label={label} />;
 }
 
-export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, binding, onChangeBinding, dataSources, selectedElement, onSelectElement }: Props) {
+export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, binding, onChangeBinding, dataSources, fieldSources, selectedElement, onSelectElement }: Props) {
   const t = useT();
   const locale = useLocale();
+
+  // Os três campos de conteúdo do KPI são templates ({token}/{FUNCAO()}),
+  // então cada um ganha o ƒx do modal de fórmula.
+  const formulaButton = (key: "title" | "value" | "subtitle", label: string) => (
+    <FormulaButton
+      active={Boolean(schema[key])}
+      sources={fieldSources}
+      target={{ label, value: schema[key] ?? "", onSave: (next) => onChangeSchema({ [key]: next }) }}
+    />
+  );
   const contentFields = (
     <>
-      <Input label={t.kpi.title} value={schema.title ?? ""} onChange={(e) => onChangeSchema({ title: e.target.value })} />
-      <Input
-        mono
-        label={t.kpi.valueLabel}
-        value={schema.value ?? ""}
-        onChange={(e) => onChangeSchema({ value: e.target.value })}
-        onDragOver={allowDrop}
-        onDrop={(e) => {
-          const f = readDroppedField(e);
-          if (!f) return;
-          e.preventDefault();
-          const token = `{${f.path}}`;
-          onChangeSchema({ value: schema.value ? `${schema.value} ${token}` : token });
-        }}
-      />
-      <Input label={t.kpi.subtitle} value={schema.subtitle ?? ""} onChange={(e) => onChangeSchema({ subtitle: e.target.value })} />
+      <div className="flex items-end gap-1">
+        <Input
+          className="flex-1"
+          label={t.kpi.title}
+          value={schema.title ?? ""}
+          onChange={(e) => onChangeSchema({ title: e.target.value })}
+        />
+        {formulaButton("title", t.kpi.title)}
+      </div>
+      <div className="flex items-end gap-1">
+        <Input
+          className="flex-1"
+          mono
+          label={t.kpi.valueLabel}
+          value={schema.value ?? ""}
+          onChange={(e) => onChangeSchema({ value: e.target.value })}
+          onDragOver={allowDrop}
+          onDrop={(e) => {
+            const f = readDroppedField(e);
+            if (!f) return;
+            e.preventDefault();
+            const token = `{${f.path}}`;
+            onChangeSchema({ value: schema.value ? `${schema.value} ${token}` : token });
+          }}
+        />
+        {formulaButton("value", t.formulaModal.valueTarget)}
+      </div>
+      <div className="flex items-end gap-1">
+        <Input
+          className="flex-1"
+          label={t.kpi.subtitle}
+          value={schema.subtitle ?? ""}
+          onChange={(e) => onChangeSchema({ subtitle: e.target.value })}
+        />
+        {formulaButton("subtitle", t.kpi.subtitle)}
+      </div>
       <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.kpi.hint)}</p>
     </>
   );

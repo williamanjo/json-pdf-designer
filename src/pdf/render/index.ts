@@ -9,6 +9,7 @@ import { drawKpi } from "./renderKpi";
 import { drawImageField } from "./renderImage";
 import { drawTableSlice } from "./renderTable";
 import { drawTextField } from "./renderText";
+import { withGlyphContext } from "../textSafety";
 
 // O que drawFieldOfType precisa emprestado de renderPageDef (generate.ts)
 // pra desenhar UM campo (texto/imagem/tabela repetida/gráfico/indicador) —
@@ -35,12 +36,20 @@ export async function drawFieldOfType(ctx: DrawFieldContext, page: PDFPage, sche
   const yPt = pageHeightPt - mmToPt(schema.y) - heightPt;
 
   if (schema.type === "text") {
-    drawTextField(page, font, schema, value, xPt, yPt, widthPt, heightPt);
+    // `withGlyphContext` troca o "WinAnsi cannot encode …" cru do pdf-lib (que
+    // não diz onde) por um erro que nomeia o campo e o caractere.
+    withGlyphContext(schema.name, () => [value ?? schema.content], font, schema.fontSize, () =>
+      drawTextField(page, font, schema, value, xPt, yPt, widthPt, heightPt)
+    );
     return;
   }
 
   if (schema.type === "image") {
-    await drawImageField(doc, page, schema, imageCache, xPt, yPt, widthPt, heightPt);
+    // `value` (o vínculo resolvido) tem prioridade sobre `schema.content` (o
+    // data URI de design). Antes o render ignorava o vínculo: o editor
+    // oferecia vincular um campo de imagem ao JSON e o PDF desenhava sempre a
+    // imagem de design.
+    await drawImageField(doc, page, schema, imageCache, xPt, yPt, widthPt, heightPt, value);
     return;
   }
 
@@ -65,7 +74,9 @@ export async function drawFieldOfType(ctx: DrawFieldContext, page: PDFPage, sche
     if (binding) {
       const raw = resolveChartItems(binding, data);
       const { items, total } = aggregateChartItems(raw, schema.topN ?? 7, schema.sortBy ?? "value_desc", resolveChartColors(schema.colorPalette, schema.customPaletteColors));
-      drawChart(page, font, schema, items, total, xPt, yPt + heightPt, widthPt, heightPt);
+      withGlyphContext(schema.name, () => items.map((i) => i.label), font, schema.legendFontSize ?? 9, () =>
+        drawChart(page, font, schema, items, total, xPt, yPt + heightPt, widthPt, heightPt)
+      );
     }
     return;
   }
@@ -81,7 +92,9 @@ export async function drawFieldOfType(ctx: DrawFieldContext, page: PDFPage, sche
         ? renderTemplate(schema.value, data)
         : undefined;
     const subtitle = schema.subtitle !== undefined ? renderTemplate(schema.subtitle, data) : undefined;
-    drawKpi(page, font, schema, title, value, subtitle, xPt, yPt, widthPt, heightPt);
+    withGlyphContext(schema.name, () => [title, value, subtitle], font, schema.valueFontSize ?? 18, () =>
+      drawKpi(page, font, schema, title, value, subtitle, xPt, yPt, widthPt, heightPt)
+    );
   }
 
   // "section" nunca chega aqui direto — ver renderSection.ts.

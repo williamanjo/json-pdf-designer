@@ -1,10 +1,18 @@
-import type { TextareaHTMLAttributes } from "react";
+import { forwardRef, type TextareaHTMLAttributes } from "react";
 
 type Props = TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string; mono?: boolean };
 
-export function Textarea({ label, className = "", mono, rows = 2, ...props }: Props) {
+// `forwardRef` e não ref-como-prop: o peer aceita React 18 (ver
+// package.json), e ali função componente ainda não recebe `ref` direto. Quem
+// precisa é o editor de expressão (FormulaModal.tsx), que reposiciona o caret
+// depois de aceitar uma sugestão.
+export const Textarea = forwardRef<HTMLTextAreaElement, Props>(function Textarea(
+  { label, className = "", mono, rows = 2, ...props },
+  ref
+) {
   const control = (
     <textarea
+      ref={ref}
       rows={rows}
       className={[
         "w-full resize-y rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-sm transition-colors",
@@ -23,4 +31,4 @@ export function Textarea({ label, className = "", mono, rows = 2, ...props }: Pr
       {control}
     </label>
   );
-}
+});

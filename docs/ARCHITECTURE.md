@@ -11,6 +11,7 @@ grouped by responsibility, not by import order.
 export type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
 
 export type Template = {
+  version?: TemplateVersion; // document format version — absent = 1, see src/template/migrate.ts
   page: PageSize; // { width, height } in mm
   headerHeight?: number; // static bands (mm) repeated on every generated page
   footerHeight?: number;
@@ -70,11 +71,10 @@ module bridge, no imperative API between the canvas and the panel.
 third-party dependency:
 
 - `resolveToken`/`renderTemplate` — evaluate a `{token}`/`{FUNCTION(...)}`
-  template against the real JSON document (`CUSTOM_FIELD_FUNCTIONS`:
-  SUM/COUNT/AVG/CONCAT/UPPER/LOWER/TRIM/DATE/CURRENCY/NUMBER).
-  `renderTemplate` is what turns a `TextSchema.content` or a
-  `KpiSchema.title`/`value`/`subtitle` into the string that actually gets
-  drawn.
+  template against the real JSON document, delegating to the expression
+  engine in `src/expressions/` (see below). `renderTemplate` is what turns
+  a `TextSchema.content` or a `KpiSchema.title`/`value`/`subtitle` into the
+  string that actually gets drawn.
   Formatting inside `DATE`/`CURRENCY` is intentionally independent of the
   Designer's own UI language (`locale` prop, see below) — it's part of
   the generated report's content, written by whoever authors the
@@ -94,25 +94,97 @@ third-party dependency:
 (array) when a column is added/removed/reordered/reformatted from the
 panel.
 
+### Degrade or fail: where the line is
+
+`src/pdf/textSafety.ts` holds the two halves of one decision, and the split is
+worth understanding before touching either.
+
+A problem in the **data** degrades. A control character (`
+`, `	`, NUL) is
+replaced with a space at every path that reaches the page — `truncateToWidth` is
+the funnel for table cells, KPI and chart labels, and `renderText.ts` sanitises
+its own value because it is the one path that does not truncate. No font has a
+glyph for a control character, not even a complete Unicode one, so this is the
+only possible rendering rather than content loss. Before this, a `
+` in a
+customer name failed the whole document.
+
+A character that a *complete* font would render, but this one cannot, fails —
+and `withGlyphContext` is what makes the failure usable. It wraps a draw call
+and, on error, finds the offending character by testing candidates one by one
+against the font, rather than matching pdf-lib's error message (the same mistake
+the expression engine's error hierarchy exists to avoid). The candidate list is
+a **lazy** function, so resolving a chart's labels or flattening a table's rows
+costs nothing on the normal path. It is applied at five points: the text field,
+the KPI and the chart in `render/index.ts`, and inside `drawTableSlice`, which
+is the funnel for all three table paths (body, repeating band, nested in a
+section).
+
+`docs/USAGE.md`, "What can and cannot fail a generation", is the user-facing
+version of the same table — keep the two in step.
+
+## The expression engine (`src/expressions/`)
+
+`parse -> AST -> evaluate`, in four files: `tokenize.ts`, `parse.ts`,
+`evaluate.ts`, plus a `functions.ts` registry (the 11 names in
+`CUSTOM_FIELD_FUNCTIONS`). `dataAccess.ts` and `formatters.ts` hold the
+path lookup, value comparison and DATE/CURRENCY formatting — they live here
+rather than in `bindings.ts` because `bindings.ts` imports the engine, so
+the engine cannot import back.
+
+Three decisions worth knowing before touching it:
+
+- **An operator is only an operator when surrounded by whitespace on both
+  sides.** `{my-key}` and `{my key}` are paths; `{a - b}` is subtraction;
+  `{a -b}` is neither. This is not a quirk to clean up — it is what lets a
+  JSON key contain a hyphen or a space, templates in production rely on it,
+  and a conventional tokenizer would break `{my-key}` into three tokens and
+  return 0. `tokenize.ts` implements it explicitly, with tests.
+- **Intermediate values are `string | number`, coerced at each operator
+  boundary.** The engine this replaced kept every intermediate as a string
+  and re-parsed it at every nesting level, which is why it had no operator
+  precedence (`{a + b * c}` gave 20, not 14), no parenthesised grouping
+  (`{(a + b) * c}` gave 0), and threw on `{"x" + 1}` and `{a / 0}` — those
+  two fell into an infinite recursion that the nesting guard caught,
+  reporting a depth problem that did not exist.
+- **`SUM`/`COUNT`/`AVG` take a raw array path, not a value.** In
+  `SUM(items.total)`, `items.total` means "the `total` column of the `items`
+  array". That is why `call` nodes keep `argSources` (the original text)
+  alongside the parsed `args`.
+
+No `eval`/`new Function`: a template can come from an untrusted source, so
+the evaluator walks the AST. `MAX_EXPRESSION_DEPTH` (40) guards the V8 call
+stack against a malformed or malicious template.
+
+Errors are a two-member hierarchy in `errors.ts` — `ExpressionSyntaxError` and
+`ExpressionDepthError`, both under `ExpressionError`. The base class is what
+`resolve.ts` catches, and that matters: generation swallows **template**
+problems (the field renders empty, the editor flags it) and lets anything else
+propagate, because swallowing everything would hide an engine bug. Recognising
+one of them by matching its message would be the same mistake in a different
+shape — and it was: the depth error used to be a plain `Error` sniffed by
+regex, which is why a too-deeply-nested expression took the whole PDF down.
+
 ## PDF generation (`src/pdf/`)
 
 `generate.ts` is the entry point (`generatePdf(template, data,
-bindings, options?)`) — pure JS, no DOM, safe to run in Node. It's a
-thin orchestrator: for each page-design it derives the body layout, runs
-a dry-run pass to know `{pageCount}` up front, then walks the same body
-items again to actually draw, delegating to `layout/` (the math) and
-`render/` (the drawing) below.
+bindings, options?)`) — pure JS, no DOM, safe to run in Node. It is a thin
+orchestrator: it asks `layout/` where everything goes, then draws what comes
+back. It contains no pagination decision of its own (see "Layout and drawing"
+below).
 
 - `layout/` — pure functions, no `pdf-lib` involved:
-  - `layoutTypes.ts` — `BodyItem`/`FlowBounds`/`PreparedPageDef` shapes
-    shared by the two files below.
+  - `layoutDocument.ts` — **the** pagination pass: `Template` + data +
+    bindings in, a `LayoutDocument` (pages of positioned, value-resolved
+    `Placement`s) out.
+  - `layoutTypes.ts` — `BodyItem`/`FlowBounds` shapes.
   - `bodyLayout.ts` — groups a page's schemas into `BodyItem`s ordered by
-    Y (`buildBodyItems`), plus the small helpers (`boundsOf`, `gapAfter`)
-    both the dry-run and the real draw loop use to walk that sequence.
+    Y (`buildBodyItems`), plus the helpers (`boundsOf`, `gapAfter`) the
+    pass uses to walk that sequence.
   - `pageLayout.ts` — `normalizePageDefs` (single-page `Template` vs.
-    multi-page `Template.pages`) and `countBodyPages`, the dry-run pass
-    that mirrors the real draw loop's pagination decisions without
-    touching `pdf-lib`.
+    multi-page `Template.pages`).
+  - `sectionLayout.ts` — how many repeats a bound section has and how tall
+    each one is once its master-detail tables have grown.
 - `render/` — the actual drawing, one file per field type, dispatched by
   `render/index.ts`'s `drawFieldOfType`:
   - `renderTable.ts` — header/body/footer rows, per-column style
@@ -126,6 +198,46 @@ items again to actually draw, delegating to `layout/` (the math) and
   - `renderText.ts`/`renderImage.ts` — the two simplest field types;
     `renderImage.ts` also owns the image size/count safety limits
     (`MAX_IMAGE_BYTES`/`MAX_DISTINCT_IMAGES`).
+
+### Layout and drawing: one pass, then paint
+
+`layout/layoutDocument.ts` decides **all** pagination for a Template + data +
+bindings, without drawing anything and without touching pdf-lib. It returns a
+`LayoutDocument`: one entry per physical page, each holding `Placement`s that
+are already positioned (`yMm` from the flow cursor) and already resolved (the
+text value, the rows of a table slice). `generate.ts` then walks that array and
+paints; it contains no pagination decision at all.
+
+That shape is recent and worth understanding, because it replaced a real
+hazard. Pagination used to be computed **twice**: the drawing loop decided page
+breaks and drew in the same pass, and `countBodyPages` walked the body a second
+time purely to produce the total — `{pageCount}` has to be right on the first
+physical page, so the count must finish before the first mark. The two shared
+only the atomic decisions in `pagination.ts` (`needsNewPageForItem`,
+`computeTableSlice`); the cursor advance, the table-slicing loop and the section
+repetition existed in two copies. A change to one of them meant "the dry run
+said 7 pages, the drawing made 8" — silent, and very hard to trace.
+
+Now the page count is `pages.length`, so divergence is structurally impossible.
+
+Two consequences worth keeping:
+
+- **The cursor after a table advances by `computeTableSlice().heightMm`,** not
+  by the Y coordinate `drawTableSlice` returns. Table geometry is deterministic
+  (`TABLE_ROW_HEIGHT_MM` is fixed and a cell truncates rather than wraps), so
+  the height is a function of the row *count* — which is exactly why the layout
+  can know where a table ends without drawing it.
+- **`layout/` must not import from `render/`.** Section measurement lives in
+  `layout/sectionLayout.ts` and the table metrics in `pdf/tableMetrics.ts` for
+  that reason; `render/renderTable.ts` imports `rgb` from pdf-lib as a value,
+  and dragging that into the layout graph would cost the layout its
+  independence — the property that lets the same `LayoutDocument` feed
+  something other than pdf-lib later.
+
+`{pageNumber}`/`{pageCount}` are resolved by the **renderer**, not the layout,
+and only for the repeating bands (header/footer/margin) — no body field uses
+them. That is what removes the chicken-and-egg that made the dry run necessary
+in the first place.
 
 Supporting modules (still directly under `src/pdf/`, used by both
 `layout/` and `render/`): `pagination.ts` (splitting the body across

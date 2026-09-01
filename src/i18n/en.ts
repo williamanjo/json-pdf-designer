@@ -141,6 +141,32 @@ export const en = {
     removeBinding: "Remove binding",
     newColumnPrefix: "New column",
   },
+  formulaModal: {
+    // Título: o modal serve quatro alvos (fórmula de coluna, célula de
+    // rodapé, campo do KPI, conteúdo do texto), e o rótulo do alvo vem de
+    // quem abre.
+    title: (target: string) => `Expression — ${target}`,
+    columnTarget: (col: string) => `column ${col}`,
+    valueTarget: "Value",
+    footerTarget: (col: string) => `total row, ${col}`,
+    openAria: (target: string) => `Write an expression for ${target}`,
+    openTitle: "Write an expression (functions, fields, arithmetic)",
+    // Coluna da esquerda.
+    itemTab: "Item fields",
+    itemFields: (path: string) => `Fields of each item in "${path}"`,
+    itemFieldsHint: "Inside a row these resolve on their own — no path prefix.",
+    arrayPaths: "Data paths",
+    arrayPathsHint: "Full path, for aggregating — SUM(invoices.total).",
+    noFields: "This field has no array binding, so there is nothing to list. Type the path by hand.",
+    insertFieldAria: (field: string) => `Insert ${field}`,
+    // O editor: um só, e o que ele mostra é o VALOR do campo, com as chaves.
+    fieldValue: "Field value",
+    fieldValueHint: 'Fixed text plus `{expression}` — e.g. `FAT-{invoice}`. Suggestions appear inside the braces.',
+    suggestionsHint: "Type to get suggestions; ↑↓ to move, Enter to accept.",
+    save: "Save",
+    cancel: "Cancel",
+    blockedBySyntax: "Fix the expression to save",
+  },
   fieldFunctions: {
     sum: "sums a column of an array",
     count: "counts items in an array",
@@ -153,6 +179,49 @@ export const en = {
     currency: "formats a monetary value — optional 3rd arg, decimal places (default 2)",
     number: "controls decimal places, like C's %.2f",
     if: 'conditional — picks the 2nd or 3rd argument based on a comparison ("a == b", "a > b"...) or a plain true/false check',
+  },
+  // Snippet de cada função — o exemplo que aparece na lista de sugestões do
+  // editor de expressão e no seletor "inserir função". Os NOMES de função são
+  // fixos (SUM/CURRENCY/...), só os nomes-de-exemplo dos argumentos mudam de
+  // idioma. Mesma chave de `fieldFunctions` acima.
+  fieldFunctionSnippets: {
+    sum: "SUM(path.column)",
+    count: "COUNT(path)",
+    avg: "AVG(path.column)",
+    concat: 'CONCAT(a, " ", b)',
+    upper: "UPPER(path)",
+    lower: "LOWER(path)",
+    trim: "TRIM(path)",
+    date: 'DATE(path, "DD/MM/YYYY", "DD/MM/YYYY")',
+    currency: 'CURRENCY(path, "$", 2)',
+    number: "NUMBER(path, 2)",
+    if: 'IF(path == "value", "then", "else")',
+  },
+  // Mensagens de erro de expressão. Ficam aqui, e não fixas na classe de
+  // erro, porque a mesma falha aparece no editor (idioma do designer) e no
+  // `Error.message` de quem chama `parse` num backend (inglês, a convenção de
+  // biblioteca). A classe guarda `code` + `detail`; o texto sai daqui.
+  expressionErrors: {
+    incomplete: () => "Incomplete expression",
+    unclosedParen: () => "Unclosed parenthesis",
+    unclosedCall: (detail: string) => `Unclosed parenthesis in ${detail}(`,
+    operatorWithoutLeft: (detail: string) => `Operator "${detail}" has nothing on its left`,
+    unexpectedToken: (detail: string) => `Unexpected token "${detail}"`,
+    trailingContent: () => "Leftover content after the end of the expression",
+    unclosedQuote: () => "Unclosed quote",
+    tooDeep: (detail: string) =>
+      `Expression nesting too deep (over ${detail} levels) — check the template for a malformed or unexpectedly deep {FUNCTION(...)} chain`,
+    // Chave desbalanceada — o trecho sai como TEXTO no PDF, sem nada acusar
+    // (ver expressions/templateText.ts).
+    braceUnclosed: (position: number) => `The "{" at position ${position} is never closed — this part comes out as literal text`,
+    braceUnexpected: (position: number) => `The "}" at position ${position} has no "{" opening it`,
+    braceNested: (position: number) => `A "{" inside another one, at position ${position} — only the innermost pair resolves`,
+    // Posição exata do problema, colada no fim da mensagem acima.
+    at: (message: string, position: number, source: string) => `${message} (position ${position} in ${source})`,
+    // Operador com espaço de um lado só — sintaxe válida, quase certamente
+    // engano (ver expressions/suspicious.ts).
+    suspiciousOperator: (op: string, ident: string) =>
+      `Operator "${op}" has whitespace on one side only in "${ident}" — it became part of the field name, not an operation, and the field renders empty. Whitespace on both sides makes it arithmetic; no whitespace at all, if the JSON key really has "${op}" in its name.`,
   },
   binding: {
     keyValue: "key/value",
@@ -365,8 +434,19 @@ export const en = {
     download: "Download",
     defaultFileName: "report",
   },
+  visibleWhen: {
+    label: "Show only when",
+    placeholder: 'e.g. total > 1000',
+    hint: "Expression without braces. Empty = always visible.",
+  },
   warnings: {
     missingBinding: "Missing JSON binding",
+    // A expressão inválida resolve pra vazio na geração (ver
+    // expressions/resolve.ts) — este aviso é o que impede o campo em branco de
+    // passar despercebido.
+    expressionSyntax: (field: string, detail: string) => `Invalid expression in "${field}" — renders empty. ${detail}`,
+    // Compiles, but almost certainly a typo — see expressions/suspicious.ts.
+    expressionSuspicious: (field: string, detail: string) => `Check the expression in "${field}". ${detail}`,
     incompleteFilter: "Filter has a condition with no value filled in",
   },
   schemaDefaults: {

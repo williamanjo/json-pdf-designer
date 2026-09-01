@@ -1,4 +1,5 @@
 import type { PDFFont } from "pdf-lib";
+import { sanitizeText } from "./textSafety";
 
 // Offset (não posição absoluta) do X do texto dentro de uma caixa
 // (célula/campo), a partir da borda esquerda dela — mesma fórmula usada
@@ -20,8 +21,16 @@ export function alignY(vAlign: "top" | "middle" | "bottom", boxHeight: number, f
 }
 
 // Corta `text` até caber em `maxWidth` (nessa fonte/tamanho), acrescentando
-// "…" no final — movida de render/renderTable.ts, mesma implementação exata.
-export function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
+// "…" no final.
+//
+// Também é o funil por onde passa TODO texto vindo do dado que vai pro papel —
+// célula de tabela, título/valor/legenda de KPI, rótulo de gráfico. Por isso a
+// sanitização de caracteres de controle mora aqui: `\n` no dado (textarea,
+// endereço com quebra, import de CSV) derrubava o documento inteiro com
+// `WinAnsi cannot encode "\n"`, e controle não tem glifo em fonte nenhuma.
+// Campo de texto não passa por aqui e sanitiza por conta (ver renderText.ts).
+export function truncateToWidth(rawText: string, font: PDFFont, size: number, maxWidth: number): string {
+  const text = sanitizeText(rawText);
   if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
   let truncated = text;
   while (truncated.length > 1 && font.widthOfTextAtSize(`${truncated}…`, size) > maxWidth) {

@@ -1,0 +1,83 @@
+---
+title: Visibilidade Condicional
+description: Mostrar um campo só quando uma condição vale.
+---
+
+# Visibilidade condicional (`visibleWhen`)
+
+Qualquer campo pode carregar uma condição. Ele só é desenhado quando ela é
+verdadeira:
+
+```ts
+{ type: "text", content: "Desconto PJ", visibleWhen: 'cliente.tipo == "empresa"' }
+{ type: "table", name: "vencidas", visibleWhen: "NOT pago" }
+{ type: "kpi", visibleWhen: "total > 1000 AND NOT cancelado" }
+```
+
+A condição é uma **expressão sem chaves** — não é um template, então escreva
+`total > 1000`, não `{total > 1000}`. Tudo que o motor de `{...}` entende vale
+aqui: paths, comparações, `AND`/`OR`/`NOT`, funções (`COUNT(itens) > 0`),
+aritmética. A verdade/falsidade segue a regra do formato: vazio, `"0"` e
+`"false"` são falsos, qualquer outra coisa é verdadeira — então um path solto
+também funciona (`visibleWhen: "pago"`).
+
+No `<Designer>` existe um campo **"Mostrar só quando"** ao lado de
+X/Y/largura/altura, e o erro de sintaxe aparece ao vivo embaixo dele.
+
+**Funciona em todo tipo de campo**, tabela e seção repetida incluídas, e nas
+faixas repetidas (cabeçalho/rodapé/margem). A condição de uma faixa pode usar
+`pageNumber`/`pageCount`, porque essas são resolvidas por página — então "só na
+última página" é:
+
+```ts
+{ type: "text", content: "Confira os totais", visibleWhen: "pageNumber == pageCount" }
+```
+
+### O que esconder faz com o layout
+
+Esconder um item devolve a **altura** dele, e nada mais:
+
+```
+             visível                    "meio" escondido
+  20mm  ┌───────────┐  topo        20mm  ┌───────────┐  topo
+        └───────────┘  (10mm)            └───────────┘
+  40mm  ┌───────────┐  meio
+        └───────────┘  (10mm)
+  60mm  ┌───────────┐  abaixo      50mm  ┌───────────┐  abaixo  <- subiu 10mm
+        └───────────┘                    └───────────┘
+```
+
+O que vem depois sobe exatamente a altura escondida; o espaçamento autorado nos
+dois lados continua valendo. Uma tabela escondida devolve **todas** as páginas
+dela do mesmo jeito.
+
+Uma exceção, e é a útil: esconder um campo que divide a linha com vizinhos
+visíveis deixa o buraco. Campos no mesmo Y autorado são uma linha só — os
+vizinhos precisam do lugar deles, então a linha mantém a altura. Escondendo
+todos, a linha inteira sai.
+
+### Condição inválida quer dizer visível
+
+Condição que não parseia conta como **visível**, nunca escondida. Um erro de
+digitação não pode fazer um campo desaparecer do relatório em silêncio — o
+editor marca o campo (ícone de alerta na lista, mensagem embaixo do input) e o
+campo continua aparecendo até alguém consertar.
+
+É o mesmo acordo que os tokens `{...}` fazem: **a geração é tolerante, o editor
+é estrito.** Expressão mal-formada renderiza vazio em vez de fazer o
+`generatePdf` falhar — um campo em branco é melhor que nenhum documento — e o
+erro aparece antes de gerar, onde ainda dá pra corrigir.
+
+Pra conferir por conta própria (um backend recusando um template ruim, ou sua
+própria UI de editor):
+
+```ts
+import { expressionError, templateExpressionErrors, expressionErrors } from "json-pdf-designer";
+// também disponíveis em "json-pdf-designer/server"
+
+expressionError("total > 1000");         // null — válida
+expressionError("total >");              // "Expressão incompleta (posição 8 em …)"
+templateExpressionErrors("a={x} b={y)"); // [{ token: "{y)", message: … }]
+expressionErrors(schema, binding);        // toda expressão que um campo carrega
+```
+

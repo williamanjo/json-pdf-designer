@@ -38,8 +38,36 @@ Inside `{...}` (text, calculated column, footer cell — anywhere):
 | `NUMBER(path, decimals)` | Like C's `%.2f` — decimal places only, no symbol/thousands separator (that's `CURRENCY`). |
 | `IF(condition, "then", "else")` | Conditional — see below. |
 
-Simple **arithmetic** works too: `{qty * price}`, `{subtotal - discount}`
-— evaluated left to right, no operator precedence.
+Simple **arithmetic** works too: `{qty * price}`, `{subtotal - discount}`.
+
+
+**How an expression is read.** `*` and `/` bind tighter than `+` and `-`, and
+parentheses group:
+
+```
+{qty * price + fee}      -> qty * price, then + fee
+{(base + fee) * qty}     -> base + fee first, then * qty
+```
+
+One rule is unusual and worth knowing, because it is what lets a JSON key
+contain a hyphen or a space: **an operator is only an operator when it has
+whitespace on both sides.**
+
+```
+{my-key}    -> the path "my-key"       (not "my minus key")
+{my key}    -> the path "my key"
+{a - b}     -> subtraction
+{a -b}      -> neither: the path "a -b", which usually resolves to empty
+```
+
+The same applies to the comparison operators inside `IF`: `IF(a == 2, …)` is a
+comparison, `IF(a==2, …)` is a path called `a==2`.
+
+An expression that cannot produce a number resolves to **empty** rather than
+failing: `{"x" + 1}`, `{a / 0}`, and a path that does not exist all behave that
+way (a missing path counts as `0` inside a sum, so `{missing + a}` gives `a`).
+A syntax error — an unterminated quote, an unclosed parenthesis — throws with
+the position, so a malformed template is not silently rendered as blank.
 
 A function can receive another function or an arithmetic expression as
 an argument (`{CURRENCY(SUM(rows.total), "$")}`), including two
@@ -73,6 +101,43 @@ own timezone that happens to generate the PDF. A date-only value
 (`"2026-07-01"`, no time) comes out matching exactly what was written,
 no matter where it runs; a datetime with an explicit offset
 (`"...T23:30:00-03:00"`) is converted to the equivalent UTC instant.
+
+## Writing an expression: the `ƒx` editor
+
+`<Designer>` has a `ƒx` button next to every field that accepts an expression:
+a table column formula, each cell of the totals row, the KPI's
+title/value/caption, and a text field's content. It opens a window with
+
+- **the fields the schema is bound to, on the left**, in two groups. Fields
+  **of each item** of the bound array (`total`, no prefix) are what resolve
+  inside a table row or a repeated section; the **full data paths**
+  (`invoices.total`) are what an aggregation needs. `SUM(total)` from the first
+  group would find nothing — the two scopes are the reason the list is split.
+- **a multi-line editor with autocomplete**, offering the functions above plus
+  `AND`/`OR`/`NOT` with the hint for each. It writes the spaces an operator
+  needs on both sides, so it cannot produce a one-sided operator. Suggestions
+  appear only **inside** the braces — outside them you are writing literal
+  text, and a list of functions there is only in the way.
+- **live validation** — the same messages the editor's field warning shows.
+  A syntax error blocks saving; a suspicious operator only warns.
+
+The editor holds the **field value itself**, braces included, opened with
+whatever was already there. There is no separate compose box: you edit in
+place, and a literal prefix stays where it is (`FAT-{invoice}`). Clicking a
+field on the left inserts the bare path inside braces, or `{path}` outside
+them.
+
+It also reports an **unbalanced brace**, which nothing else does: the template
+resolver matches `/\{([^{}]+)\}/g`, so a `{` with no pair simply does not
+match and that stretch comes out as literal text in the PDF —
+`{CURRENCY(total` printed as-is. It is not an expression syntax error (the
+parser never sees that stretch) nor a generation failure; it was just a field
+coming out wrong in silence.
+
+The pieces are exported for a custom UI: `suggestAt`, `applySuggestion`,
+`insertAtCaret`, `wordAtCaret`, `ALL_SUGGESTIONS`, plus `tokenAtCaret` and
+`braceError` for the brace side (`json-pdf-designer/server` too — they are
+pure).
 
 ## Public functions for a custom binding UI
 

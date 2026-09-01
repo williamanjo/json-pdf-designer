@@ -1,0 +1,48 @@
+---
+title: Failure Modes
+description: What degrades and what fails when generating a PDF.
+---
+
+# What can and cannot fail a generation
+
+`generatePdf` draws one line: a problem in the **data**, or in malformed
+content, degrades — the field renders empty, a character is replaced, the PDF
+comes out. A **structural** problem, or one where content would silently
+disappear from a document someone signs, fails loudly. A 200-page report must
+not die because one row had a `\n` in it.
+
+**Degrades (the PDF comes out):**
+
+| Situation | What happens |
+|---|---|
+| Control character in the data (`\n`, `\t`, NUL, C0/C1) | Replaced with a space. No font has a glyph for these, so it is the only possible rendering |
+| Invalid `{...}` expression | That token renders empty; the editor flags the field |
+| Path that does not resolve | Empty |
+| `data` that is null, an array, a string, a number | Ignored; fields render empty |
+| Bound array that is a number, items that are not objects, a cell whose value is an object | Ignored or stringified |
+| Invalid colour (`"banana"`, `"#zzz"`) | Falls back to the default |
+| `fontSize` that is 0, negative or `NaN` | 0/negative are honoured; `NaN` falls back to 10 |
+| A field width of 0 or negative | Honoured (nothing is drawn) |
+| Image binding resolving to something that is not a data URI | Field stays empty |
+| A section repeat taller than a whole page | Placed anyway, overflowing that page; the next repeat starts on a new one |
+
+**Fails loudly (and why):**
+
+| Situation | Error | Why not degrade |
+|---|---|---|
+| Character with no glyph in the **standard** font (emoji/CJK without `fontBytes`) | `Campo "x": o caractere "🎉" (U+1F389) não existe na fonte usada …` | It *does* have a glyph in a complete font — dropping it would silently remove content from a signed document. Pass `fontBytes`, or take it out of the data |
+| Invalid page size (`NaN`, 0, negative) | `Página "x": tamanho inválido …` | Structural: there is no sensible default to guess |
+| Corrupt image, in a field or as the page background | `Campo "x": não deu pra ler essa imagem …` | The author picked that file; silently dropping it hides the mistake |
+| Image over 15MB, or more than 200 distinct images | `… maior que o limite de 15MB …` | Protects whoever is generating (a template can come from an untrusted source) |
+| Document over `maxPages` (default 5000) | `O documento passou de 5000 páginas ao paginar "x" …` | A truncated report that looks complete is worse than no report. Filter the data, split into several PDFs, or raise `maxPages` |
+| A pagination pass that consumes nothing | `Paginação travada em "x" …` | Arithmetic bug in the package — spinning until a counter ran out used to hide it |
+| Invalid `fontBytes` | `Unknown font format` | Caller error, not template or data |
+| `Template.version` newer than this build | `Template na versão N, mas este build só entende até a M` | A newer format may carry fields this build would ignore in silence |
+
+**One caveat on the glyph error.** It only fires with the **standard** font
+(Helvetica/WinAnsi). With a font embedded through `fontBytes`, a character the
+font does not cover is drawn as that font's `.notdef` glyph — usually a blank or
+a box — with **no error at all**. That is fontkit's behaviour, not a choice this
+package makes, and it means a custom font trades a loud failure for a silent
+blank. If a missing glyph must never pass unnoticed, check the data before
+generating.

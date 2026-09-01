@@ -1,49 +1,15 @@
-import type { Binding, ChartFilterCondition, ChartFilterGroup, ChartFilterOp, TableColumn } from "../types";
-import { splitDelimited } from "./splitDelimited";
-import { formatPtBrNumber } from "../numberFormat";
+import type { Binding, ChartFilterCondition, ChartFilterGroup, TableColumn } from "../types";
 import { CHART_COLORS, CHART_OTHER_COLOR } from "../chart/colors";
 import { en } from "../i18n/en";
 import type { Dict } from "../i18n";
+import { renderTemplateLenient, resolveTokenLenient } from "../expressions/resolve";
+import { asRecord, compareValues, getCaseInsensitive, stringifyOrEmpty } from "../expressions/dataAccess";
 
-export function getCaseInsensitive(obj: unknown, path: string): unknown {
-  if (!path) return obj;
-  const parts = path.split(".");
-  let cur = obj;
-  for (const part of parts) {
-    if (cur === null || cur === undefined || typeof cur !== "object" || Array.isArray(cur)) return undefined;
-    const rec = cur as Record<string, unknown>;
-    const lo = part.toLowerCase();
-    const key = Object.keys(rec).find(k => k.toLowerCase() === lo);
-    if (key === undefined) return undefined;
-    cur = rec[key];
-  }
-  return cur;
-}
-
-// "campo/valor ausente" -> "" — regra repetida em todo lugar que serializa
-// um valor cru do JSON pra string de saída (path não bate, ou bate em
-// null/undefined).
-function stringifyOrEmpty(v: unknown): string {
-  return v === undefined || v === null ? "" : String(v);
-}
-
-// Normaliza um item de array pra Record antes de indexar por chave — item
-// pode não ser objeto (string solta, número, null) num array "sujo"; nesse
-// caso trata como sem nenhuma chave, em vez de deixar o indexamento explodir.
-function asRecord(item: unknown): Record<string, unknown> {
-  return item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-}
-
-// "rows.total_amount" -> array "rows" + coluna "total_amount" (sempre o
-// último pedaço depois do ponto). Usada tanto pra extrair números
-// (numbersFromArrayPath) quanto pra só contar itens (COUNT).
-function splitArrayPath(rawPath: string): { arrayPath: string; column: string } {
-  const lastDot = rawPath.lastIndexOf(".");
-  return {
-    arrayPath: lastDot === -1 ? rawPath : rawPath.slice(0, lastDot),
-    column: lastDot === -1 ? "" : rawPath.slice(lastDot + 1),
-  };
-}
+// getCaseInsensitive mora em expressions/dataAccess.ts desde a AST (o motor
+// de expressões não pode importar deste arquivo — seria ciclo). Continua
+// exportado daqui porque é API pública e há quem já importe deste caminho
+// (ex: pdf/render/renderSection.ts).
+export { getCaseInsensitive };
 
 export function columnLabel(col: TableColumn): string {
   return typeof col === "string" ? col : col.label;
@@ -105,6 +71,11 @@ export function describeBindingShort(binding: Binding, t: Dict = en): string {
 // `hintKey` aponta pro texto explicativo em `t.fieldFunctions` (ver
 // BindingEditor.tsx/PropertyPanelTable.tsx) — nome/snippet ficam fixos
 // (sintaxe da função, não texto de UI).
+// `snippet` aqui é o exemplo em PT-BR. O que a UI mostra vem do dicionário
+// (`t.fieldFunctionSnippets[hintKey]`), porque só os nomes-de-exemplo dos
+// argumentos mudam de idioma — os nomes de função são fixos. Mesmo arranjo de
+// `MATERIAL_ICON_LABELS`/`materialIconLabels(locale)` em materialIcons.ts.
+/** @deprecated `snippet` é fixo em PT-BR — use `t.fieldFunctionSnippets[fn.hintKey]`. */
 export const CUSTOM_FIELD_FUNCTIONS = [
   { name: "SUM", snippet: "SUM(caminho.coluna)", hintKey: "sum" },
   { name: "COUNT", snippet: "COUNT(caminho)", hintKey: "count" },
@@ -125,271 +96,26 @@ export const CUSTOM_FIELD_FUNCTIONS = [
 // milhares de vezes estoura a call stack do V8 silenciosamente (crash, não
 // erro tratável). 40 níveis cobre qualquer aninhamento legítimo de verdade
 // (uso real observado nunca passa de 2-3) com folga generosa.
-const MAX_EXPRESSION_DEPTH = 40;
-
-function resolveArg(arg: string, data: unknown, depth: number): string {
-  const quoted = arg.match(/^"(.*)"$/);
-  if (quoted) return quoted[1];
-  // Literal numérico puro — ex: o "2" de NUMBER(valor, 2). Sem isso viraria
-  // busca de path por engano (chave "2" não existe no JSON).
-  if (/^-?\d+(\.\d+)?$/.test(arg)) return arg;
-  // Argumento em si parece outra chamada de função ou uma expressão
-  // aritmética (tem parênteses, ou operador com espaço dos dois lados) —
-  // resolve recursivamente em vez de tratar como path cru, senão
-  // CURRENCY(SUM(...)) ou NUMBER(qtd * preco, 2) nunca resolveriam (a busca
-  // de path olharia pra string inteira "SUM(...)"/"qtd * preco" como se
-  // fosse uma chave, e não achando nada, ficava vazio).
-  if (/\(.*\)/.test(arg) || /\s[+\-*/]\s/.test(arg)) return resolveToken(arg, data, depth + 1);
-  return stringifyOrEmpty(getCaseInsensitive(data, arg));
-}
-
-// "rows.total_amount" -> soma/conta a coluna "total_amount" do array "rows".
-// O nome da coluna é sempre o último pedaço depois do ponto.
-function numbersFromArrayPath(data: unknown, rawPath: string): number[] {
-  const { arrayPath, column } = splitArrayPath(rawPath);
-  const arr = getCaseInsensitive(data, arrayPath);
-  if (!Array.isArray(arr)) return [];
-  return arr
-    .map((item) => Number(column ? item?.[column] : item))
-    .filter((n) => !Number.isNaN(n));
-}
-
-// Lê "raw" segundo um formato DADO (mesmos tokens do formato de saída) em
-// vez de deixar o `new Date(raw)` do JS adivinhar — esse adivinha
-// separador "/" como MM/DD/YYYY (americano), então uma data brasileira tipo
-// "10/04/2025" (10 de abril) virava 10 de outubro, errado e calado (sem
-// erro nenhum, só a data trocada). Só entra em jogo se o 3º arg do DATE(...)
-// for informado; sem ele, mantém o `new Date(raw)` de sempre (compatível
-// com entrada ISO "YYYY-MM-DD", que É não-ambígua e não precisa disso).
-function parseDateWithFormat(raw: string, format: string): Date | null {
-  const order: string[] = [];
-  const escaped = format.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = escaped.replace(/YYYY|MM|DD|HH|mm|ss/g, (tok) => {
-    order.push(tok);
-    return "(\\d+)";
-  });
-  const match = raw.match(new RegExp(`^${pattern}$`));
-  if (!match) return null;
-  const parts: Record<string, number> = {};
-  order.forEach((tok, i) => {
-    parts[tok] = Number(match[i + 1]);
-  });
-  // Construído em UTC (não no fuso local) — combina com a leitura em
-  // formatDate abaixo, senão essa data (sempre "meia-noite exata" do dia
-  // escrito) sofreria o MESMO deslocamento que essa função existe pra evitar.
-  const d = new Date(
-    Date.UTC(
-      parts.YYYY ?? new Date().getUTCFullYear(),
-      (parts.MM ?? 1) - 1,
-      parts.DD ?? 1,
-      parts.HH ?? 0,
-      parts.mm ?? 0,
-      parts.ss ?? 0
-    )
-  );
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function formatDate(raw: string, outputFormat: string, inputFormat?: string): string {
-  if (!raw) return "";
-  const d = inputFormat ? parseDateWithFormat(raw, inputFormat) : new Date(raw);
-  if (!d || Number.isNaN(d.getTime())) return raw;
-  // Getters UTC, não locais — "YYYY-MM-DD" (sem hora) é lido pelo motor JS
-  // como meia-noite UTC; getFullYear()/getDate() locais then aplicam o
-  // fuso do NAVEGADOR/SERVIDOR em cima disso, e em qualquer fuso atrás de
-  // UTC (Brasil, EUA...) meia-noite UTC vira o dia ANTERIOR local — "2026-
-  // 07-01" saía "30/06/2026", errado e silencioso. UTC aqui elimina isso:
-  // a data sai igual ao que foi escrito, não importa o fuso de quem gera.
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const tokens: Record<string, string> = {
-    YYYY: String(d.getUTCFullYear()),
-    MM: pad(d.getUTCMonth() + 1),
-    DD: pad(d.getUTCDate()),
-    HH: pad(d.getUTCHours()),
-    mm: pad(d.getUTCMinutes()),
-    ss: pad(d.getUTCSeconds()),
-  };
-  return outputFormat.replace(/YYYY|MM|DD|HH|mm|ss/g, (m) => tokens[m]);
-}
-
-function formatCurrency(raw: string, symbol: string, decimals: number): string {
-  const n = Number(raw);
-  if (Number.isNaN(n)) return raw;
-  const d = Number.isNaN(decimals) ? 2 : decimals;
-  const formatted = formatPtBrNumber(n, { decimals: d, forceDecimals: true });
-  return symbol ? `${symbol} ${formatted}` : formatted;
-}
-
-// Expressão aritmética simples dentro do próprio {...} — ex:
-// "{valor_a + valor_b}", "{subtotal - desconto}", "{preco * quantidade}".
-// Avalia da esquerda pra direita (sem precedência de operador, tipo
-// calculadora) — cada operando é resolvido como path/número, igual um
-// argumento normal. Não mexe em texto entre aspas nem em chamada de função
-// (FUNC(...)) — só entra em jogo se sobrar operador de verdade separado
-// por espaço dos dois lados.
-function resolveArithmetic(trimmed: string, data: unknown, depth: number): string | null {
-  if (/^".*"$/.test(trimmed)) return null;
-  const parts = trimmed.split(/\s+([+\-*/])\s+/);
-  if (parts.length < 3 || parts.length % 2 === 0) return null;
-  let acc = Number(resolveArg(parts[0], data, depth));
-  if (Number.isNaN(acc)) return null;
-  for (let i = 1; i < parts.length; i += 2) {
-    const op = parts[i];
-    const rhs = Number(resolveArg(parts[i + 1], data, depth));
-    if (Number.isNaN(rhs)) return null;
-    if (op === "+") acc += rhs;
-    else if (op === "-") acc -= rhs;
-    else if (op === "*") acc *= rhs;
-    else if (rhs === 0) return null;
-    else acc /= rhs;
-  }
-  // Arredonda ruído de ponto flutuante (ex: 12 * 22.9 -> 274.79999999999995)
-  // sem cortar precisão de verdade — 6 casas decimais cobre qualquer conta
-  // com dinheiro/quantidade, string final não carrega o lixo binário.
-  return String(Math.round(acc * 1e6) / 1e6);
-}
-
-// Comparação usada por {IF(condição, "então", "senão")} — mesma ordem de
-// prioridade que resolveArithmetic usa (2 caracteres antes de 1, pra ">="
-// não ser lido como ">" seguido de sobra) e mesmo formato "operando ESPAÇO
-// operador ESPAÇO operando" de sempre. Reaproveita matchesFilterCondition
-// (mais abaixo, mesma lógica de "compara como número quando os dois lados
-// são numéricos, senão como texto" que os filtros de chart/kpi já usam) em
-// vez de reimplementar a comparação do zero.
-const IF_OPERATORS: { token: string; op: ChartFilterOp }[] = [
-  { token: "==", op: "eq" },
-  { token: "!=", op: "neq" },
-  { token: ">=", op: "gte" },
-  { token: "<=", op: "lte" },
-  { token: ">", op: "gt" },
-  { token: "<", op: "lt" },
-];
-
-function resolveCondition(condition: string, data: unknown, depth: number): boolean {
-  for (const { token, op } of IF_OPERATORS) {
-    const marker = ` ${token} `;
-    const idx = condition.indexOf(marker);
-    if (idx === -1) continue;
-    const lhs = resolveArg(condition.slice(0, idx).trim(), data, depth);
-    const rhs = resolveArg(condition.slice(idx + marker.length).trim(), data, depth);
-    return matchesFilterCondition(lhs, op, rhs);
-  }
-  // Sem operador de comparação — checa se o próprio valor resolvido é
-  // "verdadeiro": vazio, "0" ou "false" (sem diferenciar maiúsculas) contam
-  // como falso, qualquer outra coisa como verdadeiro. Ex: {IF(pago, "Sim",
-  // "Não")} com `pago` sendo um path que resolve pra "true"/"1"/"Sim" etc.
-  const resolved = resolveArg(condition.trim(), data, depth).trim().toLowerCase();
-  return resolved !== "" && resolved !== "0" && resolved !== "false";
-}
-
-// Confere se `s` tem parênteses balanceados (nunca fecha antes de abrir, e
-// termina em 0) — mesma ideia de profundidade que splitDelimited.ts usa pra
-// vírgula, aqui só pra VALIDAR se o que o regex guloso de baixo capturou é
-// de fato uma lista de argumentos de UMA chamada, não um "vazamento" por
-// cima de um operador fora dos parênteses (ver comentário em resolveToken).
-function hasBalancedParens(s: string): boolean {
-  let depth = 0;
-  for (const ch of s) {
-    if (ch === "(") depth++;
-    else if (ch === ")") {
-      depth--;
-      if (depth < 0) return false;
-    }
-  }
-  return depth === 0;
-}
-
-export function resolveToken(token: string, data: unknown, depth = 0): string {
-  if (depth > MAX_EXPRESSION_DEPTH) {
-    throw new Error(
-      `Expression nesting too deep (over ${MAX_EXPRESSION_DEPTH} levels) — check the template for a malformed or unexpectedly deep {FUNCTION(...)} chain.`
-    );
-  }
-  const trimmed = token.trim();
-  const call = trimmed.match(/^([A-Za-z]+)\((.*)\)$/s);
-  // `call` só é confiável quando o conteúdo capturado (call[2]) tem
-  // parênteses balanceados — senão o regex guloso (ancorado do primeiro "("
-  // ao ÚLTIMO ")" da string inteira) "vazou" por cima de um operador fora
-  // dos parênteses, tipo "SUM(a) - SUM(b)" (captura "a) - SUM(b", que fecha
-  // antes de abrir — não é uma chamada de função só). Nesse caso cai pra
-  // aritmética/arg normal abaixo, em vez de tratar tudo como argumento de
-  // uma função (bug real: antes disso, {SUM(a) - SUM(b)} sempre virava "0"
-  // ao invés de subtrair).
-  if (call && hasBalancedParens(call[2])) {
-    const fn = call[1].toUpperCase();
-    const args = splitDelimited(call[2]);
-
-    switch (fn) {
-      case "SUM":
-        return String(numbersFromArrayPath(data, args[0] ?? "").reduce((a, b) => a + b, 0));
-      case "COUNT": {
-        const { arrayPath } = splitArrayPath(args[0] ?? "");
-        const arr = getCaseInsensitive(data, arrayPath);
-        return String(Array.isArray(arr) ? arr.length : 0);
-      }
-      case "AVG": {
-        const nums = numbersFromArrayPath(data, args[0] ?? "");
-        return nums.length ? String(nums.reduce((a, b) => a + b, 0) / nums.length) : "0";
-      }
-      case "CONCAT":
-        return args.map((a) => resolveArg(a, data, depth)).join("");
-      case "UPPER":
-        return resolveArg(args[0] ?? "", data, depth).toUpperCase();
-      case "LOWER":
-        return resolveArg(args[0] ?? "", data, depth).toLowerCase();
-      case "TRIM":
-        // Tira espaço do início/fim — comum em export de sistema legado com
-        // campo de largura fixa (ex: "fatura": " 01156189"). {CONCAT}/{token}
-        // direto preservam o valor exatamente como veio (de propósito); pra
-        // tirar o espaço sem depender do efeito colateral de Number(" x")
-        // (que também comeria zero à esquerda), use TRIM explícito.
-        return resolveArg(args[0] ?? "", data, depth).trim();
-      case "DATE":
-        // 3º arg (opcional) diz o formato de ENTRADA — ex: DATE(vencto,
-        // "DD/MM/YYYY", "DD/MM/YYYY") lê "10/04/2025" como 10 de abril, não
-        // deixa o new Date(...) do JS adivinhar (americano, viraria outubro).
-        return formatDate(
-          resolveArg(args[0] ?? "", data, depth),
-          args[1] ? resolveArg(args[1], data, depth) : "DD/MM/YYYY",
-          args[2] ? resolveArg(args[2], data, depth) : undefined
-        );
-      case "CURRENCY": {
-        // 3º arg (opcional) = casas decimais — default 2 (padrão de moeda).
-        const rawDecimals = args[2] ? resolveArg(args[2], data, depth) : "";
-        return formatCurrency(
-          resolveArg(args[0] ?? "", data, depth),
-          args[1] ? resolveArg(args[1], data, depth) : "",
-          rawDecimals === "" ? 2 : Number(rawDecimals)
-        );
-      }
-      case "NUMBER": {
-        // Casas decimais controladas — tipo "%.2f" do C. Ex: NUMBER(qtd *
-        // preco, 2) -> "160.00". Sem separador de milhar/símbolo (isso é o
-        // CURRENCY) — só arredonda e fixa a quantidade de casas.
-        const n = Number(resolveArg(args[0] ?? "", data, depth));
-        // Number("") é 0, não NaN — se o 2º arg não resolver pra nada
-        // (path errado etc), "" não pode virar 0 casas decimais silenciosamente.
-        const rawDecimals = args[1] ? resolveArg(args[1], data, depth) : "";
-        const decimals = rawDecimals === "" ? 2 : Number(rawDecimals);
-        return Number.isNaN(n) ? "" : n.toFixed(Number.isNaN(decimals) ? 2 : decimals);
-      }
-      case "IF": {
-        // {IF(condição, "então", "senão")} — condição pode ser uma
-        // comparação ("status == \"paid\"", "total > 100") ou um path/
-        // expressão isolada (checagem de verdadeiro/falso, ver
-        // resolveCondition acima). Só resolve o lado escolhido — o outro
-        // nem é avaliado (senão {IF(existe, valor, "N/A")} quebraria
-        // quando `valor` não existe, mesmo do lado que nunca é usado).
-        const isTrue = resolveCondition(args[0] ?? "", data, depth);
-        return resolveArg(isTrue ? (args[1] ?? "") : (args[2] ?? ""), data, depth);
-      }
-      default:
-        return "";
-    }
-  }
-
-  const arithmetic = resolveArithmetic(trimmed, data, depth);
-  return arithmetic ?? resolveArg(trimmed, data, depth);
+// Resolve UM token de template (o conteúdo de dentro das chaves, sem elas).
+//
+// Assinatura e retorno preservados de propósito: `renderTemplate` abaixo e
+// todo consumidor externo continuam iguais, e a suíte de testes que já existia
+// vale como prova de que o motor novo não regrediu.
+//
+// Expressão sintaticamente inválida resolve pra "" em vez de estourar: um
+// `{CONCAT(a,)}` esquecido deixa AQUELE campo vazio, não derruba o PDF
+// inteiro (era o raio de alcance do motor anterior, e trocar "um campo em
+// branco" por "nenhum relatório" não seria melhoria). O erro aparece no
+// editor, pelo aviso do campo — ver expressionError/templateExpressionErrors
+// em expressions/resolve.ts e fieldWarnings.ts.
+//
+// O parâmetro `depth` é aceito e ignorado — a profundidade agora é controlada
+// dentro do parser (MAX_EXPRESSION_DEPTH em expressions/parse.ts), onde ela
+// mede aninhamento de verdade em vez de mascarar recursão infinita como no
+// motor anterior. Mantido na assinatura para não quebrar quem chama com 3
+// argumentos.
+export function resolveToken(token: string, data: unknown, _depth = 0): string {
+  return resolveTokenLenient(token, data);
 }
 
 // Array de objetos -> array de linhas (uma por item, uma célula por
@@ -417,7 +143,7 @@ export function rowsFromArrayBinding(list: unknown[], columns: TableColumn[]): s
 // trocando cada {token} pelo valor do JSON (path direto) ou pelo resultado de
 // uma função (SUM/COUNT/AVG/CONCAT/UPPER/LOWER/DATE/CURRENCY).
 export function renderTemplate(template: string, data: unknown): string {
-  return template.replace(/\{([^{}]+)\}/g, (_, inner) => resolveToken(inner, data));
+  return renderTemplateLenient(template, data);
 }
 
 function resolveScalarInput(binding: Extract<Binding, { type: "scalar" }>, data: unknown): string {
@@ -484,31 +210,9 @@ export function buildInputs(data: unknown, bindings: Binding[]): Record<string, 
 
 export type ChartItem = { label: string; value: number; color: string };
 
-// Compara o valor cru do item (`raw`) contra `value` (sempre string, vem do
-// input do painel) segundo `op`. Number(...) dos dois lados quando possível
-// (compara como número — "10" > "9" numérico, não lexicográfico); cai pra
-// texto case-insensitive quando um dos dois não é número, ou sempre pra
-// "contains". gt/gte/lt/lte exigem os dois lados numéricos — não bate se
-// não der (nunca filtra tudo por engano/tipo errado, só não bate).
-function matchesFilterCondition(raw: unknown, op: ChartFilterOp, value: string): boolean {
-  if (op === "contains") return String(raw ?? "").toLowerCase().includes(value.toLowerCase());
-  const numRaw = Number(raw);
-  const numValue = Number(value);
-  const bothNumeric = raw !== "" && raw !== null && raw !== undefined && value.trim() !== "" && !Number.isNaN(numRaw) && !Number.isNaN(numValue);
-  if (op === "eq" || op === "neq") {
-    const equal = bothNumeric ? numRaw === numValue : String(raw ?? "").toLowerCase() === value.toLowerCase();
-    return op === "eq" ? equal : !equal;
-  }
-  if (!bothNumeric) return false;
-  if (op === "gt") return numRaw > numValue;
-  if (op === "gte") return numRaw >= numValue;
-  if (op === "lt") return numRaw < numValue;
-  return numRaw <= numValue; // "lte"
-}
-
 export function matchesFilterGroups(item: Record<string, unknown>, groups: ChartFilterGroup[] | undefined): boolean {
   if (!groups || groups.length === 0) return true;
-  return groups.some((group) => group.every((cond: ChartFilterCondition) => matchesFilterCondition(item[cond.column], cond.op, cond.value)));
+  return groups.some((group) => group.every((cond: ChartFilterCondition) => compareValues(item[cond.column], cond.op, cond.value)));
 }
 
 // Array bruto no `path` (getCaseInsensitive — mesma busca case-insensitive

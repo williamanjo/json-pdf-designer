@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bandSpawnPosition, computeSpawnPosition, findTableDataSource, uniqueSchemaName } from "../../src/designer/helpers";
-import type { Binding, DataSourceOption, SectionSchema, TableSchema, Template, TextSchema } from "../../src/types";
+import { bandSpawnPosition, computeSpawnPosition, fieldSourcesFor, findTableDataSource, uniqueSchemaName } from "../../src/designer/helpers";
+import type { Binding, DataSourceOption, Schema, SectionSchema, TableSchema, Template, TextSchema } from "../../src/types";
 
 function makeTemplate(overrides: Partial<Template> = {}): Template {
   return {
@@ -260,5 +260,55 @@ describe("findTableDataSource", () => {
     const ownBinding: Binding = { schemaName: "tabela", type: "array", path: "itens", columns: ["nome"] };
     const result = findTableDataSource(table, [table], [ownBinding], undefined);
     expect(result).toBeUndefined();
+  });
+});
+
+describe("fieldSourcesFor", () => {
+  const dataSources: DataSourceOption[] = [
+    { path: "itens", label: "Itens", columns: ["nome", "valor"], columnTypes: { valor: "number" } },
+    { path: "outros", label: "Outros", columns: ["a"] },
+  ];
+
+  it("os dois grupos: campos do item e caminhos absolutos", () => {
+    const table = makeTable({ name: "tabela" });
+    const ownBinding: Binding = { schemaName: "tabela", type: "array", path: "itens", columns: ["nome"] };
+    const result = fieldSourcesFor(table, [table], [ownBinding], dataSources);
+    expect(result.item).toEqual({ path: "itens", columns: ["nome", "valor"], columnTypes: { valor: "number" } });
+    // `arrays` é a lista inteira, não só a do vínculo: uma agregação
+    // (SUM(outros.a)) pode apontar pra outro array que não o da linha.
+    expect(result.arrays).toBe(dataSources);
+  });
+
+  it("texto solto: sem item, mas com os caminhos", () => {
+    const text = makeText();
+    const result = fieldSourcesFor(text, [text], [], dataSources);
+    expect(result.item).toBeUndefined();
+    expect(result.arrays).toHaveLength(2);
+  });
+
+  it("texto membro de seção herda o item da seção", () => {
+    // É o que faz `{nome}` dentro de uma repetição resolver contra o ITEM.
+    const section = makeSection({ id: "sec1", name: "secao" });
+    const text = makeText({ id: "f1", name: "campo", sectionId: "sec1" });
+    const sectionBinding: Binding = { schemaName: "secao", type: "section", path: "itens" };
+    const result = fieldSourcesFor(text, [section, text], [sectionBinding], dataSources);
+    expect(result.item?.path).toBe("itens");
+  });
+
+  it("KPI vinculado a um array também tem item", () => {
+    const kpi = { ...makeText(), type: "kpi", name: "indicador" } as unknown as Schema;
+    const kpiBinding: Binding = { schemaName: "indicador", type: "kpi", path: "itens", aggregation: "sum", valueColumn: "valor" };
+    const result = fieldSourcesFor(kpi, [kpi], [kpiBinding], dataSources);
+    expect(result.item?.columns).toEqual(["nome", "valor"]);
+  });
+
+  it("sem dataSources: nenhum grupo, e não estoura", () => {
+    const table = makeTable({ name: "tabela" });
+    const result = fieldSourcesFor(table, [table], [], undefined);
+    expect(result).toEqual({ item: undefined, arrays: [] });
+  });
+
+  it("schema null (nada selecionado) devolve só os caminhos", () => {
+    expect(fieldSourcesFor(null, [], [], dataSources).item).toBeUndefined();
   });
 });

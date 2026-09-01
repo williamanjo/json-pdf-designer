@@ -10,6 +10,7 @@ import type { ExampleDefinition } from "./types";
 // como o mesmo array vira duas leituras diferentes só trocando a coluna
 // numérica do vínculo "chart".
 const template: Template = {
+  version: 1,
   page: { width: 297, height: 210 },
   schemas: [
     {

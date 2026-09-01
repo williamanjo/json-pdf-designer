@@ -73,44 +73,85 @@ export function uniqueSchemaName(base: string, usedNames: Set<string>, suffix: s
   return candidate;
 }
 
-// Fonte de dados conhecida da tabela, pra mostrar a lista de colunas
-// disponíveis pra adicionar com "+" (ver PropertyPanel.tsx) — dois casos:
-// 1) Tabela membro de uma seção (sectionId) — puxa a MESMA fonte da
-//    seção dona dela.
-// 2) Tabela solta (ou com vínculo próprio) já vinculada (type "array")
-//    a um path que bate com um dataSources conhecido — usa as colunas
-//    dele direto, mesmo fora de seção.
-export function findTableDataSource(
+// A fonte do ITEM que um schema resolve: o array por trás dele, com as
+// colunas conhecidas. Duas origens, nesta ordem:
+// 1) Membro de uma seção (sectionId) — herda a MESMA fonte da seção dona
+//    dele, porque é contra cada item dela que o campo resolve.
+// 2) Vínculo próprio de array/gráfico/KPI, num path que bate com um
+//    `dataSources` conhecido — vale mesmo fora de seção.
+export type ItemSource = { path: string; columns: string[]; columnTypes?: Record<string, DataSourceColumnType> };
+
+// Tipos de vínculo que apontam pra um ARRAY e portanto definem um item.
+// "section" fica de fora aqui de propósito: ela entra pelo caminho do
+// `sectionId` acima, do ponto de vista do MEMBRO, não do dono.
+const ITEM_BINDING_TYPES = ["array", "chart", "kpi"] as const;
+type ItemBinding = Extract<Binding, { type: (typeof ITEM_BINDING_TYPES)[number] }>;
+
+function sourceForPath(path: string, dataSources: DataSourceOption[] | undefined): ItemSource | undefined {
+  const source = dataSources?.find((d) => d.path === path);
+  if (!source?.columns || source.columns.length === 0) return undefined;
+  return { path: source.path, columns: source.columns, columnTypes: source.columnTypes };
+}
+
+export function findItemSource(
   schema: Schema | null,
   schemas: Schema[],
   bindings: Binding[],
   dataSources: DataSourceOption[] | undefined
-): { path: string; columns: string[]; columnTypes?: Record<string, DataSourceColumnType> } | undefined {
-  if (!schema || schema.type !== "table") return undefined;
+): ItemSource | undefined {
+  if (!schema) return undefined;
   if (schema.sectionId) {
-    const section = schemas.find(
-      (s): s is SectionSchema => s.id === schema.sectionId && s.type === "section"
-    );
+    const section = schemas.find((s): s is SectionSchema => s.id === schema.sectionId && s.type === "section");
     const sectionBinding = section
       ? bindings.find(
           (b): b is Extract<Binding, { type: "section" }> => b.schemaName === section.name && b.type === "section"
         )
       : undefined;
-    if (sectionBinding) {
-      const source = dataSources?.find((d) => d.path === sectionBinding.path);
-      if (source?.columns && source.columns.length > 0) {
-        return { path: source.path, columns: source.columns, columnTypes: source.columnTypes };
-      }
-    }
+    const inherited = sectionBinding && sourceForPath(sectionBinding.path, dataSources);
+    if (inherited) return inherited;
   }
   const ownBinding = bindings.find(
-    (b): b is Extract<Binding, { type: "array" }> => b.schemaName === schema.name && b.type === "array"
+    (b): b is ItemBinding =>
+      b.schemaName === schema.name && (ITEM_BINDING_TYPES as readonly string[]).includes(b.type)
   );
-  if (ownBinding) {
-    const source = dataSources?.find((d) => d.path === ownBinding.path);
-    if (source?.columns && source.columns.length > 0) {
-      return { path: source.path, columns: source.columns, columnTypes: source.columnTypes };
-    }
-  }
-  return undefined;
+  return ownBinding ? sourceForPath(ownBinding.path, dataSources) : undefined;
+}
+
+// Fonte de dados conhecida da TABELA, pra mostrar a lista de colunas
+// disponíveis pra adicionar com "+" (ver PropertyPanel.tsx). É
+// `findItemSource` com o portão de tipo — mantido com a assinatura original
+// porque é o que a lista "+" chama, e pra não haver duas cópias da regra de
+// herança de seção.
+export function findTableDataSource(
+  schema: Schema | null,
+  schemas: Schema[],
+  bindings: Binding[],
+  dataSources: DataSourceOption[] | undefined
+): ItemSource | undefined {
+  if (!schema || schema.type !== "table") return undefined;
+  return findItemSource(schema, schemas, bindings, dataSources);
+}
+
+// Tudo que o modal de fórmula (FormulaModal.tsx) oferece pra inserir: os
+// campos do item à esquerda e os caminhos absolutos das fontes de dados.
+//
+// Os dois grupos existem porque resolvem em escopos diferentes, e confundir
+// um com o outro é justamente o erro que a lista evita: dentro de uma linha
+// de tabela, `total` é o campo do item; numa agregação, o caminho é
+// `faturas.total` — `SUM(total)` não acharia nada.
+export type FieldSources = {
+  item?: ItemSource;
+  arrays: DataSourceOption[];
+};
+
+export function fieldSourcesFor(
+  schema: Schema | null,
+  schemas: Schema[],
+  bindings: Binding[],
+  dataSources: DataSourceOption[] | undefined
+): FieldSources {
+  return {
+    item: findItemSource(schema, schemas, bindings, dataSources),
+    arrays: dataSources ?? [],
+  };
 }

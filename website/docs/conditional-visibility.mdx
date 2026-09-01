@@ -1,0 +1,81 @@
+---
+title: Conditional Visibility
+description: Show a field only when a condition holds.
+---
+
+# Conditional visibility (`visibleWhen`)
+
+Any field can carry a condition. It is drawn only when that condition is true:
+
+```ts
+{ type: "text", content: "Corporate discount", visibleWhen: 'customer.type == "company"' }
+{ type: "table", name: "overdue", visibleWhen: "NOT paid" }
+{ type: "kpi", visibleWhen: "total > 1000 AND NOT cancelled" }
+```
+
+The condition is an **expression without braces** — it is not a template, so
+write `total > 1000`, not `{total > 1000}`. Everything the `{...}` engine
+understands works here: paths, comparisons, `AND`/`OR`/`NOT`, functions
+(`COUNT(items) > 0`), arithmetic. Truthiness follows the format's rule: empty,
+`"0"` and `"false"` are false, anything else is true — so a bare path works
+too (`visibleWhen: "paid"`).
+
+In `<Designer>` there is a **"Show only when"** input next to X/Y/width/height,
+and a syntax error appears live underneath it.
+
+**It works on every field type**, tables and repeated sections included, and on
+the repeating bands (header/footer/margin). A band's condition may use
+`pageNumber`/`pageCount`, because those are resolved per page — so "only on the
+last page" is:
+
+```ts
+{ type: "text", content: "Please check the totals", visibleWhen: "pageNumber == pageCount" }
+```
+
+### What hiding does to the layout
+
+Hiding an item gives back its **height**, and nothing else:
+
+```
+             visible                     "meio" hidden
+  20mm  ┌───────────┐  topo        20mm  ┌───────────┐  topo
+        └───────────┘  (10mm tall)       └───────────┘
+  40mm  ┌───────────┐  meio
+        └───────────┘  (10mm tall)
+  60mm  ┌───────────┐  abaixo      50mm  ┌───────────┐  abaixo  <- moved up 10mm
+        └───────────┘                    └───────────┘
+```
+
+What follows moves up by exactly the hidden height; the spacing authored on
+both sides still applies. A hidden table gives back **all** of its pages the
+same way.
+
+One exception, and it is the useful one: hiding a field that shares a row with
+visible neighbours leaves the hole. Fields at the same authored Y are one row —
+the neighbours need their place, so the row keeps its height. Hide them all and
+the whole row goes.
+
+### An invalid condition means visible
+
+A condition that does not parse counts as **visible**, never hidden. A typo must
+not make a field vanish from a report in silence — the editor flags the field
+(alert icon in the field list, message under the input) and the field keeps
+showing until someone fixes it.
+
+That is the same trade-off the `{...}` tokens make: **generation is tolerant,
+the editor is strict.** A malformed expression renders empty rather than
+failing `generatePdf` — one blank field is better than no document — and the
+error surfaces before generating, where it can still be fixed.
+
+To check it yourself (a backend refusing a bad template, or your own editor UI):
+
+```ts
+import { expressionError, templateExpressionErrors, expressionErrors } from "json-pdf-designer";
+// also available from "json-pdf-designer/server", except expressionErrors' UI helpers
+
+expressionError("total > 1000");        // null — valid
+expressionError("total >");             // "Expressão incompleta (posição 8 em …)"
+templateExpressionErrors("a={x} b={y)"); // [{ token: "{y)", message: … }]
+expressionErrors(schema, binding);       // every expression a field carries
+```
+

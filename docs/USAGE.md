@@ -256,8 +256,8 @@ only goes away if you ask for it), `DATE(path, "output"[, "input"])`,
 `CURRENCY(path, "$")`, `NUMBER(path, decimals)` (like C's `%.2f` —
 controls how many decimal places, no thousands separator/symbol, that's
 `CURRENCY`), `IF(condition, "then", "else")` (see below), and **simple
-arithmetic** (`{qty * price}`, `{subtotal - discount}` — left to right,
-no operator precedence). A function CAN receive another function or an
+arithmetic** (`{qty * price}`, `{subtotal - discount}` — see "How an
+expression is read" below). A function CAN receive another function or an
 arithmetic expression as an argument (e.g.
 `{CURRENCY(SUM(rows.total), "$")}`), including two combined by an
 operator (`{SUM(a) - SUM(b)}` subtracts correctly), with one exception:
@@ -268,6 +268,35 @@ like `rows.total`. Their *result*, though, can still be nested inside an
 outer function just fine (`{CURRENCY(SUM(rows.total), "$")}` above
 works because it's `CURRENCY` resolving its own argument, not `SUM`
 resolving one).
+
+**How an expression is read.** `*` and `/` bind tighter than `+` and `-`,
+and parentheses group:
+
+```
+{qty * price + fee}      -> qty * price, then + fee
+{(base + fee) * qty}     -> base + fee first, then * qty
+```
+
+One rule is unusual and worth knowing, because it is what lets a JSON key
+contain a hyphen or a space: **an operator is only an operator when it has
+whitespace on both sides.**
+
+```
+{my-key}    -> the path "my-key"       (not "my minus key")
+{my key}    -> the path "my key"
+{a - b}     -> subtraction
+{a -b}      -> neither: the path "a -b", which usually resolves to empty
+```
+
+The same applies to the comparison operators inside `IF`: `IF(a == 2, …)`
+is a comparison, `IF(a==2, …)` is a path called `a==2`.
+
+An expression that cannot produce a number resolves to **empty** rather
+than failing: `{"x" + 1}`, `{a / 0}`, and a path that does not exist all
+behave that way (a missing path counts as `0` inside a sum, so
+`{missing + a}` gives `a`). A syntax error — an unterminated quote, an
+unclosed parenthesis — throws with the position, so a malformed template
+is not silently rendered as blank.
 
 `IF(condition, "then", "else")` picks one of the two remaining
 arguments — `condition` is either a comparison (`status == "paid"`,
@@ -619,6 +648,82 @@ preview simply doesn't render (a network error in the console) —
 `generatePdf`/`downloadPdf` **aren't affected**, since they don't use
 pdf.js at all (only the visual preview depends on it).
 
+## Conditional visibility (`visibleWhen`)
+
+Any field can carry a condition. It is drawn only when that condition is true:
+
+```ts
+{ type: "text", content: "Corporate discount", visibleWhen: 'customer.type == "company"' }
+{ type: "table", name: "overdue", visibleWhen: "NOT paid" }
+{ type: "kpi", visibleWhen: "total > 1000 AND NOT cancelled" }
+```
+
+The condition is an **expression without braces** — it is not a template, so
+write `total > 1000`, not `{total > 1000}`. Everything the `{...}` engine
+understands works here: paths, comparisons, `AND`/`OR`/`NOT`, functions
+(`COUNT(items) > 0`), arithmetic. Truthiness follows the format's rule: empty,
+`"0"` and `"false"` are false, anything else is true — so a bare path works
+too (`visibleWhen: "paid"`).
+
+In `<Designer>` there is a **"Show only when"** input next to X/Y/width/height,
+and a syntax error appears live underneath it.
+
+**It works on every field type**, tables and repeated sections included, and on
+the repeating bands (header/footer/margin). A band's condition may use
+`pageNumber`/`pageCount`, because those are resolved per page — so "only on the
+last page" is:
+
+```ts
+{ type: "text", content: "Please check the totals", visibleWhen: "pageNumber == pageCount" }
+```
+
+### What hiding does to the layout
+
+Hiding an item gives back its **height**, and nothing else:
+
+```
+             visible                     "meio" hidden
+  20mm  ┌───────────┐  topo        20mm  ┌───────────┐  topo
+        └───────────┘  (10mm tall)       └───────────┘
+  40mm  ┌───────────┐  meio
+        └───────────┘  (10mm tall)
+  60mm  ┌───────────┐  abaixo      50mm  ┌───────────┐  abaixo  <- moved up 10mm
+        └───────────┘                    └───────────┘
+```
+
+What follows moves up by exactly the hidden height; the spacing authored on
+both sides still applies. A hidden table gives back **all** of its pages the
+same way.
+
+One exception, and it is the useful one: hiding a field that shares a row with
+visible neighbours leaves the hole. Fields at the same authored Y are one row —
+the neighbours need their place, so the row keeps its height. Hide them all and
+the whole row goes.
+
+### An invalid condition means visible
+
+A condition that does not parse counts as **visible**, never hidden. A typo must
+not make a field vanish from a report in silence — the editor flags the field
+(alert icon in the field list, message under the input) and the field keeps
+showing until someone fixes it.
+
+That is the same trade-off the `{...}` tokens make: **generation is tolerant,
+the editor is strict.** A malformed expression renders empty rather than
+failing `generatePdf` — one blank field is better than no document — and the
+error surfaces before generating, where it can still be fixed.
+
+To check it yourself (a backend refusing a bad template, or your own editor UI):
+
+```ts
+import { expressionError, templateExpressionErrors, expressionErrors } from "json-pdf-designer";
+// also available from "json-pdf-designer/server", except expressionErrors' UI helpers
+
+expressionError("total > 1000");        // null — valid
+expressionError("total >");             // "Expressão incompleta (posição 8 em …)"
+templateExpressionErrors("a={x} b={y)"); // [{ token: "{y)", message: … }]
+expressionErrors(schema, binding);       // every expression a field carries
+```
+
 ## Multi-page reports (`Template.pages`)
 
 By default a `Template` is one page design, repeated as many times as the
@@ -656,6 +761,43 @@ const bytes = await generatePdf(template, data, bindings); // same call as alway
   its own `<Designer>`, while the JSON data sources stay shared/global
   across all tabs.
 
+## Writing an expression: the `ƒx` editor
+
+`<Designer>` has a `ƒx` button next to every field that accepts an expression:
+a table column formula, each cell of the totals row, the KPI's
+title/value/caption, and a text field's content. It opens a window with
+
+- **the fields the schema is bound to, on the left**, in two groups. Fields
+  **of each item** of the bound array (`total`, no prefix) are what resolve
+  inside a table row or a repeated section; the **full data paths**
+  (`invoices.total`) are what an aggregation needs. `SUM(total)` from the first
+  group would find nothing — the two scopes are the reason the list is split.
+- **a multi-line editor with autocomplete**, offering the functions above plus
+  `AND`/`OR`/`NOT` with the hint for each. It writes the spaces an operator
+  needs on both sides, so it cannot produce a one-sided operator. Suggestions
+  appear only **inside** the braces — outside them you are writing literal
+  text, and a list of functions there is only in the way.
+- **live validation** — the same messages the editor's field warning shows.
+  A syntax error blocks saving; a suspicious operator only warns.
+
+The editor holds the **field value itself**, braces included, opened with
+whatever was already there. There is no separate compose box: you edit in
+place, and a literal prefix stays where it is (`FAT-{invoice}`). Clicking a
+field on the left inserts the bare path inside braces, or `{path}` outside
+them.
+
+It also reports an **unbalanced brace**, which nothing else does: the template
+resolver matches `/\{([^{}]+)\}/g`, so a `{` with no pair simply does not
+match and that stretch comes out as literal text in the PDF —
+`{CURRENCY(total` printed as-is. It is not an expression syntax error (the
+parser never sees that stretch) nor a generation failure; it was just a field
+coming out wrong in silence.
+
+The pieces are exported for a custom UI: `suggestAt`, `applySuggestion`,
+`insertAtCaret`, `wordAtCaret`, `ALL_SUGGESTIONS`, plus `tokenAtCaret` and
+`braceError` for the brace side (`json-pdf-designer/server` too — they are
+pure).
+
 ## Ready-made UI components
 
 If you don't want to (or can't) build your own visual shell around
@@ -682,6 +824,101 @@ None of this is required — the `custom-ui` example (see "Examples"
 below) builds its entire shell with its own CSS, without importing any
 of these components, to prove `<Designer>` works either way.
 
+## Template versioning (`Template.version`)
+
+A `Template` is a **document format**, not an internal structure. Once it
+lives in a database it outlives any given version of this package, so it
+carries a format version:
+
+```ts
+type TemplateVersion = 1;
+
+type Template = {
+  version?: TemplateVersion; // absent = 1
+  page: PageSize;
+  // ...
+};
+```
+
+`version` is the version of the **JSON format**, not of the npm package — the
+package goes 2.0.0 → 2.1.0 → 3.0.0 without the format changing. It only moves
+when the shape of the saved document does.
+
+`migrateTemplate(input)` normalizes a template from anywhere (a database, a
+file, an API) into the format this build understands:
+
+```ts
+import { migrateTemplate } from "json-pdf-designer";        // or /server
+
+const template = migrateTemplate(await db.templates.find(id));
+```
+
+- A template with no `version` is treated as format 1 — exactly right for
+  every template saved before the field existed, since no shape change has
+  happened since.
+- The returned template always carries the current `version`, so saving it
+  back writes it explicitly and the next load stops depending on the default.
+- It never mutates the input.
+- A `version` **higher** than this build understands **throws**. That is
+  deliberate: the file was written by a newer package and may contain fields
+  this build would silently ignore, and a PDF missing a piece with no error is
+  worse than a failure.
+
+`generatePdf` calls it internally, so a PDF is never generated from an
+unmigrated template — you do not have to remember. Call it yourself when you
+load a template **to edit**, so the editor also works on the current format
+(see `parseProjectFile` in `examples/report-builder/src/lib/projectFile.ts`).
+
+Migrations live in one chain in `src/template/migrate.ts`, one step per
+version, never as `if (version === 1) … if (version === 2) …` spread across
+callers. The chain is empty today because there is one format — it exists
+*now* because introducing it after templates are already in production
+databases costs far more.
+
+## What can and cannot fail a generation
+
+`generatePdf` draws one line: a problem in the **data**, or in malformed
+content, degrades — the field renders empty, a character is replaced, the PDF
+comes out. A **structural** problem, or one where content would silently
+disappear from a document someone signs, fails loudly. A 200-page report must
+not die because one row had a `\n` in it.
+
+**Degrades (the PDF comes out):**
+
+| Situation | What happens |
+|---|---|
+| Control character in the data (`\n`, `\t`, NUL, C0/C1) | Replaced with a space. No font has a glyph for these, so it is the only possible rendering |
+| Invalid `{...}` expression | That token renders empty; the editor flags the field |
+| Path that does not resolve | Empty |
+| `data` that is null, an array, a string, a number | Ignored; fields render empty |
+| Bound array that is a number, items that are not objects, a cell whose value is an object | Ignored or stringified |
+| Invalid colour (`"banana"`, `"#zzz"`) | Falls back to the default |
+| `fontSize` that is 0, negative or `NaN` | 0/negative are honoured; `NaN` falls back to 10 |
+| A field width of 0 or negative | Honoured (nothing is drawn) |
+| Image binding resolving to something that is not a data URI | Field stays empty |
+| A section repeat taller than a whole page | Placed anyway, overflowing that page; the next repeat starts on a new one |
+
+**Fails loudly (and why):**
+
+| Situation | Error | Why not degrade |
+|---|---|---|
+| Character with no glyph in the **standard** font (emoji/CJK without `fontBytes`) | `Campo "x": o caractere "🎉" (U+1F389) não existe na fonte usada …` | It *does* have a glyph in a complete font — dropping it would silently remove content from a signed document. Pass `fontBytes`, or take it out of the data |
+| Invalid page size (`NaN`, 0, negative) | `Página "x": tamanho inválido …` | Structural: there is no sensible default to guess |
+| Corrupt image, in a field or as the page background | `Campo "x": não deu pra ler essa imagem …` | The author picked that file; silently dropping it hides the mistake |
+| Image over 15MB, or more than 200 distinct images | `… maior que o limite de 15MB …` | Protects whoever is generating (a template can come from an untrusted source) |
+| Document over `maxPages` (default 5000) | `O documento passou de 5000 páginas ao paginar "x" …` | A truncated report that looks complete is worse than no report. Filter the data, split into several PDFs, or raise `maxPages` |
+| A pagination pass that consumes nothing | `Paginação travada em "x" …` | Arithmetic bug in the package — spinning until a counter ran out used to hide it |
+| Invalid `fontBytes` | `Unknown font format` | Caller error, not template or data |
+| `Template.version` newer than this build | `Template na versão N, mas este build só entende até a M` | A newer format may carry fields this build would ignore in silence |
+
+**One caveat on the glyph error.** It only fires with the **standard** font
+(Helvetica/WinAnsi). With a font embedded through `fontBytes`, a character the
+font does not cover is drawn as that font's `.notdef` glyph — usually a blank or
+a box — with **no error at all**. That is fontkit's behaviour, not a choice this
+package makes, and it means a custom font trades a loud failure for a silent
+blank. If a missing glyph must never pass unnoticed, check the data before
+generating.
+
 ## Public API
 
 Everything below comes from `json-pdf-designer`. The `generatePdf`
@@ -698,13 +935,13 @@ I18nProvider, useT, useLocale, withInlineCode
 type Locale, type Dict
 
 // Ready-made UI (optional — see "Ready-made UI components" above)
-Button, Card, CardHeader, CardTitle, Badge, TabPanel, Input, ColorInput, Textarea, Select
+Button, Card, CardHeader, CardTitle, Badge, TabPanel, Modal, Input, ColorInput, Textarea, Select
 IconPlus, IconX, IconTrash, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
 IconArrowsVertical, IconDots, IconUpload, IconLock, IconLockOpen, IconBringToFront,
 IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle
 
 // Generation
-generatePdf(template, data, bindings, { fontBytes? }) => Promise<Uint8Array>
+generatePdf(template, data, bindings, { fontBytes?, maxPages? }) => Promise<Uint8Array>
 downloadPdf(bytes, filename?)
 normalizeFontBytes(bytes)                  // detects WOFF/WOFF2 and decompresses (a safety net — see the note above)
 
@@ -743,8 +980,32 @@ mmToPx, pxToMm, mmToPt
 PAGE_SIZE_PRESETS                          // A4/A3/A5/Letter/Legal, always portrait
 orientationOf(page), applyOrientation(page, orientation), matchPreset(page)
 
+// Template format version (also in json-pdf-designer/server)
+migrateTemplate(input) => Template          // normalizes a template from a DB/file/API
+CURRENT_TEMPLATE_VERSION                    // the format version this build writes
+
+// Generation errors, as classes (also in json-pdf-designer/server) — see "Failure modes"
+PageLimitError                              // document over maxPages
+UnsupportedGlyphError                       // character with no glyph in the font
+ExpressionError                             // base of the two below
+ExpressionSyntaxError, ExpressionDepthError
+DEFAULT_MAX_PAGES                           // 5000
+
+// Expression validation (also in json-pdf-designer/server) — see "Conditional visibility"
+expressionError(source) => string | null    // one expression: the syntax error, or null
+templateExpressionErrors(template)          // every bad {...} of a template, with its message
+expressionErrors(schema, binding)           // every expression a field carries
+suspiciousOperator(source)                  // one-sided operator: valid syntax, almost certainly a typo
+templateSuspiciousOperators(template)       // the same, token by token
+suggestAt(text, caret), applySuggestion(text, caret, s), insertAtCaret(text, caret, insert), wordAtCaret(text, caret), ALL_SUGGESTIONS
+tokenAtCaret(template, caret), braceError(template, t?)     // the {...} the caret is in; unbalanced brace
+fieldWarning(schema, binding, t?)           // the editor's alert message for a field
+dictFor(locale)                             // a translation dictionary as a value, for the `t` above
+filterIncomplete(binding)
+type SchemaExpressionError
+
 // Types
-Template, TemplatePage, Schema, TextSchema, TableSchema, TableColumnStyle, ImageSchema,
+Template, TemplatePage, TemplateVersion, Schema, TextSchema, TableSchema, TableColumnStyle, ImageSchema,
 SectionSchema, ChartSchema, KpiSchema, KpiIcon, BaseSchema, PageSize, Binding,
 TableColumn, DataSourceOption, SectionColumnDragPayload, Zone, Bands,
 GeneratePdfOptions, Orientation
@@ -794,18 +1055,27 @@ src/
     context.tsx, hooks.ts -> I18nProvider, useT, useLocale
     withInlineCode.tsx -> renders a translated string's `` `code` `` spans as real <code>
   bindings/
-    bindings.ts        -> resolves bindings + functions (SUM/COUNT/CONCAT/DATE/CURRENCY/NUMBER...) + arithmetic
+    bindings.ts        -> resolves bindings (scalar/array/keyvalue/template/section/chart/kpi)
                           + resolveChartItems/aggregateChartItems ("chart" binding)
     builders.ts        -> pure per-schema-type binding builders used by BindingEditor.tsx, testable without React
     columnParsing.ts   -> parses the table's free-text "col, Label={FUNCTION(...)}" input
     splitDelimited.ts  -> splits on a delimiter while respecting quotes/parens (used by the two above)
+  expressions/         -> the {token}/{FUNCTION(...)} engine: parse -> AST -> evaluate
+    tokenize.ts        -> chars -> tokens (an operator only counts when surrounded by whitespace)
+    parse.ts           -> tokens -> AST, with operator precedence and real grouping
+    evaluate.ts        -> AST + data -> value (no eval/new Function)
+    functions.ts       -> the SUM/COUNT/AVG/CONCAT/DATE/CURRENCY/NUMBER/IF registry
+    dataAccess.ts      -> path lookup + value comparison, shared with the binding filters
+    formatters.ts      -> DATE/CURRENCY formatting (UTC-safe, pt-BR numbers)
   pdf/
-    generate.ts        -> thin orchestrator: derives body layout, dry-runs {pageCount}, then draws —
-                          delegating the math to layout/ and the drawing to render/ below
-    layout/
-      layoutTypes.ts   -> BodyItem/FlowBounds/PreparedPageDef shapes
+    generate.ts        -> thin orchestrator: asks layout/ where everything goes, then draws it —
+                          no pagination decision of its own
+    layout/            -> pure math, no pdf-lib
+      layoutDocument.ts-> THE pagination pass: Template+data -> LayoutDocument (pages of Placements)
+      layoutTypes.ts   -> BodyItem/FlowBounds shapes
       bodyLayout.ts    -> buildBodyItems (groups schemas into BodyItems by Y) + boundsOf/gapAfter
-      pageLayout.ts    -> normalizePageDefs (single vs. multi-page) + countBodyPages (the dry-run pass)
+      pageLayout.ts    -> normalizePageDefs (single vs. multi-page)
+      sectionLayout.ts -> section measurement (how many repeats, how tall each one is)
     render/
       index.ts         -> drawFieldOfType, the per-type dispatcher (text/image/table/chart/kpi)
       renderTable.ts   -> draws a table in pdf-lib across page slices, header/value/footer with color/size
@@ -815,7 +1085,9 @@ src/
       renderText.ts, renderImage.ts -> the two simplest field types (renderImage.ts also owns the
                           image size/count safety limits)
     pagination.ts      -> splits body content across pages against the header/footer/margin bands
+    tableMetrics.ts    -> table row height + rows-per-slice (no pdf-lib, shared with layout/)
     svgShapes.ts       -> roundedRectPath (uniform or per-corner radius) shared by render/renderTable.ts/render/renderKpi.ts
+    textSafety.ts      -> sanitiza caractere de controle + erro de glifo com nome do campo (ver "Modos de falha")
     textLayout.ts      -> alignX/alignY offset math + truncateToWidth, shared by render/renderTable.ts/render/renderText.ts
     resolvers.ts, color.ts -> small shared helpers for layout/ and render/
     fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1; v2 needs the

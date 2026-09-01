@@ -302,7 +302,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
                 >
                   <option value="">{t.bindingEditor.insertCalculatedColumn}</option>
                   {CUSTOM_FIELD_FUNCTIONS.map((fn) => (
-                    <option key={fn.name} value={fn.snippet} title={t.fieldFunctions[fn.hintKey]}>
+                    <option key={fn.name} value={t.fieldFunctionSnippets[fn.hintKey]} title={t.fieldFunctions[fn.hintKey]}>
                       {fn.name} — {t.fieldFunctions[fn.hintKey]}
                     </option>
                   ))}
@@ -378,7 +378,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
           >
             <option value="">{t.bindingEditor.insertFunction}</option>
             {CUSTOM_FIELD_FUNCTIONS.map((fn) => (
-              <option key={fn.name} value={fn.snippet} title={t.fieldFunctions[fn.hintKey]}>
+              <option key={fn.name} value={t.fieldFunctionSnippets[fn.hintKey]} title={t.fieldFunctions[fn.hintKey]}>
                 {fn.name} — {t.fieldFunctions[fn.hintKey]}
               </option>
             ))}

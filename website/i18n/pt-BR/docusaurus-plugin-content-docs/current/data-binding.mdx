@@ -41,8 +41,37 @@ qualquer lugar):
 | `IF(condição, "então", "senão")` | Condicional — ver abaixo. |
 
 **Aritmética simples** também funciona: `{qtd * preco}`,
-`{subtotal - desconto}` — avaliada da esquerda pra direita, sem
-precedência de operador.
+`{subtotal - desconto}`.
+
+
+**Como uma expressão é lida.** `*` e `/` ligam mais forte que `+` e `-`, e
+parênteses agrupam:
+
+```
+{qtd * preco + taxa}     -> qtd * preco, depois + taxa
+{(base + taxa) * qtd}    -> base + taxa primeiro, depois * qtd
+```
+
+Uma regra é incomum e vale conhecer, porque é ela que permite uma chave JSON
+com hífen ou com espaço: **um operador só é operador quando tem espaço em
+branco dos dois lados.**
+
+```
+{my-key}    -> o path "my-key"         (não "my menos key")
+{my key}    -> o path "my key"
+{a - b}     -> subtração
+{a -b}      -> nenhum dos dois: o path "a -b", que normalmente dá vazio
+```
+
+O mesmo vale pros operadores de comparação dentro do `IF`: `IF(a == 2, …)` é
+comparação, `IF(a==2, …)` é um path chamado `a==2`.
+
+Expressão que não consegue produzir número resolve pra **vazio** em vez de
+falhar: `{"x" + 1}`, `{a / 0}` e um path que não existe se comportam assim (um
+path ausente conta como `0` dentro de uma soma, então `{naoexiste + a}` dá o
+valor de `a`). Erro de sintaxe — aspas não fechadas, parêntese aberto —
+estoura com a posição, pra um template mal-formado não renderizar em branco
+sem ninguém perceber.
 
 Uma função pode receber outra função ou uma expressão aritmética como
 argumento (`{CURRENCY(SUM(rows.total), "R$")}`), incluindo duas
@@ -77,6 +106,44 @@ navegador/servidor que gera o PDF. Uma data só (`"2026-07-01"`, sem
 hora) sai igual ao que foi escrito, não importa onde rodar; um datetime
 com fuso explícito (`"...T23:30:00-03:00"`) é convertido pro instante
 UTC equivalente.
+
+## Escrever uma expressão: o editor `ƒx`
+
+O `<Designer>` tem um botão `ƒx` ao lado de todo campo que aceita expressão:
+fórmula de coluna de tabela, cada célula da linha de totais,
+título/valor/legenda do KPI e conteúdo de um campo de texto. Ele abre uma
+janela com
+
+- **os campos a que o schema está vinculado, à esquerda**, em dois grupos.
+  Campos **de cada item** do array vinculado (`total`, sem prefixo) são os que
+  resolvem dentro de uma linha de tabela ou de uma seção repetida; os
+  **caminhos completos** (`faturas.total`) são o que uma agregação precisa. Um
+  `SUM(total)` com o campo do primeiro grupo não acharia nada — os dois escopos
+  são a razão de a lista ser dividida.
+- **um editor multilinha com autocomplete**, oferecendo as funções acima mais
+  `AND`/`OR`/`NOT`, com a dica de cada uma. Ele escreve os espaços que um
+  operador precisa nos dois lados, então não consegue produzir operador de um
+  lado só. As sugestões aparecem só **dentro** das chaves — fora delas é texto
+  literal, e uma lista de funções ali só estorva.
+- **validação ao vivo** — as mesmas mensagens do aviso de campo do editor.
+  Erro de sintaxe bloqueia o salvar; operador suspeito só avisa.
+
+O editor guarda o **valor do campo em si**, com as chaves, aberto já com o que
+estava lá. Não há um segundo campo pra compor: a edição é no lugar, e prefixo
+literal fica onde está (`FAT-{fatura}`). Clicar num campo da esquerda insere o
+caminho nu dentro das chaves, ou `{caminho}` fora delas.
+
+Ele também acusa **chave desbalanceada**, coisa que nada mais faz: o
+resolvedor de template casa `/\{([^{}]+)\}/g`, então uma `{` sem par
+simplesmente não casa e aquele trecho sai como texto literal no PDF —
+`{CURRENCY(total` impresso na cara. Não é erro de sintaxe de expressão (o
+parser nunca vê esse trecho) nem falha de geração; era só um campo saindo
+errado em silêncio.
+
+As peças são exportadas pra quem monta UI própria: `suggestAt`,
+`applySuggestion`, `insertAtCaret`, `wordAtCaret`, `ALL_SUGGESTIONS`, mais
+`tokenAtCaret` e `braceError` pro lado das chaves (também no
+`json-pdf-designer/server` — são puras).
 
 ## Funções públicas pra um vínculo de UI próprio
 

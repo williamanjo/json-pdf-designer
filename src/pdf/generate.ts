@@ -5,19 +5,22 @@ import type { PDFFont, PDFImage, PDFPage } from "pdf-lib";
 import * as fontkit from "fontkit";
 import type { Binding, Template } from "../types";
 import { buildInputs } from "../bindings/bindings";
-import { drawSectionInstance, resolveSectionItems, sectionInstanceHeight, type SectionDrawContext } from "./render/renderSection";
+import { drawSectionInstance, type SectionDrawContext } from "./render/renderSection";
 import { drawTableSlice } from "./render/renderTable";
 import { assertImageWithinSizeLimit } from "./render/renderImage";
 import { drawFieldOfType, type DrawFieldContext } from "./render";
-import { resolveFooterRow, resolveTextValue, resolveTopLevelTableRows } from "./resolvers";
-import { mmToPt, ptToMm } from "../units";
+import { resolveTextValue } from "./resolvers";
+import { mmToPt } from "../units";
 import { normalizeFontBytes } from "./fontUtils";
-import { computeTableSlice, needsNewPageForItem } from "./pagination";
-import { boundsOf, deriveBodyLayout, gapAfter } from "./layout/bodyLayout";
-import { countBodyPages, normalizePageDefs } from "./layout/pageLayout";
-import type { PreparedPageDef } from "./layout/layoutTypes";
+import { layoutDocument, type LayoutPage, type Placement } from "./layout/layoutDocument";
+import { migrateTemplate } from "../template/migrate";
+import { evaluateConditionLenient } from "../expressions/resolve";
 
 export type GeneratePdfOptions = {
+  // Teto de páginas físicas do documento — default DEFAULT_MAX_PAGES (5000).
+  // Estourá-lo lança PageLimitError em vez de devolver um PDF truncado. Suba
+  // se você gera relatório gigante de propósito e tem memória pra isso.
+  maxPages?: number;
   // Bytes de uma fonte TTF/OTF/WOFF/WOFF2 (ex: baixados do @fontsource/inter)
   // pra acentuação/unicode completos. Sem isso, cai no Helvetica padrão do
   // pdf-lib (WinAnsi — cobre a maioria dos acentos do português, mas não tudo).
@@ -34,172 +37,150 @@ function pageData(data: unknown, pageNumber: number, pageCount: number): unknown
   return { ...base, pageNumber, pageCount };
 }
 
+function assertFinitePageSize(pageDef: { id: string; page: { width: number; height: number } }): void {
+  const { width, height } = pageDef.page;
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new Error(
+      `Página "${pageDef.id}": tamanho inválido (width=${width}, height=${height}) — esperado dois números finitos maiores que zero, em mm.`
+    );
+  }
+}
+
+// Visibilidade condicional de um campo de faixa repetida. O corpo é filtrado
+// pelo layout; as faixas só aqui, porque a condição delas pode depender do
+// número da página.
+function isRepeatingVisible(schema: { visibleWhen?: string }, pageScopedData: unknown): boolean {
+  const condition = schema.visibleWhen?.trim();
+  if (!condition) return true;
+  return evaluateConditionLenient(condition, pageScopedData, true);
+}
+
 // Fundo (letterhead) — a mesma imagem embutida uma vez, desenhada em toda
 // página gerada, sempre por baixo do resto.
 function drawBackground(page: PDFPage, background: PDFImage | null, pageWidthPt: number, pageHeightPt: number) {
   if (background) page.drawImage(background, { x: 0, y: 0, width: pageWidthPt, height: pageHeightPt });
 }
 
-// Desenha UMA página-design (todas as suas páginas físicas) dentro do
-// PDFDocument/font compartilhados por todo o Template — `startPageNumber`/
-// `totalPages` já vêm prontos (somados entre TODAS as páginas do template,
-// ver generatePdf) pra numeração ficar contínua entre uma página-design e a
-// próxima. Retorna o último `pageNumber` usado, pra a próxima página-design
-// continuar dali.
-async function renderPageDef(
+// Desenha UMA página física a partir do que o layout já decidiu. Nenhuma
+// decisão de paginação acontece aqui — `layoutDocument` (layout/layoutDocument.ts)
+// já resolveu onde cada coisa cai e com que valor; este laço só põe no papel.
+//
+// `pageNumber`/`pageCount` chegam prontos porque o layout terminou antes do
+// primeiro traço: é o que faz {pageNumber}/{pageCount} sair certo já na página
+// 1 sem precisar de uma segunda travessia só pra contar.
+async function renderLayoutPage(
   doc: PDFDocument,
   font: PDFFont,
-  prepared: PreparedPageDef,
+  layoutPage: LayoutPage,
   data: unknown,
   bindings: Binding[],
   inputs: Record<string, string>,
   imageCache: Map<string, PDFImage>,
-  startPageNumber: number,
-  totalPages: number
-): Promise<number> {
-  const { pageDef, repeatingSchemas, bodyItems, headerHeight, bodyBottomMm } = prepared;
+  backgroundCache: Map<string, PDFImage>,
+  pageNumber: number,
+  pageCount: number
+): Promise<void> {
+  const { pageDef, repeatingSchemas, placements } = layoutPage;
+  // Tamanho de página é estrutural: não há default sensato pra adivinhar, e o
+  // pdf-lib devolveria um TypeError opaco ("`width` must be of type `number`,
+  // but was actually of type `NaN`") sem dizer de qual página. Um NaN aqui vem
+  // de template montado por código (`width: Number(input)`) — JSON não
+  // representa NaN.
+  assertFinitePageSize(pageDef);
   const pageWidthPt = mmToPt(pageDef.page.width);
   const pageHeightPt = mmToPt(pageDef.page.height);
-  if (pageDef.backgroundImage) assertImageWithinSizeLimit(pageDef.backgroundImage, "Imagem de fundo da página");
-  const background = pageDef.backgroundImage ? await doc.embedPng(pageDef.backgroundImage) : null;
-  const fieldCtx: DrawFieldContext = { doc, font, pageHeightPt, imageCache, bindings, data, inputs };
 
+  // Uma imagem de fundo por página-DESIGN, embutida uma vez e reusada em todas
+  // as páginas físicas dela (o cache é por data URI, então duas páginas-design
+  // com o mesmo fundo também compartilham).
+  let background: PDFImage | null = null;
+  if (pageDef.backgroundImage) {
+    assertImageWithinSizeLimit(pageDef.backgroundImage, "Imagem de fundo da página");
+    const cached = backgroundCache.get(pageDef.backgroundImage);
+    if (cached) {
+      background = cached;
+    } else {
+      try {
+        background = await doc.embedPng(pageDef.backgroundImage);
+      } catch {
+        // O pdf-lib/pako lança uma STRING crua aqui ("The input is not a PNG
+        // file!"), não um Error — então `catch (e) { e.message }` de quem chama
+        // dava `undefined`. Mesmo tratamento que drawImageField já dava ao
+        // campo de imagem.
+        throw new Error("Imagem de fundo da página: não deu pra ler esse PNG — arquivo corrompido ou não é PNG.");
+      }
+      backgroundCache.set(pageDef.backgroundImage, background);
+    }
+  }
+
+  const page = doc.addPage([pageWidthPt, pageHeightPt]);
+  drawBackground(page, background, pageWidthPt, pageHeightPt);
+
+  const fieldCtx: DrawFieldContext = { doc, font, pageHeightPt, imageCache, bindings, data, inputs };
   const sectionCtx: SectionDrawContext = {
     template: pageDef,
     bindings,
     font,
     pageHeightPt,
-    drawField: (page, schema, value) => drawFieldOfType(fieldCtx, page, schema, value),
+    drawField: (target, schema, value) => drawFieldOfType(fieldCtx, target, schema, value),
   };
 
-  async function drawRepeating(page: PDFPage, pageNumber: number, pageCount: number) {
-    for (const schema of repeatingSchemas) {
-      if (schema.type !== "text") {
-        await drawFieldOfType(fieldCtx, page, schema, inputs[schema.name]);
-        continue;
-      }
-      const binding = bindings.find((b) => b.schemaName === schema.name);
-      const text = resolveTextValue(schema.content, binding, pageData(data, pageNumber, pageCount));
-      await drawFieldOfType(fieldCtx, page, schema, text);
+  // Faixas repetidas (cabeçalho/rodapé/margem) — resolvidas AQUI, e não no
+  // layout, porque {pageNumber}/{pageCount} só existem depois que o layout
+  // terminou. Nenhum campo do corpo depende desses tokens, então o corpo já
+  // chega com valor pronto.
+  for (const schema of repeatingSchemas) {
+    // Faixas repetidas também respeitam visibleWhen. Resolvido aqui, e não no
+    // layout, porque a condição pode usar {pageNumber}/{pageCount} — ex:
+    // esconder um aviso na última página com `pageNumber != pageCount`.
+    if (!isRepeatingVisible(schema, pageData(data, pageNumber, pageCount))) continue;
+    if (schema.type !== "text") {
+      await drawFieldOfType(fieldCtx, page, schema, inputs[schema.name]);
+      continue;
     }
+    const binding = bindings.find((b) => b.schemaName === schema.name);
+    const text = resolveTextValue(schema.content, binding, pageData(data, pageNumber, pageCount));
+    await drawFieldOfType(fieldCtx, page, schema, text);
   }
 
-  let pageNumber = startPageNumber;
-  let lastPage = doc.addPage([pageWidthPt, pageHeightPt]);
-  drawBackground(lastPage, background, pageWidthPt, pageHeightPt);
-  await drawRepeating(lastPage, pageNumber, totalPages);
+  for (const placement of placements) {
+    await drawPlacement(placement, page, font, pageHeightPt, fieldCtx, sectionCtx);
+  }
+}
 
-  async function newPage() {
-    pageNumber++;
-    lastPage = doc.addPage([pageWidthPt, pageHeightPt]);
-    drawBackground(lastPage, background, pageWidthPt, pageHeightPt);
-    await drawRepeating(lastPage, pageNumber, totalPages);
+async function drawPlacement(
+  placement: Placement,
+  page: PDFPage,
+  font: PDFFont,
+  pageHeightPt: number,
+  fieldCtx: DrawFieldContext,
+  sectionCtx: SectionDrawContext
+): Promise<void> {
+  if (placement.kind === "field") {
+    // Só o Y vem do fluxo; o X fica exatamente onde foi desenhado no editor —
+    // é isso que preserva uma grade de campos lado a lado em vez de cascatear
+    // um embaixo do outro.
+    await drawFieldOfType(fieldCtx, page, { ...placement.schema, y: placement.yMm }, placement.value);
+    return;
   }
 
-  if (bodyItems.length > 0) {
-    let cursorTopMm = boundsOf(bodyItems[0]).y;
-    let prev: { y: number; height: number } | undefined;
-
-    for (const item of bodyItems) {
-      const bounds = boundsOf(item);
-      if (prev) cursorTopMm += gapAfter(prev, bounds);
-      prev = bounds;
-
-      // Nem o começo deste item cabe onde o anterior parou — começa numa
-      // página nova.
-      if (cursorTopMm >= bodyBottomMm) {
-        await newPage();
-        cursorTopMm = headerHeight;
-      }
-
-      if (item.kind === "row") {
-        // Uma linha não pagina sozinha — se nem a própria altura cabe no
-        // que resta da página (e não é o topo dela ainda), joga a linha
-        // INTEIRA (todo mundo que compartilha essa mesma linha) pra
-        // próxima em vez de cortar.
-        const availableMm = bodyBottomMm - cursorTopMm;
-        if (needsNewPageForItem(item.height, availableMm, cursorTopMm, headerHeight)) {
-          await newPage();
-          cursorTopMm = headerHeight;
-        }
-        // Todo schema da linha recebe o MESMO Y (o cursor) — só o Y muda,
-        // o X de cada um fica exatamente onde foi desenhado no editor, daí
-        // uma linha preservar o layout lado a lado (grade de KPIs, por
-        // exemplo) em vez de cascatear um embaixo do outro.
-        for (const schema of item.schemas) {
-          const shifted = { ...schema, y: cursorTopMm };
-          const value =
-            schema.type === "text"
-              ? resolveTextValue(schema.content, bindings.find((b) => b.schemaName === schema.name), data)
-              : inputs[schema.name];
-          await drawFieldOfType(fieldCtx, lastPage, shifted, value);
-        }
-        cursorTopMm += item.height;
-        continue;
-      }
-
-      if (item.kind === "table") {
-        const tableSchema = item.schema;
-        const repeatHeader = tableSchema.repeatHeader !== false;
-        const hasFooter = Boolean(tableSchema.footer && tableSchema.footer.length > 0);
-        const footerRow = hasFooter ? resolveFooterRow(tableSchema, data) : undefined;
-        const xPt = mmToPt(tableSchema.x);
-        const widthPt = mmToPt(tableSchema.width);
-        let remaining = resolveTopLevelTableRows(tableSchema, bindings, data, inputs);
-        let isFirstSlice = true;
-
-        while (true) {
-          const includeHead = isFirstSlice || repeatHeader;
-          const availableMm = bodyBottomMm - cursorTopMm;
-          const decision = computeTableSlice(remaining.length, availableMm, includeHead, hasFooter);
-          const slice = remaining.slice(0, decision.rowsToTake);
-          const topYPt = pageHeightPt - mmToPt(cursorTopMm);
-          const bottomYPt = drawTableSlice(
-            lastPage,
-            font,
-            tableSchema,
-            slice,
-            xPt,
-            topYPt,
-            widthPt,
-            includeHead,
-            decision.isLastSlice ? footerRow : undefined,
-            decision.isLastSlice
-          );
-          remaining = remaining.slice(slice.length);
-          isFirstSlice = false;
-
-          if (remaining.length === 0 || decision.capacity <= 0) {
-            cursorTopMm = pageDef.page.height - ptToMm(bottomYPt);
-            break;
-          }
-
-          await newPage();
-          cursorTopMm = headerHeight;
-        }
-      } else {
-        const sectionSchema = item.schema;
-        const sectionItems = resolveSectionItems(sectionSchema, bindings, data);
-        let index = 0;
-
-        for (let guard = 0; guard < 20000 && index < sectionItems.length; guard++) {
-          const instanceHeight = sectionInstanceHeight(pageDef, sectionSchema, sectionItems[index], bindings);
-          const availableMm = bodyBottomMm - cursorTopMm;
-          if (needsNewPageForItem(instanceHeight, availableMm, cursorTopMm, headerHeight)) {
-            await newPage();
-            cursorTopMm = headerHeight;
-            continue;
-          }
-
-          await drawSectionInstance(sectionCtx, lastPage, sectionSchema, sectionItems[index], index + 1, cursorTopMm);
-          cursorTopMm += instanceHeight;
-          index++;
-        }
-      }
-    }
+  if (placement.kind === "tableSlice") {
+    drawTableSlice(
+      page,
+      font,
+      placement.schema,
+      placement.rows,
+      mmToPt(placement.schema.x),
+      pageHeightPt - mmToPt(placement.yMm),
+      mmToPt(placement.schema.width),
+      placement.includeHead,
+      placement.footer,
+      placement.isLastSlice
+    );
+    return;
   }
 
-  return pageNumber;
+  await drawSectionInstance(sectionCtx, page, placement.schema, placement.item, placement.index + 1, placement.yMm);
 }
 
 // Gera o PDF final: resolve os vínculos contra o JSON real (buildInputs, já
@@ -226,11 +207,15 @@ async function renderPageDef(
 // Template sem `pages` (todo template de hoje) vira um array de 1, passando
 // pelo mesmíssimo caminho.
 export async function generatePdf(
-  template: Template,
+  rawTemplate: Template,
   data: unknown,
   bindings: Binding[],
   options: GeneratePdfOptions = {}
 ): Promise<Uint8Array> {
+  // Ponto único: todo template que gera PDF passa por aqui, venha de banco,
+  // arquivo ou do <Designer> em memória. Um template já na versão corrente
+  // atravessa sem custo (nenhuma migração é aplicada).
+  const template = migrateTemplate(rawTemplate);
   const doc = await PDFDocument.create();
   let font: PDFFont;
   if (options.fontBytes) {
@@ -251,17 +236,14 @@ export async function generatePdf(
   const inputs = buildInputs(data, bindings);
   const imageCache = new Map<string, PDFImage>();
 
-  const pageDefs = normalizePageDefs(template);
-  const prepared: PreparedPageDef[] = pageDefs.map((pageDef) => {
-    const { headerHeight, bodyBottomMm, repeatingSchemas, bodyItems } = deriveBodyLayout(pageDef);
-    const pageCount = countBodyPages(pageDef, bodyItems, bodyBottomMm, headerHeight, bindings, data, inputs);
-    return { pageDef, repeatingSchemas, bodyItems, headerHeight, bodyBottomMm, pageCount };
-  });
-  const totalPages = prepared.reduce((sum, p) => sum + p.pageCount, 0);
+  // Uma travessia só decide TODA a paginação, de todas as páginas-design.
+  // `pages.length` é a contagem de páginas — não uma estimativa que precise
+  // concordar com o desenho depois.
+  const layout = layoutDocument(template, data, bindings, inputs, { maxPages: options.maxPages });
+  const backgroundCache = new Map<string, PDFImage>();
 
-  let pageNumber = 0;
-  for (const p of prepared) {
-    pageNumber = await renderPageDef(doc, font, p, data, bindings, inputs, imageCache, pageNumber + 1, totalPages);
+  for (const [index, layoutPage] of layout.pages.entries()) {
+    await renderLayoutPage(doc, font, layoutPage, data, bindings, inputs, imageCache, backgroundCache, index + 1, layout.pages.length);
   }
 
   return doc.save();

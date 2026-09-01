@@ -1,13 +1,15 @@
-import { tableRowsPerSlice, TABLE_ROW_HEIGHT_MM } from "./render/renderTable";
+import { tableRowsPerSlice, TABLE_ROW_HEIGHT_MM } from "./tableMetrics";
 
-// Decisões puras de paginação (mm, sem pdf-lib) — extraídas de generate.ts,
-// que antes calculava a mesma conta duas vezes: uma em countBodyPages (dry-
-// run, só pra saber {pageCount} antes de desenhar) e outra no loop de
-// desenho de verdade. As DUAS passagens continuam existindo (uma precisa
-// terminar antes da outra começar, pra {pageCount} sair certo já na página
-// 1), mas agora chamam as MESMAS funções abaixo em vez de reimplementar o
-// algoritmo cada uma à sua maneira — evita as duas divergirem depois de uma
-// mudança feita só numa das cópias.
+// Decisões puras de paginação (mm, sem pdf-lib) — as perguntas atômicas
+// ("cabe?", "quantas linhas cabem?") que o layout faz enquanto percorre o
+// corpo.
+//
+// Elas nasceram extraídas de generate.ts, quando a paginação ainda era
+// calculada DUAS vezes: um dry-run (countBodyPages) só pra saber {pageCount}
+// antes de desenhar, e o laço de desenho de verdade. Compartilhar estas
+// funções era o que impedia as duas cópias de divergirem. Hoje existe uma
+// travessia só (layout/layoutDocument.ts), então a divergência deixou de ser
+// possível — mas as decisões continuam aqui, puras e testadas à parte.
 
 // Campo/seção não pagina sozinho: se nem a própria altura cabe no que
 // resta da página (e a página não tá "vazia" ainda, senão nunca ia caber
@@ -31,9 +33,7 @@ export type TableSliceDecision = {
   heightMm: number;
 };
 
-// Quanto de uma tabela cabe na fatia atual, dado o espaço disponível — a
-// mesma pergunta é feita duas vezes por tabela que pagina: uma pra CONTAR
-// (countBodyPages, sem desenhar nada) e outra pra desenhar de verdade.
+// Quanto de uma tabela cabe na fatia atual, dado o espaço disponível.
 export function computeTableSlice(remainingRows: number, availableMm: number, includeHead: boolean, hasFooter: boolean): TableSliceDecision {
   const baseCapacity = Math.max(tableRowsPerSlice(availableMm, includeHead), 0);
   // Footer nunca repete por página — só cabe na conta da fatia que vai

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { parse } from "../../src/expressions/parse";
+import { expressionError } from "../../src/expressions/resolve";
 import {
   aggregateChartItems,
   buildInputs,
@@ -89,9 +91,21 @@ describe("resolveToken — aritmética e aninhamento", () => {
     expect(resolveToken('CURRENCY(SUM(rows.total), "R$", 2)', data)).toBe("R$ 150,00");
   });
 
-  it("profundidade de aninhamento além do limite lança erro claro, em vez de estourar a call stack", () => {
+  it("profundidade além do limite dá erro claro no parser, em vez de estourar a call stack", () => {
+    // A garantia original: aninhamento absurdo NÃO derruba o V8 por stack
+    // overflow, vira uma condição limitada e legível. Ela vive na API estrita
+    // (`parse`, e `expressionError` em cima dela).
     const nested = "CURRENCY(".repeat(50) + "1" + ")".repeat(50);
-    expect(() => resolveToken(nested, {})).toThrow(/nesting too deep/i);
+    expect(() => parse(nested)).toThrow(/nesting too deep/i);
+    expect(expressionError(nested)).toMatch(/nesting too deep/i);
+  });
+
+  it("...e na GERAÇÃO resolve pra vazio, igual erro de sintaxe", () => {
+    // Mesma troca de sempre: um campo mal escrito deixa AQUELE campo em
+    // branco, não derruba o PDF inteiro. O aviso do campo no editor é onde o
+    // problema aparece (ver fieldWarnings.ts).
+    const nested = "CURRENCY(".repeat(50) + "1" + ")".repeat(50);
+    expect(resolveToken(nested, {})).toBe("");
   });
 
   it("aninhamento razoável (bem abaixo do limite) continua resolvendo normalmente", () => {

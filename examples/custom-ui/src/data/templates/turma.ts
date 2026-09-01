@@ -7,6 +7,7 @@ import type { ExampleDefinition } from "./types";
 // mostra que seção funciona igual de bem só com texto. Usa {Line} (número
 // da repetição) e AVG/COUNT direto no fechamento.
 const template: Template = {
+  version: 1,
   page: { width: 210, height: 297 },
   schemas: [
     {

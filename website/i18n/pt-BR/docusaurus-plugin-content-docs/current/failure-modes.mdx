@@ -1,0 +1,48 @@
+---
+title: Modos de Falha
+description: O que degrada e o que falha ao gerar um PDF.
+---
+
+# O que pode e o que não pode derrubar uma geração
+
+O `generatePdf` traça uma linha: problema no **dado**, ou em conteúdo mal
+formado, degrada — o campo renderiza vazio, um caractere é trocado, o PDF sai.
+Problema **estrutural**, ou em que conteúdo sumiria em silêncio de um documento
+que alguém assina, falha alto. Um relatório de 200 páginas não pode morrer
+porque uma linha tinha um `\n`.
+
+**Degrada (o PDF sai):**
+
+| Situação | O que acontece |
+|---|---|
+| Caractere de controle no dado (`\n`, `\t`, NUL, C0/C1) | Vira espaço. Fonte nenhuma tem glifo pra esses, então é a única renderização possível |
+| Expressão `{...}` inválida | Aquele token renderiza vazio; o editor marca o campo |
+| Path que não resolve | Vazio |
+| `data` null, array, string ou número | Ignorado; campos renderizam vazio |
+| Array vinculado que é número, itens não-objeto, célula com valor objeto | Ignorado ou serializado |
+| Cor inválida (`"banana"`, `"#zzz"`) | Cai no default |
+| `fontSize` 0, negativo ou `NaN` | 0/negativo valem; `NaN` cai em 10 |
+| Largura de campo 0 ou negativa | Vale (nada é desenhado) |
+| Vínculo de imagem que resolve pra algo que não é data URI | Campo fica vazio |
+| Repetição de seção mais alta que uma página inteira | É colocada mesmo assim, transbordando aquela página; a repetição seguinte começa numa nova |
+
+**Falha alto (e por quê):**
+
+| Situação | Erro | Por que não degradar |
+|---|---|---|
+| Caractere sem glifo na fonte **padrão** (emoji/CJK sem `fontBytes`) | `Campo "x": o caractere "🎉" (U+1F389) não existe na fonte usada …` | Ele *tem* glifo numa fonte completa — descartar removeria conteúdo em silêncio de um documento assinado. Passe `fontBytes`, ou tire do dado |
+| Tamanho de página inválido (`NaN`, 0, negativo) | `Página "x": tamanho inválido …` | Estrutural: não há default sensato pra adivinhar |
+| Imagem corrompida, num campo ou como fundo de página | `Campo "x": não deu pra ler essa imagem …` | Quem montou escolheu aquele arquivo; descartar em silêncio esconde o erro |
+| Imagem acima de 15MB, ou mais de 200 imagens distintas | `… maior que o limite de 15MB …` | Protege quem gera (um template pode vir de fonte não confiável) |
+| Documento acima de `maxPages` (default 5000) | `O documento passou de 5000 páginas ao paginar "x" …` | Relatório truncado que parece completo é pior que relatório nenhum. Filtre o dado, divida em vários PDFs, ou suba o `maxPages` |
+| Passada de paginação que não consome nada | `Paginação travada em "x" …` | Bug de aritmética do pacote — girar até um contador esgotar escondia isso |
+| `fontBytes` inválido | `Unknown font format` | Erro de quem chama, não do template nem do dado |
+| `Template.version` mais nova que este build | `Template na versão N, mas este build só entende até a M` | Formato mais novo pode trazer campos que este build ignoraria em silêncio |
+
+**Uma ressalva sobre o erro de glifo.** Ele só dispara com a fonte **padrão**
+(Helvetica/WinAnsi). Com uma fonte embutida via `fontBytes`, um caractere que a
+fonte não cobre é desenhado com o glifo `.notdef` dela — normalmente um branco
+ou um quadrado — **sem erro nenhum**. Isso é comportamento do fontkit, não uma
+escolha deste pacote, e significa que uma fonte customizada troca uma falha
+alta por um branco silencioso. Se glifo ausente não pode passar despercebido,
+confira o dado antes de gerar.
