@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "json-pdf-designer": "file:../..",
+    "pdfjs-dist": "^6.2.108",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-rnd": "^10.4.13"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

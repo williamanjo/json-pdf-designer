@@ -33,7 +33,8 @@ inglês por padrão também — embrulhe em `<I18nProvider locale="pt-BR">`
 você mesmo se precisar deles em português:
 
 ```tsx
-import { I18nProvider, PdfPreview } from "json-pdf-designer";
+import { I18nProvider } from "json-pdf-designer";
+import { PdfPreview } from "json-pdf-designer/preview";
 
 <I18nProvider locale="pt-BR">
   <PdfPreview bytes={pdfBytes} />

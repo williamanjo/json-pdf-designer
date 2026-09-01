@@ -50,7 +50,7 @@ src/
     resolvers.ts, color.ts -> small shared helpers for layout/ and render/
     fontUtils.ts       -> WOFF/WOFF2 -> real TTF/OTF (pure zlib for v1; v2 needs the
                           optional peer dep `wawoff2`, lazy-loaded, not installed by default)
-    pdfWorker.ts       -> shared pdf.js worker configuration (browser-only)
+    pdfWorker.ts       -> shared pdf.js worker configuration (browser-only, /preview only)
     backgroundImage.ts -> turns an upload (PDF or image) into a background PNG
   designer/
     Designer.tsx       -> React canvas orchestrator — selection, clipboard, tab bar, all Template/Binding[] mutations
@@ -77,4 +77,5 @@ examples/
   report-builder/      -> a full app (JSON data sources, field explorer) using the package's ready-made UI
   custom-ui/           -> the same idea, a 100% custom shell (hand-written CSS, no package component)
   headless-designer/   -> no <Designer> at all — a hand-built editor over json-pdf-designer/server + PdfPreview
+  no-preview/          -> generates + downloads with no preview and no pdfjs-dist installed
 ```

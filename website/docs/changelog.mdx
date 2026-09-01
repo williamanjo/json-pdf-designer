@@ -8,24 +8,85 @@ description: What changed release by release.
 All notable changes to this package are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Planned (not implemented yet)
+## 2.0.0 (2026-09-01)
 
-- **`pdfjs-dist` will move to a separate `json-pdf-designer/preview`
-  entry point** (same pattern as the existing `/server` entry) —
-  **breaking change** for anyone currently importing `PdfPreview`/
-  `PdfPreviewModal`/`configurePdfWorker` from the main
-  `"json-pdf-designer"` entry. Reason: `pdfjs-dist` is a heavy (~35MB
-  installed) dependency, and today it's pulled in for every consumer
-  the moment they import anything from the main entry (`PdfPreview.tsx`/
-  `pdfWorker.ts` are re-exported at the top of `index.ts`), even ones
-  who only use `<Designer>` and never render a PDF preview. Making it a
-  simple lazy `import()` inside those two files wasn't enough on its
-  own to fix this — since they're re-exported from the main entry's
-  top-level module graph, any bundler resolving `"json-pdf-designer"`
-  still needs `pdfjs-dist` resolvable at build time regardless. A
-  separate entry point sidesteps that: only code that imports from
-  `/preview` needs `pdfjs-dist` installed (as an optional peer
-  dependency, same treatment as `wawoff2`).
+Ships the `pdfjs-dist` split that had been sitting under "Planned" —
+plus the second half of it that entry wasn't accounting for: the PDF
+page background also went through pdf.js, straight from `<Designer>`, so
+the new entry point alone would not have freed the main entry. That
+feature is dropped here (page backgrounds are images only now), which
+leaves the preview as the single place pdf.js is used.
+
+### Breaking
+
+- **`pdfjs-dist` is no longer installed automatically** — it moved from a
+  required `dependency` to an **optional peer dependency**
+  (`peerDependenciesMeta["pdfjs-dist"].optional: true`), the same
+  treatment `wawoff2` got in 1.6.2. Only projects that render a PDF
+  preview need it; run `npm install pdfjs-dist` in your own project if you
+  do.
+  - Why: pdf.js is ~35MB installed, and as a `dependency` of the main
+    entry every consumer paid for it — including apps that only render
+    `<Designer>` and never preview anything.
+- **`react-rnd` is no longer installed automatically either** — same move,
+  and it is what actually makes the React-free backend install real. It was
+  a plain `dependency`, so it came down on every install, and because *its
+  own* `react`/`react-dom` peers are **not** optional, npm then installed
+  the whole React stack (`react`, `react-dom`, `react-draggable`,
+  `re-resizable`, `scheduler`, `prop-types`, …: ~8.7MB) even in a project
+  that only ever imports `json-pdf-designer/server`. The `optional: true`
+  this package already had on its own react peers was being defeated one
+  level down.
+  - If you use `<Designer>`, add it alongside react:
+    `npm install react react-dom react-rnd`. Only `PageCanvas.tsx` uses it
+    (drag/resize), and nothing reachable from `/server` does.
+  - A backend install now resolves `fontkit`, `pdf-lib` and `tiny-inflate`
+    plus their own trees, and nothing React.
+- **`PdfPreview`, `PdfPreviewModal`, and `configurePdfWorker` moved to a
+  new `json-pdf-designer/preview` entry point.** Update the import:
+
+  ```diff
+  - import { PdfPreviewModal, configurePdfWorker } from "json-pdf-designer";
+  + import { PdfPreviewModal, configurePdfWorker } from "json-pdf-designer/preview";
+  ```
+
+  Everything else — `<Designer>`, `generatePdf`, `downloadPdf`, the UI
+  components, the types — stays exactly where it was. A lazy `import()`
+  inside the old files would not have worked: re-exported from the main
+  entry's module graph, any bundler resolving `"json-pdf-designer"` still
+  had to resolve `pdfjs-dist` at build time.
+- **A page background can no longer be a PDF — images only.** The
+  background upload accepts PNG/JPEG, and the button reads "Background
+  image" instead of "Background PDF/image". Rasterizing an uploaded PDF's
+  first page was the *other* thing pdf.js did in this package, and
+  `src/pdf/backgroundImage.ts` imported it directly while `<Designer>`
+  imports *that* — so the entry split above would have left pdf.js in the
+  main entry's graph regardless. Dropping the feature is what actually
+  frees the main entry, and it leaves rendering the preview as the only
+  use of pdf.js in the whole package.
+  - Migration: if you use a letterhead that only exists as a PDF, export
+    its page to PNG once and upload that. Existing templates are
+    unaffected — `Template.backgroundImage` was always a PNG data URI, so
+    a background captured from a PDF before this release keeps working
+    exactly as before.
+  - `fileToBackgroundImage(file)` (internal) no longer branches on
+    `application/pdf`; `src/pdf/rasterizePdfPage.ts` is gone.
+
+### Added
+
+- **`examples/no-preview`** — a fourth example app: `<Designer>` +
+  `generatePdf` + `downloadPdf`, straight to download with no preview
+  screen, and **no `pdfjs-dist` in any dependency field**. It's the app
+  that proves the main entry works without the optional peer, and it
+  builds in CI, so a pdf.js import leaking back into the main entry fails
+  the Pages build.
+- **`test/entryBoundaries.test.ts`** — walks the source graph from
+  `src/index.ts`, `src/server.ts`, and `src/preview.ts` and fails if
+  `pdfjs-dist` is reachable from the first two, or if `react`/`react-dom`/
+  `react-rnd` is reachable from `/server`. Two control cases keep a broken
+  walker from making the others pass vacuously. The CI tarball check also
+  asserts `pdfjs-dist` is absent from `node_modules` after installing the
+  packed package.
 
 ## 1.6.4 (2026-08-31)
 

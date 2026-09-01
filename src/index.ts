@@ -70,9 +70,11 @@ export { PAGE_SIZE_PRESETS, orientationOf, applyOrientation, matchPreset, type O
 export { classifyZone, isRedZone, clampToZone, type Zone, type Bands } from "./zones";
 export { normalizeFontBytes } from "./pdf/fontUtils";
 export { default as Designer } from "./designer/Designer";
-export { PdfPreview } from "./components/PdfPreview";
-export { configurePdfWorker } from "./pdf/pdfWorker";
-export { default as PdfPreviewModal } from "./components/PdfPreviewModal";
+// PdfPreview/PdfPreviewModal/configurePdfWorker NÃO saem daqui — moram em
+// "json-pdf-designer/preview" (ver src/preview.ts), porque dependem do
+// pdfjs-dist, que é peer OPCIONAL. Re-exportar qualquer um deles aqui faria
+// todo consumidor desta entry precisar do pdf.js instalado outra vez, mesmo
+// quem só usa <Designer>.
 
 // Componentes de UI prontos (Tailwind, mesmo estilo usado pelo próprio
 // Designer/PropertyPanel) — pra quem não quer/consegue montar a própria UI

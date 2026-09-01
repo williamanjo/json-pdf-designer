@@ -25,10 +25,19 @@ não se aplica num servidor; escreva `bytes` num arquivo ou numa
 resposta HTTP em vez disso).
 
 A raiz do pacote (`.`) continua exportando o conjunto completo pra quem
-usa o editor e a geração juntos no mesmo código — `react`/`react-dom`
-continuam listados como peer dependencies lá, mas marcados como
-opcionais (`peerDependenciesMeta`), então um `npm install` só de
-backend não força a instalação deles de qualquer jeito.
+usa o editor e a geração juntos no mesmo código — `react`, `react-dom` e
+`react-rnd` continuam listados como peer dependencies lá, mas marcados como
+opcionais (`peerDependenciesMeta`), então um `npm install` só de backend
+não força a instalação deles de qualquer jeito.
+
+O `react-rnd` (a lib de arrastar/redimensionar do canvas) está nessa lista
+por um motivo não óbvio: como `dependency` normal ele era instalado sempre,
+e como os peers `react`/`react-dom` *dele* **não** são opcionais, o npm
+puxava o stack React inteiro — cerca de 8,7MB — até num projeto que só
+importa `/server`. Marcar os nossos próprios peers react como opcionais não
+bastava sozinho; o `react-rnd` também precisou virar opcional (virou, na
+2.0.0). Um install de backend hoje resolve `fontkit`, `pdf-lib` e
+`tiny-inflate` mais as árvores deles, e nada de React.
 
 ## Por que isso importa
 
@@ -83,5 +92,5 @@ applyOrientation, matchPreset, classifyZone, isRedZone, clampToZone
 
 Veja o <a href="/json-pdf-designer/playground/headless-designer/" target="_blank" rel="noopener noreferrer">exemplo headless-designer</a>
 no playground — ele monta um editor de template inteiro (minimalista)
-usando só esse subpath mais o `PdfPreview` da entrada principal, sem
-nenhum `<Designer>` à vista.
+usando só esse subpath mais o `PdfPreview` de
+`json-pdf-designer/preview`, sem nenhum `<Designer>` à vista.

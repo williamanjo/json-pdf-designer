@@ -51,7 +51,7 @@ src/
     fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1; v2 precisa
                           da dependência peer opcional `wawoff2`, carregada sob demanda,
                           não instalada por padrão)
-    pdfWorker.ts       -> configuração do worker do pdf.js (só navegador)
+    pdfWorker.ts       -> configuração do worker do pdf.js (só navegador, só no /preview)
     backgroundImage.ts -> converte upload (PDF ou imagem) num PNG de fundo
   designer/
     Designer.tsx       -> orquestrador do canvas React — seleção, clipboard, barra de abas, toda mutação de Template/Binding[]
@@ -78,4 +78,5 @@ examples/
   report-builder/      -> app completo (fontes JSON, explorador de campos) usando a UI pronta do pacote
   custom-ui/           -> mesma ideia, casca 100% própria (CSS na mão, sem nenhum componente do pacote)
   headless-designer/   -> sem <Designer> nenhum — editor montado à mão sobre json-pdf-designer/server + PdfPreview
+  no-preview/          -> gera + baixa sem preview e sem pdfjs-dist instalado
 ```

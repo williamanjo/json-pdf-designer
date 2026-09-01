@@ -109,9 +109,10 @@ orientation (portrait/landscape) in its "Page" tab —
 `applyOrientation`/`orientationOf`/`matchPreset`/`PAGE_SIZE_PRESETS`
 (all exported) do the same math for a custom selector.
 
-`Template.backgroundImage` puts an image (or the first page of an
-uploaded PDF, rasterized once) behind everything, in both the editor
-and the final PDF.
+`Template.backgroundImage` puts an image (a PNG data URI) behind
+everything, in both the editor and the final PDF. The `<Designer>` upload
+accepts PNG/JPEG; a letterhead that only exists as a PDF has to be
+exported to PNG first.
 
 ## Multi-page templates
 

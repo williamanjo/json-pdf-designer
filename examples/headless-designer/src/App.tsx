@@ -1,7 +1,9 @@
 import { useState } from "react";
 import type { Binding, ChartSchema, KpiSchema, Schema, TableColumn, TableSchema, Template, TextSchema } from "json-pdf-designer/server";
 import { generatePdf } from "json-pdf-designer/server";
-import { PdfPreview } from "json-pdf-designer";
+// PdfPreview (canvas do pdf.js) mora no entry "/preview" — peer opcional
+// pdfjs-dist, instalado por este example porque ele usa o preview.
+import { PdfPreview } from "json-pdf-designer/preview";
 
 // A4 em mm — mesma unidade do resto do pacote (ver docs/ARCHITECTURE.md).
 const PAGE = { width: 210, height: 297 };

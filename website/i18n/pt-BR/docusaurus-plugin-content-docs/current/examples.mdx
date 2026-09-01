@@ -1,11 +1,11 @@
 ---
 title: Exemplos
-description: Três apps de playground ao vivo, do "kit completo" ao "sem <Designer> nenhum".
+description: Quatro apps de playground ao vivo, do "kit completo" ao "sem pdf.js nenhum".
 ---
 
 # Exemplos
 
-Três apps de exemplo vivem em `examples/` no repositório, cada um com
+Quatro apps de exemplo vivem em `examples/` no repositório, cada um com
 seu próprio README, e cada um rodável ao vivo no
 [Playground](/playground):
 
@@ -37,22 +37,40 @@ nenhum.
 Sem o componente `<Designer>` nenhum. Um canvas montado à mão — a
 própria lógica de arrastar/redimensionar (`mousedown`/`mousemove`/
 `mouseup` puro, sem `react-rnd`) sobre `generatePdf` + tipos de
-`json-pdf-designer/server`, e o `PdfPreview` da entrada principal.
+`json-pdf-designer/server`, e o `PdfPreview` de
+`json-pdf-designer/preview`.
 Prova que o modelo de dados e o motor de PDF
 funcionam sozinhos, independente do editor de arrastar/soltar — a
 mesma ideia que um backend Node usa (ver [Uso só no servidor](./server-only-usage)
 e [Integração com backend](./backend-integration)), só que rodando no
 navegador aqui pra demonstração.
 
+## no-preview
+
+<a href="/json-pdf-designer/playground/no-preview/" target="_blank" rel="noopener noreferrer">Abrir no playground →</a>
+
+`<Designer>` + `generatePdf` + `downloadPdf`, direto pro download, sem tela
+de preview — e **sem o `pdfjs-dist` instalado**. É o app que prova que a
+entrada principal nunca precisa do peer opcional: a dependência está
+deliberadamente ausente do `package.json` dele, e o build varre o próprio
+bundle procurando símbolos do pdf.js (o symlink `file:../..` deixaria um
+import vazado resolver o pdf.js pelo repo pai). Nenhum recurso fica de fora
+aqui: o `pdfjs-dist` só compra o preview na tela.
+
+O <a href="https://github.com/williamanjo/json-pdf-designer/blob/master/examples/no-preview/README.md" target="_blank" rel="noopener noreferrer">README</a>
+dele detalha por que a dependência está deliberadamente ausente e por que
+omitir não basta sozinho; a [Arquitetura](./architecture#como-as-fronteiras-são-garantidas)
+cobre as três checagens que guardam a fronteira.
+
 ## Rodando localmente
 
-Nenhum dos três é workspace do npm — cada um aponta pro pacote via
+Nenhum dos quatro é workspace do npm — cada um aponta pro pacote via
 `"json-pdf-designer": "file:../.."` no próprio `package.json`. A
 partir da raiz do repositório:
 
 ```bash
 npm run build          # builda o pacote raiz uma vez, pra dist/ existir
-cd examples/report-builder   # ou custom-ui, ou headless-designer
+cd examples/report-builder   # ou custom-ui, headless-designer, no-preview
 npm install
 npm run dev
 ```

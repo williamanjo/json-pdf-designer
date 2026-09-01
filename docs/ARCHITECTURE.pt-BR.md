@@ -137,14 +137,93 @@ páginas contra `headerHeight`/`footerHeight`/`marginLeft`/`marginRight`,
 ver `src/zones.ts` pra como o editor classifica um campo em cabeçalho/
 rodapé/margem/corpo só pela posição), `fontUtils.ts` (embute uma fonte
 TTF própria via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts`
-(transforma um PDF/PNG/JPEG enviado no PNG de fundo da página),
-`color.ts`, `resolvers.ts`, e `pdfWorker.ts` (configura o worker do
-`pdf.js` pro `PdfPreview`, browser-only).
+(transforma um PNG/JPEG enviado no PNG de fundo da página — só imagem,
+ver a fronteira de entry points abaixo), `color.ts`, `resolvers.ts` e
+`pdfWorker.ts` (configura o worker do `pdf.js`, browser-only).
 
 Só `downloadPdf`, `Designer`, `PdfPreview*` e os componentes de UI tocam
 o DOM. Todo o resto sob `src/pdf/`, `src/bindings/` e `src/types/` é
 seguro de importar num backend Node (ver
 [BACKEND_INTEGRATION.pt-BR.md](BACKEND_INTEGRATION.pt-BR.md)).
+
+## Entry points e a fronteira do pdf.js
+
+Três entries compilados, cada um um subconjunto de exports mantido à mão:
+
+- `src/index.ts` — `"json-pdf-designer"`, a superfície de browser inteira
+  (`<Designer>`, componentes de UI, `generatePdf`/`downloadPdf`, i18n).
+- `src/server.ts` — `"json-pdf-designer/server"`, o mesmo menos tudo que é
+  React/DOM, pra um backend Node nunca resolver react.
+- `src/preview.ts` — `"json-pdf-designer/preview"`, `PdfPreview`,
+  `PdfPreviewModal`, `configurePdfWorker`.
+
+O `pdfjs-dist` é **peer dependency opcional** (~35MB instalado), e o grafo
+do `/preview` é o único lugar que pode importá-lo. Renderizar o preview
+também é a única coisa pra que o pacote usa pdf.js — e é por isso que o
+`backgroundImage.ts` aceita só imagem: rasterizar um PDF enviado teria
+colocado o pdf.js de volta no `<Designer>`, e portanto no entry principal,
+pra todo mundo. Um `import()` lazy também não resolveria: o bundler ainda
+precisa resolver o specifier em tempo de build.
+
+### Os peers opcionais, e por que são opcionais
+
+Cinco pacotes são peer dependencies com `optional: true`, e nenhum deles é
+opcional por acidente:
+
+| Peer | Usado por | Custo se fosse obrigatório |
+|---|---|---|
+| `react`, `react-dom` | `<Designer>` e os componentes de UI | um backend Node resolvendo React que nunca renderiza |
+| `react-rnd` | só o `PageCanvas.tsx` (arrastar/redimensionar) | ver abaixo — ele puxa o React junto |
+| `pdfjs-dist` | só o grafo do `/preview` | ~35MB instalados |
+| `wawoff2` | `fontUtils.ts`, lazy, pra fonte `.woff2` | caminho WASM só-Node que bundler avisa |
+
+O `react-rnd` é o sutil. Ele era `dependency` normal até a 2.0.0, então era
+instalado sempre — e como os peers `react`/`react-dom` *dele* **não** são
+opcionais, o npm instalava o stack React inteiro (`react`, `react-dom`,
+`react-draggable`, `re-resizable`, `scheduler`, `prop-types`, …: cerca de
+8,7MB) até num projeto que só importa `/server`. O nosso próprio
+`optional: true` no react era derrotado em silêncio um nível abaixo. Um
+install de backend hoje resolve `fontkit`, `pdf-lib` e `tiny-inflate` mais
+as árvores deles, e nada de React.
+
+### Como as fronteiras são garantidas
+
+Um import no arquivo errado quebra uma promessa de *empacotamento*, não o
+build: custa megabytes que ninguém pediu pra todo consumidor, ou deixa uma
+dependência real não declarada — e só apareceria no `npm install` de outra
+pessoa. Três checagens guardam isso, cada uma cobrindo um ângulo que as
+outras não pegam:
+
+1. **`test/entryBoundaries.test.ts`** (roda no `npm test`) — percorre o
+   grafo de código a partir de `src/index.ts`, `src/server.ts` e
+   `src/preview.ts` seguindo imports relativos, e garante que:
+   - o `/server` não alcança `react`, `react-dom` nem `react-rnd`;
+   - nem o entry principal nem o `/server` alcançam o `pdfjs-dist`.
+
+   A mais rápida e a mais precisa: ela nomeia o arquivo culpado. Dois casos
+   de controle garantem que a varredura ainda *vê* o que deveria — pdf.js
+   pelo `/preview`, React e `react-rnd` pelo entry principal — pra que um
+   walker quebrado não faça as outras afirmações passarem por vacuidade.
+
+   Ela ignora statements type-only (`import type` / `export type … from`),
+   que são apagados na compilação: o `src/server.ts` legitimamente faz
+   `export type { Locale, Dict } from "./i18n"`, e o `./i18n/index.ts`
+   reexporta o `I18nProvider`, que é React. Nada disso chega no
+   `dist/server.*` — nem o JS nem o `.d.ts`, que o tsup inlineia.
+2. **`examples/no-preview`** (builda na CI) — um app que nunca instala o
+   `pdfjs-dist`, cobrindo o `node_modules` de verdade em vez da árvore de
+   código. Omitir a dependência não basta sozinho: o example linka o pacote
+   com `file:../..`, e um bundler resolve import bare pelo caminho *real* do
+   arquivo — então um import vazado ainda acharia o pdf.js no
+   `node_modules` do repo pai (onde ele existe como devDependency). É por
+   isso que o script `build` dele termina no `check-no-pdfjs.mjs`, que varre
+   o bundle gerado procurando símbolos do pdf.js (`GlobalWorkerOptions`,
+   `PDFDocumentLoadingTask`, `pdf.worker.min.mjs`). Nunca adicione o
+   `pdfjs-dist` nesse example — isso anula a checagem.
+3. **A checagem do tarball em `.github/workflows/ci.yml`** — depois de
+   `npm install ./pkg.tgz`, garante que o `node_modules/pdfjs-dist` não
+   existe. Essa prova a afirmação de *empacotamento*: o npm não puxa o peer
+   sozinho, ou seja, ele continua opcional de verdade.
 
 ## Idioma da UI (`src/i18n/`)
 

@@ -307,8 +307,8 @@ export type Template = {
   marginLeft?: number;
   marginRight?: number;
   // PNG data URI usado como fundo da página no editor e no PDF gerado —
-  // letterhead/modelo pré-impresso por trás dos campos, sempre resolvido
-  // pra imagem (ver backgroundImage.ts).
+  // letterhead/modelo pré-impresso por trás dos campos. Sempre PNG: o
+  // upload converte qualquer imagem aceita (ver backgroundImage.ts).
   backgroundImage?: string;
   schemas: Schema[];
   // Multi-página: quando presente e não-vazio, é a fonte da verdade — os

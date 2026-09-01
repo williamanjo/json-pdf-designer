@@ -1,11 +1,11 @@
 ---
 title: Examples
-description: Three live playground apps, from "batteries included" to "no <Designer> at all".
+description: Four live playground apps, from "batteries included" to "no pdf.js at all".
 ---
 
 # Examples
 
-Three example apps live in `examples/` in the repo, each with its own
+Four example apps live in `examples/` in the repo, each with its own
 README, and each runnable live in the
 [Playground](/playground):
 
@@ -35,21 +35,38 @@ The exact same features as `report-builder`, but the entire shell
 No `<Designer>` component at all. A hand-built canvas — its own drag/
 resize logic (plain `mousedown`/`mousemove`/`mouseup`, no `react-rnd`)
 over `generatePdf` + types from `json-pdf-designer/server`, plus
-`PdfPreview` from the main entry. Proves the data model and PDF engine
+`PdfPreview` from `json-pdf-designer/preview`. Proves the data model and PDF engine
 work standalone, independent of the drag/drop editor — the
 same idea a Node backend relies on (see [Server-only usage](./server-only-usage)
 and [Backend integration](./backend-integration)), just running in the
 browser here for the demo.
 
+## no-preview
+
+<a href="/json-pdf-designer/playground/no-preview/" target="_blank" rel="noopener noreferrer">Open in the playground →</a>
+
+`<Designer>` + `generatePdf` + `downloadPdf`, straight to download with no
+preview screen — and **no `pdfjs-dist` installed**. It's the app that proves
+the main entry never needs the optional peer: the dependency is deliberately
+absent from its `package.json`, and its build greps its own bundle for pdf.js
+symbols (the `file:../..` symlink would otherwise let a leaked import resolve
+pdf.js from the parent repo). No feature is missing here: `pdfjs-dist` only
+buys you the on-screen preview.
+
+Its <a href="https://github.com/williamanjo/json-pdf-designer/blob/master/examples/no-preview/README.md" target="_blank" rel="noopener noreferrer">README</a>
+spells out why the dependency is deliberately absent and why omitting it
+isn't enough on its own; [Architecture](./architecture#how-the-boundaries-are-enforced)
+covers all three checks that guard the boundary.
+
 ## Running locally
 
-None of the three are npm workspaces — each points at the package via
+None of the four are npm workspaces — each points at the package via
 `"json-pdf-designer": "file:../.."` in its own `package.json`. From the
 repo root:
 
 ```bash
 npm run build          # build the root package once, so dist/ exists
-cd examples/report-builder   # or custom-ui, or headless-designer
+cd examples/report-builder   # or custom-ui, headless-designer, no-preview
 npm install
 npm run dev
 ```

@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import type { Template, TemplatePage, Binding, Locale } from "json-pdf-designer";
-import { generatePdf, PdfPreviewModal, Button, IconDownload, IconFolderUp } from "json-pdf-designer";
+import { generatePdf, Button, IconDownload, IconFolderUp } from "json-pdf-designer";
+// Preview (pdf.js) mora no entry "/preview" — peer opcional pdfjs-dist,
+// instalado por este example justamente porque ele usa o preview.
+import { PdfPreviewModal } from "json-pdf-designer/preview";
 import FieldTree from "./components/FieldTree";
 import DesignerPanel from "./components/DesignerPanel";
 import PageTabs from "./components/PageTabs";

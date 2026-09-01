@@ -55,7 +55,7 @@ export const en = {
     footer: "Footer (mm)",
     marginLeft: "Left margin (mm)",
     marginRight: "Right margin (mm)",
-    backgroundUpload: "Background PDF/image",
+    backgroundUpload: "Background image",
     removeBackground: "remove background",
     isolateOn: "Editing header/footer/margin",
     isolateOff: "Edit header/footer/margin",

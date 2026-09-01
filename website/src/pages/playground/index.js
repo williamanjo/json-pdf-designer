@@ -27,6 +27,15 @@ const EXAMPLES = [
     },
   },
   {
+    slug: 'no-preview',
+    badge: { en: 'No pdf.js', 'pt-BR': 'Sem pdf.js' },
+    description: {
+      en: 'Generates the PDF and downloads it straight away — no preview screen and, the point of it, no pdfjs-dist installed. Proves the main entry works without the optional peer; pdf.js lives behind json-pdf-designer/preview.',
+      'pt-BR':
+        'Gera o PDF e baixa direto — sem tela de preview e, o ponto do example, sem o pdfjs-dist instalado. Prova que a entry principal funciona sem o peer opcional; o pdf.js mora atrás do json-pdf-designer/preview.',
+    },
+  },
+  {
     slug: 'headless-designer',
     badge: { en: 'No <Designer>', 'pt-BR': 'Sem <Designer>' },
     description: {
@@ -40,13 +49,13 @@ const EXAMPLES = [
 const TEXT = {
   title: { en: 'Playground', 'pt-BR': 'Playground' },
   description: {
-    en: 'Three live example apps built on json-pdf-designer.',
-    'pt-BR': 'Três apps de exemplo ao vivo, construídos com o json-pdf-designer.',
+    en: 'Four live example apps built on json-pdf-designer.',
+    'pt-BR': 'Quatro apps de exemplo ao vivo, construídos com o json-pdf-designer.',
   },
   lead: {
-    en: "Three live example apps — same package, three different ways to build the editor around it. Each runs independently; changes here don't affect the others.",
+    en: "Four live example apps — same package, four different ways to build the editor around it. Each runs independently; changes here don't affect the others.",
     'pt-BR':
-      'Três apps de exemplo ao vivo — mesmo pacote, três jeitos diferentes de montar o editor em volta dele. Cada um roda independente; mudanças aqui não afetam os outros.',
+      'Quatro apps de exemplo ao vivo — mesmo pacote, quatro jeitos diferentes de montar o editor em volta dele. Cada um roda independente; mudanças aqui não afetam os outros.',
   },
   open: { en: 'Open →', 'pt-BR': 'Abrir →' },
 };

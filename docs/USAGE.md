@@ -88,10 +88,18 @@ doesn't apply on a server; write `bytes` to a file or an HTTP response
 instead).
 
 The package root (`.`) still exports the full set for apps that use
-both the editor and generation together — `react`/`react-dom` stay
-listed as peer dependencies there, but marked optional
+both the editor and generation together — `react`, `react-dom` and
+`react-rnd` stay listed as peer dependencies there, but marked optional
 (`peerDependenciesMeta`), so a backend-only `npm install` doesn't force
 them on you either way.
+
+`react-rnd` (the drag/resize library behind the canvas) is in that list
+for a non-obvious reason: as a plain `dependency` it was installed
+unconditionally, and because *its own* `react`/`react-dom` peers are **not**
+optional, npm then pulled the whole React stack in — about 8.7MB — even
+into a project that only ever imports `/server`. Making it an optional peer
+is what actually delivers the React-free backend install; the `optional:
+true` on our own react peers was not enough by itself.
 
 ## Basic usage
 
@@ -155,7 +163,8 @@ English by default too — wrap them in `<I18nProvider locale="pt-BR">`
 yourself if you need them in Portuguese:
 
 ```tsx
-import { I18nProvider, PdfPreview } from "json-pdf-designer";
+import { I18nProvider } from "json-pdf-designer";
+import { PdfPreview } from "json-pdf-designer/preview";
 
 <I18nProvider locale="pt-BR">
   <PdfPreview bytes={pdfBytes} />
@@ -199,7 +208,7 @@ send-to-back/bring-to-front buttons appear on the selected row, a lock
 icon locks/unlocks moving/resizing, a trash icon removes it directly,
 double-clicking the name renames the field (remaps any `Binding.schemaName`
 pointing at the old name along with it)),
-**Page** (size/orientation, header/footer/margin, background PDF/image,
+**Page** (size/orientation, header/footer/margin, background image,
 an "edit header/footer/margin" toggle) always available, and **Data**/
 **Style**/**Filter** — only present while a field is selected, and only
 the ones that make sense for its type (Style doesn't exist for image/
@@ -497,11 +506,14 @@ clears it.
 `PAGE_SIZE_PRESETS` (exported) do the same math for anyone building
 their own selector.
 
-**Page background** (`Template.backgroundImage`) — an image (or the
-first page of a PDF, rasterized once on upload) behind everything, both
-in the editor and in the final PDF. The "Background PDF/image" button
-in `<Designer>`; the conversion lives in `fileToBackgroundImage`
-(exported internally only, for now).
+**Page background** (`Template.backgroundImage`) — an image behind
+everything, both in the editor and in the final PDF. The "Background
+image" button in `<Designer>` accepts PNG/JPEG and normalizes it to a PNG
+data URI; the conversion lives in `fileToBackgroundImage` (exported
+internally only, for now). PDF files aren't accepted: rasterizing one
+would need pdf.js in the main entry (see the `/preview` entry below) — to
+use a letterhead that only exists as a PDF, export its page to PNG
+first.
 
 **Custom font** — pass `fontBytes` (the bytes of a **real TTF/OTF**) to
 `generatePdf(..., { fontBytes })` for full accent/Unicode coverage via
@@ -531,9 +543,39 @@ floating bar at the bottom with zoom -/+, fit width/height, and reset —
 doesn't affect the generated PDF, it's just the view. Drag/resize stays
 correct at any zoom level (react-rnd receives the scale factor).
 
-**Real PDF preview** (`<PdfPreview bytes={...} />`) — renders the
-generated PDF (byte for byte, with pdf.js) into one `<canvas>` per page,
-showing the file's real size/margins.
+**Real PDF preview** (`<PdfPreview bytes={...} />`, from
+`json-pdf-designer/preview`) — renders the generated PDF (byte for byte,
+with pdf.js) into one `<canvas>` per page, showing the file's real
+size/margins.
+
+### The `json-pdf-designer/preview` entry point
+
+Everything that touches pdf.js lives behind its own entry point:
+
+```ts
+import { PdfPreview, PdfPreviewModal, configurePdfWorker } from "json-pdf-designer/preview";
+```
+
+`pdfjs-dist` is an **optional peer dependency** (same treatment as
+`wawoff2`), so npm doesn't install it for you — add it yourself if you
+use the preview:
+
+```bash
+npm i pdfjs-dist
+```
+
+The reason it isn't a regular dependency: pdf.js is ~35MB installed, and
+as a dependency of the main entry every consumer paid for it — including
+apps that only render `<Designer>` and never preview anything. Nothing
+reachable from `"json-pdf-designer"` or `"json-pdf-designer/server"`
+imports pdf.js (a test, `test/entryBoundaries.test.ts`, enforces that), so
+those two entries work with `pdfjs-dist` absent. `examples/no-preview`
+is a working app that never installs it — its build also greps its own
+bundle for pdf.js symbols, since the `file:../..` symlink would otherwise
+let a leaked import resolve pdf.js from the parent repo.
+
+Rendering the preview is the **only** thing the package uses pdf.js for.
+Nothing else in the API depends on the preview being available.
 
 ### pdf.js worker — CDN by default vs. self-hosting
 
@@ -561,7 +603,7 @@ hashed/served by your own app's CDN):
 
 ```ts
 // main.tsx (or any module loaded before the first screen with a preview)
-import { configurePdfWorker } from "json-pdf-designer";
+import { configurePdfWorker } from "json-pdf-designer/preview";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 configurePdfWorker(pdfWorkerUrl);
@@ -619,10 +661,12 @@ const bytes = await generatePdf(template, data, bindings); // same call as alway
 If you don't want to (or can't) build your own visual shell around
 `<Designer>`, the package also exports the ready-made components it uses
 internally (`Button`, `Card`, `Input`, icons, etc — Tailwind, same look
-as the property panel) and a complete `PdfPreviewModal`:
+as the property panel) and a complete `PdfPreviewModal` (that one from the
+`/preview` entry, since it uses pdf.js):
 
 ```tsx
-import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select, PdfPreviewModal } from "json-pdf-designer";
+import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select } from "json-pdf-designer";
+import { PdfPreviewModal } from "json-pdf-designer/preview";
 import "json-pdf-designer/style.css";
 
 <Card>
@@ -648,8 +692,6 @@ is also available React-free from `json-pdf-designer/server` — see
 ```ts
 // Component
 Designer                                   // the full React canvas (toolbar + list + rulers + zoom + bands)
-PdfPreview, configurePdfWorker             // preview of the generated PDF
-PdfPreviewModal                            // a full modal around PdfPreview (download/close buttons)
 
 // UI language (see "UI language" above)
 I18nProvider, useT, useLocale, withInlineCode
@@ -706,6 +748,18 @@ Template, TemplatePage, Schema, TextSchema, TableSchema, TableColumnStyle, Image
 SectionSchema, ChartSchema, KpiSchema, KpiIcon, BaseSchema, PageSize, Binding,
 TableColumn, DataSourceOption, SectionColumnDragPayload, Zone, Bands,
 GeneratePdfOptions, Orientation
+```
+
+## The `json-pdf-designer/preview` entry point
+
+Everything that uses pdf.js. `pdfjs-dist` is an optional peer dependency,
+so run `npm install pdfjs-dist` if you import from here — see
+"Real PDF preview" above for the full rationale.
+
+```ts
+PdfPreview                                 // <canvas> per page, renders the generated bytes
+PdfPreviewModal                            // a full modal around PdfPreview (download/close buttons)
+configurePdfWorker(url)                    // self-host pdf.js's worker instead of the default CDN
 ```
 
 ## Package structure
@@ -792,16 +846,18 @@ src/
     PdfPreviewModal.tsx-> a full modal around PdfPreview (exported, see above)
     ui/                -> Button, Input, Card, Select, Textarea, TabPanel, PalettePicker, CollapsibleSection,
                           ClearFieldButton, icons — exported (see above), used internally by Designer itself
-  index.ts             -> the package's public exports
+  index.ts             -> the package's public exports (never reaches pdfjs-dist)
+  preview.ts           -> the "/preview" entry: the ONLY graph allowed to import pdfjs-dist
 examples/
   report-builder/      -> a full app (JSON data sources, field explorer) using the package's ready-made UI
   custom-ui/           -> the same idea, a 100% custom shell (hand-written CSS, no package component)
   headless-designer/   -> a hand-built canvas over json-pdf-designer/server, no <Designer>/package UI at all
+  no-preview/          -> generates + downloads with no preview and no pdfjs-dist installed (the optional-peer gate)
 ```
 
 ## Examples
 
-Two example apps in `examples/`, each with its own README:
+Four example apps in `examples/`, each with its own README:
 
 - **[report-builder](../examples/report-builder)** — the full designer
   (JSON data sources, field explorer, 6 ready-made templates) using the
@@ -809,6 +865,12 @@ Two example apps in `examples/`, each with its own README:
 - **[custom-ui](../examples/custom-ui)** — a lean version (1 fixed
   template), an entirely custom CSS shell, zero package UI components —
   proof that `<Designer>` works without any foreign design system.
+- **[headless-designer](../examples/headless-designer)** — no `<Designer>`
+  at all: a hand-built drag/resize canvas over `generatePdf` + types from
+  `json-pdf-designer/server`, plus `PdfPreview`.
+- **[no-preview](../examples/no-preview)** — generates and downloads the PDF
+  with no preview screen and no `pdfjs-dist` installed; the app that proves
+  the main entry never needs the optional peer.
 
 Each runs independently (`npm install && npm run dev` inside the
 folder) — they aren't package workspaces, they just point at it via

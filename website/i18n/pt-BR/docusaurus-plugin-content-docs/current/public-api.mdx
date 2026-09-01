@@ -1,6 +1,6 @@
 ---
 title: Referência da API Pública
-description: Todo export, agrupado por área — entrada principal e /server.
+description: Todo export, agrupado por área — entrada principal, /server e /preview.
 ---
 
 # API pública
@@ -8,12 +8,12 @@ description: Todo export, agrupado por área — entrada principal e /server.
 Tudo abaixo vem de `json-pdf-designer`. O subconjunto de geração/
 vínculos/paleta de cor/tipos também está disponível sem React em
 `json-pdf-designer/server` — veja [Uso só no servidor](./server-only-usage).
+O preview do PDF mora num terceiro entry point,
+`json-pdf-designer/preview` — listado no fim desta página.
 
 ```ts
 // Componente
 Designer                                   // canvas React completo (toolbar + lista + réguas + zoom + faixas)
-PdfPreview, configurePdfWorker             // preview do PDF gerado
-PdfPreviewModal                            // modal completo em volta do PdfPreview (botão baixar/fechar)
 
 // Idioma da UI (ver "Idioma da UI")
 I18nProvider, useT, useLocale, withInlineCode
@@ -72,3 +72,20 @@ ImageSchema, SectionSchema, ChartSchema, KpiSchema, KpiIcon, KpiElementKey, KpiE
 BaseSchema, PageSize, Binding, KpiAggregation, TableColumn, DataSourceOption,
 SectionColumnDragPayload, Zone, Bands, GeneratePdfOptions, Orientation
 ```
+
+## `json-pdf-designer/preview`
+
+Entry point separado pra tudo que usa pdf.js. O `pdfjs-dist` é peer
+dependency opcional (~35MB instalado), então nada alcançável a partir do
+entry principal ou do `/server` o importa — só este. Rode
+`npm install pdfjs-dist` se você importar daqui.
+
+```ts
+PdfPreview                                 // um <canvas> por página, renderiza os bytes gerados
+PdfPreviewModal                            // modal completo em volta do PdfPreview (botão baixar/fechar)
+configurePdfWorker(url)                    // self-host do worker do pdf.js em vez do CDN padrão
+```
+
+É o entry point inteiro — renderizar o preview é a única coisa pra que o
+pacote usa pdf.js. Ver
+[Componentes de UI prontos](./ready-made-ui).

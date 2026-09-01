@@ -20,6 +20,12 @@
       "port": 5175
     },
     {
+      "name": "no-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "examples/no-preview", "run", "dev"],
+      "port": 5176
+    },
+    {
       "name": "docs-site",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["--yes", "serve", "-l", "3010", "site-preview-root"],

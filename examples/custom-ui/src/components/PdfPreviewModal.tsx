@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { I18nProvider, PdfPreview, downloadPdf } from "json-pdf-designer";
+import { I18nProvider, downloadPdf } from "json-pdf-designer";
+// PdfPreview (canvas do pdf.js) mora no entry "/preview" — peer opcional
+// pdfjs-dist, instalado por este example porque ele usa o preview.
+import { PdfPreview } from "json-pdf-designer/preview";
 import type { Locale, PageSize } from "json-pdf-designer";
 
 // pt (ponto do PDF, o que pdf-lib usa) por mm.

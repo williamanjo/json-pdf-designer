@@ -11,7 +11,7 @@ uses internally (`Button`, `Card`, `Input`, icons, etc — Tailwind, same
 look as the property panel) and a complete `PdfPreviewModal`:
 
 ```tsx
-import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select, PdfPreviewModal } from "json-pdf-designer";
+import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select } from "json-pdf-designer";
 import "json-pdf-designer/style.css";
 
 <Card>
@@ -27,10 +27,18 @@ import "json-pdf-designer/style.css";
 
 A full modal wrapping `<PdfPreview>` — fit-to-container scale (recalculated
 on window resize), top-aligned scrollable multi-page layout, download and
-close buttons:
+close buttons.
+
+It comes from the **`json-pdf-designer/preview`** entry point, not the main
+one, because it (and `PdfPreview`) is the only part of the package that uses
+pdf.js — an optional peer dependency, so install it first:
+
+```bash
+npm install pdfjs-dist
+```
 
 ```tsx
-import { PdfPreviewModal } from "json-pdf-designer";
+import { PdfPreviewModal } from "json-pdf-designer/preview";
 
 {previewBytes && (
   <PdfPreviewModal
@@ -40,6 +48,12 @@ import { PdfPreviewModal } from "json-pdf-designer";
   />
 )}
 ```
+
+The same entry point exports `PdfPreview` (the bare canvas renderer, if you
+want your own modal) and `configurePdfWorker` (self-host pdf.js's worker
+instead of the default CDN). That's all of it — the preview is the only
+thing pdf.js is used for, so skipping `pdfjs-dist` costs you no other
+feature.
 
 ## None of this is required
 

@@ -827,7 +827,7 @@ function DesignerInner({ template, onChangeTemplate, bindings, onChangeBindings,
               </div>
               <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-sky-600 px-2.5 py-1 text-xs font-medium text-sky-600 hover:bg-sky-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-400/10">
                 <IconUpload /> {t.pageSettings.backgroundUpload}
-                <input type="file" accept="application/pdf,image/png,image/jpeg" onChange={handleBackgroundUpload} hidden />
+                <input type="file" accept="image/png,image/jpeg" onChange={handleBackgroundUpload} hidden />
               </label>
               {template.backgroundImage && (
                 <Button variant="ghost" onClick={() => onChangeTemplate((prev) => ({ ...prev, backgroundImage: undefined }))}>

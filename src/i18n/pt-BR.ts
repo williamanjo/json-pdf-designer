@@ -54,7 +54,7 @@ export const ptBR: Dict = {
     footer: "Rodapé (mm)",
     marginLeft: "Margem esq. (mm)",
     marginRight: "Margem dir. (mm)",
-    backgroundUpload: "PDF/imagem de fundo",
+    backgroundUpload: "Imagem de fundo",
     removeBackground: "remover fundo",
     isolateOn: "Editando cabeçalho/rodapé/margem",
     isolateOff: "Editar cabeçalho/rodapé/margem",

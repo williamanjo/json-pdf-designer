@@ -127,6 +127,9 @@ const config = {
               {
                 html: '<a class="footer__link-item" href="/json-pdf-designer/playground/headless-designer/" target="_blank" rel="noopener noreferrer">headless-designer</a>',
               },
+              {
+                html: '<a class="footer__link-item" href="/json-pdf-designer/playground/no-preview/" target="_blank" rel="noopener noreferrer">no-preview</a>',
+              },
             ],
           },
           {

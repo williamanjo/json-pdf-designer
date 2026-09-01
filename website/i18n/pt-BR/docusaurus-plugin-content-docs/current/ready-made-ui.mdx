@@ -12,7 +12,7 @@ mesmo estilo do painel de propriedades) e um `PdfPreviewModal`
 completo:
 
 ```tsx
-import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select, PdfPreviewModal } from "json-pdf-designer";
+import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select } from "json-pdf-designer";
 import "json-pdf-designer/style.css";
 
 <Card>
@@ -28,10 +28,18 @@ import "json-pdf-designer/style.css";
 
 Um modal completo em volta do `<PdfPreview>` — escala que ajusta ao
 container (recalculada no resize da janela), layout rolável de
-múltiplas páginas alinhado ao topo, botões de baixar e fechar:
+múltiplas páginas alinhado ao topo, botões de baixar e fechar.
+
+Vem do entry point **`json-pdf-designer/preview`**, não do principal, porque
+ele (e o `PdfPreview`) é a única parte do pacote que usa pdf.js — peer
+dependency opcional, então instale antes:
+
+```bash
+npm install pdfjs-dist
+```
 
 ```tsx
-import { PdfPreviewModal } from "json-pdf-designer";
+import { PdfPreviewModal } from "json-pdf-designer/preview";
 
 {previewBytes && (
   <PdfPreviewModal
@@ -41,6 +49,12 @@ import { PdfPreviewModal } from "json-pdf-designer";
   />
 )}
 ```
+
+O mesmo entry point exporta o `PdfPreview` (o renderizador em canvas puro,
+se você quiser o próprio modal) e o `configurePdfWorker` (self-host do
+worker do pdf.js em vez do CDN padrão). É só isso — o preview é a única
+coisa pra que o pdf.js é usado, então não instalar o `pdfjs-dist` não
+custa nenhum outro recurso.
 
 ## Nada disso é obrigatório
 

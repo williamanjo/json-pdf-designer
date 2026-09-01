@@ -32,4 +32,18 @@ jobs:
           cp test/pack-consumer/package.json test/pack-consumer/generate-check.mjs /tmp/pack-consumer/
           cd /tmp/pack-consumer
           npm install ./pkg.tgz
+          # Este install é o cenário "backend": só o pacote, nada de app.
+          # pdfjs-dist (só o entry "/preview" usa) e react-rnd (só o
+          # PageCanvas) são peers OPCIONAIS — o npm não instala nenhum dos
+          # dois sozinho. Se aparecerem aqui, algum deles voltou a ser
+          # dependência de verdade, e todo consumidor voltou a carregar
+          # ~35MB / o stack React inteiro sem pedir. react/react-dom entram
+          # na lista porque o react-rnd os declara como peers NÃO-opcionais:
+          # basta ele voltar pra `dependencies` que o npm puxa os dois.
+          for pkg in pdfjs-dist react-rnd react react-dom; do
+            if [ -d "node_modules/$pkg" ]; then
+              echo "FALHOU: $pkg foi instalado junto com o pacote — deveria ser peer opcional."
+              exit 1
+            fi
+          done
           node generate-check.mjs

@@ -1,29 +1,24 @@
 {
-  "name": "report-builder",
+  "name": "no-preview-example",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "build": "tsc -b && vite build && node check-no-pdfjs.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "json-pdf-designer": "file:../..",
-    "pdfjs-dist": "^6.2.108",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-rnd": "^10.4.13"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "oxlint": "^1.71.0",
-    "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",
     "vite": "^8.1.1"
   }

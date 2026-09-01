@@ -9,9 +9,28 @@ description: Instale o pacote e importe o CSS dele.
 npm install json-pdf-designer
 ```
 
-Peer deps: `react` e `react-dom` (`^18.0.0 || ^19.0.0`) — marcados
-`optional` em `peerDependenciesMeta`, então uma instalação só de
-backend nunca força eles (ver [Uso só no servidor](./server-only-usage)).
+Peer deps: `react` e `react-dom` (`^18.0.0 || ^19.0.0`) mais o
+`react-rnd` (lib de arrastar/redimensionar do canvas) — todos marcados
+`optional` em `peerDependenciesMeta`, então uma instalação só de backend
+nunca força eles (ver [Uso só no servidor](./server-only-usage)). Usar o
+lado `<Designer>` do pacote significa instalar os três:
+
+```bash
+npm install react react-dom react-rnd
+```
+
+O `pdfjs-dist` também é peer dependency opcional — necessário **só** pro
+preview do PDF, que mora atrás do entry point
+`json-pdf-designer/preview`. Instale se for usar o preview:
+
+```bash
+npm install pdfjs-dist
+```
+
+Deixar de instalar economiza ~35MB no seu `node_modules`; `<Designer>`,
+`generatePdf` e `downloadPdf` nunca tocam no pdf.js. Ver
+[Componentes de UI prontos](./ready-made-ui) pro preview e o
+`examples/no-preview` pra um app que nunca o instala.
 
 Importe o CSS do pacote **uma vez**, no entrypoint do seu app — ele
 estiliza o próprio `<Designer>` (painel de propriedades, toolbar,

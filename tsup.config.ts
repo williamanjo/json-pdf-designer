@@ -4,7 +4,10 @@ export default defineConfig({
   // `server.ts` é o subconjunto sem React de `index.ts` (ver comentário lá)
   // — build separado pra quem importa "json-pdf-designer/server" nunca
   // puxar react/react-dom (nem como import solto no arquivo compilado).
-  entry: ["src/index.ts", "src/server.ts"],
+  // `preview.ts` é o mesmo raciocínio pro pdfjs-dist: build separado pra
+  // que só quem importa "json-pdf-designer/preview" precise dele
+  // instalado (peer opcional). Ver o invariante em src/preview.ts.
+  entry: ["src/index.ts", "src/server.ts", "src/preview.ts"],
   format: ["esm", "cjs"],
   dts: true,
   sourcemap: true,

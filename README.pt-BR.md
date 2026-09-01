@@ -70,11 +70,17 @@ recurso em [docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md).
 ## Instalação
 
 ```bash
-npm install json-pdf-designer
+npm install json-pdf-designer react react-dom react-rnd
 ```
 
-Peer deps: `react` e `react-dom` (18 ou 19). Importe o CSS do pacote uma
-vez, no entrypoint do seu app:
+Todos os peer deps são **opcionais** (`peerDependenciesMeta`), então
+instale o que você usa: `react`/`react-dom` (18 ou 19) e `react-rnd` pro
+`<Designer>`, `pdfjs-dist` se você renderiza o preview do PDF, `wawoff2` só
+pra fonte `.woff2`. Um backend que só chama `generatePdf` de
+`json-pdf-designer/server` não precisa de nenhum — ver
+[docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md).
+
+Importe o CSS do pacote uma vez, no entrypoint do seu app:
 
 ```ts
 import "json-pdf-designer/style.css";
@@ -167,8 +173,11 @@ considerações de segurança — em **[docs/BACKEND_INTEGRATION.pt-BR.md](docs/
   `<Designer>` nenhum: um canvas de arrastar/redimensionar montado à mão
   sobre `generatePdf` + tipos de `json-pdf-designer/server`, mais o
   `PdfPreview`.
+- **[examples/no-preview](examples/no-preview)** — gera e baixa o PDF sem
+  tela de preview e **sem o `pdfjs-dist` instalado**, provando que a entry
+  principal nunca precisa do peer opcional.
 
-Os três rodam ao vivo no navegador em
+Os quatro rodam ao vivo no navegador em
 **[o playground](https://williamanjo.github.io/json-pdf-designer/playground/)**
 — sem precisar instalar nada localmente.
 
