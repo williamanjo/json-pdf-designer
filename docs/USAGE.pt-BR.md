@@ -293,9 +293,13 @@ O mesmo vale pros operadores de comparação dentro do `IF`:
 Expressão que não consegue produzir número resolve pra **vazio** em vez de
 falhar: `{"x" + 1}`, `{a / 0}` e um path que não existe se comportam
 assim (um path ausente conta como `0` dentro de uma soma, então
-`{naoexiste + a}` dá o valor de `a`). Erro de sintaxe — aspas não
-fechadas, parêntese aberto — estoura com a posição, pra um template
-mal-formado não renderizar em branco sem ninguém perceber.
+`{naoexiste + a}` dá o valor de `a`). **Erro de sintaxe** — aspas não
+fechadas, parêntese aberto — também resolve aquele campo pra vazio em vez
+de derrubar o documento inteiro: uma vírgula esquecida não pode custar um
+relatório de 200 páginas. A posição do erro é reportada no editor (o aviso
+do campo, e ao vivo dentro do editor `ƒx`), que é onde ainda dá pra
+consertar. O `expressionError(source, t?)` dá a mesma mensagem
+programaticamente, e o `parse` estoura se você quiser a versão estrita.
 
 `IF(condição, "então", "senão")` escolhe um dos dois últimos
 argumentos — `condição` é uma comparação (`status == "paid"`,

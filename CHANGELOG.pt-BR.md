@@ -6,7 +6,7 @@ Todas as mudanças relevantes deste pacote ficam documentadas aqui.
 Formato inspirado, sem seguir à risca, em
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
-## Não lançado
+## 2.1.0 (2026-09-01)
 
 Fase 1 da roadmap pós-2.0.0: a fundação de que o resto depende —
 versionamento do formato de template, depois AST de expressões, depois uma

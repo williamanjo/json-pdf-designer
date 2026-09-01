@@ -294,9 +294,13 @@ is a comparison, `IF(a==2, …)` is a path called `a==2`.
 An expression that cannot produce a number resolves to **empty** rather
 than failing: `{"x" + 1}`, `{a / 0}`, and a path that does not exist all
 behave that way (a missing path counts as `0` inside a sum, so
-`{missing + a}` gives `a`). A syntax error — an unterminated quote, an
-unclosed parenthesis — throws with the position, so a malformed template
-is not silently rendered as blank.
+`{missing + a}` gives `a`). A **syntax error** — an unterminated quote, an
+unclosed parenthesis — also resolves that field to empty rather than
+failing the whole document: one stray comma cannot cost a 200-page
+report. The position of the error is reported in the editor instead (the
+field warning, and live inside the `ƒx` editor), which is where it can
+still be fixed. `expressionError(source, t?)` gives you the same message
+programmatically, and `parse` throws if you want the strict version.
 
 `IF(condition, "then", "else")` picks one of the two remaining
 arguments — `condition` is either a comparison (`status == "paid"`,

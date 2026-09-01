@@ -26,12 +26,23 @@ client or on a Node backend, no headless browser required.
   something the package didn't anticipate.
 - **One template = one JSON.** `Template` + `Binding[]` are plain,
   serializable objects — save them to a database, version them, send
-  them over an API, no hidden class or function in between.
+  them over an API, no hidden class or function in between. The
+  template's own format is versioned (`Template.version` +
+  `migrateTemplate`), so a template already sitting in a database keeps
+  loading after the package moves on.
 - **The same function generates on the browser and the server.**
   `generatePdf` doesn't touch the DOM or the browser `canvas` — just
   `pdf-lib`/`fontkit`. Design the template on screen with `<Designer>`
   and generate the real PDF on a Node backend from the saved JSON (see
   [Backend usage](#backend-usage-no-ui) below).
+- **A data problem degrades; a structural problem fails loudly.** A path
+  that isn't in the JSON renders empty, and a broken expression empties
+  *that field* — one stray comma can't cost you a 200-page report. But a
+  document that would blow past the page cap throws instead of handing
+  you a truncated PDF that looks complete, and a character with no glyph
+  in the font is an error rather than a silent gap. The full table of
+  what degrades and what fails is in
+  [What can and cannot fail a generation](docs/USAGE.md#what-can-and-cannot-fail-a-generation).
 
 ## English or Portuguese UI
 
@@ -68,6 +79,56 @@ on its type) — tabs are drag-reorderable and pinnable (hide with the
 "×", bring back with the "+"). Full detail on every feature in
 [docs/USAGE.md](docs/USAGE.md).
 
+## Expressions
+
+A field's content is a **template**: literal text plus `{...}` resolved
+against the JSON.
+
+```
+Invoice {invoice} — {CURRENCY(qty * price, "$")}
+{IF(total > 1000, "priority", "standard")}
+{UPPER(customer.name)} · {DATE(issuedAt, "MM/DD/YYYY")}
+```
+
+Inside the braces: paths, arithmetic (`*` and `/` bind tighter than `+`
+and `-`, parentheses group), comparisons, `AND`/`OR`/`NOT`, and 11
+functions (`SUM`/`COUNT`/`AVG`/`CONCAT`/`UPPER`/`LOWER`/`TRIM`/`DATE`/
+`CURRENCY`/`NUMBER`/`IF`). It is parsed to an AST — no `eval`, no
+`new Function`.
+
+One rule is unusual, and it's what lets a JSON key hold a hyphen or a
+space: **an operator is only an operator with whitespace on both sides.**
+
+```
+{my-key}    the path "my-key", not "my minus key"
+{a - b}     subtraction
+{a -b}      the path "a -b" — probably not what you meant
+```
+
+That last line used to be invisible: the field just came out blank. The
+editor now flags it, along with a syntax error and an unbalanced brace
+(a `{` with no pair prints as literal text in the PDF).
+
+**Conditional visibility.** Any field carries an optional `visibleWhen`
+— the same expression language, without braces — and is drawn only when
+it's true. It works on every field type, sections and tables included,
+and on the repeating bands, where `pageNumber == pageCount` means "only
+on the last page". Hiding a field gives back its height; what follows
+moves up.
+
+```ts
+{ type: "text", content: "Corporate discount", visibleWhen: 'customer.type == "company"' }
+{ type: "table", name: "overdue", visibleWhen: "NOT paid" }
+```
+
+**Writing one.** The `ƒx` button next to a table column, a totals cell,
+a KPI field or a text field opens an editor with the fields that field
+is bound to on the left, autocomplete of the functions and operators in
+the middle, and live validation. Validation is public API too
+(`expressionError`, `suspiciousOperator`, `braceError`,
+`templateExpressionErrors`), so a backend can reject a template with a
+broken expression *before* saving it.
+
 ## Install
 
 ```bash
@@ -96,6 +157,12 @@ Only generating PDFs in a backend/Node API, no editor UI? Import from
 `json-pdf-designer/server` instead — a React-free build of `generatePdf`
 and friends, no `react`/`react-dom` required. See
 [Server-only usage](docs/USAGE.md#server-only-usage-no-react-needed).
+
+Want the on-screen PDF preview? It lives behind its own entry point,
+`json-pdf-designer/preview` (`PdfPreview`, `PdfPreviewModal`,
+`configurePdfWorker`) — that's what keeps `pdfjs-dist` (~35MB) out of
+an install that never previews. The main entry has no path to it; the
+[no-preview example](examples/no-preview) is the proof.
 
 ## Basic usage
 

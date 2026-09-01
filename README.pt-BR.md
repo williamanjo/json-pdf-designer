@@ -27,11 +27,21 @@ cliente quanto num backend Node, sem headless browser.
   editar se precisar de algo que o pacote não previu.
 - **Um template = um JSON.** `Template` + `Binding[]` são objetos planos
   serializáveis — salva no banco, versiona, manda por API, sem nenhuma
-  classe ou função escondida no meio.
+  classe ou função escondida no meio. O formato do template em si é
+  versionado (`Template.version` + `migrateTemplate`), então template que
+  já está num banco continua carregando depois que o pacote andar.
 - **Mesma função gera no navegador e no servidor.** `generatePdf` não usa
   DOM nem `canvas` do navegador — só `pdf-lib`/`fontkit`. Dá pra desenhar
   o template numa tela com `<Designer>` e gerar o PDF de verdade num
   backend Node a partir do JSON salvo (ver [Uso em backend](#uso-em-backend-sem-ui) abaixo).
+- **Problema de dado degrada; problema estrutural falha alto.** Caminho
+  que não existe no JSON renderiza vazio, e expressão quebrada esvazia
+  *aquele campo* — uma vírgula esquecida não pode custar um relatório de
+  200 páginas. Mas documento que passaria do teto de páginas estoura em
+  vez de te entregar um PDF truncado com cara de completo, e caractere sem
+  glifo na fonte é erro, não um vão silencioso. A tabela inteira do que
+  degrada e do que falha está em
+  [O que pode e o que não pode derrubar uma geração](docs/USAGE.pt-BR.md#o-que-pode-e-o-que-não-pode-derrubar-uma-geração).
 
 ## Interface em inglês ou português
 
@@ -67,6 +77,56 @@ selecionado, conforme o tipo dele) — abas reordenáveis por arraste e
 fixáveis (escondidas no "×", reabertas no "+"). Detalhe completo de cada
 recurso em [docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md).
 
+## Expressões
+
+O conteúdo de um campo é um **template**: texto literal mais `{...}`
+resolvido contra o JSON.
+
+```
+Fatura {fatura} — {CURRENCY(qtd * preco, "R$")}
+{IF(total > 1000, "prioritário", "normal")}
+{UPPER(cliente.nome)} · {DATE(emitidoEm, "DD/MM/YYYY")}
+```
+
+Dentro das chaves: caminhos, aritmética (`*` e `/` ligam mais forte que
+`+` e `-`, parênteses agrupam), comparações, `AND`/`OR`/`NOT`, e 11
+funções (`SUM`/`COUNT`/`AVG`/`CONCAT`/`UPPER`/`LOWER`/`TRIM`/`DATE`/
+`CURRENCY`/`NUMBER`/`IF`). É tudo parseado pra uma AST — sem `eval`, sem
+`new Function`.
+
+Uma regra é incomum, e é ela que deixa uma chave JSON ter hífen ou
+espaço: **operador só é operador cercado de espaço dos dois lados.**
+
+```
+{minha-chave}   o caminho "minha-chave", não "minha menos chave"
+{a - b}         subtração
+{a -b}          o caminho "a -b" — provavelmente não é o que você quis
+```
+
+A última linha era invisível: o campo simplesmente saía em branco. Agora
+o editor acusa, junto com erro de sintaxe e chave desbalanceada (uma `{`
+sem par sai impressa como texto no PDF).
+
+**Visibilidade condicional.** Todo campo tem um `visibleWhen` opcional —
+a mesma linguagem de expressão, sem chaves — e só é desenhado quando ela
+é verdadeira. Vale pra todo tipo de campo, seção e tabela incluídas, e
+pras faixas repetidas, onde `pageNumber == pageCount` quer dizer "só na
+última página". Esconder um campo devolve a altura dele; o que vem
+depois sobe.
+
+```ts
+{ type: "text", content: "Desconto corporativo", visibleWhen: 'cliente.tipo == "empresa"' }
+{ type: "table", name: "vencidas", visibleWhen: "NOT pago" }
+```
+
+**Pra escrever uma.** O botão `ƒx` ao lado de uma coluna de tabela, de
+uma célula de totais, de um campo de KPI ou de um campo de texto abre um
+editor com os campos a que aquele campo está vinculado à esquerda,
+autocomplete das funções e operadores no centro, e validação ao vivo. A
+validação também é API pública (`expressionError`, `suspiciousOperator`,
+`braceError`, `templateExpressionErrors`), então um backend pode recusar
+um template com expressão quebrada *antes* de salvar.
+
 ## Instalação
 
 ```bash
@@ -95,6 +155,12 @@ Só gera PDF num backend/API Node, sem UI de editor? Importe de
 `json-pdf-designer/server` em vez disso — um build do `generatePdf` e
 companhia sem React nenhum, sem precisar de `react`/`react-dom`. Veja
 [Uso só no servidor](docs/USAGE.pt-BR.md#uso-só-no-servidor-sem-precisar-de-react).
+
+Quer a prévia do PDF na tela? Ela mora num entry point próprio,
+`json-pdf-designer/preview` (`PdfPreview`, `PdfPreviewModal`,
+`configurePdfWorker`) — é isso que mantém o `pdfjs-dist` (~35MB) fora de
+uma instalação que nunca dá prévia. A entry principal não tem caminho
+até ele; o [exemplo no-preview](examples/no-preview) é a prova.
 
 ## Uso básico
 

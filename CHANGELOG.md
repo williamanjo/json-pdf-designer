@@ -5,7 +5,7 @@
 All notable changes to this package are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## 2.1.0 (2026-09-01)
 
 Phase 1 of the post-2.0.0 roadmap: the foundation the rest depends on —
 template format versioning, then an expression AST, then a unified layout
