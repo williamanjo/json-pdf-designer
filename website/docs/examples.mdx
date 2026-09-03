@@ -1,13 +1,29 @@
 ---
 title: Examples
-description: Four live playground apps, from "batteries included" to "no pdf.js at all".
+description: Five live playground apps, from "batteries included" to "the editor assembled part by part".
 ---
 
 # Examples
 
-Four example apps live in `examples/` in the repo, each with its own
+Five example apps live in `examples/` in the repo, each with its own
 README, and each runnable live in the
-[Playground](/playground):
+[Playground](/playground).
+
+They also split the **styling spectrum** between them: no two take the
+same approach to the package's CSS, so between them both CSS exports get
+exercised plus the mode that imports neither.
+
+| Example | Package CSS | Styling strategy |
+| --- | --- | --- |
+| `report-builder` | `theme.css` | the theme as it ships, no customization |
+| `composed-layout` | `theme.css` | retheme by `--jpd-*` token only, not one rule rewritten |
+| `no-preview` | `theme.css` | dark mode via `[data-jpd-theme]`, with a toggle |
+| `headless-designer` | `reset.css` only | appearance written by hand, ~5 rules |
+| `custom-ui` | none | 192 `.jpd-*` selectors from scratch |
+
+[Theming](./theming#the-spectrum-in-five-running-apps) goes through that
+table with the measured numbers. It is guarded by a test that reads the
+examples' real import lines, so it cannot drift quietly.
 
 ## report-builder
 
@@ -19,6 +35,44 @@ combined PDF with continuous numbering) — using the package's ready-made
 UI components (`Button`/`Card`/`Input`/`PdfPreviewModal`). The fastest
 path: use the components the library already ships.
 
+It was migrated to the composable parts in 3.0.0 and its layout is
+**identical** to the preset's — the point being what the migration
+bought: a `<SelectedFieldBar>` in the app's own shell, reading the
+editor's selection through a hook. That was impossible in 2.x, where
+`<Designer>` owned selection and no prop could drive it from outside.
+
+**Styling:** `json-pdf-designer/theme.css`, untouched — no token
+override, no `.jpd-*` rule. It is the "one import and you're done" end of
+the spectrum. Its own shell is Tailwind (`@tailwindcss/vite`), which is
+the one example where a Tailwind pipeline still exists — on the app side,
+never the package's.
+
+## composed-layout
+
+<a href="/json-pdf-designer/playground/composed-layout/" target="_blank" rel="noopener noreferrer">Open in the playground →</a>
+
+The editor assembled **part by part**, without the `<Designer>`
+component: toolbar across the top, field list on the left, canvas in the
+middle, and a right-hand column with **five stacked panels** that inside
+`<Designer>` would be five tabs. It mounts `<DesignerProvider>` by hand
+and places the parts in a layout the preset cannot produce.
+
+This is the example that proves `<Designer>` isn't indivisible — and
+specifically that the tab gate is **opt-in**. No part gets `whenTab`, so
+all five right-hand panels render at once. Measured: eight parts in the
+DOM simultaneously, zero `.jpd-tabs`. Were the gate the default, this
+layout would show one panel and blank the other four.
+
+**Styling:** it imports `json-pdf-designer/theme.css` whole and
+**rethemes it by token alone** — its `index.css` sets `--jpd-accent*` and
+`--jpd-radius-*` values on `:root` and rewrites not a single `.jpd-*`
+rule. Measured after: `.jpd-btn[data-variant="primary"]` computes violet
+`oklch(0.541 0.245 292.717)` and `border-radius: 4px`, where the default
+theme gives sky-600 and 8px. It is the cheapest way to look like your own
+brand — see [Theming](./theming#retheming-by-token-is-the-cheapest-point-on-it).
+Its shell is plain CSS, no Tailwind plugin anywhere. Dev server on port
+**5177**. See [Composing the Designer](./composing-the-designer).
+
 ## custom-ui
 
 <a href="/json-pdf-designer/playground/custom-ui/" target="_blank" rel="noopener noreferrer">Open in the playground →</a>
@@ -27,6 +81,17 @@ The exact same features as `report-builder`, but the entire shell
 (header, sidebar, cards, field tree, modals) is hand-written plain CSS
 — zero `Button`/`Card`/`Input`/icon imported from the package. Proves
 `<Designer>` itself works with any design system, or none at all.
+
+It deliberately stays on `<Designer>` rather than the parts: it's the
+regression test for the one-line path.
+
+**Styling:** the far end of the spectrum — it imports **no CSS from the
+package at all**, neither `theme.css` nor `reset.css`. What is left in
+the DOM without them is the `.jpd-*` classes and the `data-*` state
+attributes, and its own `index.css` dresses all of it: 192 distinct
+`.jpd-*` selectors, written by hand. That is the price of the whole
+editor with no package appearance, and it is what makes "import neither"
+a supported mode rather than a claim.
 
 ## headless-designer
 
@@ -41,6 +106,18 @@ same idea a Node backend relies on (see [Server-only usage](./server-only-usage)
 and [Backend integration](./backend-integration)), just running in the
 browser here for the demo.
 
+**Styling:** the only example on `json-pdf-designer/reset.css` **alone**
+— the appearance-free export, which nothing else in the repo exercises.
+It can afford that because `<Designer>` never appears here: the only
+package component it renders is `<PdfPreview>`, whose styling surface is
+four names (`.jpd-error`, `.jpd-error--md`, `.jpd-preview__count`, and
+the token `--jpd-shadow-page-preview`), so writing its appearance by hand
+is about five rules. Measured: 54 rules arrive from the package and
+`--jpd-accent` computes empty. That last token is the trap — `PdfPreview`
+reads it **inline**, so the reset-only consumer has to declare it or the
+page shadow vanishes silently. See
+[Theming](./theming#the-bare-reset-carries-no-appearance-and-one-token-is-read-inline).
+
 ## no-preview
 
 <a href="/json-pdf-designer/playground/no-preview/" target="_blank" rel="noopener noreferrer">Open in the playground →</a>
@@ -53,6 +130,24 @@ symbols (the `file:../..` symlink would otherwise let a leaked import resolve
 pdf.js from the parent repo). No feature is missing here: `pdfjs-dist` only
 buys you the on-screen preview.
 
+**Styling:** it imports `theme.css` and turns it **dark**. This is the
+only app in the repo that exercises dark mode, and it defaults to it: a
+`data-jpd-theme` attribute on `<html>`, toggled from the header and
+persisted in `localStorage`. The instructive part is that one attribute
+drives the editor *and* the app shell, because the example declares its
+own `--app-*` variables under the same key — measured on the toggle,
+6 of 6 sampled properties flip together, three on the shell
+(`body` background, `.app-sidebar`, `.panel-title`) and two inside the
+editor (`.jpd-sidebar`, `.jpd-ruler__tick`). See
+[Theming](./theming#dark-mode).
+
+It is also the best smoke test for the **no-Tailwind** mode: zero
+Tailwind pipeline at either end, so the package's own reset has to carry
+its weight unaided. `report-builder` has a pipeline of its own, so it
+emits Preflight on its own account and would **not** reproduce a missing
+reset — testing there first gives you a false pass. (For the mode with no
+package stylesheet at all, the app is `custom-ui`.)
+
 Its <a href="https://github.com/williamanjo/json-pdf-designer/blob/master/examples/no-preview/README.md" target="_blank" rel="noopener noreferrer">README</a>
 spells out why the dependency is deliberately absent and why omitting it
 isn't enough on its own; [Architecture](./architecture#how-the-boundaries-are-enforced)
@@ -60,13 +155,18 @@ covers all three checks that guard the boundary.
 
 ## Running locally
 
-None of the four are npm workspaces — each points at the package via
+None of the five are npm workspaces — each points at the package via
 `"json-pdf-designer": "file:../.."` in its own `package.json`. From the
 repo root:
 
 ```bash
 npm run build          # build the root package once, so dist/ exists
-cd examples/report-builder   # or custom-ui, headless-designer, no-preview
+cd examples/report-builder   # or composed-layout, custom-ui, headless-designer, no-preview
 npm install
 npm run dev
 ```
+
+The dev servers pin one port each, so you can run several at once:
+custom-ui 5174, headless-designer 5175, no-preview 5176,
+composed-layout 5177 — `report-builder` pins none and takes Vite's
+default, 5173.

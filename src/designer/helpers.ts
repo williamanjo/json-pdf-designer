@@ -38,7 +38,7 @@ export function bandSpawnPosition(
 // clicado empurrando mais pra baixo em sequência. Nascer no centro
 // elimina essa dependência: a posição do próximo campo não depende mais
 // de onde os outros campos (mal classificados ou não) já estão.
-export function computeSpawnPosition(template: Template, schema: Schema, isolateBands: boolean): Schema {
+export function computeSpawnPosition(template: Template, schema: Schema, isolateBands: boolean, gridMm?: number): Schema {
   if (isolateBands) {
     const spawn = bandSpawnPosition(template);
     if (!spawn) return schema;
@@ -56,7 +56,7 @@ export function computeSpawnPosition(template: Template, schema: Schema, isolate
   const bodyBottom = page.height - footerHeight;
   const x = isSection ? marginLeft : Math.max(marginLeft + 2, marginLeft + (page.width - marginLeft - marginRight - width) / 2);
   const y = Math.max(bodyTop + 2, bodyTop + (bodyBottom - bodyTop - schema.height) / 2);
-  return { ...schema, x: snapToGrid(x), y: snapToGrid(y), width };
+  return { ...schema, x: snapToGrid(x, gridMm), y: snapToGrid(y, gridMm), width };
 }
 
 // Nome único pro "colar" (Ctrl+V) — determinístico primeiro (`${base}_${suffix}`),

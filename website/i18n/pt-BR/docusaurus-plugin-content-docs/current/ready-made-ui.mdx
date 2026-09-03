@@ -7,13 +7,13 @@ description: Button/Card/Input/PdfPreviewModal opcionais, ou monte a própria ca
 
 Se você não quer (ou não pode) montar a própria casca visual em volta
 do `<Designer>`, o pacote também exporta os componentes prontos que
-ele usa por dentro (`Button`, `Card`, `Input`, ícones etc — Tailwind,
-mesmo estilo do painel de propriedades) e um `PdfPreviewModal`
-completo:
+ele usa por dentro (`Button`, `Card`, `Input`, `Checkbox`, ícones etc —
+mesmo estilo do painel de propriedades, já que eles *são* o que o painel
+de propriedades usa) e um `PdfPreviewModal` completo:
 
 ```tsx
 import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select } from "json-pdf-designer";
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 
 <Card>
   <CardHeader>
@@ -63,3 +63,12 @@ monta a casca inteira com CSS próprio, sem importar nenhum desses
 componentes, pra provar que o `<Designer>` funciona dos dois jeitos. O
 <a href="/json-pdf-designer/playground/headless-designer/" target="_blank" rel="noopener noreferrer">exemplo headless-designer</a>
 vai um passo além e nem usa o `<Designer>`.
+
+## Estilizando eles
+
+A aparência vem do `theme.css`; sem esse import eles saem pelados e você
+estiliza as classes `.jpd-*` do zero. Todos aceitam
+`className`/`style`/`...rest`, e os que renderizam mais de um elemento
+expõem os de dentro por `parts`, por papel — veja
+[Customizando os componentes](./customizing-components), que também
+cobre pôr o **seu** `Button` dentro do editor, e não só em volta dele.

@@ -12,6 +12,35 @@ import { GRID_SIZE_MM, snapToGrid } from "../units";
 // oxlint react(only-export-components), quebra o Fast Refresh senão),
 // mesmo motivo de src/bindingBuilders.ts e src/canvasGeometry.ts.
 
+// Onde um campo colado nasce: um passo de grade abaixo/à direita do
+// original, travado dentro da página.
+//
+// Extraído do handler pra ser TESTÁVEL: o resto do hook são dois
+// `useEffect` que registram listener de teclado, e exercitar isso exigiria
+// jsdom (que a suíte inteira evita — ver test/components/ui/, que usa
+// renderToStaticMarkup). A regra de posição é a parte que tem como estar
+// errada, e agora ela é uma função pura.
+export function pastePosition(
+  s: Pick<Schema, "x" | "y" | "width" | "height">,
+  page: { width: number; height: number },
+  gridMm: number
+): { x: number; y: number } {
+  // Desloca +1 passo de grade (não +8mm cru — arrastar SEMPRE cai num
+  // múltiplo de gridMm via snapToGrid; colar sem alinhar deixa fora da
+  // grade até o usuário arrastar manual pra "recolocar no lugar"). Trava
+  // dentro da página por cima — campo já encostado na borda (tabela larga
+  // com x+width quase no fim) não sai do grid.
+  //
+  // Arredonda o limite pra BAIXO (não snapToGrid, que arredonda pro mais
+  // próximo e podia estourar a página por até meio passo).
+  const maxX = Math.floor(Math.max(0, page.width - s.width) / gridMm) * gridMm;
+  const maxY = Math.floor(Math.max(0, page.height - s.height) / gridMm) * gridMm;
+  return {
+    x: Math.min(snapToGrid(s.x + gridMm, gridMm), maxX),
+    y: Math.min(snapToGrid(s.y + gridMm, gridMm), maxY),
+  };
+}
+
 export type UseClipboardAndDeleteParams = {
   template: Template;
   bindings: Binding[];
@@ -22,6 +51,11 @@ export type UseClipboardAndDeleteParams = {
   // Dicionário i18n (useT()) — só pro sufixo de nome do "colar"
   // (t.schemaDefaults.pasteSuffix).
   t: Dict;
+  // Passo da grade, vindo da config do <Designer>. Opcional: sem ele o
+  // colar usava GRID_SIZE_MM direto, então um consumidor com
+  // `gridSizeMm={2}` tinha arrasto alinhado em 2mm e colagem em 5mm — o
+  // campo colado nascia fora da grade dele.
+  gridSizeMm?: number;
 };
 
 // Só registra os 2 listeners de teclado (delete e copiar/colar) — não
@@ -35,6 +69,7 @@ export function useClipboardAndDelete({
   onChangeTemplate,
   onChangeBindings,
   t,
+  gridSizeMm = GRID_SIZE_MM,
 }: UseClipboardAndDeleteParams): void {
   // Delete/Backspace apaga TODOS os campos selecionados — só quando o foco
   // não tá num input/textarea/select/contenteditable, senão comeria o
@@ -110,21 +145,11 @@ export function useClipboardAndDelete({
       const pasted = clip.schemas.map((s) => {
         const newName = uniqueSchemaName(s.name, usedNames, t.schemaDefaults.pasteSuffix);
         nameMap.set(s.name, newName);
-        // Desloca +1 passo de grade (não +8mm cru — arrastar SEMPRE cai num
-        // múltiplo de GRID_SIZE_MM via snapToGrid; colar sem alinhar deixa
-        // fora da grade até o usuário arrastar manual pra "recolocar no
-        // lugar"). Trava dentro da página por cima — campo já encostado na
-        // borda (tabela larga com x+width quase no fim) não sai do grid.
-        // Arredonda o limite pra BAIXO (não snapToGrid, que arredonda pro
-        // mais próximo e podia estourar a página por até meio passo).
-        const maxX = Math.floor(Math.max(0, template.page.width - s.width) / GRID_SIZE_MM) * GRID_SIZE_MM;
-        const maxY = Math.floor(Math.max(0, template.page.height - s.height) / GRID_SIZE_MM) * GRID_SIZE_MM;
         return {
           ...s,
           id: idMap.get(s.id) as string,
           name: newName,
-          x: Math.min(snapToGrid(s.x + GRID_SIZE_MM), maxX),
-          y: Math.min(snapToGrid(s.y + GRID_SIZE_MM), maxY),
+          ...pastePosition(s, template.page, gridSizeMm),
           sectionId: s.sectionId && idMap.has(s.sectionId) ? idMap.get(s.sectionId) : s.sectionId,
         };
       });
@@ -138,5 +163,9 @@ export function useClipboardAndDelete({
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedIds, template.schemas, template.page.width, template.page.height, bindings, onChangeTemplate, onChangeBindings, t, setSelectedIds]);
+    // `template.page` inteiro, e não `.width`/`.height` separados: o handler
+    // passa o objeto pra `pastePosition`. Não alarga nada de verdade — todo
+    // caminho que muda a página (setPagePreset/setPageOrientation) troca o
+    // objeto, então a identidade muda exatamente quando os valores mudam.
+  }, [selectedIds, template.schemas, template.page, bindings, onChangeTemplate, onChangeBindings, t, setSelectedIds, gridSizeMm]);
 }

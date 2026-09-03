@@ -1,11 +1,822 @@
-/* Casca em CSS puro — o <Designer> traz o próprio estilo via
-   "json-pdf-designer/style.css" (ver main.tsx). Este arquivo só cuida do
-   header, da barra lateral do JSON e do botão de gerar. */
+/* ============================================================================
+   no-preview-example — IDENTIDADE "TERMINAL / IDE"
+   ============================================================================
+
+   Quase-preto, mono em TUDO (inclusive dentro do editor), raio de 2px,
+   accent em verde-fósforo, hairlines, e denso de verdade. É o único example
+   que se parece com um emulador de terminal, e é de propósito: os cinco
+   examples do repo demonstram cinco mecanismos de customização diferentes, e
+   cada um tem de ter uma cara que ninguém confunde com a dos outros.
+
+   ┌─ O MECANISMO DESTE EXAMPLE: TOKEN **+** OVERRIDE DE REGRA ─────────────┐
+   │                                                                        │
+   │ Este arquivo é o único do repo que faz as DUAS coisas, e a diferença   │
+   │ entre elas é a lição:                                                  │
+   │                                                                        │
+   │   BLOCO 1/2/3 — TOKEN. Trocar valor de `--jpd-*`. Repinta o que o      │
+   │                 `theme.css` JÁ declara. Cor, raio, espaçamento,        │
+   │                 tamanho de fonte, sombra. É o mecanismo que o          │
+   │                 `composed-layout` demonstra sozinho (lá há um guard    │
+   │                 que PROÍBE regra `.jpd-*` — a restrição é a            │
+   │                 demonstração).                                         │
+   │                                                                        │
+   │   BLOCO 4     — REGRA. Escrever `.jpd-alguma-coisa { ... }`. É o único │
+   │                 jeito de (a) ACRESCENTAR uma declaração que o          │
+   │                 `theme.css` não tem, (b) mudar GEOMETRIA cravada numa  │
+   │                 regra (largura de borda, `0 0 0 2px` de um anel), e    │
+   │                 (c) desempatar um token que serve DOIS papéis          │
+   │                 conflitantes. Os nove overrides do bloco 4 estão cada  │
+   │                 um comentado com qual dos três casos ele é.            │
+   │                                                                        │
+   │ POR QUE A REGRA DO CONSUMIDOR GANHA: todo o `theme.css` mora numa      │
+   │ `@layer json-pdf-designer`, e CSS SEM layer vence CSS COM layer        │
+   │ independente de especificidade. Este arquivo não declara layer         │
+   │ nenhuma, então um `.jpd-btn { ... }` de uma linha aqui ganha de um     │
+   │ `.jpd-btn[data-variant="primary"]:hover` de lá. Não é hack: é o        │
+   │ desenho da cascata de layers, e é por isso que o pacote pôs o tema     │
+   │ numa layer em primeiro lugar.                                          │
+   └────────────────────────────────────────────────────────────────────────┘
+
+   ┌─ A ARMADILHA QUE ISSO CRIA, e ela morde de verdade ────────────────────┐
+   │ Justamente porque regra sem layer ganha, um `:root { --jpd-surface:    │
+   │ ... }` escrito aqui ganha TAMBÉM do bloco                              │
+   │ `[data-jpd-theme="dark"]` do `theme.css` — que é layerizado. Ou seja:  │
+   │ token sobrescrito só no `:root` fica CONGELADO nos dois temas, e o     │
+   │ toggle ☀/☾ deixa de trocá-lo.                                          │
+   │                                                                        │
+   │ Daí a regra deste arquivo:                                             │
+   │   - token que DEVE trocar com o tema  -> declarado nos DOIS blocos     │
+   │     (bloco 2 = claro, bloco 3 = escuro);                               │
+   │   - token que DEVE ser igual nos dois -> declarado só no bloco 1, e o  │
+   │     congelamento é exatamente o que se quer (é o caso da folha de      │
+   │     papel do canvas, que é branca nos dois temas).                     │
+   └────────────────────────────────────────────────────────────────────────┘
+
+   ┌─ O TEMA CLARO CONTINUA FUNCIONANDO ───────────────────────────────────┐
+   │ Há um toggle no header. Ele troca CLARO/ESCURO, não a identidade: o    │
+   │ claro é um "terminal claro" (papel #f6f8fa, texto quase-preto, o mesmo │
+   │ verde escurecido pra ter contraste), continua mono e continua com raio │
+   │ 2px. O hook é UM atributo no `<html>`:                                 │
+   │                                                                        │
+   │     <html data-jpd-theme="dark">     ou "light", ou nada (= claro)     │
+   │                                                                        │
+   │ E o MESMO atributo dirige o editor e esta casca. `.dark` no `<html>`   │
+   │ também funciona, como alias do que os consumidores de 2.x já punham.   │
+   └────────────────────────────────────────────────────────────────────────┘
+
+   REGRA DESTE ARQUIVO, e ela não é estética: NENHUMA regra de cor usa cor
+   literal. Toda cor sai de uma variável declarada nos DOIS blocos de tema.
+   Um hex solto numa regra nova fica correto no claro e ilegível no escuro —
+   que é o modo DEFAULT deste example, então o bug seria a primeira coisa que
+   qualquer pessoa veria ao abrir. As únicas cores literais estão dentro de
+   declaração de variável, e no grupo do header (que é escuro nos dois temas,
+   ver o comentário lá).
+
+   CONTRASTE MEDIDO NO NAVEGADOR, não estimado: varredura de todo nó de texto
+   visível, compondo o fundo efetivo subindo a árvore e considerando alpha. O
+   parser de cor é o `<canvas>` — é o que evita a armadilha de tentar ler
+   `oklch()` (que é o formato de metade dos valores computados do `theme.css`)
+   como se fosse `rgb()`.
+
+     escuro: 127 nós, 3 abaixo do mínimo, menor aprovado 4.57:1
+     claro:  193 nós, 3 abaixo do mínimo, menor aprovado 4.60:1
+
+   Os 3 de cada lado são o MESMO caso e não são tema: o cabeçalho da tabela
+   do template de exemplo é branco sobre `#0284c7` (4.10:1) — aparência do
+   DOCUMENTO, definida em `data/initialTemplate.ts`, igual nos cinco examples
+   e é assim que sai no PDF.
+
+   Para referência: texto em painel 12.3:1 escuro / 15.5:1 claro; verde de
+   texto 12.3:1 / 6.1:1; muted 6.2:1 / 8.1:1.
+
+   (Os outros examples cobrem os outros pontos do espectro: `report-builder`
+   usa o tema como vem; `composed-layout` retematiza SÓ por token;
+   `custom-ui` não importa CSS nenhum do pacote e escreve as ~190 classes
+   `.jpd-*` do zero; `headless-designer` importa só o `reset.css`.) */
+
+/* ==========================================================================
+   BLOCO 1 — TOKENS DE ESTRUTURA (`--jpd-*` sem cor)
+
+   Fonte, raio, espaçamento, tamanho de fonte, sombra sem cor e camada. São
+   IGUAIS nos dois temas, então moram num bloco só — e o congelamento
+   descrito no cabeçalho é o comportamento desejado aqui (o `theme.css`
+   também não redefine nenhum destes no bloco dark, então nem haveria o que
+   congelar).
+   ========================================================================== */
+
+:root {
+  /* --- MONO EM TUDO ------------------------------------------------------
+     A pilha é declarada UMA vez, em `--jpd-font-mono`, e `--jpd-font-sans`
+     aponta pra ela. Isso é o que faz o editor inteiro virar mono: o
+     `reset.css` do pacote aplica `font-family: var(--jpd-font-sans, inherit)`
+     nos controles de formulário, e o `theme.css` usa `--jpd-font-sans` em
+     `.jpd-zoombar__btn`, `.jpd-fieldrow__rename` e no texto do canvas.
+
+     SEM WEBFONT: pilha do sistema com fallback, porque o example tem de
+     funcionar offline (e porque `vite build` aqui não passa por pipeline de
+     fonte nenhum). */
+  --jpd-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+  --jpd-font-sans: var(--jpd-font-mono);
+  --jpd-font-serif: var(--jpd-font-mono);
+
+  /* --- RAIO 2px ----------------------------------------------------------
+     Quase reto, mas não reto: 2px é a assinatura de janela de terminal
+     moderno, e é o que separa este example do `composed-layout` (que zera
+     TODOS os raios, `--jpd-radius-full` incluído).
+
+     `--jpd-radius-full` FICA em 9999px de propósito: ele pinta o pill da
+     barra de zoom e os botões redondos dela. Zerar aqui transformaria a
+     barra num retângulo — o que no brutalista é o ponto, e aqui não é. */
+  --jpd-radius-sm: 2px;
+  --jpd-radius-md: 2px;
+  --jpd-radius-lg: 2px;
+  --jpd-radius-xl: 2px;
+
+  /* --- DENSIDADE: um degrau abaixo em cada passo -------------------------
+     O editor já era compacto; aqui ele fica mais. Em `rem`, não px, pelo
+     mesmo motivo que o `theme.css` documenta: o valor original era
+     `calc(var(--spacing) * N)` e escala com o root font-size do usuário —
+     emitir px quebraria quem não usa root de 16. */
+  --jpd-space-0-5: 0.125rem; /* 2px, já era o mínimo */
+  --jpd-space-1: 0.1875rem;  /* 3px  (era 4)  */
+  --jpd-space-1-5: 0.25rem;  /* 4px  (era 6)  */
+  --jpd-space-2: 0.375rem;   /* 6px  (era 8)  */
+  --jpd-space-2-5: 0.5rem;   /* 8px  (era 10) */
+  --jpd-space-3: 0.5rem;     /* 8px  (era 12) */
+  --jpd-space-3-5: 0.625rem; /* 10px (era 14) */
+  --jpd-space-4: 0.75rem;    /* 12px (era 16) */
+  --jpd-space-5: 1rem;       /* 16px (era 20) */
+
+  /* --- TIPOGRAFIA: menor, e com o tracking largo de caixa alta -----------
+     Dois grupos, e a divisão é a do `theme.css`: micro/tiny/small vinham de
+     valor arbitrário e eram px lá, então continuam px aqui; body/md/lg
+     carregavam line-height próprio e eram rem, então continuam rem. Trocar
+     a unidade de um grupo mudaria como o editor reage ao root font-size. */
+  --jpd-font-size-micro: 8px;
+  --jpd-font-size-tiny: 9px;
+  --jpd-font-size-small: 10px;
+  --jpd-font-size-body: 0.6875rem; /* 11px (era 12) */
+  --jpd-font-size-md: 0.75rem;     /* 12px (era 14) */
+  --jpd-font-size-lg: 0.8125rem;   /* 13px (era 16) */
+  --jpd-line-height-body: 1.4;
+  --jpd-line-height-md: 1.4;
+  --jpd-line-height-lg: 1.4;
+  --jpd-line-height-tight: 1.2;
+  /* Caixa alta em mono pede tracking largo pra não virar bloco sólido. Este
+     token é consumido por `.jpd-sectionhead` e `.jpd-eyebrow` no pacote — e
+     pelas regras do bloco 4, que o estendem a mais rótulos. */
+  --jpd-tracking-wide: 0.08em;
+
+  /* --- SOMBRA: terminal não tem sombra difusa ----------------------------
+     As três sombras genéricas viram `none`. A do modal e a da folha de papel
+     têm cor, então moram nos blocos de tema / no bloco de canvas.
+
+     Note que ISTO é token bastando por si: o `.jpd-modal__panel` do pacote
+     faz `box-shadow: var(--jpd-shadow-2xl)`, então a moldura dura do modal
+     sai de uma linha de token, sem override de regra. O bloco 4 só existe
+     pro que token NÃO alcança. */
+  --jpd-shadow-sm: none;
+  --jpd-shadow-md: none;
+  --jpd-shadow-lg: none;
+}
+
+/* ==========================================================================
+   BLOCO 1b — CHROME DO CANVAS: CONGELADO NOS DOIS TEMAS, DE PROPÓSITO
+
+   A folha do canvas é PAPEL: branca no claro e no escuro. O `theme.css`
+   trata esses tokens como light-only (não os declara no bloco dark) pelo
+   mesmo motivo. Aqui eles ficam num `:root` só — e o congelamento que a
+   cascata sem layer provoca é exatamente o que se quer.
+
+   O que muda em relação ao pacote: guia, seleção e moldura do papel passam
+   pro verde/grafite da identidade, e a sombra difusa da página vira uma
+   moldura de 1px.
+   ========================================================================== */
+
+:root {
+  --jpd-canvas-page: #ffffff;
+  --jpd-canvas-border: #d0d7de;
+  --jpd-canvas-text: #4a5058;
+  --jpd-canvas-band: #f6f8fa;
+  --jpd-canvas-guide: rgba(23, 113, 48, 0.22);
+  --jpd-canvas-dim: rgba(1, 4, 9, 0.1);
+  --jpd-field-outline: #aeb7c0;
+  --jpd-selection: #177130;
+  --jpd-selection-ring: rgba(23, 113, 48, 0.16);
+  --jpd-locked: #8a6100;
+  /* Moldura DURA em vez de sombra difusa — a folha fica com cara de buffer
+     de arquivo aberto, não de papel flutuando. */
+  --jpd-shadow-page: 0 0 0 1px #aeb7c0;
+  --jpd-shadow-page-preview: 0 0 0 1px #aeb7c0;
+
+  /* Barra de zoom: chip escuro flutuando sobre o papel branco, nos DOIS
+     temas (é isto que ela sempre foi). Por isso mora aqui e não nos blocos
+     de tema. O texto dela é resolvido por regra no bloco 4 — ver lá, é o
+     caso mais interessante do arquivo. */
+  --jpd-zoombar-bg: rgba(1, 4, 9, 0.92);
+  --jpd-zoombar-hover: rgba(126, 231, 135, 0.18);
+  --jpd-zoombar-active: rgba(126, 231, 135, 0.3);
+
+  /* Scrim do modal. O `theme.css` também o declara sem contraparte dark, e
+     um scrim quase-preto é a resposta certa nos dois temas. */
+  --jpd-overlay: rgba(1, 4, 9, 0.78);
+}
+
+/* ==========================================================================
+   BLOCO 2 — TEMA CLARO ("terminal claro")
+
+   Tokens do EDITOR (`--jpd-*`) e da CASCA (`--app-*`) juntos, porque são a
+   mesma decisão de cor tomada duas vezes. Todo nome que aparece aqui
+   reaparece no BLOCO 3 — é o contrato: um token sem contraparte escura fica
+   congelado no valor claro e o toggle para de funcionar pra ele.
+   ========================================================================== */
 
 :root {
   color-scheme: light;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--jpd-font-mono);
+
+  /* ----- editor: superfícies -----
+     Papel `#f6f8fa` com painéis brancos. O "sunken" é o poço mais fundo
+     (fundo de aba, corpo de card recuado). */
+  --jpd-surface: #ffffff;
+  --jpd-surface-field: #ffffff;
+  --jpd-surface-sunken: #eaeef2;
+  --jpd-surface-muted: #eaeef2;
+  --jpd-surface-muted-2: #f6f8fa;
+  --jpd-surface-hover: #eaeef2;
+  --jpd-surface-hover-soft: #f6f8fa;
+  --jpd-surface-active: #dde3ea;
+
+  /* ----- editor: hairlines ----- */
+  --jpd-border: #d0d7de;
+  --jpd-border-alt: #c3cbd4;
+  --jpd-border-strong: #aeb7c0;
+  --jpd-border-strong-2: #98a1ab;
+  /* Aro das amostras de cor. No pacote é `border-black/10` declarado só no
+     `:root` — ou seja, invisível no dark dele. Aqui entra nos dois blocos
+     justamente pra não herdar esse buraco. */
+  --jpd-swatch-ring: rgba(1, 4, 9, 0.18);
+
+  /* ----- editor: texto ----- */
+  --jpd-text-strong: #010409;
+  --jpd-text: #1f2430;
+  --jpd-text-field: #1f2430;
+  --jpd-text-muted: #4a5058;
+  --jpd-text-label: #4a5058;
+  --jpd-text-faint: #585f68;
+  /* A PONTA APAGADA DA RAMPA COLAPSA NUM VALOR SÓ, e é medição, não gosto.
+     O pacote tem quatro degraus (`faint` > `disabled` > `disabled-2` >
+     `ghost`, slate-500..300 no claro e gray-400..600 no escuro) — e os três
+     últimos caem abaixo de 4.5:1 contra as superfícies desta identidade.
+     Não são decorativos: `ghost` pinta `.jpd-colname` (nome de coluna) e a
+     coluna z do inspetor; `disabled-2` pinta a seta da paleta e o rótulo de
+     grupo dela; `disabled` pinta todos os `.jpd-hint`. O `theme.css` já
+     colapsa `faint`+`disabled` no dark por herança do 2.1.1 — aqui os três
+     de baixo colapsam. Perde-se um degrau de hierarquia; ganha-se texto
+     legível. Medido: 5.6:1 sobre painel, 4.8:1 sobre o poço. */
+  --jpd-text-disabled: #616870;
+  --jpd-text-disabled-2: #616870;
+  --jpd-text-ghost: #616870;
+  --jpd-text-placeholder: #616870;
+  --jpd-text-hover: #1f2430;
+  --jpd-text-hover-strong: #010409;
+  /* CLARO sobre accent, e isso NÃO é simetria com o escuro — ver o
+     comentário deste mesmo token no bloco 3, e o override
+     `.jpd-btn[data-variant="primary"]` no bloco 4. */
+  --jpd-text-on-accent: #ffffff;
+
+  /* ----- editor: accent verde-fósforo, escurecido pra ter contraste -----
+     O verde do escuro (`#7ee787`) daria 1.6:1 sobre branco. A direção do
+     brief era `#1a7f37`; medido, ele dá 4.36:1 sobre o "sunken" `#eaeef2`,
+     abaixo do mínimo de 4.5 — então desceu pra `#177130`, que mede 5.23:1
+     ali e 6.10:1 sobre painel branco. */
+  --jpd-accent: #177130;
+  --jpd-accent-solid: #177130;
+  --jpd-accent-solid-hover: #0f5c26;
+  --jpd-accent-hover: #0f5c26;
+  --jpd-accent-border: #177130;
+  --jpd-accent-border-soft: #4aa564;
+  --jpd-accent-border-solid: #177130;
+  --jpd-accent-border-hover: #0f5c26;
+  --jpd-accent-soft: #eafaef;
+  --jpd-accent-soft-hover: #ddf5e4;
+  --jpd-accent-soft-strong: #ddf5e4;
+  --jpd-accent-ring: rgba(23, 113, 48, 0.22);
+  --jpd-accent-ring-visible: #177130;
+  --jpd-accent-text-hover: #0f5c26;
+  /* O vão de 1px POR DENTRO do anel de foco do botão. Era `#fff` fixo no
+     pacote (branco até no dark); aqui acompanha a superfície. */
+  --jpd-ring-offset: #ffffff;
+
+  /* ----- editor: paleta de sintaxe -----
+     O accent é verde, mas as outras famílias NÃO viram verde: um IDE
+     distingue vínculo (ciano), seção (magenta), aviso (âmbar) e erro
+     (vermelho). Colapsar tudo num tom só apagaria informação que o editor
+     usa de verdade. */
+  --jpd-danger: #cf222e;
+  --jpd-danger-hover: #a40e26;
+  --jpd-danger-text: #b42318;
+  --jpd-danger-text-hover: #cf222e;
+  --jpd-danger-soft: rgba(207, 34, 46, 0.1);
+  --jpd-danger-border: #e5534b;
+  --jpd-danger-ring: rgba(207, 34, 46, 0.28);
+
+  --jpd-warn-text: #8a6100;
+  --jpd-warn-text-2: #8a6100;
+
+  --jpd-section: #6639ba;
+  --jpd-section-text: #6639ba;
+  --jpd-section-text-strong: #512a9b;
+  --jpd-section-text-soft: #7a4ecd;
+  --jpd-section-border: #c8a6f5;
+  --jpd-section-border-hover: #a475e8;
+  --jpd-section-border-strong: #a475e8;
+  --jpd-section-soft: rgba(102, 57, 186, 0.06);
+  --jpd-section-soft-2: rgba(102, 57, 186, 0.1);
+  --jpd-section-soft-3: rgba(102, 57, 186, 0.08);
+  --jpd-section-hover: rgba(102, 57, 186, 0.12);
+  --jpd-section-hover-2: rgba(102, 57, 186, 0.16);
+
+  /* A família "sky" do pacote é o callout de VÍNCULO — vira ciano. */
+  --jpd-callout-sky: rgba(15, 109, 115, 0.06);
+  --jpd-callout-sky-solid: rgba(15, 109, 115, 0.1);
+  --jpd-callout-sky-border: #4fa8ae;
+  --jpd-callout-sky-border-solid: #8fcdd1;
+
+  /* ----- editor: régua ----- */
+  --jpd-ruler-bg: #eaeef2;
+  --jpd-ruler-tick: #aeb7c0;
+  --jpd-ruler-label: #585f68;
+
+  /* ----- casca ----- */
+  --app-bg: #f6f8fa;
+  /* O header é escuro nos DOIS temas: é a barra de título da janela de
+     terminal. No claro ele é grafite, no escuro é o preto mais fundo. */
+  --app-header-bg: #1f2430;
+  --app-header-fg: #f8fafc;
+  --app-header-dim: #cbd5e1;
+  --app-sidebar-bg: #eaeef2;
+  --app-panel-bg: #ffffff;
+  --app-border: #d0d7de;
+  --app-control-border: #aeb7c0;
+  --app-fg: #1f2430;
+  --app-muted: #4a5058;
+  --app-code-bg: rgba(1, 4, 9, 0.06);
+  --app-accent: #177130;
+  --app-accent-hover: #0f5c26;
+  --app-accent-solid: #177130;
+  --app-accent-solid-hover: #0f5c26;
+  --app-danger: #b42318;
+  --app-accent-fg: #ffffff;
+  --app-hover-bg: #eaeef2;
+  --app-ok: #116329;
+  --app-danger-bg: #fff2f0;
+  --app-danger-border: #f0b8b2;
+  --app-warn: #8a6100;
+  --app-warn-bg: #fff8e6;
+  --app-warn-border: #e6cf94;
+  /* Tintas das linhas do explorador: array (DataSource) e variável nativa. */
+  --app-tint-array-bg: #eafaef;
+  --app-tint-array-border: #b4e3c2;
+  --app-tint-native-bg: #fff8e6;
+  --app-tint-native-border: #e6cf94;
+  --app-overlay: rgba(1, 4, 9, 0.6);
+  /* Moldura DURA no lugar da sombra do modal — mesma decisão do
+     `--jpd-shadow-2xl` logo abaixo. */
+  --app-shadow: 0 0 0 1px #aeb7c0;
+  /* Texto da barra de zoom do editor. Ela é um chip escuro nos dois temas
+     (ver bloco 1b), então o valor é o mesmo aqui e no bloco 3 — mas está
+     declarado nos dois para o contrato "todo `--app-*` tem contraparte"
+     continuar verificável por leitura, sem exceção pra memorizar. */
+  --app-zoombar-fg: #e6edf3;
+
+  /* Moldura do modal do editor. Colorida, então mora nos blocos de tema. */
+  --jpd-shadow-2xl: 0 0 0 1px #aeb7c0;
 }
+
+/* ==========================================================================
+   BLOCO 3 — TEMA ESCURO (o default deste example)
+
+   MESMA chave que o editor usa. `.dark` entra junto porque o pacote aceita
+   os dois hooks. Todo nome do bloco 2 reaparece aqui.
+
+   A especificidade é o que faz isto funcionar: `:root[data-jpd-theme="dark"]`
+   (0,2,0) ganha do `:root` (0,1,0) do bloco 2, e os dois ganham do
+   `theme.css` inteiro por estarem fora de `@layer`.
+   ========================================================================== */
+
+:root[data-jpd-theme="dark"],
+:root.dark {
+  color-scheme: dark;
+
+  /* ----- editor: superfícies -----
+     `#0a0e14` é o fundo do "emulador"; `#0d1117` são os painéis; `#010409` é
+     o poço mais fundo — e é ele que pinta o INTERIOR dos campos, que é o
+     detalhe que faz o formulário parecer um prompt e não um form. */
+  --jpd-surface: #0d1117;
+  --jpd-surface-field: #010409;
+  --jpd-surface-sunken: #010409;
+  --jpd-surface-muted: #161b22;
+  --jpd-surface-muted-2: #161b22;
+  --jpd-surface-hover: #161b22;
+  --jpd-surface-hover-soft: #11161d;
+  --jpd-surface-active: #21262d;
+
+  /* ----- editor: hairlines ----- */
+  --jpd-border: #1f2430;
+  --jpd-border-alt: #2b3240;
+  --jpd-border-strong: #30363d;
+  --jpd-border-strong-2: #3c444d;
+  --jpd-swatch-ring: rgba(230, 237, 243, 0.22);
+
+  /* ----- editor: texto ----- */
+  --jpd-text-strong: #e6edf3;
+  --jpd-text: #c9d1d9;
+  --jpd-text-field: #c9d1d9;
+  --jpd-text-muted: #8b949e;
+  --jpd-text-label: #8b949e;
+  /* No escuro o colapso é TOTAL: os quatro degraus apagados viram um valor
+     só. O fundo mais claro que estes textos encontram é a linha SELECIONADA
+     da lista de campos (`--jpd-accent-soft` sobre o painel), e é ela que fixa
+     o piso — medido, 4.56:1 ali, 5.07:1 sobre painel, 5.51:1 sobre o poço.
+     `--jpd-text-muted` (#8b949e) continua um degrau acima, então a hierarquia
+     que sobra é de dois níveis em vez de cinco. */
+  --jpd-text-faint: #7d8590;
+  --jpd-text-disabled: #7d8590;
+  --jpd-text-disabled-2: #7d8590;
+  --jpd-text-ghost: #7d8590;
+  --jpd-text-placeholder: #7d8590;
+  --jpd-text-hover: #c9d1d9;
+  --jpd-text-hover-strong: #e6edf3;
+  /* CLARO, e não o quase-preto que o verde-fósforo pediria.
+     `--jpd-text-on-accent` serve CINCO papéis no `theme.css`: texto do botão
+     primário (sobre o accent), do botão danger (sobre vermelho), da etiqueta
+     de faixa (vermelho), da alça de seção (roxo) e da barra de zoom (chip
+     escuro). Só o PRIMEIRO quer texto escuro. Pôr `#0a0e14` aqui apagaria os
+     outros quatro. Token não separa papéis; regra separa — ver o bloco 4. */
+  --jpd-text-on-accent: #e6edf3;
+
+  /* ----- editor: accent verde-fósforo ----- */
+  /* DUAS forças de verde, e a separação é deliberada: `--jpd-accent` é o
+     fósforo puro e só aparece como TEXTO, BORDA e glifo (12.3:1 sobre
+     painel); `--jpd-accent-solid` é um degrau mais fundo e é o único que
+     PREENCHE área. Medido na tela: com o fósforo preenchendo os seis botões
+     de "adicionar campo" mais o botão primário da casca, a tela virava
+     um bloco de neon e o verde deixava de significar "isto é ação". */
+  --jpd-accent: #7ee787;
+  --jpd-accent-solid: #3fb950;
+  --jpd-accent-solid-hover: #56d364;
+  --jpd-accent-hover: #a2f2a8;
+  --jpd-accent-border: #7ee787;
+  --jpd-accent-border-soft: #3fb950;
+  --jpd-accent-border-solid: #7ee787;
+  --jpd-accent-border-hover: #a2f2a8;
+  /* 6% e não 10%: este é o fundo da linha SELECIONADA da lista de campos, e
+     a 10% ele clareava o suficiente pra derrubar a coluna x/y e a coluna z
+     pra 3.7:1. A seleção não fica menos visível — quem a marca é o
+     `--jpd-accent-border` verde-fósforo em volta, não o tinte. */
+  --jpd-accent-soft: rgba(126, 231, 135, 0.06);
+  --jpd-accent-soft-hover: rgba(126, 231, 135, 0.1);
+  --jpd-accent-soft-strong: rgba(126, 231, 135, 0.12);
+  --jpd-accent-ring: rgba(126, 231, 135, 0.28);
+  --jpd-accent-ring-visible: #3fb950;
+  --jpd-accent-text-hover: #a2f2a8;
+  --jpd-ring-offset: #0d1117;
+
+  /* ----- editor: paleta de sintaxe -----
+     `--jpd-danger` e `--jpd-section` são FUNDO de texto claro (botão danger,
+     etiqueta de faixa, alça de seção), então não podem ser o vermelho/roxo
+     brilhante que o dark sugere: medido, `#e6edf3` sobre `#f85149` dá
+     2.84:1. Os valores abaixo dão 5.89:1 e 5.49:1. Os tokens `*-text` são
+     os brilhantes, porque ali o papel é inverso (texto sobre painel). */
+  --jpd-danger: #a72b26;
+  --jpd-danger-hover: #c02a25;
+  --jpd-danger-text: #ff7b72;
+  --jpd-danger-text-hover: #ffa198;
+  --jpd-danger-soft: rgba(248, 81, 73, 0.15);
+  --jpd-danger-border: #f85149;
+  --jpd-danger-ring: rgba(248, 81, 73, 0.35);
+
+  --jpd-warn-text: #e3b341;
+  --jpd-warn-text-2: #d29922;
+
+  --jpd-section: #6e40c9;
+  --jpd-section-text: #d2a8ff;
+  --jpd-section-text-strong: #e2c5ff;
+  --jpd-section-text-soft: #bc8cff;
+  --jpd-section-border: #6e40c9;
+  --jpd-section-border-hover: #8957e5;
+  --jpd-section-border-strong: #8957e5;
+  --jpd-section-soft: rgba(163, 113, 247, 0.08);
+  --jpd-section-soft-2: rgba(163, 113, 247, 0.12);
+  --jpd-section-soft-3: rgba(163, 113, 247, 0.1);
+  --jpd-section-hover: rgba(163, 113, 247, 0.16);
+  --jpd-section-hover-2: rgba(163, 113, 247, 0.22);
+
+  --jpd-callout-sky: rgba(57, 197, 207, 0.07);
+  --jpd-callout-sky-solid: rgba(57, 197, 207, 0.1);
+  --jpd-callout-sky-border: #2b7f86;
+  --jpd-callout-sky-border-solid: #235f65;
+
+  /* ----- editor: régua ----- */
+  --jpd-ruler-bg: #0d1117;
+  --jpd-ruler-tick: #30363d;
+  --jpd-ruler-label: #7d8590;
+
+  /* ----- casca ----- */
+  --app-bg: #0a0e14;
+  --app-header-bg: #010409;
+  --app-header-fg: #f8fafc;
+  --app-header-dim: #cbd5e1;
+  --app-sidebar-bg: #0d1117;
+  --app-panel-bg: #0d1117;
+  --app-border: #1f2430;
+  --app-control-border: #30363d;
+  --app-fg: #c9d1d9;
+  --app-muted: #8b949e;
+  --app-code-bg: rgba(126, 231, 135, 0.1);
+  /* Mesma separação de duas forças do editor: `--app-accent` é o fósforo de
+     TEXTO/BORDA, `--app-accent-solid` é o que preenche botão e aba ativa. */
+  --app-accent: #7ee787;
+  --app-accent-hover: #a2f2a8;
+  --app-accent-solid: #3fb950;
+  --app-accent-solid-hover: #56d364;
+  --app-danger: #ff7b72;
+  /* Texto ESCURO sobre o accent claro do dark — é a inversão que o dark
+     pede, e o oposto do bloco 2. */
+  --app-accent-fg: #0a0e14;
+  --app-hover-bg: #161b22;
+  --app-ok: #56d364;
+  --app-danger-bg: #1a0f10;
+  --app-danger-border: #5b2326;
+  --app-warn: #e3b341;
+  --app-warn-bg: #1a1408;
+  --app-warn-border: #55411a;
+  --app-tint-array-bg: #08161f;
+  --app-tint-array-border: #1d4a6b;
+  --app-tint-native-bg: #1a1408;
+  --app-tint-native-border: #55411a;
+  --app-overlay: rgba(1, 4, 9, 0.78);
+  --app-shadow: 0 0 0 1px #30363d;
+  --app-zoombar-fg: #e6edf3;
+
+  --jpd-shadow-2xl: 0 0 0 1px #30363d;
+}
+
+/* ==========================================================================
+   BLOCO 4 — OVERRIDE DE REGRA `.jpd-*`
+
+   O MECANISMO QUE SÓ ESTE EXAMPLE DEMONSTRA. Cada regra abaixo existe porque
+   token NÃO alcançaria, e cada uma diz qual dos três casos ela é:
+
+     (a) ACRESCENTAR uma declaração que o `theme.css` não tem. Token só
+         repinta o que já está escrito lá — não existe token que crie uma
+         borda onde não havia, nem que ligue `text-transform`.
+     (b) Mudar GEOMETRIA cravada na regra. `border-block-end: 2px solid
+         var(--jpd-accent-border)` deixa a COR sair de token, mas o `2px` é
+         literal. Idem o `0 0 0 2px` do anel de foco e o `inline-size: 20rem`
+         do painel lateral.
+     (c) DESEMPATAR um token que serve dois papéis conflitantes. É o caso
+         mais interessante do arquivo, e está no fim do bloco.
+
+   Por que estas regras ganham do pacote: elas estão FORA de `@layer`, e o
+   `theme.css` inteiro está DENTRO de `@layer json-pdf-designer`. CSS sem
+   layer vence CSS com layer independente de especificidade — então
+   `.jpd-btn { ... }` aqui ganha de `.jpd-btn[data-variant="primary"]:hover`
+   lá. É a razão de o pacote ter posto o tema numa layer.
+
+   E o cuidado que isso impõe: escreva SEMPRE o seletor `.jpd-*` completo.
+   Um `button { ... }` solto alcançaria todo botão do editor pelo mesmo
+   mecanismo, sem você pedir — já foi bug real aqui.
+   ========================================================================== */
+
+/* (a) O `▸` DE RÓTULO DE SEÇÃO — a marca de identidade do example.
+   `content` não é token, e não existe token de "prefixo". Vale pros dois
+   rótulos de seção do editor: o cabeçalho da lista de campos
+   (`.jpd-sectionhead`) e os rótulos de zona do inspetor (`.jpd-eyebrow`,
+   HEADER / BODY / FOOTER). Os dois já são caixa alta no pacote; o que entra
+   é o glifo e a cor de accent.
+
+   `\25b8` em vez do caractere literal de propósito: o arquivo passa por
+   ferramenta e por copy/paste, e escape ASCII não tem como ser mangled. */
+.jpd-sectionhead::before,
+.jpd-eyebrow::before {
+  content: "\25b8  ";
+  color: var(--jpd-accent);
+}
+
+/* (a) RÓTULO DE CAMPO EM CAIXA ALTA.
+   `.jpd-grouplabel` (rótulos de grupo do painel de tabela) e
+   `.jpd-labeled__text` (o rótulo de todo Input/Select/Textarea do editor)
+   são peso 500 e caixa mista no pacote. `text-transform` e `letter-spacing`
+   não são tokens, e `--jpd-tracking-wide` existe mas o pacote só o consome
+   em duas classes — estender o tracking a mais rótulos é regra, não token.
+   É o que dá ao painel de propriedades a cara de legenda de painel de IDE. */
+.jpd-grouplabel,
+.jpd-labeled__text {
+  text-transform: uppercase;
+  letter-spacing: var(--jpd-tracking-wide);
+  font-weight: 600;
+  color: var(--jpd-text-faint);
+}
+
+/* (a) HAIRLINE SOB O CABEÇALHO DE CARD.
+   O `.jpd-card__header` do pacote tem `display`/`gap` e NENHUMA borda — não
+   há token de cor que crie uma borda inexistente. Este é o exemplo mais
+   limpo do caso (a): token repinta, regra acrescenta. */
+.jpd-card__header {
+  border-block-end: 1px solid var(--jpd-border);
+  padding-block-end: var(--jpd-space-2);
+}
+
+/* (a) BADGE COMO ETIQUETA DE TERMINAL.
+   No pacote é um chip com fundo `--jpd-surface-muted` e sem borda. Trocar o
+   fundo por token deixaria um retângulo cinza; o que se quer é contorno fino
+   e texto verde — ou seja, `background: none` (declaração nova) mais uma
+   `border` que não existia. Caso (a) duas vezes. */
+.jpd-badge {
+  border: 1px solid var(--jpd-border-alt);
+  background-color: transparent;
+  color: var(--jpd-accent);
+}
+
+/* (a) TINTA DEFAULT DA FOLHA — o segundo achado da medição, e o mais grave.
+
+   `.jpd-page` do pacote declara só `background-color` e `box-shadow`. Não
+   declara `color` — então todo texto do documento que não traz cor própria
+   herda o `--jpd-text` do TEMA. No claro isso passa (texto escuro sobre papel
+   branco); no escuro é cinza-claro sobre papel BRANCO. Medido aqui: as
+   células vazias `—` da tabela davam 1.54:1.
+
+   Token não conserta, e não é falta de token: não há declaração de `color` em
+   `.jpd-page` pra repintar. O valor usado é `--jpd-canvas-text` — o token que
+   o pacote já reserva pra "tinta desenhada sobre o papel" (legenda de
+   gráfico) — e mede 8.1:1 sobre branco. Cor definida por campo continua
+   vencendo, porque vem inline do template. */
+.jpd-page {
+  color: var(--jpd-canvas-text);
+}
+
+/* (a) O SELETOR DE PALETA VOLTANDO PRO CHROME DO SISTEMA — achado medindo
+   esta identidade, e o override é o conserto local.
+
+   `.jpd-palette__trigger` é um `<button>` do pacote que NÃO está na lista de
+   classes do `reset.css` (`.jpd-btn`, `.jpd-iconbtn`, `.jpd-tab`,
+   `.jpd-tabs__btn`, `.jpd-menuitem`, `.jpd-addlink`, ...) e TEM classe, então
+   o reset por elemento de lá, que é `:not([class])`, também não o alcança. Sem
+   `background-color` declarado em lugar nenhum, ele cai no `ButtonFace` do
+   sistema — que com `color-scheme: dark` é um cinza `#6b6b6b`. Medido na
+   tela: o rótulo "Personalizada (cores manuais)" dava 3.45:1 sobre esse
+   cinza, e a seta `▾` dava 1.25:1.
+
+   Token não conserta: não existe declaração de fundo pra repintar. E é
+   justamente o tipo de buraco que só um example que roda DARK encontra — no
+   claro o `ButtonFace` é `#efefef`, quase indistinguível de branco. */
+.jpd-palette__trigger {
+  background-color: var(--jpd-surface-field);
+}
+
+/* (a) BOTÃO EM CAIXA ALTA.
+   Sem token de casing. Peso 600 porque em mono o 500 e o 400 quase não se
+   distinguem. */
+.jpd-btn {
+  text-transform: uppercase;
+  letter-spacing: var(--jpd-tracking-wide);
+  font-weight: 600;
+}
+
+/* (a) BARRA DE ROLAGEM FINA E QUADRADA.
+   Pseudo-elemento e propriedade `scrollbar-*` — nada disso é tokenizável. Só
+   nas duas caixas que rolam de verdade no editor; a faixa de abas
+   (`.jpd-tabs--scroll`) esconde a barra dela de propósito no pacote, e
+   mexer ali comeria metade da altura da faixa. */
+.jpd-designer__canvas,
+.jpd-fieldlist__scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--jpd-border-strong) transparent;
+}
+
+.jpd-designer__canvas::-webkit-scrollbar,
+.jpd-fieldlist__scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.jpd-designer__canvas::-webkit-scrollbar-thumb,
+.jpd-fieldlist__scroll::-webkit-scrollbar-thumb {
+  background-color: var(--jpd-border-strong);
+}
+
+.jpd-designer__canvas::-webkit-scrollbar-track,
+.jpd-fieldlist__scroll::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* (a) CHECKBOX NATIVO EM VERDE.
+   `accent-color` não é token do pacote, e o `.jpd-checkline__box` de lá só
+   carrega `margin: 0` (reset local). Este é o override que faz o primitivo
+   SLOTADO (`Checkbox`, ver src/uiSlots.tsx) aparecer verde na aba Estilo de
+   uma tabela — porque aquele adapter EMBRULHA o `<Checkbox>` do pacote em
+   vez de reimplementá-lo, então a caixa em si continua sendo desta classe. */
+.jpd-checkline__box {
+  accent-color: var(--jpd-accent);
+  inline-size: 11px;
+  block-size: 11px;
+}
+
+/* (b) FOCO DURO DE 1px, NO LUGAR DO ANEL DE 2px.
+   O pacote faz `box-shadow: 0 0 0 2px var(--jpd-accent-ring),
+   var(--jpd-shadow-sm)`. Token alcança a COR do anel (`--jpd-accent-ring`),
+   mas o `0 0 0 2px` é geometria literal — e anel difuso é justamente o que
+   um terminal não tem. Vira `outline` de 1px por dentro da borda. */
+.jpd-input:focus,
+.jpd-select:focus,
+.jpd-textarea:focus {
+  box-shadow: none;
+  outline: 1px solid var(--jpd-accent);
+  outline-offset: -1px;
+}
+
+/* (b) ABA ATIVA COMO BLOCO PREENCHIDO, estilo status line de tmux.
+   O pacote marca a aba ativa com `border-block-end: 2px solid
+   var(--jpd-accent-border)`. A cor sai de token; a ESPESSURA e a ideia de
+   "sublinhado" são literais da regra. Preenchido é uma forma diferente, não
+   uma cor diferente — por isso só regra chega aqui.
+
+   A cor do texto é o desempate (c) descrito no fim do bloco — mesma razão do
+   botão primário: `--jpd-text-on-accent` é claro nos dois temas por causa
+   dos outros papéis dele, e mede 2.2:1 sobre o verde de preenchimento. */
+.jpd-tab[data-active="true"] {
+  border-block-end-color: transparent;
+  background-color: var(--jpd-accent-solid);
+  color: var(--jpd-surface-sunken);
+}
+
+/* (b) PAINEL LATERAL MAIS ESTREITO.
+   `inline-size: 20rem` é literal na regra `.jpd-sidebar` — não existe token
+   de largura. Reduzir os `--jpd-space-*` (bloco 1) aperta o conteúdo mas
+   não move a coluna, então a densidade de verdade só sai daqui.
+
+   18rem e não menos: a faixa de abas do painel (Campos/Dados/Estilo/Filtro/
+   Página/Inspetor, em pt-BR) transborda e passa a rolar com as setas `‹ ›`
+   do pacote. Isso já acontece no default de 20rem, mas a 17rem o primeiro
+   rótulo aparecia cortado no meio — 18rem é onde a faixa volta a começar
+   numa aba inteira. */
+.jpd-sidebar {
+  inline-size: 18rem;
+}
+
+/* (b) NUMERAL TABULAR NO CHROME NUMÉRICO.
+   `font-variant-numeric` não é token. A coluna x/y e a coluna z do inspetor
+   de template, e os números da régua, ficam em coluna alinhada — é metade do
+   que faz uma lista parecer saída de terminal. (A barra de zoom já vem com
+   `tabular-nums` do pacote.) */
+.jpd-fieldrow__pos,
+.jpd-fieldrow__z,
+.jpd-ruler__label,
+.jpd-colname {
+  font-variant-numeric: tabular-nums;
+}
+
+/* (c) OS DOIS DESEMPATES — o caso que token não resolve NEM EM PRINCÍPIO.
+
+   `--jpd-text-on-accent` é UM token com CINCO papéis no `theme.css`. Quatro
+   deles (botão danger sobre vermelho, etiqueta de faixa sobre vermelho, alça
+   de seção sobre roxo, barra de zoom sobre chip escuro) querem texto CLARO
+   em qualquer tema. O quinto (botão primário sobre o accent) quer texto
+   escuro no tema escuro, porque lá o accent é verde-fósforo claro.
+
+   Enquanto o accent do pacote era sky-600/sky-700 os cinco concordavam, e um
+   token bastava. Verde quebra o empate — e nenhum valor do token satisfaz os
+   dois lados ao mesmo tempo: medido, `#e6edf3` sobre o verde de
+   preenchimento dá 2.15:1. A saída é isolar o papel divergente numa regra:
+
+     - `.jpd-btn[data-variant="primary"]` (e a aba ativa, acima) recebe
+       `--jpd-surface-sunken`, que INVERTE junto com o tema — quase-preto no
+       escuro, cinza-claro no claro — e mede 8.1:1 / 5.2:1 sobre o
+       `--jpd-accent-solid` de cada tema. Nenhum token existente tinha esse
+       comportamento; `--jpd-text-on-accent` é claro nos dois.
+     - `.jpd-zoombar` recebe `--app-zoombar-fg`, porque o chip dela é escuro
+       nos DOIS temas (mora no bloco 1b) e o texto tem de ser claro nos dois,
+       16.5:1.
+
+   Sem estas duas regras, retematizar o accent pra verde obrigaria a escolher
+   qual dos cinco papéis fica ilegível. */
+.jpd-btn[data-variant="primary"] {
+  color: var(--jpd-surface-sunken);
+}
+
+.jpd-zoombar {
+  color: var(--app-zoombar-fg);
+}
+
+/* ==========================================================================
+   CASCA — header, barra lateral, abas de página, painéis, banner, modal
+
+   Daqui pra baixo é CSS do app, não do pacote: nenhum destes seletores
+   existe no `theme.css`. Segue a mesma identidade (mono, 2px, hairline,
+   verde) e as mesmas variáveis dos blocos 2 e 3.
+   ========================================================================== */
 
 * {
   box-sizing: border-box;
@@ -13,6 +824,9 @@
 
 body {
   margin: 0;
+  background: var(--app-bg);
+  color: var(--app-fg);
+  font-size: 11px;
 }
 
 #root {
@@ -22,125 +836,914 @@ body {
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
 }
 
+code {
+  background: var(--app-code-bg);
+  padding: 0 3px;
+  border-radius: 2px;
+  color: var(--app-accent);
+  font-size: 1em;
+}
+
+/* ---------------------------------------------------------------- header */
+
 .app-header {
-  padding: 12px 20px;
-  background: #0f172a;
-  color: #f8fafc;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  background: var(--app-header-bg);
+  color: var(--app-header-fg);
+  border-bottom: 1px solid var(--app-border);
   flex-shrink: 0;
 }
 
 .app-header h1 {
-  margin: 0 0 4px;
-  font-size: 15px;
+  margin: 0 0 2px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* O `$` de prompt. Mesma ideia do `▸` das seções do editor: identidade por
+   glifo, em CSS, sem tocar no JSX. */
+.app-header h1::before {
+  content: "$ ";
+  color: var(--app-accent);
 }
 
 .app-header p {
   margin: 0;
-  font-size: 12px;
-  color: #cbd5e1;
-  max-width: 90ch;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--app-header-dim);
+  max-width: 100ch;
 }
 
-code {
-  background: rgba(15, 23, 42, 0.08);
-  padding: 1px 4px;
-  border-radius: 4px;
-  font-size: 0.92em;
+.app-header__badge {
+  margin-left: 8px;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-header-dim);
+}
+
+.app-header__actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+/* Os controles do header são o ÚNICO grupo do arquivo com cor literal fora
+   de declaração de variável, e por um motivo: a faixa do header é escura nos
+   DOIS temas (`--app-header-bg` vai de #1f2430 a #010409), então um branco
+   translúcido é a mesma resposta certa nos dois — variável aqui só
+   duplicaria o valor sem nunca divergir. O texto vem de `--app-header-fg`,
+   que é variável de verdade.
+
+   Escopado a `.app-header` por classe (nunca `header select { ... }`): ver o
+   comentário do bloco de primitivos mais abaixo. */
+.app-header__control {
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 7px;
+  color: var(--app-header-fg);
+  font: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.app-header__control:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* `<option>` herda o fundo do popup do sistema, não do `<select>` — sem isto
+   o texto claro do select cai sobre a lista clara do popup no tema claro.
+   `color-scheme` do `:root` já resolve na maioria dos browsers; este é o
+   cinto de segurança. */
+.app-header__control option {
+  background: var(--app-panel-bg);
+  color: var(--app-fg);
+  text-transform: none;
+}
+
+.app-header__control--file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .app-header code {
   background: rgba(255, 255, 255, 0.12);
+  color: var(--app-header-fg);
 }
+
+/* -------------------------------------------------- banner de erro de PDF */
+
+.app-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.app-banner.is-danger {
+  background: var(--app-danger-bg);
+  border-bottom-color: var(--app-danger-border);
+  color: var(--app-danger);
+}
+
+/* "erro inesperado" (culpa do pacote) não é culpa de quem está usando — tom
+   neutro, não vermelho. */
+.app-banner.is-neutral {
+  background: var(--app-sidebar-bg);
+  color: var(--app-fg);
+}
+
+.app-banner__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-banner__title {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.app-banner__dim {
+  margin-left: 6px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--app-muted);
+}
+
+.app-banner__detail {
+  display: block;
+  margin-top: 3px;
+  padding: 5px 6px;
+  border-radius: 2px;
+  border-left: 2px solid var(--app-danger);
+  background: var(--app-code-bg);
+  color: var(--app-fg);
+  font-size: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.app-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------ corpo e colunas */
 
 .app-body {
   display: flex;
   flex: 1;
   min-height: 0;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .app-sidebar {
-  width: 320px;
+  width: 288px;
   flex-shrink: 0;
-  padding: 14px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border-right: 1px solid #e2e8f0;
-  background: #f8fafc;
+  gap: 8px;
+  overflow-y: auto;
+  border-right: 1px solid var(--app-border);
+  background: var(--app-sidebar-bg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-control-border) transparent;
 }
 
 .app-main {
   flex: 1;
   min-width: 0;
-  padding: 14px;
-}
-
-.panel {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  min-height: 0;
 }
 
-.panel-title {
-  font-size: 11px;
+.app-canvas-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+}
+
+.app-generate {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------- painéis */
+
+.app-panel {
+  border: 1px solid var(--app-border);
+  border-radius: 2px;
+  background: var(--app-panel-bg);
+  padding: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* O painel de campos ocupa o resto da coluna e rola por dentro. */
+.app-panel--grow {
+  flex: 1;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.app-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-bottom: 1px solid var(--app-border);
+  padding-bottom: 5px;
+}
+
+/* Mesma marca `▸` que o bloco 4 põe nos rótulos de seção do EDITOR — é o que
+   faz a casca e o editor lerem como um só programa. */
+.app-panel__title {
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--app-muted);
+}
+
+.app-panel__title::before,
+.app-tree-section__title::before {
+  content: "\25b8  ";
+  color: var(--app-accent);
+}
+
+.app-badge {
+  border-radius: 2px;
+  border: 1px solid currentcolor;
+  padding: 0 5px;
+  font-size: 9px;
+  font-weight: 700;
   letter-spacing: 0.04em;
-  color: #64748b;
 }
 
-textarea,
-button {
+.app-badge.is-danger {
+  background: var(--app-danger-bg);
+  color: var(--app-danger);
+}
+
+.app-badge.is-warn {
+  background: var(--app-warn-bg);
+  color: var(--app-warn);
+}
+
+/* ------------------------------------------------------------ primitivos */
+
+/* TUDO AQUI É ESCOPADO POR CLASSE PRÓPRIA, e isso não é preferência.
+ *
+ * Um `textarea, button { ... }` solto alcança TODO botão do <Designer>
+ * também — as abas, a toolbar, os ícones da lista de campos — e ganha: o
+ * theme.css do pacote mora numa `@layer`, e CSS sem layer vence CSS com
+ * layer independente de especificidade. (É o mesmo mecanismo que o BLOCO 4
+ * usa DE PROPÓSITO; a diferença é mirar `.jpd-*` de propósito em vez de
+ * pegar o editor de raspão.)
+ *
+ * O sintoma era discreto no claro (borda e padding parasitas em cada botão
+ * do editor) e óbvio no escuro (`color: #0f172a` deixava o texto das abas
+ * invisível sobre a barra escura) — que é justamente o modo que este example
+ * usa por default, então o erro aparecia na hora.
+ *
+ * A versão antiga deste bloco escopava por CONTAINER (`.app-sidebar
+ * button`), o que bastava enquanto o app só tinha barra lateral. Não basta
+ * mais: as abas de página e o modal do explorador de campos moram DENTRO do
+ * `.app-main`, o mesmo container do <Designer> — um `.app-main button`
+ * pegaria o editor inteiro. Escopar por classe própria vale nos dois casos e
+ * não depende de onde o componente é montado. */
+.app-btn,
+.app-icon-btn,
+.app-input,
+.app-textarea {
   font: inherit;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 5px 7px;
-  color: #0f172a;
+  border: 1px solid var(--app-control-border);
+  border-radius: 2px;
+  background: var(--app-panel-bg);
+  padding: 3px 6px;
+  color: var(--app-fg);
 }
 
-.data-textarea {
-  width: 100%;
-  resize: vertical;
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
-}
-
-.generate-btn {
-  background: #0284c7;
-  color: #ffffff;
-  border-color: #0284c7;
-  font-weight: 600;
-  padding: 8px 10px;
+.app-btn {
   cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
 }
 
-.generate-btn:hover:not(:disabled) {
-  background: #0369a1;
+.app-btn:hover:not(:disabled) {
+  background: var(--app-hover-bg);
+  border-color: var(--app-accent);
 }
 
-.generate-btn:disabled {
-  opacity: 0.6;
+.app-btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.error-text {
-  color: #dc2626;
-  font-size: 12px;
+.app-btn--primary,
+.app-btn--accent {
+  background: var(--app-accent-solid);
+  border-color: var(--app-accent-solid);
+  color: var(--app-accent-fg);
+}
+
+.app-btn--primary {
+  padding: 6px 8px;
+}
+
+.app-btn--primary:hover:not(:disabled),
+.app-btn--accent:hover:not(:disabled) {
+  background: var(--app-accent-solid-hover);
+  border-color: var(--app-accent-solid-hover);
+}
+
+.app-btn--outline {
+  background: transparent;
+  color: var(--app-muted);
+}
+
+/* Sem borda nem fundo (o "ghost" da casca) — para ações secundárias dentro
+   de um banner que já tem cor de fundo própria. */
+.app-btn--quiet {
+  background: transparent;
+  border-color: transparent;
+  color: inherit;
+  text-decoration: underline;
+}
+
+.app-btn--quiet:hover:not(:disabled) {
+  background: var(--app-code-bg);
+  border-color: transparent;
+}
+
+.app-icon-btn {
+  cursor: pointer;
+  padding: 1px 5px;
+  line-height: 1.2;
+  background: transparent;
+  border-color: transparent;
+  color: var(--app-muted);
+}
+
+.app-icon-btn:hover {
+  background: var(--app-hover-bg);
+  color: var(--app-accent);
+}
+
+.app-icon-btn--danger:hover {
+  background: var(--app-danger-bg);
+  color: var(--app-danger);
+}
+
+.app-input {
+  min-width: 0;
+  flex: 1;
+  font-size: 11px;
+}
+
+.app-input:focus-visible,
+.app-textarea:focus-visible {
+  outline: 1px solid var(--app-accent);
+  outline-offset: -1px;
+  border-color: var(--app-accent);
+}
+
+.app-textarea {
+  width: 100%;
+  resize: vertical;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* Já é mono por herança (o `:root` inteiro é), mas a classe continua
+   existindo porque o JSX a passa — e explícito documenta a intenção. */
+.app-textarea--mono {
+  font-family: var(--jpd-font-mono);
+}
+
+/* ------------------------------------------------------- fontes de dados */
+
+.app-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px;
+  border: 1px dashed var(--app-control-border);
+  border-radius: 2px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--app-muted);
+  cursor: pointer;
+  transition:
+    border-color 0.1s,
+    background 0.1s;
+}
+
+.app-dropzone:hover {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+}
+
+.app-dropzone.is-over {
+  border-color: var(--app-accent);
+  border-style: solid;
+  background: var(--app-tint-array-bg);
+  color: var(--app-fg);
+}
+
+.app-dropzone__icon {
+  font-size: 14px;
+}
+
+.app-source-list,
+.app-problem-list,
+.app-tree-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-source {
+  border: 1px solid var(--app-border);
+  border-left: 2px solid var(--app-accent);
+  border-radius: 2px;
+  padding: 6px;
+}
+
+.app-source__head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.app-resync {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-status {
+  font-size: 10px;
+  margin: 0;
+  color: var(--app-muted);
+}
+
+.app-status.is-ok {
+  color: var(--app-ok);
+  font-weight: 600;
+}
+
+.app-status.is-error {
+  color: var(--app-danger);
+}
+
+/* -------------------------------------------------- explorador de campos */
+
+.app-tree-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-control-border) transparent;
+}
+
+.app-tree-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-tree-section--divided {
+  border-top: 1px solid var(--app-border);
+  padding-top: 6px;
+}
+
+.app-tree-section__title {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--app-muted);
+}
+
+.app-tree-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.app-tree-toggle {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  padding: 1px 3px;
+  border-radius: 2px;
+  color: var(--app-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-tree-toggle:hover {
+  background: var(--app-hover-bg);
+  color: var(--app-fg);
+}
+
+.app-tree-group__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--app-fg);
+}
+
+.app-field-row {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--app-border);
+  border-radius: 2px;
+  background: var(--app-panel-bg);
+  font-size: 11px;
+  cursor: grab;
+}
+
+.app-field-row:hover {
+  border-color: var(--app-accent);
+}
+
+.app-field-row.is-array {
+  border-color: var(--app-tint-array-border);
+  background: var(--app-tint-array-bg);
+}
+
+.app-field-row.is-native {
+  border-color: var(--app-tint-native-border);
+  background: var(--app-tint-native-bg);
+}
+
+.app-field-row__icon {
+  color: var(--app-accent);
+}
+
+.app-field-row__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-fg);
+}
+
+.app-field-row__add {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------- abas de página */
+
+/* Abas quadradas com a ativa PREENCHIDA — a mesma forma que o bloco 4 dá às
+   abas do editor. */
+.app-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 4px 6px 0;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-sidebar-bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.app-tab {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  padding: 3px 6px;
+}
+
+.app-tab.is-active {
+  border-color: var(--app-accent-solid);
+  background: var(--app-accent-solid);
+}
+
+.app-tab__label,
+.app-tab__close,
+.app-tab__add {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--app-muted);
+  cursor: pointer;
+}
+
+.app-tab.is-active .app-tab__label,
+.app-tab.is-active .app-tab__close {
+  color: var(--app-accent-fg);
+  font-weight: 600;
+}
+
+.app-tab__close,
+.app-tab__add {
+  border-radius: 2px;
+  padding: 1px 4px;
+  line-height: 1.2;
+}
+
+.app-tab__close:hover,
+.app-tab__add:hover {
+  background: var(--app-hover-bg);
+  color: var(--app-fg);
+}
+
+.app-tab__add {
+  color: var(--app-accent);
+}
+
+/* ---------------------------------------------- problemas do template */
+
+.app-problem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--app-border);
+  border-left-width: 2px;
+  border-radius: 2px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.app-problem.is-danger {
+  border-color: var(--app-danger-border);
+  border-left-color: var(--app-danger);
+  background: var(--app-danger-bg);
+}
+
+.app-problem.is-warn {
+  border-color: var(--app-warn-border);
+  border-left-color: var(--app-warn);
+  background: var(--app-warn-bg);
+}
+
+/* Hover por BORDA, não por clarear/escurecer o fundo: um `filter:
+   brightness()` que aparece no escuro é imperceptível no claro (e
+   vice-versa), então a mesma regra teria efeito só em um dos dois temas. */
+.app-problem.is-danger:hover {
+  border-color: var(--app-danger);
+}
+
+.app-problem.is-warn:hover {
+  border-color: var(--app-warn);
+}
+
+.app-problem__name {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 600;
+  color: var(--app-fg);
+}
+
+.app-problem.is-danger .app-problem__name > span:first-child {
+  color: var(--app-danger);
+}
+
+.app-problem.is-warn .app-problem__name > span:first-child {
+  color: var(--app-warn);
+}
+
+.app-problem__where {
+  font-weight: 400;
+  color: var(--app-muted);
+}
+
+.app-problem__message {
+  display: block;
+  margin-top: 2px;
+  color: var(--app-fg);
+}
+
+.app-problem__page {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--app-muted);
+}
+
+/* -------------------------------------- modal do explorador de campos */
+
+.app-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-overlay);
+}
+
+.app-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  padding: 10px;
+  border: 1px solid var(--app-accent);
+  border-radius: 2px;
+  background: var(--app-panel-bg);
+  color: var(--app-fg);
+  box-shadow: var(--app-shadow);
+}
+
+.app-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--app-border);
+  padding-bottom: 6px;
+}
+
+.app-modal__title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.app-modal__title::before {
+  content: "\25b8  ";
+  color: var(--app-accent);
+}
+
+.app-modal__body {
+  display: flex;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-control-border) transparent;
+}
+
+/* ------------------------------------------------------------------ texto */
+
+.app-error-text {
+  color: var(--app-danger);
+  font-size: 10px;
   margin: 0;
 }
 
-.hint {
+.app-hint {
   margin: 0;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.5;
-  color: #64748b;
+  color: var(--app-muted);
+}
+
+/* ======================================================================
+   PRIMITIVOS SLOTADOS
+
+   Estilo dos dois primitivos que este example injeta no editor por
+   `<Designer components={...}>` — ver src/uiSlots.tsx.
+
+   Eles NÃO são casca: renderizam DENTRO do editor, então a aparência tem de
+   conversar com o `theme.css` nos dois temas. Por isso usam as mesmas
+   variáveis dos blocos 2 e 3, e não cor literal.
+
+   Aqui eles ganham cara de WIDGET DE TERMINAL de propósito: o `<select>`
+   vira um campo com `[` `]` de colchete e uma seta `▾` verde, e o
+   `<Checkbox>` ganha uma barra verde à esquerda mais a caixa verde que o
+   bloco 4 dá ao `.jpd-checkline__box`. A ideia é que dê pra VER na tela,
+   sem abrir o DevTools, que aqueles dois controles não são os do pacote.
+   ====================================================================== */
+
+.slot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slot-field__label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--jpd-accent);
+}
+
+/* A seta e os colchetes são nossos (dois `::after`/`::before`), pra dar pra
+   VER na tela que o primitivo foi substituído — sem isso a demonstração
+   seria invisível. `\25be` = ▾, escapado por ASCII pelo mesmo motivo do
+   `\25b8` do bloco 4. */
+.slot-select {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--jpd-font-size-body);
+  color: var(--jpd-accent);
+}
+
+.slot-select::before {
+  content: "[";
+}
+
+.slot-select::after {
+  content: "\25be]";
+}
+
+.slot-select select {
+  flex: 1;
+  min-inline-size: 0;
+  appearance: none;
+  border: 1px solid var(--jpd-accent);
+  border-radius: 2px;
+  background: var(--jpd-surface-field);
+  padding: 2px 6px;
+  color: var(--jpd-text-field);
+  font: inherit;
+  font-size: var(--jpd-font-size-body);
+}
+
+.slot-select select:focus-visible {
+  outline: 1px solid var(--jpd-accent);
+  outline-offset: 1px;
+}
+
+/* O `<option>` herda o fundo do popup do sistema, não do `<select>` — mesma
+   razão do `.app-header__control option`. */
+.slot-select select option {
+  background: var(--jpd-surface);
+  color: var(--jpd-text);
+}
+
+/* Este adapter EMBRULHA o `<Checkbox>` do pacote em vez de reimplementá-lo,
+   então a caixa em si continua sendo `.jpd-checkline__box` e vem do
+   theme.css — com o `accent-color` verde que o BLOCO 4 lhe dá. O que é nosso
+   é só a marca em volta. */
+.slot-check {
+  display: block;
+  border-inline-start: 2px solid var(--jpd-accent);
+  background: var(--jpd-accent-soft);
+  padding-inline-start: 5px;
 }

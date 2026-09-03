@@ -1,7 +1,10 @@
 import { Badge, Card, CardHeader, CardTitle, IconAlertTriangle } from "json-pdf-designer";
+import type { Locale } from "json-pdf-designer";
 import type { TemplateProblem } from "../lib/templateProblems";
+import { t } from "../i18n";
 
 type Props = {
+  locale: Locale;
   problems: TemplateProblem[];
   // Clique num problema leva pra página e seleciona o campo — o painel só
   // aponta se der pra chegar lá.
@@ -15,14 +18,15 @@ type Props = {
 // o campo sai em branco sem explicação. Este painel é onde a explicação
 // aparece, antes de gerar — montado com `expressionErrors` e `fieldWarning`,
 // exports públicos do pacote.
-export default function ProblemsPanel({ problems, onGoTo }: Props) {
+export default function ProblemsPanel({ locale, problems, onGoTo }: Props) {
+  const tx = t(locale);
   const willRenderEmpty = problems.filter((p) => p.kind === "expressao").length;
   const suspect = problems.filter((p) => p.kind === "suspeita").length;
 
   return (
     <Card className="flex flex-col gap-2 p-3">
       <CardHeader>
-        <CardTitle>Problemas do template</CardTitle>
+        <CardTitle>{tx.problemsTitle}</CardTitle>
         {problems.length > 0 && (
           <Badge className={willRenderEmpty + suspect > 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}>
             {problems.length}
@@ -31,25 +35,13 @@ export default function ProblemsPanel({ problems, onGoTo }: Props) {
       </CardHeader>
 
       {problems.length === 0 ? (
-        <p className="text-[11px] text-slate-500">
-          Nenhum problema. Expressões válidas, vínculos completos.
-        </p>
+        <p className="text-[11px] text-slate-500">{tx.problemsNone}</p>
       ) : (
         <>
-          {suspect > 0 && (
-            <p className="text-[11px] text-red-700">
-              {suspect === 1 ? "1 expressão suspeita" : `${suspect} expressões suspeitas`} — compila, mas
-              provavelmente não faz o que parece. Veja abaixo.
-            </p>
-          )}
-          {willRenderEmpty > 0 && (
-            <p className="text-[11px] text-red-700">
-              {willRenderEmpty === 1
-                ? "1 campo vai renderizar VAZIO no PDF."
-                : `${willRenderEmpty} campos vão renderizar VAZIOS no PDF.`}{" "}
-              A geração não falha por isso — por isso este aviso existe.
-            </p>
-          )}
+          {/* Frase INTEIRA (plural incluído) vem do dicionário, não montada
+              no JSX: em inglês o número não fica no mesmo lugar da oração. */}
+          {suspect > 0 && <p className="text-[11px] text-red-700">{tx.problemsSuspect(suspect)}</p>}
+          {willRenderEmpty > 0 && <p className="text-[11px] text-red-700">{tx.problemsEmpty(willRenderEmpty)}</p>}
           <ul className="flex flex-col gap-1">
             {problems.map((p, i) => (
               <li key={`${p.schemaId}-${p.where ?? "geral"}-${i}`}>
@@ -67,6 +59,11 @@ export default function ProblemsPanel({ problems, onGoTo }: Props) {
                     {p.schemaName}
                     {p.where && <code className="font-normal text-slate-500">.{p.where}</code>}
                   </span>
+                  {/* `p.message` JÁ vem traduzido — sai de `expressionErrors`/
+                      `fieldWarning` com `dictFor(locale)` (ver
+                      lib/templateProblems.ts). O conceito é do pacote, então o
+                      texto é do pacote: nada duplicado aqui.
+                      `p.schemaName` acima é nome de campo, dado — não traduz. */}
                   <span className="mt-0.5 block text-slate-600">{p.message}</span>
                   <span className="mt-0.5 block text-[10px] text-slate-400">{p.pageName}</span>
                 </button>

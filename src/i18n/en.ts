@@ -227,6 +227,97 @@ export const en = {
     suspiciousOperator: (op: string, ident: string) =>
       `Operator "${op}" has whitespace on one side only in "${ident}" — it became part of the field name, not an operation, and the field renders empty. Whitespace on both sides makes it arithmetic; no whitespace at all, if the JSON key really has "${op}" in its name.`,
   },
+  // Falhas de GERAÇÃO, em texto de usuário final. Nada aqui é `error.message`
+  // — aquele é inglês fixo, diagnóstico de desenvolvedor (ver o topo de
+  // src/errors.ts). Isto é o que `describePdfError(err, t)` devolve pra pôr na
+  // tela: `title` é o que aconteceu, `action` é o que a pessoa faz agora.
+  //
+  // Uma chave por `PdfErrorCode` (mais `expression`) — e é obrigatório: falta
+  // de chave é erro de COMPILAÇÃO em src/errors.ts
+  // (`PdfErrorCodesHaveDictEntries`), não string vazia em produção.
+  //
+  // Função por entrada onde entra número ou nome, em vez de concatenar na
+  // chamada: em idioma com outra ordem de palavras, concatenar sai errado e
+  // não há como o tradutor consertar.
+  errors: {
+    pageLimit: {
+      title: (maxPages: number) => `The report went past ${maxPages} pages`,
+      action: "Filter the data before generating, or split it into several PDFs. If the report really is this big, raise the page ceiling.",
+    },
+    paginationStalled: {
+      // Sem `action`: a ação é reportar, e o título já diz isso.
+      title: (field: string) => `Pagination got stuck on "${field}" — this is a bug in json-pdf-designer, please report it`,
+    },
+    invalidPageSize: {
+      title: (pageId: string) => `Page "${pageId}" has an invalid size`,
+      action: (pageTab: string) => `Set the width and height, in millimetres, in the "${pageTab}" tab.`,
+    },
+    unsupportedGlyph: {
+      title: (char: string, codePoint: string) => `The font in use has no glyph for the character ${char} (${codePoint})`,
+      action: "Remove that character from the data, or generate using a font that covers it.",
+    },
+    woff2SupportMissing: {
+      title: "This .woff2 font cannot be embedded",
+      action: "Install the optional 'wawoff2' package, or convert the font to .ttf/.otf and use that file instead.",
+    },
+    fontDecompressFailed: {
+      title: "The font file could not be unpacked",
+      action: "The file is probably corrupt. Convert the font to .ttf/.otf and use that file instead.",
+    },
+    fontDecompressTimeout: {
+      title: "Unpacking the font took too long and was cancelled",
+      action: "Convert the font to .ttf/.otf once, offline, and use that file instead.",
+    },
+    imageUploadTooLarge: {
+      title: (limitMb: number) => `This file is over the ${limitMb}MB limit`,
+      action: "Shrink or re-export the image before uploading it.",
+    },
+    imageUploadUnreadable: {
+      title: "This file could not be used as a background",
+      action: "Check that it really is an image (PNG or JPEG) and try again.",
+    },
+    imageTooLarge: {
+      titleField: (field: string, limitMb: number) => `The image in field "${field}" is over the ${limitMb}MB limit`,
+      titleBackground: (limitMb: number) => `The page background image is over the ${limitMb}MB limit`,
+      action: "Shrink the image and re-upload it from the editor.",
+    },
+    tooManyImages: {
+      title: (maxImages: number) => `The report uses more than ${maxImages} different images`,
+      action: "Reuse the same image where you can, or split the report into several PDFs.",
+    },
+    unsupportedImageFormat: {
+      title: (field: string) => `The image in field "${field}" is in a format that cannot be embedded`,
+      action: "Only PNG and JPEG work. Re-upload the file from the editor.",
+    },
+    imageUnreadable: {
+      title: (field: string) => `The image in field "${field}" could not be read`,
+      action: "The file is corrupt. Re-upload it from the editor.",
+    },
+    backgroundImageUnreadable: {
+      title: "The page background image could not be read",
+      action: "The file is corrupt, or is not a PNG. Re-upload it in the page settings.",
+    },
+    templateNotAnObject: {
+      title: (receivedType: string) => `This is not a template (received ${receivedType})`,
+      action: "Check what is being loaded — a template is a JSON object.",
+    },
+    templateVersionInvalid: {
+      title: (received: string) => `The template has an invalid version (${received})`,
+      action: "The file is probably damaged. Load a backup, or save it again from the editor.",
+    },
+    templateVersionTooNew: {
+      title: (found: number, supported: number) => `The template was saved by a newer version (${found}; this build understands up to ${supported})`,
+      action: "Update json-pdf-designer to open this template.",
+    },
+    templateMigrationMissing: {
+      // Sem `action`: bug do pacote.
+      title: (from: number, to: number) => `The template cannot be upgraded from version ${from} to ${to} — this is a bug in json-pdf-designer, please report it`,
+    },
+    expression: {
+      title: "The template has an invalid expression",
+      action: (message: string) => `Fix the expression in the template — ${message}`,
+    },
+  },
   binding: {
     keyValue: "key/value",
     repeatedSection: "(repeated section)",
@@ -428,6 +519,13 @@ export const en = {
     pastel: "Pastel",
     grayscale: "Grayscale",
     custom: "Custom",
+  },
+  modal: {
+    // Nome acessível do "x" da casca de modal. Antes o botão levava
+    // `aria-label={title}`, ou seja, leitor de tela anunciava o TÍTULO DO
+    // DIÁLOGO como nome do botão que o fecha ("Editor de fórmula" pro botão
+    // que fecha o editor de fórmula).
+    close: "Close",
   },
   pdfPreview: {
     renderError: (msg: string) => `Error rendering preview: ${msg}`,

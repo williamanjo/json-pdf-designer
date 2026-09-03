@@ -8,6 +8,11 @@ export default defineConfig({
   // que só quem importa "json-pdf-designer/preview" precise dele
   // instalado (peer opcional). Ver o invariante em src/preview.ts.
   entry: ["src/index.ts", "src/server.ts", "src/preview.ts"],
+  // `theme.css` é escrito à mão (nada de Tailwind) e o tsup não PROCESSA
+  // CSS — `publicDir` só copia `src/css/*` pro `dist/`. Roda depois do
+  // `clean: true` e recopia em `--watch`, então `npm run dev` também
+  // acompanha. Preferido a um script com `cp`, que não é portátil no Windows.
+  publicDir: "src/css",
   format: ["esm", "cjs"],
   dts: true,
   sourcemap: true,

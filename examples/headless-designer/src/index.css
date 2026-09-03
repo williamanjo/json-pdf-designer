@@ -1,12 +1,136 @@
 /* CSS 100% escrito à mão, sem Tailwind — este example não usa NENHUM
-   componente pronto do pacote pra sua própria casca (nem pro <Designer>,
-   que nem aparece aqui). Só o <PdfPreview> (canvas do pdf.js, dentro de
-   .app-preview) continua com a aparência do pacote, importada via
-   "json-pdf-designer/style.css" em main.tsx. */
+   componente pronto do pacote pra sua própria casca (nem o <Designer>, que
+   nem aparece aqui, nem as peças `Designer*`).
+
+   E ele importa SÓ O RESET do pacote (`json-pdf-designer/reset.css`, ver
+   main.tsx), não o tema. Então a aparência do `<PdfPreview>` também é daqui
+   — são as ~5 regras no fim deste arquivo.
+
+   (Os outros examples cobrem os outros pontos do espectro: `report-builder`
+   usa o `theme.css` como vem; `composed-layout` importa o tema e retematiza
+   só por token; `no-preview` importa o tema e liga o dark; `custom-ui` não
+   importa CSS nenhum do pacote e escreve as ~190 classes `.jpd-*` do zero.)
+
+   ==========================================================================
+   IDENTIDADE: PLANTA TÉCNICA (BLUEPRINT)
+   ==========================================================================
+
+   Os cinco examples têm o mesmo conjunto de recursos; o que muda é o
+   mecanismo de customização E a cara. A cara deste é **planta técnica**:
+
+   - **azul-marinho** de base, com **ciano** como única cor de estrutura;
+   - **hairline de 1px e nada mais grosso** — nenhuma borda de 2px, nenhuma
+     sombra difusa;
+   - **raio 0 em tudo** (nem no `.badge`, nem na alça de redimensionar);
+   - **mono em tudo**, com rótulo e legenda em CAIXA ALTA 10px e
+     `letter-spacing: .08em` — cara de legenda de desenho técnico;
+   - e o detalhe que só ESTE example pode ter: **papel milimetrado no
+     canvas**, porque o canvas aqui é código nosso (ver a seção CANVAS).
+
+   Por que aqui é 100% nosso: o `reset.css` devolve só o que o Preflight do
+   Tailwind dava (`box-sizing`, `margin: 0`, `font: inherit` em controle,
+   `svg { display: block }`, `code` mono) e ZERO aparência. Não há token nem
+   regra de tema pra herdar, nem pra brigar. O preço é que TUDO abaixo é
+   escrito na mão; o retorno é que nada aqui parece o pacote.
+
+   CAIXA ALTA é só pra RÓTULO E LEGENDA, nunca pra texto corrido: parágrafo
+   de ajuda, mensagem de problema e detalhe de erro ficam em caixa normal
+   (`.panel-hint`, `.problem-item-message`, `.gen-banner-detail`). Texto
+   longo em maiúsculas não se lê.
+
+   CONTRASTE (WCAG 2.1, medido — tudo hex, sem `oklch()` no meio):
+     corpo    #d7e8f2 sobre #0a1a2b .......... 13.98:1
+     corpo    #d7e8f2 sobre #0e2236 .......... 12.85:1
+     2º plano #9fc0d4 sobre #0e2236 ........... 8.43:1
+     ciano    #4dd0e1 sobre #0a1a2b ........... 9.56:1
+     ciano    #4dd0e1 sobre #0e2236 ........... 8.78:1
+     âmbar    #ffb74d sobre #0e2236 ........... 9.33:1
+     erro     #ff8a80 sobre #0e2236 ........... 7.07:1
+     ok       #69f0ae sobre #0e2236 .......... 11.28:1
+     void     #050f19 sobre ciano (botão) .... 10.49:1
+     void     #050f19 sobre âmbar (flag) ..... 11.14:1
+     corpo sobre a linha FORTE da grade ....... 8.88:1
+     ciano sobre a linha FORTE da grade ....... 6.07:1
+   Nenhum texto abaixo de 6:1 (a régua de texto normal é 4.5:1). O hairline
+   de CONTORNO fica em 3.64:1 sobre o painel e 3.86:1 sobre o cabeçalho —
+   acima dos 3:1 de contraste não-textual (WCAG 1.4.11); ver a nota do
+   `--bp-line` no bloco de tokens.
+
+   NOTA sobre ciano em texto pequeno: `#4dd0e1` puro a 10px vibra sobre
+   navy mesmo com 9.5:1 de contraste — contraste alto não é o mesmo que
+   confortável. Então o ciano SATURADO fica em linha, alça e rótulo de
+   seção (≤ poucas palavras), e o texto pequeno de leitura usa `#d7e8f2` /
+   `#9fc0d4`, que não vibram.
+
+   Sobre os seletores de ELEMENTO soltos mais abaixo (`input, textarea,
+   button, select`): num example que importa o `theme.css` isso seria
+   armadilha — CSS sem `@layer` vence CSS com layer independente de
+   especificidade, então a regra alcançaria o chrome do editor e ganharia
+   dele. Aqui é seguro porque não existe chrome do pacote nesta árvore: a
+   única coisa do pacote que renderiza é o `<PdfPreview>`, que é um
+   `<canvas>` e dois parágrafos `.jpd-*` — nenhum controle de formulário. */
 
 :root {
-  color-scheme: light;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* `dark`, e não `light`: sem isso os widgets nativos (o `input[type=color]`,
+     o menu do `<select>`, as barras de rolagem) sairiam claros no meio de uma
+     tela navy. O `reset.css` não opina sobre isso. */
+  color-scheme: dark;
+
+  /* ---- Superfícies ------------------------------------------------------
+     Três degraus e uma regra: o mais ESCURO é o desenho (cabeçalho e folha
+     do canvas), o do meio é a mesa, o mais claro são os painéis. É o oposto
+     de um editor claro, onde a folha é o ponto mais claro da tela. */
+  --bp-void: #050f19; /* cabeçalho + folha do canvas */
+  --bp-ink: #0a1a2b; /* mesa (área do canvas) */
+  --bp-panel: #0e2236; /* painéis laterais */
+  --bp-inset: #0b1c2c; /* controle e cartão interno */
+
+  /* ---- Traço ------------------------------------------------------------
+     Uma cor de linha só, em três forças — nunca mais de 1px de espessura.
+
+     `--bp-line` é o hairline de ESTRUTURA e de CONTORNO DE CONTROLE, e a
+     alfa dele é medida, não escolhida a olho: 0.55 dá 3.64:1 sobre o painel
+     e 3.86:1 sobre o cabeçalho, ou seja passa a régua de 3:1 de contraste
+     não-textual (WCAG 1.4.11) em todos os fundos desta paleta. A 0.45, que
+     era o valor da primeira versão, dava 2.89:1 e reprovava.
+
+     `--bp-line-soft` (1.91:1) é DIVISÓRIA, não contorno: linha entre itens
+     de lista, base do título de painel, caixa de cota. Não precisa da régua
+     de 3:1 porque não é ela que delimita componente nenhum.
+
+     `--bp-wash` é o único preenchimento de destaque — 8% de ciano, o
+     equivalente a um lápis passado de leve. */
+  --bp-cyan: #4dd0e1;
+  --bp-line: rgba(77, 208, 225, 0.55);
+  --bp-line-soft: rgba(77, 208, 225, 0.28);
+  --bp-wash: rgba(77, 208, 225, 0.08);
+
+  /* ---- Texto ------------------------------------------------------------ */
+  --bp-text: #d7e8f2;
+  --bp-text-dim: #9fc0d4;
+
+  /* ---- Anotação ---------------------------------------------------------
+     Numa planta, cota e observação saem em outra cor que a do traço. Âmbar
+     é a anotação (faixa de cabeçalho/rodapé, marca de `visibleWhen`, aviso
+     de configuração); vermelho é falha; verde é confirmação. */
+  --bp-amber: #ffb74d;
+  --bp-red: #ff8a80;
+  --bp-green: #69f0ae;
+
+  /* ---- Tipografia -------------------------------------------------------
+     Mono em TUDO — inclusive nos painéis e nos botões. Só pilha do sistema,
+     nenhuma webfont: o example tem de abrir offline. */
+  --bp-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+
+  font-family: var(--bp-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--bp-text);
+
+  /* Barra de rolagem fina e ciano, pra ela não ser a única peça "de sistema"
+     numa tela desenhada. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--bp-line) transparent;
 }
 
 * {
@@ -15,6 +139,8 @@
 
 body {
   margin: 0;
+  background: var(--bp-ink);
+  color: var(--bp-text);
 }
 
 #root {
@@ -29,29 +155,110 @@ body {
   height: 100%;
 }
 
+/* Foco visível e QUADRADO. O `reset.css` não dá anel de foco nenhum, e o
+   default do navegador ficaria arredondado no Chrome — o que numa tela de
+   raio 0 é a única curva da página. */
+:focus-visible {
+  outline: 1px solid var(--bp-cyan);
+  outline-offset: 1px;
+  border-radius: 0;
+}
+
+/* ==========================================================================
+   CASCA
+   ========================================================================== */
+
 .app-header {
-  padding: 12px 20px;
-  background: #0f172a;
-  color: #f8fafc;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--bp-void);
+  color: var(--bp-text);
+  /* Hairline em vez de mudança de tom: é o que separa faixa de faixa numa
+     planta. Vale pra toda a casca abaixo. */
+  border-bottom: 1px solid var(--bp-line);
   flex-shrink: 0;
 }
 
-.app-header h1 {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 600;
+/* Sem um piso de largura, os 5 botões + 2 selects da direita (que não
+   encolhem) espremiam o título até ele quebrar letra por letra. */
+.app-header-titles {
+  flex: 1 1 auto;
+  min-width: 260px;
 }
 
+/* Título como CARIMBO de prancha: caixa alta, `letter-spacing` largo, ciano.
+   São três palavras — dentro do limite de "rótulo", não texto corrido. */
+.app-header h1 {
+  margin: 0 0 5px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--bp-cyan);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.app-header-meta {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--bp-text-dim);
+  /* Caixa de cota: valor entre hairlines, do lado do nome da peça. */
+  border: 1px solid var(--bp-line-soft);
+  padding: 1px 5px;
+}
+
+/* Texto corrido — caixa normal, de propósito. */
 .app-header p {
   margin: 0;
-  font-size: 12px;
-  color: #cbd5e1;
+  font-size: 11px;
+  color: var(--bp-text-dim);
 }
 
 .app-header code {
-  background: rgba(255, 255, 255, 0.12);
-  padding: 1px 4px;
-  border-radius: 4px;
+  background: var(--bp-wash);
+  border: 1px solid var(--bp-line-soft);
+  padding: 0 3px;
+}
+
+/* Encolhe E quebra: com `flex-shrink: 0` a fileira de botões mantinha a
+   largura do conteúdo e empurrava a página inteira pra scroll horizontal
+   numa janela estreita. */
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Um <label> com o <input type="file"> escondido dentro — o botão nativo de
+   arquivo não é estilizável, então o rótulo faz o papel dele. Tem de casar
+   com a regra de `button` mais abaixo, à mão. */
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--bp-line);
+  padding: 4px 8px;
+  background: var(--bp-inset);
+  color: var(--bp-text);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.file-button:hover {
+  background: var(--bp-wash);
+  border-color: var(--bp-cyan);
 }
 
 .app-body {
@@ -60,16 +267,25 @@ body {
   min-height: 0;
 }
 
-.app-sidebar {
-  width: 340px;
+.app-sidebar,
+.app-props {
   flex-shrink: 0;
   overflow-y: auto;
-  padding: 14px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border-right: 1px solid #e2e8f0;
-  background: #f8fafc;
+  gap: 10px;
+  background: var(--bp-panel);
+}
+
+.app-sidebar {
+  width: 320px;
+  border-right: 1px solid var(--bp-line);
+}
+
+.app-props {
+  width: 296px;
+  border-left: 1px solid var(--bp-line);
 }
 
 .app-main {
@@ -77,32 +293,115 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #f1f5f9;
+  background: var(--bp-ink);
+}
+
+/* ==========================================================================
+   ABAS DE PÁGINA E DE VISTA
+
+   Aba de planta: retângulo de hairline, sem canto arredondado e sem
+   gradiente. A ativa é a que ganha a linha ciano cheia e o fundo da mesa —
+   ou seja, ela "abre" pro canvas em vez de flutuar sobre ele.
+   ========================================================================== */
+
+.page-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 6px 12px 0;
+  border-bottom: 1px solid var(--bp-line);
+  background: var(--bp-void);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.page-tab {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  /* Um hairline vertical entre abas — a "costura" da prancha. */
+  border-left: 1px solid var(--bp-line-soft);
+}
+
+.page-tab:first-child {
+  border-left: none;
+}
+
+.page-tab button {
+  border: none;
+  background: transparent;
+  color: var(--bp-text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 5px 12px;
+}
+
+.page-tab.active button {
+  background: var(--bp-ink);
+  color: var(--bp-cyan);
+  font-weight: 700;
+  /* Linha superior cheia = "esta é a folha aberta". */
+  box-shadow: inset 0 1px 0 0 var(--bp-cyan);
+}
+
+.page-tab-remove,
+.page-tab-add {
+  border: none;
+  background: transparent;
+  color: var(--bp-text-dim);
+  padding: 3px 6px;
+  line-height: 1;
+  font-size: 12px;
+}
+
+.page-tab-remove:hover,
+.page-tab-add:hover {
+  background: var(--bp-wash);
+  color: var(--bp-cyan);
 }
 
 .view-tabs {
   display: flex;
-  gap: 2px;
+  align-items: center;
+  gap: 0;
   padding: 8px 12px 0;
   flex-shrink: 0;
 }
 
-.view-tabs button {
-  border-radius: 6px 6px 0 0;
+.view-tabs > button {
+  border: 1px solid var(--bp-line);
   border-bottom: none;
-  background: #e2e8f0;
-  color: #475569;
+  background: transparent;
+  color: var(--bp-text-dim);
+  padding: 5px 14px;
 }
 
-.view-tabs button.active {
-  background: #f1f5f9;
-  color: #0f172a;
-  font-weight: 600;
+.view-tabs > button + button {
+  border-left: none;
 }
 
-.view-tabs button:disabled {
-  opacity: 0.4;
+.view-tabs > button.active {
+  border-color: var(--bp-cyan);
+  color: var(--bp-cyan);
+  background: var(--bp-wash);
+  font-weight: 700;
+}
+
+.view-tabs > button:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
+}
+
+.add-row {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.add-row button {
+  font-size: 10px;
+  padding: 4px 8px;
 }
 
 .canvas-scroll,
@@ -113,104 +412,291 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
 }
 
-/* Página do canvas — só um retângulo branco do tamanho da folha (em px,
-   escala PX_PER_MM do App.tsx) onde os campos ficam posicionados
-   absolutamente. Nenhuma relação com o <canvas> do pdf.js do PdfPreview —
-   isso aqui é só a superfície de arrastar/redimensionar, feita à mão. */
+/* ==========================================================================
+   CANVAS PRÓPRIO — O PAPEL MILIMETRADO
+
+   Isto é o que NENHUM outro example pode fazer: nos outros o canvas é o
+   `<DesignerCanvas>` do pacote, e a folha é branca porque o tema diz que é.
+   Aqui o canvas é `src/components/Canvas.tsx`, código deste example — então
+   a folha pode ser o que a identidade pedir. E a identidade pede planta:
+   folha escura com graticulado ciano.
+
+   COMO O PASSO DA GRADE SAI DA ESCALA (e não de um número mágico):
+   `Canvas.tsx` já conhece a escala em `src/lib/geometry.ts` — `PX_PER_MM`
+   (px por mm) e `GRID_MM` (o passo de 5mm em que arrasto e resize travam).
+   Ele publica os dois como custom property no `style` inline da folha:
+
+       --bp-grid-minor: `${PX_PER_MM}px`             ->  1mm
+       --bp-grid-major: `${GRID_MM * PX_PER_MM}px`   ->  5mm
+
+   e as quatro `repeating-linear-gradient` abaixo leem daí. Consequência: se
+   `PX_PER_MM` mudar, a grade acompanha sozinha, e a linha forte continua
+   caindo EXATAMENTE onde o snap trava — a grade desenhada e a grade de
+   comportamento são o mesmo número. O `var(..., 3px)` / `var(..., 15px)` é
+   só rede: sem o fallback, um `var()` vazio invalidaria a declaração e a
+   folha ficaria lisa em silêncio.
+
+   E A GRADE NÃO COMPETE COM O CONTEÚDO: a linha de 1mm fica em 5% de alfa
+   (a 3px de passo, uma linha de 1px cobre 1/3 da área — mais que isso e a
+   folha viraria um bloco ciano) e a de 5mm em 22%. Medido: texto de campo
+   (#d7e8f2) sobre o pixel MAIS CLARO da grade ainda dá 8.88:1. */
 .canvas-page {
   position: relative;
-  background-color: #ffffff;
-  background-image: linear-gradient(to right, rgba(2, 132, 199, 0.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(2, 132, 199, 0.08) 1px, transparent 1px);
-  background-repeat: repeat;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: var(--bp-void);
+  background-image:
+    /* 5mm — linha forte. Vem primeiro porque a primeira camada pinta por
+       cima, e nos cruzamentos é ela que tem de aparecer. */
+    repeating-linear-gradient(to right, rgba(77, 208, 225, 0.22) 0 1px, transparent 1px var(--bp-grid-major, 15px)),
+    repeating-linear-gradient(to bottom, rgba(77, 208, 225, 0.22) 0 1px, transparent 1px var(--bp-grid-major, 15px)),
+    /* 1mm — linha fraca. */
+    repeating-linear-gradient(to right, rgba(77, 208, 225, 0.05) 0 1px, transparent 1px var(--bp-grid-minor, 3px)),
+    repeating-linear-gradient(to bottom, rgba(77, 208, 225, 0.05) 0 1px, transparent 1px var(--bp-grid-minor, 3px));
+  /* A folha é a única coisa da tela com linha ciano CHEIA no contorno: é o
+     objeto do desenho. */
+  border: 1px solid var(--bp-cyan);
   flex-shrink: 0;
 }
 
+/* Faixa de cabeçalho/rodapé/margem — um campo entra no cabeçalho do PDF só
+   por cair aqui dentro (ver zones.ts do pacote), então a faixa precisa
+   aparecer. `pointer-events: none` pra não roubar o mousedown do campo.
+
+   Âmbar, e não ciano: sobre papel milimetrado ciano uma faixa ciano
+   desapareceria dentro da própria grade. Numa planta a cota também sai em
+   outra cor que o traço. */
+.canvas-band {
+  position: absolute;
+  left: 0;
+  background: rgba(255, 183, 77, 0.06);
+  border-top: 1px dashed rgba(255, 183, 77, 0.5);
+  border-bottom: 1px dashed rgba(255, 183, 77, 0.5);
+  pointer-events: none;
+}
+
+.canvas-band--side {
+  border: none;
+  border-left: 1px dashed rgba(255, 183, 77, 0.5);
+  border-right: 1px dashed rgba(255, 183, 77, 0.5);
+}
+
+/* Campo = peça cotada na planta: hairline de 1px e fundo quase transparente,
+   pra grade continuar visível por baixo (é ela que diz onde a peça está). */
 .canvas-field {
   position: absolute;
-  border: 1px solid #94a3b8;
-  background: rgba(2, 132, 199, 0.06);
-  overflow: hidden;
+  border: 1px solid var(--bp-line);
+  background: rgba(77, 208, 225, 0.06);
   cursor: move;
   user-select: none;
+  /* `visible`, e não `hidden`: as alças de canto do estado selecionado são
+     desenhadas FORA da caixa (`::after` com `inset: -4px`) e um
+     `overflow: hidden` aqui as cortaria. Quem recorta o conteúdo agora é
+     `.canvas-field-body`, logo abaixo — foi por isso que ele existe. */
+  overflow: visible;
+}
+
+/* O recorte do conteúdo, que antes era o `overflow: hidden` do campo. Sem
+   ele, um texto de campo mais alto que a caixa (label + preview em 8mm =
+   24px) vazaria por cima do vizinho. */
+.canvas-field-body {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
   padding: 2px 4px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .canvas-field.selected {
-  border: 2px solid #0284c7;
-  background: rgba(2, 132, 199, 0.12);
+  border-color: var(--bp-cyan);
+  background: rgba(77, 208, 225, 0.12);
   /* Campos empilhados (grade permite sobreposição intencional, ex: título
      por cima de uma seção) — o selecionado sempre fica por cima pra dar
      pra arrastar/redimensionar sem "pegar" o de baixo. */
   z-index: 1;
 }
 
-.canvas-field-label {
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #0284c7;
-  flex-shrink: 0;
+/* ALÇA DE CANTO QUADRADA — a marca de seleção deste example.
+   Três quadrados ciano de 9px nos cantos, desenhados como três
+   `linear-gradient` de uma cor só numa camada `inset: -4px`; o QUARTO canto
+   (embaixo à direita) é a `.resize-handle` de verdade, do mesmo tamanho e na
+   mesma posição, então os quatro leem como um conjunto e um deles pega o
+   mouse. Zero raio, de propósito: é ponto de cota, não botão. */
+.canvas-field.selected::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  pointer-events: none;
+  background-image: linear-gradient(var(--bp-cyan), var(--bp-cyan)), linear-gradient(var(--bp-cyan), var(--bp-cyan)),
+    linear-gradient(var(--bp-cyan), var(--bp-cyan));
+  background-size: 9px 9px;
+  background-position: left top, right top, left bottom;
+  background-repeat: no-repeat;
 }
 
-.canvas-field-preview {
-  font-size: 11px;
-  color: #0f172a;
+.canvas-field.locked {
+  cursor: default;
+  border-style: dashed;
+}
+
+/* Campo TRAVADO e selecionado: as quatro alças vêm todas do `::after`,
+   porque a `.resize-handle` (que normalmente é a quarta) fica escondida —
+   travado não redimensiona. Sem esta regra o campo travado apareceria com
+   três quadrados e um canto vazio, que lê como defeito e não como "pinado". */
+.canvas-field.selected.locked::after {
+  background-image: linear-gradient(var(--bp-cyan), var(--bp-cyan)), linear-gradient(var(--bp-cyan), var(--bp-cyan)),
+    linear-gradient(var(--bp-cyan), var(--bp-cyan)), linear-gradient(var(--bp-cyan), var(--bp-cyan));
+  background-position: left top, right top, left bottom, right bottom;
+}
+
+/* Rótulo do campo — caixa alta 9px, ciano. Duas ou três palavras: rótulo, e
+   não texto corrido. `overflow: hidden` porque o clipping saiu do pai. */
+.canvas-field-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bp-cyan);
+  flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.resize-handle {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 10px;
-  height: 10px;
-  background: #0284c7;
-  cursor: nwse-resize;
-  border-top-left-radius: 3px;
+/* O conteúdo de verdade do campo: caixa NORMAL. É a única coisa da folha que
+   se lê como texto, e é o que tem de vencer a grade (8.88:1 sobre a linha
+   forte). */
+.canvas-field-preview {
+  font-size: 11px;
+  color: var(--bp-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* Marca de "tem visibleWhen" — o campo pode simplesmente não sair no PDF, e
+   sem isso não haveria nada na tela dizendo por quê. Âmbar (anotação),
+   quadrada, colada no canto. */
+.canvas-field-flag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--bp-void);
+  background: var(--bp-amber);
+  padding: 0 3px;
+}
+
+/* O quarto canto. Invisível enquanto o campo não está selecionado (`opacity:
+   0` NÃO tira o elemento do hit-test, então continua dando pra agarrar o
+   canto de um campo não selecionado, como antes) e quadrado ciano cheio
+   quando está. */
+.resize-handle {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 9px;
+  height: 9px;
+  background: var(--bp-cyan);
+  cursor: nwse-resize;
+  opacity: 0;
+}
+
+.canvas-field:hover .resize-handle {
+  opacity: 0.4;
+}
+
+.canvas-field.selected .resize-handle {
+  opacity: 1;
+}
+
+.canvas-field.locked .resize-handle {
+  /* Campo travado não redimensiona (Canvas.tsx sai antes) — então não mostra
+     alça de arrastar, que prometeria o contrário. */
+  display: none;
+}
+
+/* ==========================================================================
+   PAINÉIS
+
+   Painel = quadro de legenda: retângulo de hairline, sem raio e sem sombra,
+   título em caixa alta separado do corpo por outra hairline.
+   ========================================================================== */
+
+/* Contorno em `--bp-line` (o forte), não na divisória: o fundo do painel
+   (`--bp-inset`) e o da barra lateral (`--bp-panel`) estão a 1.1:1 um do
+   outro de propósito — a paleta é toda navy — então é a LINHA que delimita
+   o quadro, e linha que delimita tem de passar os 3:1. */
 .panel {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 10px;
+  border: 1px solid var(--bp-line);
+  background: var(--bp-inset);
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 
+/* O título vive na própria faixa, com hairline embaixo — é o que dá a cara
+   de "quadro de legenda" em vez de "card". O padding do corpo, que saiu do
+   `.panel`, volta aqui e no `> * + *` mais abaixo. */
 .panel-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #64748b;
-}
-
-.field-add-row {
   display: flex;
+  align-items: center;
   gap: 6px;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--bp-line-soft);
+  background: var(--bp-wash);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bp-cyan);
 }
 
-.field-add-row button {
-  flex: 1;
+/* Todo filho do painel que não seja o título ganha a margem lateral —
+   assim o título fica em faixa cheia (`border-bottom` de ponta a ponta) sem
+   cada componente ter de saber disso. O último ganha a margem de baixo. */
+.panel > *:not(.panel-title) {
+  margin-left: 9px;
+  margin-right: 9px;
+}
+
+.panel > *:last-child:not(.panel-title) {
+  margin-bottom: 9px;
+}
+
+.panel-title .remove-btn {
+  margin-left: auto;
+}
+
+/* Texto corrido de ajuda: caixa NORMAL, sem letter-spacing. */
+.panel-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--bp-text-dim);
+}
+
+/* Contador. Raio 0 inclusive aqui — no default do pacote isto é uma pílula;
+   numa planta pílula não existe. */
+.badge {
+  background: var(--bp-red);
+  color: var(--bp-void);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0 5px;
 }
 
 .field-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid var(--bp-line-soft);
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -225,7 +711,19 @@ body {
 
 .field-name {
   flex: 1;
-  font-weight: 600;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.lock-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bp-text-dim);
+  cursor: pointer;
 }
 
 .remove-btn {
@@ -234,25 +732,52 @@ body {
   height: 22px;
   line-height: 1;
   padding: 0;
-  border-radius: 4px;
+  color: var(--bp-text-dim);
 }
 
+.remove-btn:hover {
+  color: var(--bp-red);
+  border-color: var(--bp-red);
+  background: transparent;
+}
+
+/* Rótulo de campo do formulário: caixa alta 10px, o mesmo eixo do título de
+   painel — é a "legenda" da cota que vem logo abaixo. */
 .field-full {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 11px;
-  color: #475569;
+  gap: 3px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bp-text-dim);
 }
 
-.field-geometry {
-  margin: 0;
-  font-size: 11px;
-  font-family: ui-monospace, monospace;
-  color: #64748b;
+/* Grade de 2 colunas pros pares numéricos (x/y, largura/altura, fonte/cor) —
+   o painel é estreito, e uma coluna só o deixava altíssimo. */
+.geometry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
-.field-list {
+.geometry-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bp-text-dim);
+  min-width: 0;
+}
+
+.geometry-grid input,
+.geometry-grid select {
+  min-width: 0;
+}
+
+.column-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -261,24 +786,54 @@ body {
   gap: 4px;
 }
 
+.column-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.column-list input {
+  flex: 1;
+  min-width: 0;
+}
+
+.column-list code {
+  flex-shrink: 0;
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--bp-cyan);
+}
+
+.field-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Lista como tabela de peças: sem gaiola por item, só a hairline que separa
+   uma linha da outra. */
 .field-list li {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 7px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  padding: 5px 2px;
+  border-top: 1px solid var(--bp-line-soft);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
+}
+
+.field-list li:last-child {
+  border-bottom: 1px solid var(--bp-line-soft);
 }
 
 .field-list li:hover {
-  background: #f1f5f9;
-}
-
-.field-list li.selected {
-  border-color: #0284c7;
-  background: rgba(2, 132, 199, 0.08);
+  background: var(--bp-wash);
 }
 
 .field-list-name {
@@ -287,64 +842,543 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .field-list-type {
   flex-shrink: 0;
-  color: #94a3b8;
+  color: var(--bp-text-dim);
   font-size: 10px;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-input,
-textarea,
-button {
-  font: inherit;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 5px 7px;
-  color: #0f172a;
-}
+/* ==========================================================================
+   FONTES DE DADOS
+   ========================================================================== */
 
-textarea {
-  resize: vertical;
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
-}
-
-button {
-  background: #ffffff;
+.dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  /* Tracejado de 1px, não de 2px: a regra da identidade é hairline e nada
+     mais grosso. O tracejado já basta pra dizer "solte aqui". */
+  border: 1px dashed var(--bp-line);
+  padding: 14px 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bp-text-dim);
   cursor: pointer;
 }
 
-button:hover {
-  background: #f1f5f9;
+.dropzone:hover,
+.dropzone.over {
+  border-color: var(--bp-cyan);
+  border-style: solid;
+  background: var(--bp-wash);
+  color: var(--bp-cyan);
+}
+
+.source-card {
+  border: 1px solid var(--bp-line-soft);
+  padding: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.source-card-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .data-textarea {
   width: 100%;
 }
 
-.generate-btn {
-  background: #0284c7;
-  color: #ffffff;
-  border-color: #0284c7;
-  font-weight: 600;
-  padding: 8px 10px;
+.resync-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.generate-btn:hover {
-  background: #0369a1;
+/* ==========================================================================
+   EXPLORADOR DE CAMPOS
+   ========================================================================== */
+
+.tree-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 320px;
+  overflow-y: auto;
 }
 
-.error-text {
-  color: #dc2626;
-  font-size: 12px;
+/* Legenda de seção — o rótulo mais "de prancha" da tela. */
+.tree-section {
+  margin: 6px 0 2px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--bp-cyan);
+  border-bottom: 1px solid var(--bp-line-soft);
+  padding-bottom: 3px;
+}
+
+.tree-list {
+  list-style: none;
   margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tree-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.tree-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bp-text-dim);
+}
+
+.tree-toggle {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--bp-text-dim);
+  padding: 2px 3px;
+  line-height: 1;
+}
+
+.tree-toggle:hover {
+  background: var(--bp-wash);
+  color: var(--bp-cyan);
+}
+
+/* Linha arrastável = componente interativo, então contorno forte (3.75:1). */
+.tree-row {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--bp-line);
+  background: transparent;
+  padding: 3px 6px;
+  font-size: 11px;
+  cursor: grab;
+}
+
+.tree-row:hover {
+  border-color: var(--bp-cyan);
+  background: var(--bp-wash);
+}
+
+/* Os dois tipos de linha que o explorador distingue. Como só há UMA cor de
+   traço, a diferença é a força dela (array = ciano cheio à esquerda) e a
+   cor de anotação (nativo = âmbar). */
+.tree-row--arraySource {
+  border-left: 1px solid var(--bp-cyan);
+  box-shadow: inset 2px 0 0 -1px var(--bp-cyan);
+}
+
+.tree-row--native {
+  border-left-color: var(--bp-amber);
+  box-shadow: inset 2px 0 0 -1px var(--bp-amber);
+}
+
+.tree-row-icon {
+  flex-shrink: 0;
+  color: var(--bp-cyan);
+}
+
+.tree-row--native .tree-row-icon {
+  color: var(--bp-amber);
+}
+
+.tree-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--bp-text);
+}
+
+.tree-row-add {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  line-height: 1;
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   PROBLEMAS DO TEMPLATE
+   ========================================================================== */
+
+.problem-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Item de problema é um `<button>` — então herda a caixa alta da regra de
+   `button` lá embaixo, e aqui isso não serve: a mensagem é uma FRASE
+   ("Expressão inválida: ..."). Desfaz. O rótulo em caixa alta deste bloco é
+   só o `.problem-item-page`. */
+.problem-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  font-size: 11px;
+  padding: 5px 7px;
+  background: transparent;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Vermelho = vai sair vazio no PDF. Âmbar = configuração suspeita. A
+   diferença é a cor da linha ESQUERDA, grossa por box-shadow interno (o
+   `border-left` continua 1px — a regra do hairline vale pra borda). */
+.problem-item--error {
+  border-color: var(--bp-red);
+  color: var(--bp-text);
+  box-shadow: inset 2px 0 0 0 var(--bp-red);
+}
+
+.problem-item--error:hover {
+  background: rgba(255, 138, 128, 0.1);
+}
+
+.problem-item--config {
+  border-color: var(--bp-amber);
+  box-shadow: inset 2px 0 0 0 var(--bp-amber);
+}
+
+.problem-item--config:hover {
+  background: rgba(255, 183, 77, 0.1);
+}
+
+.problem-item-name {
+  font-weight: 700;
+  color: var(--bp-text);
+}
+
+.problem-item-name code {
+  font-weight: 400;
+  color: var(--bp-cyan);
+}
+
+/* Mensagem de problema — frase inteira, caixa NORMAL. */
+.problem-item-message {
+  color: var(--bp-text-dim);
+  line-height: 1.45;
+}
+
+.problem-item-page {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bp-text-dim);
+}
+
+/* ==========================================================================
+   BANNER DE ERRO DE GERAÇÃO
+   ========================================================================== */
+
+.gen-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 8px 16px;
+  font-size: 11px;
+  background: var(--bp-void);
+  color: var(--bp-text);
+  border-bottom: 1px solid var(--bp-red);
+  box-shadow: inset 3px 0 0 0 var(--bp-red);
+}
+
+/* Culpa do pacote (não do template nem do dado) — sem cor de alarme, porque
+   não há o que a pessoa consertar do lado dela. */
+.gen-banner--bug {
+  border-bottom-color: var(--bp-line);
+  box-shadow: inset 3px 0 0 0 var(--bp-line);
+}
+
+.gen-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gen-banner-title {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bp-red);
+}
+
+.gen-banner--bug .gen-banner-title {
+  color: var(--bp-cyan);
+}
+
+.gen-banner-blame {
+  margin-left: 8px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--bp-text-dim);
+}
+
+/* Detalhe cru do erro — caixa NORMAL: é a mensagem da exceção, texto
+   corrido. */
+.gen-banner-detail {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  background: var(--bp-ink);
+  border: 1px solid var(--bp-line-soft);
+  padding: 5px;
+  font-size: 10px;
+  color: var(--bp-text-dim);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.gen-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.gen-banner-actions button {
+  font-size: 10px;
+  padding: 3px 7px;
+}
+
+/* ==========================================================================
+   CONTROLES E TEXTO AUXILIAR
+
+   Controle de planta: retângulo de hairline sobre fundo afundado, raio 0.
+   Nenhuma sombra em nenhum estado — o único realce é a linha ficar ciano
+   cheia.
+   ========================================================================== */
+
+input,
+textarea,
+button,
+select {
+  font: inherit;
+  border: 1px solid var(--bp-line);
+  border-radius: 0;
+  padding: 4px 7px;
+  color: var(--bp-text);
+  background: var(--bp-inset);
+}
+
+/* RESET DA CAIXA ALTA, e não é detalhe: os rótulos de formulário são
+   `<label class="field-full">`, e `text-transform` HERDA — sem esta regra o
+   valor DIGITADO dentro do label (nome de expressão, caminho de JSON,
+   `visibleWhen`) apareceria em maiúsculas, o que é mentira sobre o que foi
+   escrito. `letter-spacing` idem: em campo de valor ele atrapalha a leitura
+   de string longa. */
+input,
+textarea,
+select,
+option {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: var(--bp-cyan);
+}
+
+/* Botão é RÓTULO: caixa alta 10px com letter-spacing. Vale pra todos os
+   botões da casca, e é o que faz a barra de topo ler como carimbo. */
+button {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.6;
+}
+
+input[type="color"] {
+  padding: 1px;
+  height: 26px;
+  background: var(--bp-inset);
+}
+
+input[type="checkbox"] {
+  padding: 0;
+  width: auto;
+  /* `accent-color` é o único jeito de pintar o check nativo sem reimplementar
+     o controle — e sem ele o checkbox sairia azul de sistema. */
+  accent-color: var(--bp-cyan);
+}
+
+textarea {
+  resize: vertical;
+  font-family: var(--bp-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  /* JSON colado é texto corrido; nada de caixa alta aqui. */
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+button,
+select {
+  cursor: pointer;
+}
+
+button:hover,
+select:hover {
+  background: var(--bp-wash);
+  border-color: var(--bp-cyan);
+  color: var(--bp-cyan);
+}
+
+/* Ação principal: o único bloco de ciano CHEIO da tela. Texto navy sobre ele
+   (9.56:1). */
+.generate-btn {
+  background: var(--bp-cyan);
+  color: var(--bp-void);
+  border-color: var(--bp-cyan);
+  font-weight: 700;
+  padding: 5px 14px;
+}
+
+.generate-btn:hover:not(:disabled) {
+  background: #7ee0ed;
+  border-color: #7ee0ed;
+  color: var(--bp-void);
+}
+
+.generate-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Ação secundária: ciano só no traço e no texto, fundo vazio. */
+.accent-btn {
+  background: transparent;
+  color: var(--bp-cyan);
+  border-color: var(--bp-cyan);
+  white-space: nowrap;
+}
+
+.accent-btn:hover {
+  background: var(--bp-wash);
+  color: var(--bp-cyan);
+}
+
+/* Frase inteira também ("2 fields will render EMPTY in the PDF. Generation
+   does not fail for this…"), e também aparece dentro de bloco em caixa alta.
+   Caixa normal. */
+.error-text {
+  color: var(--bp-red);
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ok-text {
+  color: var(--bp-green);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Ajuda curta. É TEXTO CORRIDO ("Bound to `x.y` — drag another column of
+   that array onto this table…"), e às vezes mora dentro de um
+   `<label class="field-full">`, que é caixa alta — então desfaz a herança
+   aqui. A regra da identidade é: maiúscula só em rótulo e legenda. */
+.muted-text {
+  color: var(--bp-text-dim);
+  font-size: 10px;
+  line-height: 1.5;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .empty-hint {
-  color: #64748b;
+  color: var(--bp-text-dim);
+  font-size: 11px;
+  padding: 20px;
+  border: 1px dashed var(--bp-line-soft);
+}
+
+/* ==========================================================================
+   A APARÊNCIA DO <PdfPreview>, ESCRITA AQUI
+
+   O `reset.css` não traz cor nem tamanho — só o que o Preflight dava. Do
+   `<PdfPreview>` ele cobre exatamente uma coisa: o `margin: 0` do
+   `.jpd-error`. Todo o resto é nosso.
+
+   Os nomes saem de `src/components/PdfPreview.tsx`. Não são muitos porque o
+   componente é pequeno: um canvas, uma linha de contagem e uma de erro.
+   ========================================================================== */
+
+/* O canvas do pdf.js lê esta sombra INLINE (`canvas.style.boxShadow =
+   "var(--jpd-shadow-page-preview)"`, PdfPreview.tsx). É a pegadinha do modo
+   só-reset: um componente pode ler token direto no `style`, e aí declarar o
+   token é obrigatório — sem ele o `var()` fica inválido e a declaração morre
+   calada (a página aparece sem sombra e nada avisa). Há guard em
+   `test/docsFreshness.test.ts` pra isso.
+
+   O VALOR é escolha de identidade, não do pacote: aqui é uma LINHA CIANO
+   DURA (`0 0 0 1px`, spread sem blur), a mesma que contorna a folha do
+   canvas — a página do PDF entra no desenho como mais uma peça cotada.
+   Sombra difusa, que é o que o tema usa, seria a única mancha macia de uma
+   tela feita só de hairline. */
+:root {
+  --jpd-shadow-page-preview: 0 0 0 1px #4dd0e1;
+}
+
+/* "Página 1 de 2" acima do canvas — legenda, então caixa alta e ciano. */
+.jpd-preview__count {
+  margin: 0 0 10px;
+  font-family: var(--bp-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bp-cyan);
+}
+
+/* Erro de renderização do preview. O `--md` é o mesmo papel num degrau maior
+   de fonte — no tema é `font-size`; aqui resolvemos com o mesmo eixo. */
+.jpd-error {
+  font-size: 11px;
+  color: var(--bp-red);
+}
+
+.jpd-error--md {
   font-size: 13px;
 }

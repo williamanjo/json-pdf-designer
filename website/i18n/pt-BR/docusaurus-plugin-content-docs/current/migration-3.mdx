@@ -1,0 +1,272 @@
+---
+title: Migrando pra 3.0.0
+sidebar_label: Migrando pra 3.0.0
+description: O caminho de upgrade da 2.1.1 pra 3.0.0 — o que dá erro, o que muda em silêncio, e o que não sai do lugar.
+---
+
+# Migrando pra 3.0.0
+
+A 3.0.0 tira o Tailwind do pacote. A aparência do editor não mudou em
+light — os valores de cor foram copiados verbatim — mas o **contrato de
+estilo** é novo: CSS escrito à mão, nomes de classe `jpd-*`, estado em
+`data-*`, tokens `--jpd-*`.
+
+Leia as duas seções abaixo nesta ordem. A primeira é uma edição de cinco
+minutos. A segunda é a que custa uma tarde se você pular.
+
+## 1. A única quebra que grita com você
+
+O `json-pdf-designer/style.css` **não existe mais, e não há alias.** As
+chaves `./style.css` e `./dist/style.css` saíram do `exports` do pacote,
+então o import antigo agora falha em build:
+
+```
+ERR_PACKAGE_PATH_NOT_EXPORTED
+```
+
+Troque por uma linha:
+
+```diff
+- import "json-pdf-designer/style.css";
++ import "json-pdf-designer/theme.css";
+```
+
+O `theme.css` importa o reset por dentro, então não tem nada mais pra
+adicionar.
+
+**Isso é deliberado, e é boa notícia.** Um alias entregaria em silêncio
+uma folha de estilo *diferente* — sem Preflight, com internals novos — e
+você iria procurar a diferença no seu próprio código. Erro de resolve em
+build é a falha melhor: ela para o build e aponta pro changelog. É a
+única quebra desta release que você não tem como não ver.
+
+Se você preferir estilizar tudo na mão, existe um segundo export:
+`json-pdf-designer/reset.css`, o subconjunto sem aparência. Ver
+[Tema e CSS](./theming).
+
+## 2. As três quebras silenciosas
+
+Nenhuma delas lança. Nenhuma delas falha um build. Cada uma aparece como
+"o editor ficou estranho" ou "meu código parou de funcionar", sem erro
+nenhum pra grepar.
+
+### 2.1 CSS escrito contra as classes Tailwind antigas para de casar
+
+**Todas as classes dentro do `<Designer>` mudaram.** Elas eram
+utilitárias do Tailwind (`bg-white`, `text-sm`, `border-slate-200`,
+`dark:bg-gray-800`); agora são nomes `jpd-*` mais atributos de estado
+`data-*`.
+
+Então se você tem regras assim em algum lugar, elas agora não casam com
+nada:
+
+```css
+/* mirava os internals do editor — morto agora */
+.meu-app .bg-white { … }
+.meu-app [class*="border-slate"] { … }
+```
+
+Seu CSS não dá erro. Ele só para de aplicar, e o editor volta pra
+aparência do `theme.css`. Reescreva contra os nomes novos:
+
+```css
+.jpd-card { … }
+.jpd-input[data-mono] { … }
+.jpd-tab[data-active="true"] { … }
+```
+
+Melhor ainda: sobrescreva token em vez de regra — é pra isso que eles
+existem:
+
+```css
+:root {
+  --jpd-accent-solid: #7c3aed;
+  --jpd-radius-md: 2px;
+}
+```
+
+O contrato completo — a convenção de classe, a lista de `data-*`, os
+grupos de token, a regra da `@layer` — está em [Tema e CSS](./theming).
+
+### 2.2 O DOM dentro do `<Designer>` mudou
+
+A composição (ver [Compondo o Designer](./composing-the-designer))
+significa que o editor agora é montado a partir de peças. A maioria das
+peças renderiza o mesmo elemento raiz que o `Designer.tsx` renderizava,
+então a árvore está *quase* estável — mas não totalmente:
+
+- três peças embrulham o conteúdo num `div.jpd-part`, adicionando um
+  nível;
+- toda peça estampa classes `jpd-*` e um `data-part` na raiz dela.
+
+Então qualquer coisa que alcançava a marcação por **seletor
+descendente** ou por **variante arbitrária do Tailwind** pode quebrar sem
+dizer nada:
+
+```css
+/* frágil: depende de quão fundo o elemento está */
+.minha-casca > div > div > div { … }
+```
+
+```jsx
+{/* frágil: depende de uma classe que não existe mais naquela profundidade */}
+<Designer className="[&_.bg-white]:rounded-none" />
+```
+
+O conserto é parar de contar níveis. Mire numa classe `jpd-*`, ou no
+`data-part` da própria peça:
+
+```css
+[data-part="field-list"] { … }
+[data-part="property-panel"] .jpd-input { … }
+```
+
+Se você estava alcançando por dentro porque não havia prop pro que você
+queria, olhe as peças primeiro — `className`, `style`, `parts` e as flags
+(`heading`, `hint`, `header`, `position`) hoje cobrem a maior parte do
+que as pessoas resolviam com seletor descendente.
+
+### 2.3 Os componentes do kit não são mais funções simples
+
+Eles estão embrulhados em `forwardRef` agora, então repassam ref. Duas
+consequências que nenhum erro de tipo vai pegar:
+
+```js
+Button.name;      // era "Button" — não é mais
+Button(props);    // chamar direto para de funcionar
+```
+
+Renderizar `<Button …>` não muda nada. O que quebra é código que tratava
+o componente como valor-função: busca de display name, um `switch` em
+`Component.name`, um teste que chama o componente direto em vez de
+renderizá-lo, introspecção estilo `propTypes`.
+
+É `forwardRef` e não a prop `ref` do React 19 porque **o React 18 é peer
+suportado** — a abordagem só-19 o deixaria de fora.
+
+Os **20 ícones são a exceção**: continuam funções simples, sem ref. As
+props deles alargaram de `{ className }` pra `IconProps` =
+`SVGAttributes`.
+
+## Outras mudanças nomeadas
+
+### `Modal`: `maxWidthClass` → `size`
+
+```diff
+- <Modal maxWidthClass="max-w-3xl" …>
++ <Modal size="lg" …>
+```
+
+`"sm" | "md" | "lg" | "xl" | "full"`, default `"lg"` = 48rem =
+exatamente o que o `max-w-3xl` dava. Largura arbitrária é
+`style={{ maxWidth: 900 }}`, que agora chega no painel. Nenhum call site
+interno passava `maxWidthClass` e ele nunca esteve documentado, então
+isto é rename no papel mais que na prática.
+
+### `mono` é atributo, não classe
+
+O `mono` não adiciona mais `font-mono`; ele põe `data-mono`. Estilize
+como `.jpd-input[data-mono]`.
+
+### Props de `PaletteSwatches` / `PalettePicker` cujo valor era classe
+
+`size` (que era a string `"h-4 w-4"`), `swatchSize`, `swatchGap` e
+`swatchShrink` morreram — string de classe Tailwind como *valor* de prop
+não quer dizer nada num pacote sem Tailwind. O `staticArrow` do
+`PalettePicker` também, que existia só pra preservar um detalhe não
+intencional (a seta do picker de paleta da tabela não tinha cor de dark —
+isso era bug, e está consertado). Esses dois componentes estreiam
+**públicos** na 3.0.0, então a API limpa é a que estreia; não há nada
+pra migrar.
+
+### Seu próprio pipeline de Tailwind
+
+Se você seguia o workflow antigo de "usando sua própria instalação do
+Tailwind" — apontando `@source` ou `content` pro
+`node_modules/json-pdf-designer/dist` — **remova essa linha**. Não sobrou
+nome de utilitária no `dist` pra encontrar, então a receita agora
+silenciosamente não produz nada. Importe o `theme.css`, ou estilize
+`.jpd-*` você mesmo.
+
+## O que *não* muda
+
+Vale dizer em voz alta, porque versão major convida ao pessimismo:
+
+- **As sete props do `<Designer>` são idênticas.** `template`,
+  `onChangeTemplate`, `bindings`, `onChangeBindings`, `onCanvasDrop`,
+  `dataSources`, `locale`. `gridSizeMm`, `expandOnSelect`, `className`,
+  `style` e `components` são adições opcionais.
+- **As chaves de `localStorage` são preservadas** —
+  `json-pdf-designer:tab-order` e `json-pdf-designer:hidden-tabs`. A
+  ordem de abas e as abas escondidas do usuário sobrevivem ao upgrade.
+  Verificado no navegador.
+- **`PageCanvas`, `Toolbar`, `FieldList`, `PropertyPanel`,
+  `BindingEditor`, `FilterTab` e `TemplateInspector` mantêm as props de
+  hoje** e continuam exportados dos módulos deles. O caminho headless por
+  props segue funcionando.
+- **O `server.ts` está intocado.** O `.d.ts` da entry `/server` é
+  byte-idêntico, então quem só usa backend não tem nada a fazer.
+- **O `react-rnd` continua só necessário pro canvas**, e o `pdfjs-dist`
+  continua peer opcional atrás do `json-pdf-designer/preview`.
+
+## Consertos que vêm de graça
+
+Vários bugs antigos foram consertados no caminho. Os que você talvez
+note:
+
+- **"Ajustar largura" agora mede de verdade o viewport do canvas.** O
+  `data-scroll-root` nunca era escrito em lugar nenhum, e o wrapper usava
+  `overflow-x-auto`, que não contém `"overflow-auto"` nem
+  `"overflow-y-auto"` como substring — então a busca nunca casava.
+  Medido na 2.1.1: "ajustar largura" dava 113% com 338px de página FORA
+  da viewport. Com o atributo: 67% e zero overflow.
+- **A régua tem dark mode.** O fundo escurecia, mas o tique e o número
+  eram atributo SVG de apresentação com hex fixo — tique escuro sobre
+  fundo escuro. Agora os três vêm de token.
+- **O `gridSizeMm` é honrado por colar e por nascer campo.** O
+  `PageCanvas` já recebia a prop, mas `computeSpawnPosition`, `nextFreeY`
+  e o caminho de colagem usavam a constante direto: com
+  `gridSizeMm={3}` o arrasto alinhava em 3 enquanto campo novo ou colado
+  caía em 5. Agora os quatro caminhos recebem o passo, e o
+  `<Designer gridSizeMm>` existe.
+- **O botão de fechar do `Modal` tem nome acessível próprio.** O
+  `aria-label` dele era o *título do diálogo*, então o leitor de tela
+  anunciava "Editor de fórmula" como o nome do botão que fecha o editor
+  de fórmula.
+- **As abas do modal de fórmula não transbordam mais em pt-BR.** "Campos
+  do item" (96,7px) + "Caminhos de dado" (108,8px) = **205,4px numa
+  coluna de 176px**, com `overflow: visible` — os botões pintavam por
+  cima da coluna do editor. Em inglês as mesmas duas ("Item
+  fields"/"Data paths") somam 151px e cabem com folga, então o bug só
+  existia traduzido. A faixa agora rola (`scrollWidth` 207 contra
+  `clientWidth` 176) em vez de cortar.
+- **Os ícones mantêm `display: block`.** Sem o Preflight, todo `<svg>`
+  inline volta pra inline-baseline e ganha vão de descendente dentro de
+  linha flex — uns 23 call sites, incluindo o `<IconX/>` dentro dos
+  botões do próprio kit. Corrigido no base do `icons.tsx`.
+- **A borda do input de rename tem cor de dark**, e a faixa de abas
+  recuperou o `::-webkit-scrollbar { display: none }` (o
+  `scrollbar-width` sozinho não cobre Safari nem Chromium < 121, e numa
+  faixa de 28px a barra come metade da altura).
+
+A lista completa está no [Changelog](./changelog).
+
+## Checklist
+
+1. Troque o `style.css` pelo `theme.css` (o build avisa se você
+   esquecer).
+2. Grepe seu CSS por nome de utilitária do Tailwind que mirava o editor;
+   reescreva contra `.jpd-*` / `data-*`, ou sobrescreva tokens
+   `--jpd-*`.
+3. Grepe por seletor descendente e variante arbitrária `[&_…]` apontada
+   pra dentro do `<Designer>`; re-aponte pra `data-part` / `.jpd-*`.
+4. Grepe por introspecção estilo `Button.name` ou chamada direta a
+   componente do kit.
+5. Troque `maxWidthClass` por `size` (ou `style`) em qualquer `Modal`.
+6. Apague qualquer entrada de `@source` / `content` apontando pro
+   `node_modules/json-pdf-designer`.
+7. Se você suporta dark mode, leia a
+   [seção de dark mode](./theming#dark-mode) —
+   `[data-jpd-theme="dark"]` é o hook documentado, a `.dark` continua
+   valendo como alias, e ilha de dark escopada não alcança modal
+   portalizado.

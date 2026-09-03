@@ -32,7 +32,7 @@ function PiePreview({ pieStyle, withSliceLabels, preview }: { pieStyle: ChartSch
   let cumulativeDeg = 0;
 
   return (
-    <svg width="56" height="56" viewBox="0 0 64 64" className="flex-shrink-0">
+    <svg width="56" height="56" viewBox="0 0 64 64" className="jpd-chart__svg">
       {preview.map((p, i) => {
         const sweepDeg = (p.value / total) * 360;
         const path = pieSlicePath(cx, cy, r, innerR, cumulativeDeg, sweepDeg - 1.5);
@@ -59,10 +59,13 @@ function PiePreview({ pieStyle, withSliceLabels, preview }: { pieStyle: ChartSch
 // já vai escrito em cima de cada fatia (ver PiePreview).
 function LegendPreview({ preview, fontSizePx }: { preview: { value: number; color: string }[]; fontSizePx: number }) {
   return (
-    <ul className="flex flex-col gap-1 leading-none text-slate-600" style={{ fontSize: fontSizePx }}>
+    // `jpd-list` traz o reset de <ul> (marcador/margin/padding) que vinha do
+    // Preflight; o tamanho de fonte segue inline porque é derivado do
+    // legendFontSize do schema.
+    <ul className="jpd-list jpd-chart__legend" style={{ fontSize: fontSizePx }}>
       {preview.map((p, i) => (
-        <li key={i} className="flex items-center gap-1">
-          <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
+        <li key={i} className="jpd-row jpd-row--tight">
+          <span className="jpd-chart__dot" style={{ backgroundColor: p.color }} />
           <span>Fatia {i + 1}</span>
         </li>
       ))}
@@ -75,9 +78,12 @@ function LegendPreview({ preview, fontSizePx }: { preview: { value: number; colo
 // vínculo real) pra dar pra ver o efeito sem gerar PDF.
 function pieLayout(legendPosition: NonNullable<ChartSchema["legendPosition"]>, donut: ReactNode, legend: ReactNode): ReactNode {
   if (legendPosition === "slices") return donut;
+  // Os quatro braços abaixo eram duas strings de classe repetidas (top==bottom,
+  // left==right): a diferença entre os pares é só a ORDEM dos filhos, e entre
+  // os grupos só o eixo. Uma classe + data-legend.
   if (legendPosition === "top") {
     return (
-      <div className="flex flex-col items-center gap-1">
+      <div className="jpd-chart__layout" data-legend="top">
         {legend}
         {donut}
       </div>
@@ -85,7 +91,7 @@ function pieLayout(legendPosition: NonNullable<ChartSchema["legendPosition"]>, d
   }
   if (legendPosition === "bottom") {
     return (
-      <div className="flex flex-col items-center gap-1">
+      <div className="jpd-chart__layout" data-legend="bottom">
         {donut}
         {legend}
       </div>
@@ -93,7 +99,7 @@ function pieLayout(legendPosition: NonNullable<ChartSchema["legendPosition"]>, d
   }
   if (legendPosition === "left") {
     return (
-      <div className="flex items-center gap-2">
+      <div className="jpd-chart__layout" data-legend="left">
         {legend}
         {donut}
       </div>
@@ -101,7 +107,7 @@ function pieLayout(legendPosition: NonNullable<ChartSchema["legendPosition"]>, d
   }
   // "right" (default)
   return (
-    <div className="flex items-center gap-2">
+    <div className="jpd-chart__layout" data-legend="right">
       {donut}
       {legend}
     </div>
@@ -113,9 +119,9 @@ export function ChartField({ schema }: { schema: ChartSchema }) {
 
   if (schema.chartType === "bar") {
     return (
-      <div className="flex h-full w-full flex-col justify-center gap-1.5 rounded-md border border-slate-200 bg-white p-2">
+      <div className="jpd-chart__bars">
         {preview.map((p, i) => (
-          <div key={i} className="h-2 rounded-sm" style={{ width: `${p.value * 2}%`, backgroundColor: p.color }} />
+          <div key={i} className="jpd-chart__bar" style={{ width: `${p.value * 2}%`, backgroundColor: p.color }} />
         ))}
       </div>
     );
@@ -127,8 +133,6 @@ export function ChartField({ schema }: { schema: ChartSchema }) {
   const layout = pieLayout(legendPosition, donut, legend);
 
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white p-1.5">
-      {layout}
-    </div>
+    <div className="jpd-chart__frame">{layout}</div>
   );
 }

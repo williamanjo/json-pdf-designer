@@ -140,16 +140,17 @@ pra fonte `.woff2`. Um backend que só chama `generatePdf` de
 `json-pdf-designer/server` não precisa de nenhum — ver
 [docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md).
 
-Importe o CSS do pacote uma vez, no entrypoint do seu app:
+Importe o tema do pacote uma vez, no entrypoint do seu app:
 
 ```ts
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 ```
 
-Já tem seu próprio Tailwind (v3 ou v4) configurado e prefere que ELE
-gere as classes do Designer em vez de carregar uma segunda folha de
-estilo — ex: pra evitar Preflight/reset duplicado — veja
-[Usando sua própria instalação do Tailwind](docs/USAGE.pt-BR.md#usando-sua-própria-instalação-do-tailwind).
+Uma linha é tudo: CSS escrito à mão, sem Tailwind e sem etapa de build
+do seu lado, e ela já importa o reset de que precisa por dentro. Se você
+prefere estilizar o editor você mesmo, importe
+`json-pdf-designer/reset.css` no lugar — o mesmo reset, sem nenhuma
+aparência. Veja [Estilo e tema](docs/USAGE.pt-BR.md#estilo-e-tema).
 
 Só gera PDF num backend/API Node, sem UI de editor? Importe de
 `json-pdf-designer/server` em vez disso — um build do `generatePdf` e
@@ -167,7 +168,7 @@ até ele; o [exemplo no-preview](examples/no-preview) é a prova.
 ```tsx
 import { useState } from "react";
 import { Designer, generatePdf, downloadPdf, type Template, type Binding } from "json-pdf-designer";
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 
 const initialTemplate: Template = {
   page: { width: 210, height: 297 }, // A4 em mm
@@ -202,6 +203,70 @@ Guia completo (vínculo de dados, funções de template, seção repetida,
 gráfico, KPI, fontes customizadas, API pública inteira) em
 **[docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md)**.
 
+## Compondo o editor
+
+O `<Designer>` é um **preset**: ele monta o estado e dispõe um canvas ao
+lado de uma sidebar com abas. As sete props dele não mudaram, então nada
+disto é obrigatório — mas quando esse layout não é o que você quer, dá
+pra montar o mesmo editor peça por peça:
+
+```tsx
+import { DesignerProvider, DesignerCanvas, DesignerSidebar } from "json-pdf-designer";
+
+<DesignerProvider template={template} onChangeTemplate={setTemplate} bindings={bindings} onChangeBindings={setBindings}>
+  <DesignerCanvas />
+  <DesignerSidebar />
+</DesignerProvider>
+```
+
+É exatamente isso que o `<Designer>` renderiza. São 10 peças
+posicionáveis — canvas, barra de abas, lista de campos, toolbar,
+configuração de página, painel de propriedades, painel de filtro, editor
+de vínculo, inspetor, mais a conveniência `DesignerSidebar`, que empilha
+as de conteúdo — e cada uma aceita `className` (faz merge), `style` (o
+seu ganha) e um `whenTab` **opt-in**. O opt-in é a parte que sustenta
+tudo: sem ele a peça renderiza SEMPRE, e é isso que permite cinco
+painéis que seriam cinco abas ficarem lado a lado numa coluna só.
+
+Dez hooks `useDesigner*` leem o mesmo estado, então a casca do seu app
+pode mostrar a seleção atual ou disparar um mutador que o editor
+enxerga — é exatamente o que o
+[report-builder](examples/report-builder) faz com eles. E o
+[examples/composed-layout](examples/composed-layout) monta o layout que
+o preset não sabe fazer; a lista completa de peças, `parts` e hooks está
+em [docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md).
+
+## Estilo
+
+O CSS do editor é escrito à mão e publicado como contrato, então
+reestilizar não é forkar. Todo elemento carrega uma classe estável
+`jpd-block__element--modifier`, estado mora em atributo `data-*`, e
+cor/espaçamento/raio/tipografia vêm de custom properties `--jpd-*`:
+
+```css
+/* sua folha — trocar de tema é redeclarar token */
+:root { --jpd-accent: #7c3aed; --jpd-accent-solid: #7c3aed; }
+```
+
+Dark mode é atributo que você escreve, não media query:
+`data-jpd-theme="dark"` no `<html>` (a classe `.dark` continua valendo
+como alias). Biblioteca não deve decidir que é light-only porque o SO
+está escuro — se você quer seguir o SO, leia `matchMedia` e escreva o
+atributo.
+
+Tudo que é nosso mora numa `@layer json-pdf-designer`, então qualquer
+regra sua ganha da nossa sem briga de especificidade. Mesma moeda, outro
+lado: um seletor de elemento solto como `button { … }` também ganha e
+alcança o chrome do editor — escope por classe. E não importar nossa
+folha é modo suportado: o [examples/custom-ui](examples/custom-ui)
+estiliza cada `.jpd-*` do zero. Detalhe completo, tokens inclusive, em
+[Estilo e tema](docs/USAGE.pt-BR.md#estilo-e-tema).
+
+Vindo da 2.x: o `json-pdf-designer/style.css` não existe mais e não tem
+alias, então o import antigo falha no resolve, em build. É deliberado —
+alias entregaria em silêncio uma folha diferente, e erro de resolve
+aponta pro [CHANGELOG](CHANGELOG.pt-BR.md).
+
 ## Uso em backend (sem UI)
 
 Como `generatePdf` é JS puro, dá pra separar o sistema em duas partes:
@@ -232,18 +297,27 @@ considerações de segurança — em **[docs/BACKEND_INTEGRATION.pt-BR.md](docs/
 ## Exemplos
 
 - **[examples/report-builder](examples/report-builder)** — designer completo
-  (fontes de dados JSON, explorador de campos, 6 templates prontos).
-- **[examples/custom-ui](examples/custom-ui)** — versão enxuta com casca
-  própria em CSS puro, sem os componentes de UI do pacote.
+  (fontes de dados JSON, explorador de campos, 6 templates prontos),
+  montado com as peças pra que a barra do próprio app leia a seleção do
+  editor.
+- **[examples/composed-layout](examples/composed-layout)** — o editor
+  montado peça por peça, sem `<Designer>`: toolbar na largura toda em
+  cima e cinco painéis empilhados numa coluna que o preset mostraria
+  como cinco abas.
+- **[examples/custom-ui](examples/custom-ui)** — o caminho de uma linha
+  com `<Designer>` e **nenhum CSS do pacote**: cada classe `.jpd-*`
+  estilizada do zero em CSS puro.
 - **[examples/headless-designer](examples/headless-designer)** — sem
   `<Designer>` nenhum: um canvas de arrastar/redimensionar montado à mão
   sobre `generatePdf` + tipos de `json-pdf-designer/server`, mais o
   `PdfPreview`.
 - **[examples/no-preview](examples/no-preview)** — gera e baixa o PDF sem
   tela de preview e **sem o `pdfjs-dist` instalado**, provando que a entry
-  principal nunca precisa do peer opcional.
+  principal nunca precisa do peer opcional. É também o smoke test do tema
+  **sem pipeline de Tailwind em ponta nenhuma** — nem no app, nem no
+  pacote.
 
-Os quatro rodam ao vivo no navegador em
+Todos eles menos o `composed-layout` rodam ao vivo no navegador em
 **[o playground](https://williamanjo.github.io/json-pdf-designer/playground/)**
 — sem precisar instalar nada localmente.
 
@@ -268,11 +342,13 @@ Markdown cru, se preferir ler direto no repositório:
 React + TypeScript, [pdf-lib](https://github.com/Hopding/pdf-lib) +
 [fontkit](https://github.com/foliojs/fontkit) pra geração do PDF,
 [react-rnd](https://github.com/bokuweb/react-rnd) pra arrastar/
-redimensionar, [pdf.js](https://github.com/mozilla/pdf.js) pro preview,
-Tailwind CSS pro visual do próprio editor. Zero dependência de UI de
-terceiros (Material UI, Ant Design etc.) — os componentes visuais do
-`<Designer>` são próprios e exportados junto, caso queiram ser
-reaproveitados.
+redimensionar, [pdf.js](https://github.com/mozilla/pdf.js) pro preview, e
+CSS escrito à mão (`theme.css`) pro visual do próprio editor — sem
+Tailwind no pacote e sem etapa de build de CSS no seu app. Zero
+dependência de UI de terceiros (Material UI, Ant Design etc.) — os
+componentes visuais do `<Designer>` são próprios e exportados junto, e os
+12 primitivos que ele usa por dentro (`Button`, `Input`, `Modal`, …) dão
+pra trocar pelos seus via `<Designer components={...}>`.
 
 ## Licença
 

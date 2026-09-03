@@ -3,7 +3,8 @@ import { CHART_PALETTE_NAMES, CHART_PALETTE_SIZE, resolveChartColors, resolveCha
 import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../chart/format";
 import { useT } from "../i18n";
 import { BindingEditor } from "./BindingEditor";
-import { BulkLocked, ColorInput, Input, PalettePicker, Select } from "./ui";
+import { BulkLocked, PalettePicker } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 
 type Props = {
   schema: ChartSchema;
@@ -17,6 +18,7 @@ type Props = {
 
 export function PropertyPanelChart({ schema, activeTab, bulkEdit, onChangeSchema, binding, onChangeBinding, dataSources }: Props) {
   const t = useT();
+  const { ColorInput, Input, Select } = useUiComponents();
   // Paleta de cores do gráfico: mesma lógica que o PalettePicker local
   // deste arquivo tinha antes de virar o componente genérico em
   // ./ui/PalettePicker — só que agora calculada aqui pra alimentar as
@@ -59,7 +61,7 @@ export function PropertyPanelChart({ schema, activeTab, bulkEdit, onChangeSchema
         ]}
       />
       {isCustomPalette && (
-        <div className="grid grid-cols-7 gap-1">
+        <div className="jpd-colorgrid">
           {Array.from({ length: CHART_PALETTE_SIZE }, (_, i) => (
             <ColorInput key={i} value={editablePaletteColors[i] ?? "#94a3b8"} onChange={(e) => setPaletteColorAt(i, e.target.value)} />
           ))}
@@ -83,7 +85,7 @@ export function PropertyPanelChart({ schema, activeTab, bulkEdit, onChangeSchema
     </>
   );
   return (
-    <div className="flex flex-col gap-2">
+    <div className="jpd-stack">
       {activeTab === "dados" && (
         <>
           <Input
@@ -167,7 +169,7 @@ export function PropertyPanelChart({ schema, activeTab, bulkEdit, onChangeSchema
             <option value="currency">{t.chart.currencyFormat}</option>
           </Select>
           {schema.valueFormat === "currency" && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="jpd-grid2">
               <Input
                 label={t.chart.symbol}
                 value={schema.currencySymbol ?? "R$"}

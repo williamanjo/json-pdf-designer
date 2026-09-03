@@ -9,19 +9,22 @@ type Props = {
 };
 
 export function TextField({ schema, editing, onUpdate, onStopEditing }: Props) {
+  // Só o que vem do TEMPLATE do usuário fica inline. Tamanho/cor/alinhamento/
+  // fundo/borda são DADO do schema, não tema — nenhum deles pode virar regra
+  // de folha de estilo. O resto (100%x100%, padding 2, box-sizing, pre-wrap,
+  // resize/outline/font-family) é fixo e mora no CSS.
   const baseStyle: React.CSSProperties = {
-    width: "100%",
-    height: "100%",
     fontSize: mmToPx(schema.fontSize * 0.3528),
     color: schema.fontColor,
     textAlign: schema.alignment,
-    padding: 2,
     backgroundColor: schema.backgroundColor,
-    boxSizing: "border-box",
-    border: schema.borderColor && schema.borderWidth ? `${mmToPx(schema.borderWidth)}px solid ${schema.borderColor}` : undefined,
   };
 
   if (editing) {
+    // A borda do schema NÃO entra aqui de propósito: no modo de edição ela
+    // sempre foi anulada (era `border: "none"` depois do spread). Como agora o
+    // `border: 0 solid` mora na classe, passar a borda inline a faria
+    // reaparecer — inline vence classe.
     return (
       <textarea
         autoFocus
@@ -31,17 +34,21 @@ export function TextField({ schema, editing, onUpdate, onStopEditing }: Props) {
           if (e.key === "Escape") onStopEditing?.();
         }}
         onPointerDown={(e) => e.stopPropagation()}
-        style={{
-          ...baseStyle,
-          resize: "none",
-          border: "none",
-          outline: "none",
-          fontFamily: "inherit",
-          whiteSpace: "pre-wrap",
-        }}
+        className="jpd-textfield jpd-textfield--editing"
+        style={baseStyle}
       />
     );
   }
 
-  return <div style={{ ...baseStyle, overflow: "hidden", whiteSpace: "pre-wrap" }}>{schema.content}</div>;
+  return (
+    <div
+      className="jpd-textfield jpd-textfield--static"
+      style={{
+        ...baseStyle,
+        border: schema.borderColor && schema.borderWidth ? `${mmToPx(schema.borderWidth)}px solid ${schema.borderColor}` : undefined,
+      }}
+    >
+      {schema.content}
+    </div>
+  );
 }

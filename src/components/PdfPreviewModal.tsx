@@ -3,7 +3,7 @@ import type { PageSize } from "../types";
 import { downloadPdf } from "../pdf/generate";
 import { useT } from "../i18n";
 import { PdfPreview } from "./PdfPreview";
-import { Button } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 import { IconDownload, IconX } from "./ui/icons";
 
 // pt (ponto do PDF, o que pdf-lib usa) por mm — mesma conta de units.ts,
@@ -43,6 +43,7 @@ type Props = {
 // "centralizar" o conjunto.
 export default function PdfPreviewModal({ bytes, page, name, onClose }: Props) {
   const t = useT();
+  const { Button } = useUiComponents();
   const contentRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState<number | null>(null);
 
@@ -67,17 +68,15 @@ export default function PdfPreviewModal({ bytes, page, name, onClose }: Props) {
   }, [pageWidthPt, pageHeightPt]);
 
   return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="flex h-[92vh] w-[92vw] max-w-5xl flex-col rounded-xl bg-white shadow-2xl dark:bg-gray-800"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex flex-shrink-0 items-center justify-between rounded-t-xl border-b border-slate-200 px-5 py-3 dark:border-gray-700">
-          <h3 className="text-base font-semibold text-slate-800 dark:text-gray-100">{t.pdfPreviewModal.title}</h3>
-          <div className="flex gap-2">
+    <div className="jpd-modal" onClick={onClose}>
+      {/* Mesmas classes do <Modal> genérico — três destas strings eram
+          byte-idênticas às dele. A diferença é `data-fill`: aqui a altura é
+          FIXA (92vh), não máxima, porque o cálculo de escala acima mede
+          `clientHeight` do container e precisa dele preenchido. */}
+      <div data-size="xl" data-fill className="jpd-modal__panel" onClick={(e) => e.stopPropagation()}>
+        <div className="jpd-modal__header">
+          <h3 className="jpd-modal__title">{t.pdfPreviewModal.title}</h3>
+          <div className="jpd-row">
             <Button onClick={() => downloadPdf(bytes, `${name ?? t.pdfPreviewModal.defaultFileName}.pdf`)}>
               <IconDownload /> {t.pdfPreviewModal.download}
             </Button>
@@ -89,10 +88,7 @@ export default function PdfPreviewModal({ bytes, page, name, onClose }: Props) {
         {/* items-center (não justify-center): centraliza a folha na
             horizontal só, alinhada ao topo na vertical — com várias
             páginas, rola pra baixo normal, sem cortar o topo da 1ª. */}
-        <div
-          ref={contentRef}
-          className="flex flex-1 flex-col items-center overflow-y-auto rounded-b-xl bg-slate-100 p-4 dark:bg-gray-900"
-        >
+        <div ref={contentRef} className="jpd-preview__well">
           {scale !== null && <PdfPreview bytes={bytes} scale={scale} />}
         </div>
       </div>

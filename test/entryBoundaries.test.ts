@@ -1,4 +1,5 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "./support/read";
+import { existsSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 

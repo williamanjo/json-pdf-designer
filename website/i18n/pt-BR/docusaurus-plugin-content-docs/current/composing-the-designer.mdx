@@ -1,0 +1,236 @@
+---
+title: Compondo o Designer
+sidebar_label: Compondo o Designer
+description: DesignerProvider, as 10 peças posicionáveis, os 10 hooks e o whenTab.
+---
+
+# Compondo o Designer
+
+O `<Designer>` continua existindo e continua funcionando. Desde a 3.0.0
+ele é um **preset**: três providers e duas peças num layout de duas
+colunas — o `Designer.tsx` foi de 986 linhas pra 101. Tudo que ele compõe
+é exportado, então se o layout de duas colunas não é o layout que você
+quer, dá pra montar o seu.
+
+:::tip[Nada aqui é migração]
+**As sete props que o `<Designer>` sempre teve são idênticas**, e as
+chaves de `localStorage` são preservadas, então a ordem de abas do
+usuário sobrevive ao upgrade. `gridSizeMm`, `expandOnSelect`,
+`className`, `style` e `components` são adições opcionais. Se o layout do
+preset te serve, você pode ignorar esta página inteira.
+:::
+
+## A forma da coisa
+
+```tsx
+import {
+  DesignerProvider,
+  DesignerToolbar,
+  DesignerFieldList,
+  DesignerCanvas,
+  DesignerPropertyPanel,
+} from "json-pdf-designer";
+import "json-pdf-designer/theme.css";
+
+<DesignerProvider
+  template={template}
+  onChangeTemplate={setTemplate}
+  bindings={bindings}
+  onChangeBindings={setBindings}
+  dataSources={dataSources}
+  expandOnSelect={false}
+>
+  <DesignerToolbar className="minha-toolbar" hint={false} />
+  <div className="meu-grid">
+    <DesignerFieldList heading={false} />
+    <DesignerCanvas className="meu-viewport" />
+    <DesignerPropertyPanel section="dados" />
+    <DesignerPropertyPanel section="estilo" header={false} />
+  </div>
+</DesignerProvider>
+```
+
+O `<DesignerProvider>` guarda **todo** o estado do editor. As props dele:
+
+| Prop | |
+| --- | --- |
+| `template`, `onChangeTemplate` | o template e o setter — aceita a forma funcional do `setState` do React |
+| `bindings`, `onChangeBindings` | o mesmo, pros vínculos |
+| `onCanvasDrop` | passthrough pra soltar campos externos na página |
+| `dataSources` | arrays conhecidos do JSON, pro dropdown do editor de vínculo |
+| `gridSizeMm` | passo da grade em mm (default 5) |
+| `expandOnSelect` | clicar num campo reabre a sidebar colapsada (default `true`) |
+| `children` | o seu layout |
+
+Ele **não** exige um `I18nProvider` por cima — o `useT()` tem default (o
+dicionário inglês). O `<Designer>` embrulha com um só pra honrar a prop
+`locale`.
+
+## As dez peças posicionáveis
+
+| Peça | O que é |
+| --- | --- |
+| `DesignerCanvas` | a página em mm: arrastar/redimensionar por campo, caixa de seleção, réguas, barra de zoom |
+| `DesignerTabBar` | a barra de abas do painel lateral — arrastar pra reordenar, `×` pra esconder, `+` pra reabrir |
+| `DesignerFieldList` | a lista de campos: selecionar, renomear, travar, reordenar z, remover |
+| `DesignerToolbar` | os seis botões de "adicionar campo" mais o seletor de tipo de seção |
+| `DesignerPageSettings` | tamanho/orientação, alturas de cabeçalho/rodapé, margens, imagem de fundo, modo isolado |
+| `DesignerPropertyPanel` | as propriedades do campo selecionado, despachadas por `schema.type` |
+| `DesignerFilterPanel` | o filtro de linhas do vínculo do campo selecionado |
+| `DesignerBindingEditor` | o editor de vínculo **sozinho**, fora do painel de propriedades |
+| `DesignerInspector` | o inspetor de template — campos por zona, avisos de vínculo/expressão |
+| `DesignerSidebar` | conveniência: compõe as sete peças de conteúdo com o gate de aba do preset |
+
+Toda peça aceita:
+
+- **`className`** — faz merge com a nossa, a sua vem depois.
+- **`style`** — o seu ganha, chave por chave.
+- **`whenTab`** — ver abaixo.
+
+Várias também aceitam **`parts`** (elementos de dentro, endereçados por
+papel) e flags booleanas: o `DesignerFieldList` tem `heading` e
+`parts.heading`/`parts.scroll`; o `DesignerToolbar` tem `hint`; o
+`DesignerPropertyPanel` tem `header`, `position` e `parts.banner`; o
+`DesignerFilterPanel` tem `header` e `parts.banner`; o `DesignerTabBar`
+tem `parts.strip`; o `DesignerSidebar` tem `parts.tabBar`/`parts.panel`.
+
+O `DesignerPropertyPanel` também aceita
+**`section="dados" | "estilo"`** — conteúdo-e-vínculo, ou aparência. É
+**prop, e não leitura da aba ativa**, justamente pra duas instâncias com
+sections diferentes renderizarem lado a lado. Se ela lesse a aba, a
+segunda instância desapareceria.
+
+A maioria das peças renderiza o *mesmo* elemento raiz que o
+`Designer.tsx` renderizava, então compor não adiciona nível de DOM. Três
+delas embrulham num `div.jpd-part` — o `DesignerInspector`, por exemplo,
+porque o `TemplateInspector` tem duas raízes possíveis (a lista, e um
+`<p>` de estado vazio), então não existe elemento estável pra receber o
+seu `className`. De um jeito ou de outro, toda peça estampa um
+`data-part` na raiz.
+
+## O `whenTab` é opt-in, e é isso que faz a feature existir
+
+Sem `whenTab`, **a peça renderiza sempre**. Com `whenTab="pagina"` (ou um
+array de chaves de aba) ela só aparece naquela(s) aba(s).
+
+Esse default é o que torna as peças de fato posicionáveis. Se o gate por
+aba fosse ligado por default, pôr o `DesignerPropertyPanel` e o
+`DesignerPageSettings` lado a lado num layout próprio apagaria um dos
+dois — só uma aba pode estar ativa. Seriam peças que *parecem*
+decompostas mas só funcionam dentro de uma sidebar com abas, o que anula
+a feature inteira.
+
+O `examples/composed-layout` é a prova: uma coluna à direita com cinco
+painéis empilhados que dentro do `<Designer>` seriam cinco abas. Nenhuma
+peça recebe `whenTab`. Medido: oito peças no DOM ao mesmo tempo, zero
+`.jpd-tabs`.
+
+Passe `whenTab` quando você *quiser* comportamento de aba — é assim que o
+`DesignerSidebar` e o `<Designer>` reproduzem o editor de hoje.
+
+## Os dez hooks
+
+Cinco **acessores** devolvem o value do contexto cru; cinco
+**seletores** derivam dele, pra cada peça pagar só pelo cálculo que ela
+mesma lê.
+
+```tsx
+import { useDesignerSelectedSchema, useDesignerActions } from "json-pdf-designer";
+
+function BarraDoCampoSelecionado() {
+  const { selected } = useDesignerSelectedSchema();
+  const { removeSchema } = useDesignerActions();
+  if (!selected) return null;
+  return (
+    <div>
+      {selected.name}
+      <button onClick={() => removeSchema(selected.id)}>remover</button>
+    </div>
+  );
+}
+```
+
+| Acessor | Devolve |
+| --- | --- |
+| `useDesignerData()` | `template`, `bindings` |
+| `useDesignerActions()` | todo mutador (adicionar/remover/renomear/reordenar, trocar vínculo, faixas de página…) |
+| `useDesignerSelection()` | `selectedIds`, `selectedId`, os setters de seleção, o sub-elemento do KPI |
+| `useDesignerUi()` | aba ativa, flag de colapso, menu de abas, ordem/visibilidade de aba, modo isolado, erro do upload de fundo |
+| `useDesignerConfig()` | `dataSources`, `onCanvasDrop`, `gridSizeMm`, `expandOnSelect` |
+
+| Seletor | Devolve |
+| --- | --- |
+| `useDesignerSelectedSchema()` | `{ selected, selectedBinding }` — o campo principal da seleção |
+| `useDesignerFieldListSchemas()` | os campos que a lista deve mostrar (espelha o canvas) |
+| `useDesignerBulkEdit()` | `{ selectedSchemas, bulkEditActive }` |
+| `useDesignerTabWarnings()` | `{ dadosWarning, filtroWarning }` |
+| `useDesignerFilterColumns()` | as colunas disponíveis pro painel de filtro |
+
+**Os cinco contextos são divididos por frequência de mudança**, e essa
+divisão é load-bearing. O `useDesignerActions()` nunca troca de
+identidade, então uma peça memoizada consome um mutador sem
+re-renderizar quando o template muda. O `useDesignerData()` muda a cada
+edição. Leia só o que você usa.
+
+Usados fora do provider, todos os hooks **lançam**, com uma mensagem
+nomeando o provider:
+
+```
+useDesignerData() precisa de um <DesignerProvider> acima.
+```
+
+Eles não devolvem `null` calados. Peça do designer sem estado não tem
+comportamento de fallback nenhum — ela simplesmente não renderizaria, e
+você ficaria olhando um buraco na tela sem pista de por quê.
+
+## O que de propósito não é peça
+
+A decomposição para em lugares específicos, e cada parada tem motivo:
+
+- **`FieldBox/*` e os `PropertyPanel{Text,Table,…}` individuais** são
+  despachados por `schema.type`. Um `<DesignerTextPanel/>` avulso não tem
+  resposta pra "qual schema?" que não seja "o selecionado" — e aí ele é
+  um `DesignerPropertyPanel` pior.
+- **O colapso do `TabPanel`** (duplo clique na aba ativa) mora só no
+  `DesignerSidebar`. O truque de grid `1fr`→`0fr` exige um pai flex
+  column com `min-block-size: 0`, que peça avulsa não garante — ela
+  animaria errado em silêncio em vez de degradar. O `DesignerTabBar`
+  *escreve* o flag e a sidebar *lê*, então usar a barra de abas sem
+  sidebar deixa o duplo clique sem efeito visível, o que é o
+  comportamento correto pra quem não tem o que colapsar.
+- **Delete / Ctrl+C / Ctrl+V** são registrados exatamente uma vez, pelo
+  provider. Numa peça, quem não renderiza o canvas perderia os atalhos em
+  silêncio; em duas, todo paste dispararia dobrado.
+- **O zoom** continua estado interno do `<PageCanvas>` — nunca subiu pro
+  contexto. Se subisse, arrastar o slider re-renderizaria toda peça.
+
+## Quem é dono de quê no canvas
+
+Esta divisão não é negociável, e errar nela é sutil:
+
+- **A peça é dona da geometria da folha** — mm→px,
+  `transform: scale(zoom)`, `transformOrigin`. O `react-rnd` calcula o
+  delta de arrasto *contra* esse transform, então sobrescrevê-lo faz o
+  campo fugir do cursor.
+- **Você é dono do viewport que ROLA.** É o que o `className`/`style` do
+  `DesignerCanvas` atinge: a caixa de fora, não a folha.
+- **A largura da sidebar também é sua.** Os 320px do preset moram no
+  `.jpd-designer__main` do `theme.css`, não na peça — largura de painel é
+  decisão de layout, e layout é do consumidor.
+
+## O que a composição compra
+
+O `examples/report-builder` foi migrado pras peças e o layout dele ficou
+**idêntico** ao do preset. O que a migração comprou foi um
+`<SelectedFieldBar>` — a casca do *próprio* app lendo a seleção do editor
+por hook, o que era impossível na 2.x. O comentário antigo no `App.tsx`
+dele dizia exatamente isso: o `<Designer>` era dono da seleção, e não
+havia prop pra dirigi-la de fora.
+
+Verificado de ponta a ponta: "remover" na barra do próprio app leva de 3
+pra 2 campos, e o Ctrl+Z do app desfaz (2→3). O mutador do pacote passa
+pelo `setState` do consumidor, então o undo/redo dele vê.
+
+Veja [Exemplos](./examples) pro `composed-layout`, e
+[Customizando os componentes](./customizing-components) pra trocar os
+primitivos que as peças renderizam *por dentro*.

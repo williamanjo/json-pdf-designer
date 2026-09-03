@@ -1,0 +1,236 @@
+/* json-pdf-designer — RESET, sem aparência.
+ *
+ * Este arquivo é o subconjunto do `theme.css` que NÃO tem cor, tamanho nem
+ * layout: só o que o editor precisava herdar do Preflight do Tailwind, que
+ * o pacote deixou de enviar na 3.0.0.
+ *
+ * PRA QUEM SERVE: quem vai estilizar o `<Designer>` do zero, mirando as
+ * classes `.jpd-*` com o próprio CSS, e portanto NÃO importa o
+ * `theme.css`. Sem isto, esse consumidor tem de redescobrir por conta que
+ * uma dúzia de classes precisa de `font: inherit` + `appearance: button`,
+ * que os `<ul>` precisam de `list-style: none`, e — o detalhe que quase
+ * todo mundo erra — que `border: 0` põe `border-style: none` e faz qualquer
+ * `border-width` posterior computar ZERO, então tem de ser `border: 0 solid`.
+ *
+ *   import "json-pdf-designer/reset.css";   // só o reset
+ *   import "json-pdf-designer/theme.css";   // reset + aparência pronta
+ *
+ * O `theme.css` JÁ INCLUI este arquivo — importar os dois é redundante, não
+ * é erro.
+ *
+ * Não há reset GLOBAL aqui: a única regra com `*` é escopada às raízes do
+ * editor e envolta em `:where()`, ou seja, especificidade zero. Qualquer
+ * regra sua ganha dela.
+ */
+@layer json-pdf-designer, utilities;
+
+@layer json-pdf-designer {
+  /* ==========================================================================
+   * 2. box-sizing ESCOPADO — a única regra com `*` no arquivo
+   *
+   * O `*{box-sizing:border-box}` do Preflight era global e caía no app do
+   * consumidor. Este é escopado às raízes do editor e envolto em `:where()`,
+   * que dá especificidade ZERO: qualquer regra sua ganha dele.
+   *
+   * Não dá pra resolver por classe: `.jpd-input` é `width:100%` com padding e
+   * borda, então sem border-box estoura toda célula de grid de 2 colunas —
+   * e os filhos que o CONSUMIDOR passa pra dentro de Card/Modal também
+   * precisam herdar.
+   * ========================================================================= */
+  :where(.jpd-designer, .jpd-modal__panel, .jpd-card, .jpd-page, .jpd-field),
+  :where(.jpd-designer, .jpd-modal__panel, .jpd-card, .jpd-page, .jpd-field) *,
+  :where(.jpd-designer, .jpd-modal__panel, .jpd-card, .jpd-page, .jpd-field) *::before,
+  :where(.jpd-designer, .jpd-modal__panel, .jpd-card, .jpd-page, .jpd-field) *::after {
+    box-sizing: border-box;
+  }
+
+  /* ==========================================================================
+   * 3. RESETS LOCAIS — o que cada elemento herdava do Preflight
+   *
+   * Cada classe abaixo carrega o reset de que o elemento dela dependia. É o
+   * que substitui o reset global sem impor um.
+   * ========================================================================= */
+
+  /* `button,input,select,textarea { font:inherit; color:inherit;
+   * background-color:transparent; border-radius:0 }` era o reset mais
+   * load-bearing do Preflight: nenhuma utilitária fornecia isso, e sem ele
+   * os 29 botões e 13 controles do editor voltam pro chrome do sistema
+   * operacional, com fonte de 13px. */
+  .jpd-btn,
+  .jpd-iconbtn,
+  .jpd-linkbtn,
+  .jpd-input,
+  .jpd-select,
+  .jpd-textarea,
+  /* Estes são `<button>` NOSSOS que não passam pelo kit — a barra de abas, as
+   * setas de rolagem, os itens de menu, o link "+ condição". Como TÊM classe,
+   * o reset por elemento (`:not([class])`) de propósito não os alcança. */
+  .jpd-tab,
+  .jpd-tabs__btn,
+  .jpd-menuitem,
+  .jpd-addlink {
+    font: inherit;
+    /* Fallback EXPLÍCITO porque este arquivo é um export por si
+     * ("json-pdf-designer/reset.css"): usado sozinho, `--jpd-font-sans` não
+     * existe. E mesmo com o theme.css, o default lá é `inherit`, que num
+     * custom property de `:root` resolve pra guaranteed-invalid — ou seja o
+     * token lê VAZIO nos dois casos. Sem o fallback isto só funciona porque
+     * `var()` inválido em propriedade herdada cai em herança por acaso;
+     * escrito assim, funciona de propósito. */
+    font-family: var(--jpd-font-sans, inherit);
+    letter-spacing: inherit;
+    color: inherit;
+    margin: 0;
+    background-color: transparent;
+  }
+
+  .jpd-btn,
+  .jpd-iconbtn,
+  .jpd-linkbtn,
+  .jpd-tab,
+  .jpd-tabs__btn,
+  .jpd-menuitem,
+  .jpd-addlink {
+    appearance: button;
+    /* `0 solid`, não `0`. O Preflight escrevia `border: 0 solid` de propósito:
+     * zera a largura MAS deixa o estilo como `solid`, pra que qualquer
+     * `border-width` posterior funcione. Com `border: 0` o estilo vira `none`
+     * e aí `border-width: 4px` computa 0 — a borda simplesmente não aparece,
+     * sem erro nenhum. Verificado no navegador: com `border: 0` aqui, um
+     * `.jpd-btn{border-width:4px}` do consumidor computava `0px`. */
+    border: 0 solid;
+    cursor: pointer;
+  }
+
+  /* MESMO reset, mas por ELEMENTO e escopado, pro botão/controle NU.
+   *
+   * O grupo de classes acima só alcança quem passa pelo kit. Mas o editor tem
+   * dezenas de `<button>` sem classe de kit — as abas do painel, as setas de
+   * rolagem, os itens de menu, o "ƒx", as linhas da lista de campos — e três
+   * `<input type="checkbox">`, e os editores de célula dentro do canvas. Sem o
+   * Preflight, cada um desses volta pro chrome do sistema operacional: fonte
+   * de 13px, fundo `ButtonFace`, borda `2px outset`.
+   *
+   * Listar classe por classe não escala: cada grupo da migração descobriria a
+   * exposição por conta e replicaria o reset no arquivo dele. Por elemento e
+   * escopado resolve pra todos de uma vez, inclusive pros que ainda não
+   * existem. `:where()` mantém especificidade ZERO, então qualquer regra de
+   * componente (e qualquer regra do consumidor) ganha dele.
+   *
+   * `:not([class])` NÃO é detalhe: sem ele este reset alcança qualquer
+   * `<button>` que o CONSUMIDOR ponha dentro de um `<Card>` nosso, e apaga o
+   * fundo/borda que o CSS dele definiu. Medido: um `bg-sky-600` do app de
+   * exemplo computava `rgba(0,0,0,0)`.
+   *
+   * E não dá pra resolver por ordem de @layer: a posição de uma layer é
+   * fixada na PRIMEIRA menção dela, então se o Tailwind do consumidor
+   * declarar `utilities` antes deste arquivo carregar, nenhuma declaração
+   * nossa move a nossa layer pra trás. `:not([class])` é correto
+   * independente da ordem de import — elemento do consumidor tem classe;
+   * o nosso que precisa de reset é justamente o que não tem. Os nossos que
+   * TÊM classe entram na lista por classe acima.
+   *
+   * `border: 0 solid` e não `border: 0` — ver o comentário do `.jpd-btn`: com
+   * `none`, a borda de 2px da aba ativa computaria 0. */
+  :where(.jpd-designer, .jpd-modal__panel, .jpd-card, .jpd-page)
+    :is(button, input, select, textarea, optgroup):not([class]) {
+    font: inherit;
+    font-family: var(--jpd-font-sans, inherit);
+    letter-spacing: inherit;
+    color: inherit;
+    margin: 0;
+    border: 0 solid;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  :where(.jpd-designer, .jpd-modal__panel, .jpd-card, .jpd-page) :is(button):not([class]) {
+    appearance: button;
+  }
+
+  /* `margin:0` do `*`. São 36 <p>, 5 headings e 2 <details> no editor. */
+  .jpd-hint,
+  .jpd-hint--md,
+  .jpd-meta,
+  .jpd-error,
+  .jpd-card__title,
+  .jpd-modal__title,
+  .jpd-sectionhead,
+  .jpd-grouplabel {
+    margin: 0;
+  }
+
+  /* `h1..h6 { font-size:inherit; font-weight:inherit }` — os títulos definem
+   * tamanho/peso por conta e contavam com o UA não interferir. */
+  .jpd-card__title,
+  .jpd-modal__title,
+  .jpd-sectionhead {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  /* `ol,ul { list-style:none }` + `margin/padding:0`. Os 7 <ul> do editor são
+   * listas flex; sem isto voltam marcador e 40px de padding. */
+  .jpd-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* `code,kbd,pre { font-family:mono; font-size:1em }`.
+   * Este é o caso que o reset global escondia por completo: o <code> de
+   * withInlineCode.tsx saía SEM classe nenhuma e a monoespaçada vinha só do
+   * Preflight. */
+  .jpd-code {
+    /* A pilha vai como FALLBACK, não só como token: este arquivo é export
+     * por si, e sem ela o `<code>` de withInlineCode.tsx sai sem
+     * monoespaçada no uso avulso — exatamente a perda que o comentário
+     * acima descreve. É o valor literal do Preflight. */
+    font-family: var(
+      --jpd-font-mono,
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Monaco,
+      Consolas,
+      "Liberation Mono",
+      "Courier New",
+      monospace
+    );
+    font-size: 1em;
+  }
+
+  /* `img,svg { display:block; vertical-align:middle }` — `display:block` em
+   * SVG inline é o que evita o vão de descendente embaixo de cada ícone. São
+   * 23 SVG e 2 <img>. */
+  .jpd-icon,
+  .jpd-micon,
+  .jpd-ruler,
+  .jpd-imagefield__img {
+    display: block;
+    vertical-align: middle;
+  }
+
+  /* `table { text-indent:0; border-color:inherit; border-collapse:collapse }` */
+  .jpd-fieldtable {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+
+  /* `::placeholder { opacity:1 }` — só a OPACIDADE, que é o que vinha do
+   * Preflight. Sem isto o Firefox aplica opacidade própria e o placeholder
+   * fica mais claro que o pedido.
+   *
+   * A COR mora no theme.css: ela vinha de utilitária, não do reset, e este
+   * arquivo é o subconjunto sem aparência. */
+  .jpd-input::placeholder,
+  .jpd-textarea::placeholder {
+    opacity: 1;
+  }
+
+  /* `summary { display:list-item }` — o triângulo de <details> vem daqui. */
+  .jpd-disclosure__summary {
+    display: list-item;
+  }
+}

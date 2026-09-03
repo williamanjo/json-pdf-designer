@@ -1,5 +1,6 @@
 import type { PDFDocument, PDFImage, PDFPage } from "pdf-lib";
 import type { ImageSchema } from "../../types";
+import { ImageTooLargeError, ImageUnreadableError, TooManyImagesError, UnsupportedImageFormatError } from "../../errors";
 
 // Um template pode vir de fonte não confiável (multi-tenant: salvo num
 // banco, editado por outro usuário) — sem limite nenhum, um `ImageSchema.
@@ -22,9 +23,15 @@ export function estimateDataUriBytes(dataUri: string): number {
 
 // Exportada — generate.ts também usa pro fundo de página (Template.backgroundImage),
 // não só pro campo de imagem abaixo.
-export function assertImageWithinSizeLimit(dataUri: string, label: string): void {
-  if (estimateDataUriBytes(dataUri) > MAX_IMAGE_BYTES) {
-    throw new Error(`${label}: imagem maior que o limite de ${MAX_IMAGE_BYTES / (1024 * 1024)}MB — reduza o arquivo antes de usar.`);
+//
+// `field` é o nome do campo de imagem, ou `null` pro fundo da página (que não
+// tem campo). Antes isto recebia um `label` JÁ FORMATADO (`Campo "logo"`), e
+// era ele que ia pra mensagem — ou seja, o texto do erro nascia no chamador e
+// não havia como o consumidor saber QUAL campo era sem parsear a frase.
+export function assertImageWithinSizeLimit(dataUri: string, field: string | null): void {
+  const bytes = estimateDataUriBytes(dataUri);
+  if (bytes > MAX_IMAGE_BYTES) {
+    throw new ImageTooLargeError(field, bytes, MAX_IMAGE_BYTES);
   }
 }
 
@@ -52,18 +59,18 @@ export async function drawImageField(
   let embedded = imageCache.get(dataUri);
   if (!embedded) {
     if (imageCache.size >= MAX_DISTINCT_IMAGES) {
-      throw new Error(`Documento excede o limite de ${MAX_DISTINCT_IMAGES} imagens distintas — reduza a quantidade de imagens diferentes usadas.`);
+      throw new TooManyImagesError(MAX_DISTINCT_IMAGES);
     }
     const isPng = dataUri.startsWith("data:image/png");
     const isJpg = dataUri.startsWith("data:image/jpeg") || dataUri.startsWith("data:image/jpg");
     if (!isPng && !isJpg) {
-      throw new Error(`Campo "${schema.name}": imagem em formato não suportado (só PNG/JPEG). Reenvie o arquivo pelo editor.`);
+      throw new UnsupportedImageFormatError(schema.name);
     }
-    assertImageWithinSizeLimit(dataUri, `Campo "${schema.name}"`);
+    assertImageWithinSizeLimit(dataUri, schema.name);
     try {
       embedded = isPng ? await doc.embedPng(dataUri) : await doc.embedJpg(dataUri);
     } catch {
-      throw new Error(`Campo "${schema.name}": não deu pra ler essa imagem — arquivo corrompido ou inválido.`);
+      throw new ImageUnreadableError(schema.name);
     }
     imageCache.set(dataUri, embedded);
   }

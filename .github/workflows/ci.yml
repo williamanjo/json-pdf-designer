@@ -46,4 +46,81 @@ jobs:
               exit 1
             fi
           done
+          # A folha de tema é COPIADA pro dist (publicDir do tsup), não
+          # gerada por bundler — se alguém mexer no tsup.config.ts e a cópia
+          # parar, nada quebra no build: o pacote só sai sem estilo, e o
+          # consumidor descobre em produção. Checar aqui, no pacote instalado.
+          test -f node_modules/json-pdf-designer/dist/theme.css || {
+            echo "FALHOU: dist/theme.css não veio no pacote publicado."
+            exit 1
+          }
+          grep -q "@layer json-pdf-designer" node_modules/json-pdf-designer/dist/theme.css || {
+            echo "FALHOU: dist/theme.css veio sem a @layer — o CSS do consumidor deixaria de vencer o nosso."
+            exit 1
+          }
+          # `./reset.css` também é export publico (quem usa o modo sem tema
+          # importa so ele). Mesmo modo de falha silencioso do theme.css.
+          test -f node_modules/json-pdf-designer/dist/reset.css || {
+            echo "FALHOU: dist/reset.css nao veio no pacote publicado."
+            exit 1
+          }
+          # O `dist/style.css` do 2.x SAIU (era Tailwind compilado, com
+          # Preflight). Se um `build:css` voltar por acidente, o pacote
+          # passaria a resetar a pagina do consumidor de novo — sem erro.
+          if [ -f node_modules/json-pdf-designer/dist/style.css ]; then
+            echo "FALHOU: dist/style.css voltou ao pacote. Ver CHANGELOG 3.0.0."
+            exit 1
+          fi
           node generate-check.mjs
+
+  # OS EXAMPLES SÃO PARTE DO GATE, e até agora não eram.
+  #
+  # Eles são o dogfooding do pacote — o único lugar do repo onde a superfície
+  # pública é usada como um consumidor a usa (import por "file:../..", peers
+  # opcionais, theme.css, as peças `Designer*`). Mesmo assim só o `pages.yml`
+  # os buildava, e ele roda em push pra master: um example quebrado atravessava
+  # o PR inteiro em silêncio e aparecia no deploy.
+  #
+  # O modo de falha é pior do que parece, e vale escrito porque custou tempo:
+  # `tsc --noEmit -p tsconfig.json` NÃO CHECA NADA nestes projetos. O
+  # tsconfig.json de cada um é solution-style (`"files": []` + `references`), e
+  # `--noEmit` não segue references — sai 0 sobre código que não compila
+  # (verificado inserindo `const x: number = "nope"`). O `vite build` também
+  # não checa: rolldown/esbuild só apagam tipo. Quem valida à mão com esses
+  # dois comandos recebe verde falso.
+  #
+  # O que checa é o script `build` de cada example: `tsc -b && vite build`.
+  examples:
+    runs-on: ubuntu-latest
+    strategy:
+      # Sem fail-fast: quando mais de um quebra, saber QUAIS vale mais que
+      # economizar minuto de runner.
+      fail-fast: false
+      matrix:
+        # Espelha os diretórios de examples/. `test/docsFreshness.test.ts`
+        # falha se esta lista divergir do disco — example novo fora daqui
+        # seria example sem gate, que é justamente o que este job conserta.
+        example:
+          - report-builder
+          - custom-ui
+          - headless-designer
+          - composed-layout
+          - no-preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # O pacote raiz vem primeiro: os examples o resolvem por symlink
+      # ("file:../.."), e precisam de dist/ existindo tanto pro Vite resolver
+      # o import quanto pro `tsc -b` ler o dist/index.d.ts.
+      - name: Build root package
+        run: |
+          npm ci
+          npm run build
+      - name: Build example
+        working-directory: examples/${{ matrix.example }}
+        run: |
+          npm ci
+          npm run build

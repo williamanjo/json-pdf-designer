@@ -1,11 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Sem plugin de Tailwind aqui de propósito — esse example prova que dá pra
-// usar o <Designer> sem NENHUM setup de design system próprio: o CSS dele
-// (Button/Card/Input internos do pacote) já vem pronto e compilado em
-// "json-pdf-designer/style.css" (import estático, ver main.tsx), não
-// depende do consumidor ter Tailwind configurado.
+// Sem plugin de Tailwind aqui de propósito — e, diferente dos outros
+// examples, sem NENHUM import de CSS do pacote (ver main.tsx). Este é o
+// example que prova que a folha `json-pdf-designer/theme.css` é OPT-IN: o
+// <Designer> só deixa as classes `.jpd-*` e os atributos `data-*` no DOM, e
+// quem pinta tudo é o src/index.css daqui, em CSS puro.
 export default defineConfig({
   // Relativo (não "/repo-name/") — funciona em qualquer subpath do GitHub
   // Pages (site é montado em playground/custom-ui/) sem precisar hardcodar

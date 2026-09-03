@@ -1,7 +1,7 @@
 import type { Schema } from "../types";
 import { useT } from "../i18n";
 import { expressionError } from "../expressions/resolve";
-import { Input } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 
 type Props<S extends Schema> = {
   schema: S;
@@ -13,8 +13,9 @@ type Props<S extends Schema> = {
 // aparência, em vez de deixá-los soltos acima das abas (ver PropertyPanel).
 export function PositionFields<S extends Schema>({ schema, onChangeSchema }: Props<S>) {
   const t = useT();
+  const { Input } = useUiComponents();
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="jpd-grid2">
       <Input
         label={t.position.x}
         type="number"
@@ -50,10 +51,11 @@ export function PositionFields<S extends Schema>({ schema, onChangeSchema }: Pro
 // precisa do retorno imediato.
 export function VisibleWhenField<S extends Schema>({ schema, onChangeSchema }: Props<S>) {
   const t = useT();
+  const { Input } = useUiComponents();
   const raw = schema.visibleWhen ?? "";
   const error = raw.trim() ? expressionError(raw.trim(), t) : null;
   return (
-    <div className="flex flex-col gap-1">
+    <div className="jpd-stack jpd-stack--tight">
       <Input
         label={t.visibleWhen.label}
         value={raw}
@@ -61,9 +63,9 @@ export function VisibleWhenField<S extends Schema>({ schema, onChangeSchema }: P
         onChange={(e) => onChangeSchema({ visibleWhen: e.target.value || undefined } as Partial<S>)}
       />
       {error ? (
-        <span className="text-[11px] text-red-600">{error}</span>
+        <span className="jpd-error jpd-error--sm">{error}</span>
       ) : (
-        <span className="text-[11px] text-slate-500 dark:text-gray-400">{t.visibleWhen.hint}</span>
+        <span className="jpd-meta jpd-meta--sm">{t.visibleWhen.hint}</span>
       )}
     </div>
   );

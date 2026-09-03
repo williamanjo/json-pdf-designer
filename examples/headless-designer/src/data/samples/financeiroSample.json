@@ -1,0 +1,15 @@
+{
+  "periodo": { "mes": "Junho", "ano": 2026 },
+  "receitas": [
+    { "descricao": "Venda de pacotes turísticos", "valor": 18500.00 },
+    { "descricao": "Comissões de hospedagem", "valor": 4200.00 },
+    { "descricao": "Serviços de consultoria", "valor": 3100.00 }
+  ],
+  "despesas": [
+    { "descricao": "Folha de pagamento", "valor": 9800.00 },
+    { "descricao": "Aluguel e condomínio", "valor": 2600.00 },
+    { "descricao": "Marketing e publicidade", "valor": 1450.00 },
+    { "descricao": "Despesas administrativas", "valor": 870.00 }
+  ],
+  "resumoFinanceiro": { "totalReceitas": 25800.00, "totalDespesas": 14720.00 }
+}

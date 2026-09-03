@@ -1,125 +1,108 @@
-import { PageLimitError, UnsupportedGlyphError, ExpressionError } from "json-pdf-designer";
+import { describePdfError, dictFor } from "json-pdf-designer";
+import type { Locale, PdfProblem } from "json-pdf-designer";
+import { FontLoadError } from "./font";
+import { t, type AppDict } from "../i18n";
+import { ProjectFileError, type ProjectFileReason } from "./projectFile";
 
-// Tradução de um erro de `generatePdf` numa mensagem que diz o que FAZER.
+// Tradução de uma falha de `generatePdf` (ou de carregar um projeto) numa
+// mensagem que diz o que FAZER.
 //
-// O ponto deste arquivo é não usar `err.message` cru. O pacote exporta os erros
-// como CLASSES justamente pra isso: dá pra distinguir "o dado é grande demais"
-// de "falta uma fonte" de "bug do pacote" com `instanceof`, sem casar texto de
-// mensagem (que muda). Num backend, é o mesmo ponto onde se escolhe entre 413,
-// 400 e 500.
+// Quem classifica é o PACOTE: `describePdfError(err, dictFor(locale))` recebe
+// o erro cru e devolve `{ code, blame, title, action?, field?, detail }` já
+// localizado — ou `null` se o erro não é dele. Antes este arquivo casava
+// REGEX na mensagem (`/tamanho inválido/`) pra descobrir o que tinha
+// acontecido; a mensagem do pacote é inglês fixo e mudou de frase, as regexes
+// pararam de casar, e TODA falha virou "erro inesperado" em silêncio. É o
+// motivo pelo qual `code` existe: string literal, estável, com o TypeScript
+// cobrando exaustividade. Zero regex aqui, de propósito.
+//
+// `blame` também vem do pacote — não é derivado aqui. É o que muda o tom da
+// UI (ver components/GenerationErrorBanner.tsx) e, num backend, o status HTTP:
+// `data`/`template` são 4xx, `config` é erro de instalação, `package` é 500.
+//
+// O que continua NOSSO: erro de arquivo de projeto (lib/projectFile.ts), JSON
+// inválido de fonte de dados (lib/sources.ts) e o asset de fonte deste example
+// (lib/font.ts). O pacote não sabe nada disso, devolve `null`, e caem no ramo
+// de baixo com o dicionário da casca (`src/i18n.ts`).
+//
+// Duas camadas de idioma, como antes:
+//   - `title`/`action` são a cópia que a pessoa lê e faz — localizadas (pelo
+//     dicionário do PACOTE quando o erro é dele, pelo da CASCA quando é nosso);
+//   - `detail` é a mensagem CRUA do erro, e não passa por dicionário nenhum —
+//     é a camada técnica, e o pacote a lança sempre em inglês de propósito.
 
-export type GenerationProblem = {
-  // Título curto — o que aconteceu.
-  title: string;
-  // O que a pessoa faz agora.
-  action: string;
-  // Culpa de quem: muda o tom da UI e, num servidor, o status HTTP.
-  blame: "dado" | "template" | "configuracao" | "pacote";
-  // Campo do template envolvido, quando o erro sabe qual.
-  field?: string;
-  // Mensagem original, pra quem quiser o detalhe cru.
-  detail: string;
+// Nossos códigos entram na mesma união dos do pacote: assim quem renderiza
+// classifica tudo por `code`, sem ter que saber de onde o erro veio.
+export type AppProblemCode = "appFontLoad" | "appProjectFile" | "appUnknown";
+
+export type GenerationProblem = Omit<PdfProblem, "code"> & {
+  code: PdfProblem["code"] | AppProblemCode;
 };
 
-export function describeGenerationError(err: unknown): GenerationProblem {
+// Tabela em vez de `switch`: `Record` sobre a união obriga as três razões a
+// existirem, então uma razão nova em lib/projectFile.ts para de compilar aqui.
+const PROJECT_COPY: Record<ProjectFileReason, { title: (tx: AppDict) => string; action: (tx: AppDict) => string }> = {
+  shape: { title: (tx) => tx.projectShapeTitle, action: (tx) => tx.projectShapeAction },
+  malformed: { title: (tx) => tx.projectMalformedTitle, action: (tx) => tx.projectMalformedAction },
+  unreadable: { title: (tx) => tx.projectUnreadableTitle, action: (tx) => tx.projectUnreadableAction },
+};
+
+export function describeGenerationError(err: unknown, locale: Locale): GenerationProblem {
+  // `dictFor(locale)` é o MESMO dicionário que alimenta o `<I18nProvider>` do
+  // editor — um `locale` no estado, uma tradução. E como isto roda no render
+  // (App.tsx guarda o erro cru), trocar o idioma com o banner aberto
+  // retraduz o que está na tela.
+  const problem = describePdfError(err, dictFor(locale));
+  if (problem) return withAppCopy(problem, locale);
+
+  const tx = t(locale);
   const detail = err instanceof Error ? err.message : String(err);
 
-  // Documento maior que o teto de páginas. O pacote interrompe em vez de
-  // devolver um PDF truncado que parece completo.
-  if (err instanceof PageLimitError) {
+  // Asset de fonte deste example — nosso, então a frase é nossa.
+  if (err instanceof FontLoadError) {
+    return { code: "appFontLoad", blame: "config", title: tx.genFontTitle, action: tx.genFontAction, detail };
+  }
+
+  // Arquivo de projeto — conceito deste app, o pacote não sabe que existe. A
+  // classe carrega `reason` justamente pra esta classificação não precisar ler
+  // a mensagem.
+  if (err instanceof ProjectFileError) {
+    const copy = PROJECT_COPY[err.reason];
     return {
-      title: `O relatório passou de ${err.maxPages} páginas`,
-      action:
-        "Filtre os dados antes de gerar, divida em vários PDFs, ou aumente o teto " +
-        "em generatePdf(..., { maxPages }) se você realmente quer um documento desse tamanho.",
-      blame: "dado",
-      field: err.field,
+      code: "appProjectFile",
+      // Forma quebrada é problema do TEMPLATE que veio no arquivo; ler ou
+      // parsear é problema do arquivo que a pessoa escolheu. Nenhum dos dois
+      // é `package`, que era onde os quatro caíam antes.
+      blame: err.reason === "shape" ? "template" : "data",
+      title: copy.title(tx),
+      action: copy.action(tx),
       detail,
     };
   }
 
-  // Caractere que a fonte não sabe escrever. Este example já carrega a Inter
-  // (loadDefaultFont), então só cai aqui um caractere fora dela também — emoji,
-  // CJK, árabe.
-  if (err instanceof UnsupportedGlyphError) {
-    return {
-      title: `O caractere ${JSON.stringify(err.char)} não existe na fonte`,
-      action:
-        "Troque a fonte por uma que cubra esse caractere (generatePdf aceita fontBytes), " +
-        "ou remova o caractere do dado. O pacote não descarta em silêncio: um relatório é " +
-        "documento assinado.",
-      blame: "dado",
-      field: err.field,
-      detail,
-    };
-  }
+  // Sobra: algo de fora do pacote e de fora daqui (um TypeError do pdf-lib,
+  // falha de rede). `blame: "package"` deixa o banner no tom cinza de "não é
+  // culpa sua, reporte" — agora só pra quem merece esse tom.
+  return { code: "appUnknown", blame: "package", title: tx.genUnknownTitle, action: tx.genUnknownAction, detail };
+}
 
-  // Expressão inválida NÃO chega aqui na prática — a geração é tolerante e o
-  // campo sai vazio (o painel de problemas é quem aponta, antes de gerar). Se
-  // chegar, é porque alguém chamou a API estrita.
-  if (err instanceof ExpressionError) {
-    return {
-      title: "Expressão inválida no template",
-      action: 'Veja o painel "Problemas do template" — ele lista cada expressão quebrada e onde está.',
-      blame: "template",
-      detail,
-    };
-  }
+// Onde a cópia deste example sobrescreve a do pacote. Só ramo com MOTIVO —
+// duplicar título/ação que o pacote já entrega localizado é criar duas frases
+// pra mesma falha, prontas pra dessincronizar na próxima tradução.
+function withAppCopy(problem: PdfProblem, locale: Locale): GenerationProblem {
+  const tx = t(locale);
 
-  // Os erros abaixo o pacote lança como Error comum, então não há classe pra
-  // testar. Em vez de casar a mensagem (frágil), reconhecemos pelo formato do
-  // que o pacote documenta e caímos num genérico honesto quando não dá.
-  if (/tamanho inválido/i.test(detail)) {
-    return {
-      title: "Tamanho de página inválido",
-      action: 'Confira largura/altura na aba "Página" — precisam ser dois números maiores que zero, em mm.',
-      blame: "template",
-      detail,
-    };
+  // `switch` no `code` (não regex na frase): literal, e o TypeScript avisa se
+  // um code deixar de existir.
+  switch (problem.code) {
+    // O pacote manda "corrija a expressão no template" — correto, mas ele não
+    // sabe que ESTE app tem um painel que lista cada expressão quebrada e onde
+    // ela está. O nome do painel sai do mesmo dicionário que o painel usa pro
+    // título dele, então a mensagem nunca aponta pra um painel com outro nome.
+    // O `title` continua vindo do pacote.
+    case "expression":
+      return { ...problem, action: tx.genExpressionAction(tx.problemsTitle) };
+    default:
+      return problem;
   }
-
-  if (/imagem/i.test(detail) && /corrompid|não é PNG|não suportado|limite/i.test(detail)) {
-    return {
-      title: "Problema com uma imagem",
-      action: "Reenvie a imagem pelo editor (PNG ou JPEG, até 15MB).",
-      blame: "template",
-      detail,
-    };
-  }
-
-  if (/Unknown font format|wawoff2|fonte/i.test(detail)) {
-    return {
-      title: "Não deu pra carregar a fonte",
-      action: "A fonte deste example vem de src/assets/inter-regular.ttf — confira se o arquivo está lá e íntegro.",
-      blame: "configuracao",
-      detail,
-    };
-  }
-
-  if (/Template (inválido|na versão)|Template\.version/i.test(detail)) {
-    return {
-      title: "Template em formato incompatível",
-      action:
-        "O arquivo foi salvo por uma versão mais nova do json-pdf-designer, ou não é um template válido. " +
-        "Atualize o pacote, ou carregue outro projeto.",
-      blame: "template",
-      detail,
-    };
-  }
-
-  if (/Paginação travada/i.test(detail)) {
-    return {
-      title: "Bug de paginação do pacote",
-      action: "Isso não é problema do seu template — reporte em github.com/williamanjo/json-pdf-designer com o projeto que reproduz.",
-      blame: "pacote",
-      detail,
-    };
-  }
-
-  return {
-    title: "Não deu pra gerar o PDF",
-    action: "Confira o detalhe abaixo. Se não fizer sentido, salve o projeto e reporte.",
-    blame: "pacote",
-    detail,
-  };
 }

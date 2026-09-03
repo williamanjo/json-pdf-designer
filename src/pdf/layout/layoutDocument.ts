@@ -6,6 +6,7 @@ import { normalizePageDefs } from "./pageLayout";
 import type { BodyItem } from "./layoutTypes";
 import { resolveSectionItems, sectionInstanceHeight } from "./sectionLayout";
 import { evaluateConditionLenient } from "../../expressions/resolve";
+import { PageLimitError, PaginationStalledError } from "../../errors";
 
 // Uma coisa a desenhar, já posicionada numa página física e com o valor
 // resolvido. O renderizador consome isto e não toma nenhuma decisão de
@@ -58,20 +59,10 @@ export type LayoutDocument = { pages: LayoutPage[] };
 // estourá-lo é ERRO, não corte.
 export const DEFAULT_MAX_PAGES = 5000;
 
-export class PageLimitError extends Error {
-  constructor(
-    readonly maxPages: number,
-    readonly field: string
-  ) {
-    super(
-      `O documento passou de ${maxPages} páginas ao paginar "${field}" — geração interrompida. ` +
-        `Ou o dado é muito maior do que o esperado (filtre antes de gerar, ou divida em vários PDFs), ` +
-        `ou o template tem um campo que nunca cabe numa página. ` +
-        `Se ${maxPages} páginas é pouco pro seu caso, passe generatePdf(..., { maxPages }).`
-    );
-    this.name = "PageLimitError";
-  }
-}
+// A classe mora em src/errors.ts (com todas as outras, ver o comentário de lá)
+// e é REEXPORTADA daqui: `PageLimitError` já era importada deste módulo por
+// código e por teste, e mudar o caminho não traria nada.
+export { PageLimitError } from "../../errors";
 
 export type LayoutOptions = {
   // Teto de páginas físicas. Default DEFAULT_MAX_PAGES.
@@ -89,10 +80,7 @@ function nameOf(item: BodyItem): string {
 // sair truncado em silêncio.
 function assertProgress(madeProgress: boolean, field: string): void {
   if (madeProgress) return;
-  throw new Error(
-    `Paginação travada em "${field}": uma passada não consumiu conteúdo nem abriu página. ` +
-      `Isso é bug do pacote, não do seu template — reporte com o template que reproduz.`
-  );
+  throw new PaginationStalledError(field);
 }
 
 // `schema.visibleWhen` — expressão avaliada contra o dado de verdade; sem a

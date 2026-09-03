@@ -9,12 +9,32 @@ A map of the source tree grouped by responsibility, not by import
 order — useful context if you're modifying the package itself rather
 than just consuming it.
 
-## Editor (`src/designer/Designer.tsx` + `src/components/`)
+## Editor (`src/designer/` + `src/components/`)
 
-`Designer.tsx` owns selection state, the tab bar (Fields/Data/Style/
-Filter/Page), clipboard (copy/paste), keyboard shortcuts, and every
-mutation on `Template`/`Binding[]` (add/remove/reorder schemas, update a
-binding, resize page bands…). It renders two children:
+Since 3.0.0 the state and the layout are separate files.
+**`context/DesignerProvider.tsx`** owns selection state, the tab bar
+(Fields/Data/Style/Filter/Page), clipboard (copy/paste), keyboard
+shortcuts, and every mutation on `Template`/`Binding[]` (add/remove/
+reorder schemas, update a binding, resize page bands…), exposing them
+through five contexts split by change frequency — `context/contexts.ts`
+declares them, `context/hooks.ts` holds the five accessors plus five
+derived selectors, and `context/derived.ts` the derivations.
+`useClipboardAndDelete` registers Delete/Ctrl+C/Ctrl+V exactly once,
+here, rather than per part.
+
+**`Designer.tsx` is now a 101-line preset** (it was 986): three providers
+and two parts in a two-column layout. **`parts/`** holds the ten
+placeable pieces — one file each, every one a two-component pair (a gate
+wrapper calling `useTabGate`, then a `*Body` with the real hooks, because
+no hook may run before the gate's `return null`). Most reproduce the root
+element `Designer.tsx` used to render, so extracting them added no DOM
+level; three wrap in `.jpd-part` because the component inside has no
+single stable root. `parts/DesignerSidebar.tsx` is the only part that
+imports other parts — an invariant guarded by
+`test/designer/partBoundaries.test.ts`.
+
+The pieces that do the work are unchanged and still exported with today's
+props, so the headless-by-props path keeps working. Underneath the parts:
 
 - **`PageCanvas.tsx`** — the actual page: one `<Rnd>` (react-rnd) per
   schema for drag/resize, the header/footer/margin bands drawn in red,
@@ -222,6 +242,113 @@ touch the DOM. Everything else under `src/pdf/`, `src/bindings/`, and
 `src/types/` is safe to import in a Node backend — see
 [Backend integration](./backend-integration) and
 [Server-only usage](./server-only-usage).
+
+## Styling (`src/css/theme.css`, `src/css/reset.css`)
+
+Two hand-written stylesheets, and no build step for either — 3.0.0
+removed Tailwind from the package entirely (`tailwindcss` and
+`@tailwindcss/cli` out of `devDependencies`, the `build:css` script gone,
+`src/style.css` deleted, `npm run build` reduced to `tsup`). They reach
+`dist/` through tsup's `publicDir: "src/css"` and are exposed as
+`json-pdf-designer/theme.css` and `json-pdf-designer/reset.css`.
+
+- **`reset.css`** (236 lines) — the appearance-free subset: only what the
+  editor used to inherit from Tailwind's Preflight. It exists as a
+  separate public export for the consumer who writes the appearance
+  themselves and doesn't want our look; without it they'd have to rediscover
+  on their own that a dozen classes need `font: inherit` plus
+  `appearance: button`, and that `border: 0` sets `border-style: none`
+  (so any later `border-width` computes to zero — it has to be
+  `border: 0 solid`).
+- **`theme.css`** (2,770 lines) — the reset **plus** the whole look. It
+  `@import`s `reset.css`, so one import is enough for the consumer and
+  there is only one copy of the reset to keep in step.
+
+Neither is minified, on purpose: they are the public contract, read to
+learn the class and token names, and the consumer's bundler minifies
+them.
+
+**Both exports have example coverage, and so does the mode that takes
+neither.** The five apps in `examples/` sit at five different points on
+the spectrum: `theme.css` as it ships (`report-builder`), `theme.css`
+rethemed by token only (`composed-layout`), `theme.css` in dark mode
+(`no-preview`), `reset.css` alone (`headless-designer`), and no package
+CSS at all (`custom-ui`). That coverage is the point: until 3.0.0
+`reset.css` was a public export with zero examples exercising it.
+`test/docsFreshness.test.ts` guards the split — it reads each example's
+real CSS import lines and fails when one moves without the docs moving
+with it, and it also pins the reset-only trap: `PdfPreview` reads
+`--jpd-shadow-page-preview` inline through `canvas.style.boxShadow`, so a
+`reset.css`-only consumer must declare that token or the page shadow
+disappears with no error. See [Theming](./theming#the-spectrum-in-five-running-apps).
+
+### No global reset
+
+Up to 2.1.1 `dist/style.css` was compiled Tailwind with Preflight
+included — a reset that landed on the consumer's whole app. It doesn't
+any more. Each `.jpd-*` class carries the reset its own element depended
+on, and the only rule with a `*` is scoped to the editor's roots and
+wrapped in `:where()`, i.e. specificity zero, so any consumer rule beats
+it. `box-sizing` is the one that genuinely cannot be solved per-class:
+`.jpd-input` is `width: 100%` with padding and a border, and children the
+*consumer* passes into `Card`/`Modal` need to inherit it too.
+
+### `@layer json-pdf-designer`
+
+Every rule the package ships lives in one cascade layer, declared first
+(`@layer json-pdf-designer, utilities;`) before any rule. Unlayered CSS
+beats layered CSS regardless of specificity, so a consumer's rule wins by
+default — which is what makes the `className` a component accepts
+actually mean something. Declaring the order up front is what stops a
+consumer who imports their own Tailwind *before* our sheet from ending up
+with our reset beating their utilities (measured, in an example app: a
+`bg-sky-600` computed as `rgba(0,0,0,0)` before the declaration existed).
+
+### Where the responsibility splits
+
+The dividing line runs the same way in CSS as it does in the component
+API:
+
+- **The part owns what makes it work.** The canvas owns the sheet
+  geometry (mm→px, `transform: scale(zoom)`) because `react-rnd`
+  computes its drag delta against that transform. `TabPanel`'s
+  `gridTemplateRows` *is* the collapse mechanism.
+- **The consumer owns layout.** The scrolling viewport around the canvas,
+  and the sidebar's 320px width — which is why that width lives in
+  `.jpd-designer__main` in `theme.css`, not in the part.
+- **`className`/`style`/`...rest` go to the element that gives a
+  component its name; every other element it renders is reachable through
+  `parts`, by role.** `cx` merges classes (dedupe by exact token,
+  `undefined` rather than `""` when nothing is left) and `mergeStyle`
+  lets the consumer's `style` win, since `style` is the last resort.
+
+State is `data-*` rather than a class throughout — the rule being that if
+the JSX would have to concatenate or choose a class string, it becomes an
+attribute. Dark mode is `[data-jpd-theme="dark"]` on `:root`, with
+`.dark` kept as an alias for 2.x consumers, and deliberately no media
+query. The user-facing version of all of this is
+[Theming](./theming) — keep the two in step.
+
+### What guards a hand-written stylesheet
+
+There is no compiler behind these files, so two test files stand in for
+one:
+
+- **`test/noTailwind.test.ts`** — scans every class-position token in
+  `src/` against an allowlist: it must be `jpd-*`. That catches leftover
+  Tailwind utilities and, which a blacklist wouldn't, an un-namespaced
+  class — which is exactly how `section-body` and `section-drag-handle`
+  once got into a library package, where they collide with the
+  consumer's CSS. The migration touched ~285 class sites, and *half*
+  migrated is the worst possible state: `theme.css` doesn't style the
+  leftover utilities and Tailwind no longer exists to generate them, so
+  the un-migrated part renders unstyled with no error at all.
+- **`test/theme.test.ts`** — covers the four things in the sheet that
+  break *silently*: the `@layer` declaration, the scoping of the `*`
+  rule, and the token blocks (`:root`, the
+  `[data-jpd-theme="dark"]`/`.dark` pair, the light island) staying in
+  agreement. It strips comments before scanning, because the file's own
+  header documents the syntax the tests look for.
 
 ## UI language (`src/i18n/`)
 

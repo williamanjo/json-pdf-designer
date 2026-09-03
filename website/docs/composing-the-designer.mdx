@@ -1,0 +1,231 @@
+---
+title: Composing the Designer
+sidebar_label: Composing the Designer
+description: DesignerProvider, the 10 placeable parts, the 10 hooks, and whenTab.
+---
+
+# Composing the Designer
+
+`<Designer>` still exists and still works. Since 3.0.0 it is a **preset**:
+three providers and two parts in a two-column layout — `Designer.tsx` went
+from 986 lines to 101. Everything it composes is exported, so if the
+two-column layout isn't the layout you want, you can build your own.
+
+:::tip[Nothing here is a migration]
+**The seven props `<Designer>` always had are identical**, and the
+`localStorage` keys are preserved, so a user's tab order survives the
+upgrade. `gridSizeMm`, `expandOnSelect`, `className`, `style` and
+`components` are optional additions. If the preset's layout suits you,
+you can ignore this whole page.
+:::
+
+## The shape of it
+
+```tsx
+import {
+  DesignerProvider,
+  DesignerToolbar,
+  DesignerFieldList,
+  DesignerCanvas,
+  DesignerPropertyPanel,
+} from "json-pdf-designer";
+import "json-pdf-designer/theme.css";
+
+<DesignerProvider
+  template={template}
+  onChangeTemplate={setTemplate}
+  bindings={bindings}
+  onChangeBindings={setBindings}
+  dataSources={dataSources}
+  expandOnSelect={false}
+>
+  <DesignerToolbar className="my-toolbar" hint={false} />
+  <div className="my-grid">
+    <DesignerFieldList heading={false} />
+    <DesignerCanvas className="my-viewport" />
+    <DesignerPropertyPanel section="dados" />
+    <DesignerPropertyPanel section="estilo" header={false} />
+  </div>
+</DesignerProvider>
+```
+
+`<DesignerProvider>` holds **all** the editor state. Its props:
+
+| Prop | |
+| --- | --- |
+| `template`, `onChangeTemplate` | the template and its setter — accepts React's functional `setState` form |
+| `bindings`, `onChangeBindings` | same, for bindings |
+| `onCanvasDrop` | passthrough for dropping external fields onto the page |
+| `dataSources` | known JSON arrays, for the binding editor's dropdown |
+| `gridSizeMm` | grid step in mm (default 5) |
+| `expandOnSelect` | clicking a field reopens a collapsed sidebar (default `true`) |
+| `children` | your layout |
+
+It does **not** require `I18nProvider` above it — `useT()` defaults to the
+English dictionary. `<Designer>` wraps it in one only to honour the
+`locale` prop.
+
+## The ten placeable parts
+
+| Part | What it is |
+| --- | --- |
+| `DesignerCanvas` | the page in mm: drag/resize per field, marquee selection, rulers, zoom bar |
+| `DesignerTabBar` | the side panel's tab bar — drag to reorder, `×` to hide, `+` to reopen |
+| `DesignerFieldList` | the field list: select, rename, lock, reorder z, remove |
+| `DesignerToolbar` | the six "add field" buttons plus the section-type picker |
+| `DesignerPageSettings` | page size/orientation, header/footer heights, margins, background, isolate mode |
+| `DesignerPropertyPanel` | the selected field's properties, dispatched by `schema.type` |
+| `DesignerFilterPanel` | the row filter for the selected field's binding |
+| `DesignerBindingEditor` | the binding editor **alone**, outside the property panel |
+| `DesignerInspector` | the template inspector — fields by zone, binding/expression warnings |
+| `DesignerSidebar` | convenience: composes the seven content parts with the preset's tab gate |
+
+Every part accepts:
+
+- **`className`** — merged with ours, yours last.
+- **`style`** — yours wins, key by key.
+- **`whenTab`** — see below.
+
+Several also take **`parts`** (inner elements, addressed by role) and
+boolean flags: `DesignerFieldList` has `heading` and
+`parts.heading`/`parts.scroll`; `DesignerToolbar` has `hint`;
+`DesignerPropertyPanel` has `header`, `position` and `parts.banner`;
+`DesignerFilterPanel` has `header` and `parts.banner`; `DesignerTabBar`
+has `parts.strip`; `DesignerSidebar` has `parts.tabBar`/`parts.panel`.
+
+`DesignerPropertyPanel` also takes **`section="dados" | "estilo"`** —
+content-and-binding, or appearance. It's a **prop, not a read of the
+active tab**, precisely so two instances with different sections can
+render side by side. If it read the tab, the second instance would
+disappear.
+
+Most parts render the *same* root element `Designer.tsx` used to render,
+so composing adds no DOM level. Three of them wrap in a `.jpd-part` div —
+`DesignerInspector` for example, because `TemplateInspector` has two
+possible roots (the list, and an empty-state `<p>`), so there is no stable
+element to hand your `className` to. Every part stamps a `data-part` on
+its root either way.
+
+## `whenTab` is opt-in, and that is the whole feature
+
+Without `whenTab`, **a part always renders**. With `whenTab="pagina"` (or
+an array of tab keys) it only appears on those tabs.
+
+That default is what makes the parts genuinely placeable. If the tab gate
+were on by default, `DesignerPropertyPanel` and `DesignerPageSettings`
+side by side in your own layout would erase one of the two — only one tab
+can be active. They would be parts that *look* decomposed but only work
+inside a tabbed sidebar, which cancels the feature.
+
+`examples/composed-layout` is the proof: a right-hand column with five
+stacked panels that inside `<Designer>` would be five tabs. No part gets
+`whenTab`. Measured: eight parts in the DOM at once, zero `.jpd-tabs`.
+
+Pass `whenTab` when you *do* want tab behaviour — that is how
+`DesignerSidebar` and `<Designer>` reproduce today's editor.
+
+## The ten hooks
+
+Five **accessors** return a context value as-is; five **selectors** derive
+from it, so each part pays only for the computation it actually reads.
+
+```tsx
+import { useDesignerSelectedSchema, useDesignerActions } from "json-pdf-designer";
+
+function SelectedFieldBar() {
+  const { selected } = useDesignerSelectedSchema();
+  const { removeSchema } = useDesignerActions();
+  if (!selected) return null;
+  return (
+    <div>
+      {selected.name}
+      <button onClick={() => removeSchema(selected.id)}>remove</button>
+    </div>
+  );
+}
+```
+
+| Accessor | Returns |
+| --- | --- |
+| `useDesignerData()` | `template`, `bindings` |
+| `useDesignerActions()` | every mutator (add/remove/rename/reorder, change a binding, page bands…) |
+| `useDesignerSelection()` | `selectedIds`, `selectedId`, the selection setters, the KPI sub-element |
+| `useDesignerUi()` | active tab, collapsed flag, tab menu, tab order/visibility, isolate mode, background upload error |
+| `useDesignerConfig()` | `dataSources`, `onCanvasDrop`, `gridSizeMm`, `expandOnSelect` |
+
+| Selector | Returns |
+| --- | --- |
+| `useDesignerSelectedSchema()` | `{ selected, selectedBinding }` — the primary selected field |
+| `useDesignerFieldListSchemas()` | the fields the list should show (mirrors the canvas) |
+| `useDesignerBulkEdit()` | `{ selectedSchemas, bulkEditActive }` |
+| `useDesignerTabWarnings()` | `{ dadosWarning, filtroWarning }` |
+| `useDesignerFilterColumns()` | the columns available to the filter panel |
+
+**The five contexts are split by change frequency**, and that split is
+load-bearing. `useDesignerActions()` never changes identity, so a
+memoized part can consume a mutator without re-rendering when the
+template changes. `useDesignerData()` changes on every edit. Read only
+what you use.
+
+Used outside a provider, every hook **throws**, with a message naming the
+provider:
+
+```
+useDesignerData() precisa de um <DesignerProvider> acima.
+```
+
+It does not return `null` quietly. A Designer part without state has no
+fallback behaviour — it simply wouldn't render, and you'd be staring at a
+hole in the screen with no clue why.
+
+## What is deliberately not a part
+
+The decomposition stops in specific places, and each stop has a reason:
+
+- **`FieldBox/*` and the individual `PropertyPanel{Text,Table,…}`** are
+  dispatched by `schema.type`. A standalone `<DesignerTextPanel/>` has no
+  answer to "which schema?" other than "the selected one" — at which
+  point it's a worse `DesignerPropertyPanel`.
+- **The `TabPanel` collapse** (double-click the active tab) lives only in
+  `DesignerSidebar`. The `1fr`→`0fr` grid trick needs a flex-column
+  parent with `min-block-size: 0`, which a loose part can't guarantee —
+  it would animate wrong silently instead of degrading. `DesignerTabBar`
+  *writes* the flag and the sidebar *reads* it, so a tab bar without a
+  sidebar leaves the double-click with no visible effect, which is
+  correct for someone with nothing to collapse.
+- **Delete / Ctrl+C / Ctrl+V** are registered exactly once, by the
+  provider. In a part, whoever doesn't render the canvas would lose the
+  shortcuts silently; with two, every paste would fire twice.
+- **Zoom** stays internal state of `<PageCanvas>` — it never moved into
+  context. Dragging the slider would otherwise re-render every part.
+
+## Who owns what on the canvas
+
+This one is not negotiable, and getting it wrong is subtle:
+
+- **The part owns the sheet's geometry** — mm→px, `transform: scale(zoom)`,
+  `transformOrigin`. `react-rnd` computes its drag delta *against* that
+  transform, so overriding it makes the field run away from the cursor.
+- **You own the viewport that scrolls.** That is what `className`/`style`
+  on `DesignerCanvas` reach: the outer box, not the sheet.
+- **You own the sidebar width too.** The preset's 320px lives in
+  `.jpd-designer__main` in `theme.css`, not in the part — panel width is
+  a layout decision, and layout is yours.
+
+## What composition buys you
+
+`examples/report-builder` was migrated to the parts and its layout is
+**identical** to the preset's. What the migration bought was a
+`<SelectedFieldBar>` — the app's *own* shell reading the editor's
+selection through a hook, which was impossible in 2.x. The old comment in
+its `App.tsx` said as much: `<Designer>` owned selection and there was no
+prop to drive it from outside.
+
+Verified end to end: "remove" in the app's own bar takes the field count
+from 3 to 2, and the app's Ctrl+Z undoes it (2→3). The package's mutator
+goes through the consumer's `setState`, so the consumer's undo/redo sees
+it.
+
+See [Examples](./examples) for `composed-layout`, and
+[Customizing components](./customizing-components) for replacing the
+primitives the parts render *inside*.

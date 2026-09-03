@@ -3,7 +3,8 @@ import { useT } from "../i18n";
 import type { FieldSources } from "../designer/helpers";
 import { allowDrop, readDroppedField } from "./dragField";
 import { FormulaButton } from "./FormulaButton";
-import { BulkLocked, ClearFieldButton, ColorInput, Input, Select, Textarea } from "./ui";
+import { BulkLocked, ClearFieldButton } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 
 type Props = {
   schema: TextSchema;
@@ -17,8 +18,9 @@ type Props = {
 
 export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema, fieldSources }: Props) {
   const t = useT();
+  const { ColorInput, Input, Select, Textarea } = useUiComponents();
   const textarea = (
-    <div className="flex flex-col gap-1">
+    <div className="jpd-stack jpd-stack--tight">
       <Textarea
         label={t.text.designText}
         value={schema.content}
@@ -32,7 +34,7 @@ export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema,
           onChangeSchema({ content: schema.content ? `${schema.content} ${token}` : token });
         }}
       />
-      <div className="flex justify-end">
+      <div className="jpd-row jpd-row--right">
         <FormulaButton
           active={schema.content.includes("{")}
           sources={fieldSources}
@@ -51,7 +53,7 @@ export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema,
         (bulkEdit ? <BulkLocked hint={t.fieldsPanel.bulkDataLockedNoShared}>{textarea}</BulkLocked> : textarea)}
       {activeTab === "estilo" && (
         <>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="jpd-grid2">
             <Input
               label={t.text.fontSize}
               type="number"
@@ -69,8 +71,8 @@ export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema,
             <option value="center">{t.text.alignCenter}</option>
             <option value="right">{t.text.alignRight}</option>
           </Select>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-end gap-1">
+          <div className="jpd-grid2">
+            <div className="jpd-row jpd-row--tight jpd-row--baseline">
               <ColorInput
                 label={t.text.background}
                 value={schema.backgroundColor ?? "#ffffff"}
@@ -80,7 +82,7 @@ export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema,
                 <ClearFieldButton onClick={() => onChangeSchema({ backgroundColor: undefined })} label={t.text.removeBackground} />
               )}
             </div>
-            <div className="flex items-end gap-1">
+            <div className="jpd-row jpd-row--tight jpd-row--baseline">
               <ColorInput
                 label={t.text.border}
                 value={schema.borderColor ?? "#94a3b8"}

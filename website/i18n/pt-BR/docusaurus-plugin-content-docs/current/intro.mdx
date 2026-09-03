@@ -14,7 +14,7 @@ Node. Enxuto, pronto pra i18n, e feito pra ser modificado.
 
 | Peça | O que faz |
 | --- | --- |
-| `<Designer>` | O canvas React — arrasta/redimensiona campos, painel lateral em abas (Campos/Dados/Estilo/Filtro/Página), zoom, réguas, seleção múltipla, copiar/colar, estado amigável a undo. |
+| `<Designer>` | O canvas React — arrasta/redimensiona campos, painel lateral em abas (Campos/Dados/Estilo/Filtro/Página), zoom, réguas, seleção múltipla, copiar/colar, estado amigável a undo. Desde a 3.0.0 ele é um preset sobre dez peças posicionáveis, então dá pra montar o layout do editor você mesmo — ver [Compondo o Designer](./composing-the-designer). |
 | `generatePdf` | Transforma um `Template` + dado JSON real + `Binding[]` em bytes de PDF (`pdf-lib`) — funciona no navegador **ou** em Node, sem headless browser envolvido. |
 | Tipos de campo | Texto, tabela, imagem, **seção** repetida (mestre-detalhe), **gráfico** (pizza/barra), cartão **indicador** (KPI). |
 | Vínculo de dados | Templates `{token}`/`{FUNÇÃO(...)}` contra JSON real — `SUM`, `COUNT`, `AVG`, `DATE`, `CURRENCY`, `NUMBER`, aritmética, e mais. |
@@ -27,9 +27,12 @@ Node. Enxuto, pronto pra i18n, e feito pra ser modificado.
 - Só vai gerar PDF num servidor, sem UI de editor? Vá direto pra
   [Uso só no servidor](./server-only-usage).
 - Quer ver funcionando antes de ler qualquer coisa? Abra o
-  [Playground](/playground) — três
-  variantes ao vivo, desde "usa o kit de UI pronto" até "sem
+  [Playground](/playground) — cinco variantes ao vivo, desde "usa o kit
+  de UI pronto" e "o editor montado peça por peça" até "sem
   `<Designer>` nenhum."
+- Vai estilizar, ou está subindo da 2.x? O [Tema e CSS](./theming) é o
+  contrato de CSS, e [Migrando pra 3.0.0](./migration-3) é o caminho de
+  upgrade.
 - Montando a separação frontend-desenha/backend-gera? Veja
   [Integração com backend](./backend-integration).
 

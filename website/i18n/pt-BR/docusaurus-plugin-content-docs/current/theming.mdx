@@ -1,0 +1,343 @@
+---
+title: Tema e CSS
+sidebar_label: Tema e CSS
+description: O contrato de tokens --jpd-*, a convenção de classe .jpd-*, os ganchos data-* e o dark mode.
+---
+
+# Tema e CSS
+
+Desde a 3.0.0 o pacote envia **CSS escrito à mão**, não output compilado
+do Tailwind. É isso que transforma estilizar o editor num contrato em vez
+de num acidente: os nomes de classe, os atributos de estado e as custom
+properties são todos públicos, todos estáveis, e todos legíveis no
+arquivo que chega no seu `node_modules`.
+
+```ts
+import "json-pdf-designer/theme.css";
+```
+
+Uma linha. O `theme.css` importa o reset por dentro, então não tem um
+segundo import pra lembrar.
+
+## Duas folhas de estilo, e uma delas é opcional
+
+| Export | O que é | Quando usar |
+| --- | --- | --- |
+| `json-pdf-designer/theme.css` | O reset **mais** a aparência inteira — cores, espaçamento, raios, sombras. | Você quer o editor com cara de pronto direto da caixa. |
+| `json-pdf-designer/reset.css` | **Só** o reset: sem cor, sem tamanho, sem layout. | Você vai escrever a aparência na mão e não quer a nossa no caminho. |
+
+O `theme.css` já contém o `reset.css` (por `@import`), então importar os
+dois é redundante, não é erro. Não importar **nenhum** dos dois também é
+modo suportado — as classes e os atributos continuam no DOM, e o exemplo
+`custom-ui` faz exatamente isso.
+
+Os arquivos **não são minificados**, de propósito. Eles são o contrato:
+você lê pra aprender os nomes de classe e de token, e o bundler do seu
+app minifica na saída. Chegam ao `dist/` pelo `publicDir: "src/css"` do
+tsup — o `theme.css` tem 2.770 linhas, o `reset.css` 236.
+
+## O espectro, em cinco apps que rodam
+
+"Tema, reset puro ou nada" não é abstração aqui: cada um dos cinco
+[examples](./examples) fica num ponto diferente do espectro, e nenhum
+repete o ponto de outro. Juntos eles dão cobertura aos dois exports de
+CSS mais o modo que não importa nenhum.
+
+| Example | CSS do pacote que importa | O que prova |
+| --- | --- | --- |
+| [`report-builder`](./examples#report-builder) | `theme.css` | O caminho pronto — o tema como ele vem, zero customização. |
+| [`composed-layout`](./examples#composed-layout) | `theme.css` | **Retema só por token.** Importa o tema inteiro e não reescreve UMA regra — só troca valores de `--jpd-*` no `:root`. |
+| [`no-preview`](./examples#no-preview) | `theme.css` | **Dark mode**, com toggle. É a única coisa no repo que exercita dark; o default dele é escuro. |
+| [`headless-designer`](./examples#headless-designer) | **só** `reset.css` | O export sem aparência. É o único example que usa. |
+| [`custom-ui`](./examples#custom-ui) | nenhum | 192 seletores `.jpd-*` escritos do zero no `index.css` do app. |
+
+A tabela tem guard. O `test/docsFreshness.test.ts` lê as linhas de
+`import "json-pdf-designer/*.css"` de verdade em cada example e falha se
+uma mudar sem esta página mudar junto — sem isso a prosa apodreceria em
+silêncio, porque o example continua compilando de qualquer jeito.
+
+### Retema por token é o ponto mais barato dele
+
+O `composed-layout` é o que você copia quando o que você quer é "parecido
+com a nossa marca". Ele importa o `theme.css` inteiro, **não** escreve
+regra `.jpd-*` nenhuma, e troca valores de token no `:root` dele:
+
+```css
+:root {
+  --jpd-accent: oklch(54.1% 0.245 292.717);              /* violet-600, era sky-600 */
+  --jpd-accent-solid: oklch(54.1% 0.245 292.717);
+  --jpd-accent-solid-hover: oklch(49.1% 0.27 292.581);   /* violet-700 */
+  --jpd-radius-md: 3px;
+  --jpd-radius-lg: 4px;                                  /* o default é 0.5rem */
+}
+```
+
+Medido no navegador depois: o `.jpd-btn[data-variant="primary"]` computa
+`background-color: oklch(0.541 0.245 292.717)` e `border-radius: 4px` —
+antes eram sky-600 e 8px. Todo botão, aba, input, callout e faixa do
+canvas anda junto, e não se escreveu um seletor.
+
+Funciona porque os tokens são declarados no `:root` do `theme.css`, e uma
+declaração no `:root` do SEU CSS — **fora de qualquer `@layer`** — ganha
+de uma em layer. É também por isso que os tokens não são escopados em
+`.jpd-designer`: ver a nota do portal em [Dark mode](#dark-mode).
+
+### O reset puro não traz aparência, e um token é lido inline
+
+O `headless-designer` é o único example que fica só no `reset.css`, e ele
+pode porque nunca renderiza o `<Designer>`. Ele monta o canvas próprio e
+do pacote pega só o `<PdfPreview>`, cuja superfície de estilo inteira são
+quatro nomes: `.jpd-error`, `.jpd-error--md`, `.jpd-preview__count` e o
+token `--jpd-shadow-page-preview`. Escrever essa aparência à mão são umas
+cinco regras.
+
+Medido lá: chegaram 54 regras do pacote — o reset, e nada mais — e
+`--jpd-accent` / `--jpd-surface` computam **string vazia**. São tokens de
+aparência, e só o `theme.css` declara. Do `<PdfPreview>`, o `reset.css`
+cobre exatamente uma coisa: o `margin: 0` do `.jpd-error`. Cor e tamanho
+são seus.
+
+:::warning[No modo só-reset você tem de declarar o `--jpd-shadow-page-preview`]
+O `PdfPreview` põe a sombra da página **inline**, e não por classe:
+
+```ts
+canvas.style.boxShadow = "var(--jpd-shadow-page-preview)";
+```
+
+O `reset.css` não declara token de aparência, então se você não declarar
+esse, o `var()` fica inválido, a declaração inteira é descartada, e o
+preview aparece sem sombra e sem nada no console. O `headless-designer`
+declara a dele — computa
+`rgb(15, 23, 42) 0px 2px 0px 0px, rgb(15, 23, 42) 0px 0px 0px 1px`, a
+sombra dele e não a difusa do tema — e um teste garante que continue lá.
+Este é o único ponto em que um componente lê token direto em vez de
+deixar uma regra ler, então é o único token que o modo sem aparência não
+pode ignorar.
+:::
+
+## Não existe reset global
+
+Até a 2.1.1, o `dist/style.css` era Tailwind compilado e levava o
+**Preflight** embutido — um reset que caía no seu app inteiro, querendo
+ou não. A 3.0.0 não faz isso.
+
+Em vez disso, cada classe `.jpd-*` carrega o reset de que o elemento dela
+realmente dependia. A única regra com `*` é escopada às raízes do próprio
+editor e envolta em `:where()`, o que dá especificidade **zero** —
+qualquer regra sua ganha dela:
+
+```css
+:where(.jpd-designer, .jpd-modal__panel, .jpd-card, .jpd-page, .jpd-field),
+:where(.jpd-designer, .jpd-modal__panel, .jpd-card, .jpd-page, .jpd-field) * {
+  box-sizing: border-box;
+}
+```
+
+O que o Preflight dava e agora vem das classes: `box-sizing: border-box`;
+`margin`/`padding: 0` em heading, parágrafo e lista; `list-style: none`;
+`font`/`color`/`background` em controle de formulário;
+`svg { display: block }`; `code { font-family: monospace }`;
+`table { border-collapse: collapse }`; `appearance: button`.
+
+:::warning[Se você for devolver um reset à mão]
+`border: 0` também põe `border-style: none`, e aí **qualquer
+`border-width` posterior computa ZERO**. Tem de ser `border: 0 solid`. É
+o detalhe que quase todo mundo erra ao substituir o Preflight na mão, e é
+por isso que o `reset.css` existe como export público.
+:::
+
+## A cascata: tudo mora numa `@layer`
+
+Toda regra que o pacote envia está dentro de `@layer json-pdf-designer`.
+CSS **sem** layer ganha de CSS **com** layer, independente de
+especificidade, então:
+
+> **Qualquer regra sua ganha da nossa por default** — inclusive uma classe
+> que você passe por `className`.
+
+É esse o ponto. Sem a layer, o nosso `.jpd-input` venceria a classe que
+você entregou ao componente, o que anularia metade do sentido de aceitar
+`className`.
+
+O arquivo declara a ordem de layer antes de qualquer regra:
+
+```css
+@layer json-pdf-designer, utilities;
+```
+
+Layer declarada **depois** tem prioridade maior. Sem essa linha, um
+consumidor que importe o Tailwind dele *antes* da nossa folha fica com as
+utilitárias dele numa layer anterior — e aí o NOSSO CSS ganha do dele,
+exatamente o contrário do objetivo. Se você usa outro nome de layer,
+declare a ordem antes de importar:
+
+```css
+@layer json-pdf-designer, minhas-utilitarias;
+@import "json-pdf-designer/theme.css";
+```
+
+Duas consequências que vale nomear:
+
+- **Pra vencer o `theme.css`, carregue o seu CSS depois dele**, ou use
+  `style` (que sempre ganha — ver
+  [Customizando os componentes](./customizing-components)). A ordem dos
+  tokens dentro do atributo `class` não decide mais nada; não há Tailwind
+  pra resolver conflito entre utilitárias.
+- **Um seletor de elemento solto alcança o chrome do editor.** Um
+  `button { … }` no seu app está fora de layer, então ele vence o
+  `.jpd-btn` e cai nos botões do editor. Isso **não é novidade da 3.0.0**
+  — o `dist/style.css` da 2.x era output do Tailwind v4, que também emite
+  `@layer utilities`, então a regra solta já vencia lá. Conselho: escope
+  por classe, e mire `.jpd-*` de propósito quando quiser mesmo redefinir
+  o editor.
+
+## Nomes de classe: `jpd-block__element--modifier`
+
+194 seletores `.jpd-*` únicos sobre **80 blocos distintos**, UM nível de
+elemento e nada mais fundo. A convenção tem forma de BEM:
+
+```
+.jpd-sidebar            bloco
+.jpd-sidebar__panel     elemento
+.jpd-iconbtn--danger    modificador
+```
+
+**Estado é `data-*`, não classe.** A regra que o código segue: se o JSX
+teria de *concatenar* ou *escolher* uma string de classe, vira atributo
+`data-*`.
+
+```css
+.jpd-tab[data-active="true"] { … }
+.jpd-field[data-locked] { … }
+.jpd-btn[data-variant="ghost"] { … }
+.jpd-input[data-mono] { … }
+```
+
+Os atributos que aparecem no CSS enviado: `data-active`, `data-absent`,
+`data-added`, `data-band`, `data-banded`, `data-collapsed`, `data-dir`,
+`data-draggable`, `data-dragging`, `data-editing`, `data-fill`,
+`data-focused`, `data-joiner`, `data-legend`, `data-locked`,
+`data-major`, `data-mono`, `data-on`, `data-part`, `data-role`,
+`data-selected`, `data-size`, `data-tone`, `data-variant`,
+`data-wrongmode`, `data-zone` — mais o `data-jpd-theme`, abaixo.
+
+Cada peça posicionável também estampa um `data-part` na raiz dela
+(`data-part="field-list"`, `data-part="inspector"`, …), que é como você
+mira uma região de um layout composto sem saber a classe dela — ver
+[Compondo o Designer](./composing-the-designer).
+
+## Tokens: 122 custom properties `--jpd-*` públicas
+
+São 125 custom properties no total, das quais **122 são públicas** — as
+outras três são knobs internos, marcados por underscore
+(`--jpd-_btn-ring`, `--jpd-_modal-max`, `--jpd-_swatch-size`).
+Tematizar significa sobrescrever custom property, não sobrescrever
+regra. Elas são agrupadas por papel:
+
+| Família | Qtd | Cobre |
+| --- | --- | --- |
+| `--jpd-accent-*` | 14 | o azul — `--jpd-accent`, `--jpd-accent-solid`, bordas, rings, preenchimentos suaves |
+| `--jpd-text-*` | 13 | a rampa de texto — `--jpd-text-strong`, `--jpd-text-muted`, `--jpd-text-placeholder`, … |
+| `--jpd-section-*` | 12 | o roxo das seções repetidas |
+| `--jpd-space-*` | 10 | espaçamento, em `rem` — `--jpd-space-0` … `--jpd-space-5`, mais meios-passos como `--jpd-space-0-5` |
+| `--jpd-font-*` | 9 | `--jpd-font-sans`, `--jpd-font-mono`, `--jpd-font-serif`, `--jpd-font-size-*` |
+| `--jpd-surface-*` | 8 | fundos — `--jpd-surface`, `--jpd-surface-field`, `--jpd-surface-sunken`, estados de hover |
+| `--jpd-danger-*` | 7 | o vermelho de erro |
+| `--jpd-canvas-*` | 6 | a página e o chrome dela |
+| `--jpd-shadow-*` | 6 | elevação, incluindo o `--jpd-shadow-page` |
+| `--jpd-line-*` | 5 | alturas de linha |
+| `--jpd-radius-*` | 5 | `sm` / `md` / `lg` / `xl` / `full` |
+| `--jpd-border-*` | 4 | `--jpd-border`, `--jpd-border-alt`, `--jpd-border-strong`, `--jpd-border-strong-2` |
+| `--jpd-callout-*` | 4 | fundos e bordas de callout |
+| o resto | | `--jpd-warn-*`, `--jpd-ruler-*`, `--jpd-zoombar-*`, `--jpd-selection-*`, `--jpd-overlay`, `--jpd-tracking-wide`, e os `--jpd-z-*` — `--jpd-z-dropdown: 10`, `--jpd-z-canvas-overlay: 20`, `--jpd-z-modal: 1000` |
+
+**Não existe família `--jpd-color-*`** — as cores são nomeadas por papel
+(surface / text / border / accent / danger / …), e não por "color". Na
+dúvida, o `theme.css` é a lista; ele é enviado sem minificar justamente
+pra você poder ler.
+
+```css
+:root {
+  --jpd-accent-solid: #7c3aed;
+  --jpd-radius-md: 2px;
+  --jpd-font-sans: "Inter", system-ui, sans-serif;
+}
+```
+
+O espaçamento está em `rem`, e não em px, de propósito: o valor original
+era `calc(var(--spacing) * N)` com `--spacing: .25rem`, então ele escala
+com o root font-size do usuário. Emitir px quebraria quem não usa root de
+16.
+
+Token com **underscore** depois do prefixo — `--jpd-_swatch-size` — é
+knob interno de um componente. Funciona, mas não faz parte da lista
+pública; o underscore está aí pra manter a lista pública legível.
+
+## Dark mode
+
+Ponha `data-jpd-theme="dark"` no `<html>` (ou em qualquer ancestral):
+
+```html
+<html data-jpd-theme="dark">
+```
+
+```js
+document.documentElement.dataset.jpdTheme = "dark";
+```
+
+- **A classe `.dark` continua funcionando, como alias.** É o que os
+  consumidores da 2.x já põem no `<html>` (o antigo
+  `@custom-variant dark (&:where(.dark, .dark *))`), e os dois seletores
+  pintam igual.
+- **`[data-jpd-theme="light"]` força claro**, pra uma ilha clara dentro
+  de um app escuro. Ela é declarada depois do bloco dark, então ganha
+  quando os dois casam no mesmo elemento.
+- **Não há media query, de propósito.** Uma biblioteca não deve virar um
+  app light-only escuro só porque o SO está no escuro. Se você quer
+  seguir o SO, escreva o atributo você mesmo:
+
+  ```js
+  const mq = matchMedia("(prefers-color-scheme: dark)");
+  const aplicar = () => {
+    document.documentElement.dataset.jpdTheme = mq.matches ? "dark" : "light";
+  };
+  aplicar();
+  mq.addEventListener("change", aplicar);
+  ```
+
+A referência que roda é o [`no-preview`](./examples#no-preview) — a única
+coisa no repo que exercita dark, e o default dele é escuro. A parte
+instrutiva é que **um atributo dirige o editor e a casca do app juntos**:
+o `theme.css` redefine os tokens `--jpd-*` sob `[data-jpd-theme="dark"]`,
+e o example declara as variáveis `--app-*` dele na mesma chave, então o
+header e a barra lateral seguem o editor sem um segundo mecanismo.
+Medido no toggle: 6 de 6 propriedades amostradas trocam juntas —
+background do `body`, `.app-sidebar` e `.panel-title` do lado da casca,
+`.jpd-sidebar` e `.jpd-ruler__tick` do lado do editor. A escolha
+persiste em `localStorage`.
+
+:::warning[Ilha de dark escopada não pinta modal portalizado]
+O `<Modal>` renderiza por `createPortal(document.body)`, então pôr
+`data-jpd-theme="dark"` num container **dentro** do seu app deixa o modal
+pintado claro. Os tokens moram no `:root` justamente por isso. Se você
+usa `Modal` — e o editor usa, pro editor de fórmula — ponha o atributo no
+`<html>`.
+:::
+
+## Seu próprio Tailwind: não sobrou nada pra escanear
+
+Até a 2.1.1 havia um workflow documentado pra apontar o content scan do
+seu Tailwind pro `node_modules/json-pdf-designer/dist`, pra ele gerar as
+utilitárias do editor. **Esse workflow morreu**, e qualquer receita de
+`@source` / `content` mirando este pacote agora é ativamente prejudicial:
+ela silenciosamente não produz nada, porque o `dist` não tem mais nome de
+utilitária pra encontrar.
+
+O Tailwind saiu do pacote inteiro — `tailwindcss` e `@tailwindcss/cli`
+fora do `devDependencies`, o script `build:css` removido, e o
+`npm run build` virou só `tsup`. Você continua podendo usar Tailwind no
+**seu** app, claro; só aponte ele pro seu próprio código e deixe o
+`theme.css` (ou suas regras contra `.jpd-*`) cuidar do editor.
+
+Vindo da 2.x? Veja [Migrando pra 3.0.0](./migration-3) — o import do
+`style.css` dá erro de resolve em build, não uma diferença silenciosa.

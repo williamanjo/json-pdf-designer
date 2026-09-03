@@ -5,7 +5,7 @@ import { CUSTOM_FIELD_FUNCTIONS, describeBindingShort } from "../bindings/bindin
 import { stringifyColumns } from "../bindings/columnParsing";
 import { useT, withInlineCode } from "../i18n";
 import { allowDrop, readDroppedField } from "./dragField";
-import { Button, Input, Select } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 import { IconLink } from "./ui/icons";
 
 type Props = {
@@ -34,6 +34,7 @@ function DataSourcePicker({
   onDropFree: (e: React.DragEvent) => void;
 }) {
   const t = useT();
+  const { Input, Select } = useUiComponents();
   if (knownSources) {
     return (
       <Select
@@ -77,6 +78,7 @@ function ColumnPicker({
   showNumericHint?: boolean;
 }) {
   const t = useT();
+  const { Input, Select } = useUiComponents();
   if (columns.length > 0) {
     return (
       <Select value={value} onChange={(e) => onChange(e.target.value)}>
@@ -95,6 +97,7 @@ function ColumnPicker({
 
 export function BindingEditor({ schema, binding, onChangeBinding, dataSources }: Props) {
   const t = useT();
+  const { Button, Input, Select } = useUiComponents();
   const [bindingDraft, setBindingDraft] = useState(() => {
     if (binding?.type === "template") return binding.template;
     if (binding?.type === "array") return binding.path;
@@ -194,9 +197,12 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-sky-300 bg-sky-50/40 p-2.5 dark:border-blue-700 dark:bg-blue-900/20">
-      <span className="flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-gray-300">
-        <IconLink className="text-sky-500 dark:text-blue-400" />
+    <div className="jpd-stack jpd-callout jpd-callout--roomy" data-tone="sky">
+      <span className="jpd-callout__title jpd-callout__title--neutral">
+        {/* `className` do IconLink chega no <svg>: cor funciona, tamanho não
+            (width/height são atributo). `jpd-icon` repõe o
+            `display:block` que vinha do reset global. */}
+        <IconLink className="jpd-icon jpd-callout__icon" />
         {t.bindingEditor.title}
       </span>
 
@@ -209,7 +215,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             onDragOver={allowDrop}
             onDrop={handleDropOnDraft}
           />
-          <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.bindingEditor.sectionHelp)}</p>
+          <p className="jpd-hint">{withInlineCode(t.bindingEditor.sectionHelp)}</p>
         </>
       ) : schema.type === "chart" ? (
         <>
@@ -233,7 +239,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             const source = knownSources?.find((d) => d.path === bindingDraft.trim());
             const columns = source?.columns ?? [];
             return (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="jpd-grid2">
                 <ColumnPicker
                   columns={columns}
                   columnTypes={source?.columnTypes}
@@ -254,7 +260,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
               </div>
             );
           })()}
-          <p className="text-[10px] text-slate-400 dark:text-gray-400">
+          <p className="jpd-hint">
             {t.bindingEditor.chartHelp(
               labelColumn || t.bindingEditor.chartHelpDefaultLabel,
               valueColumn || t.bindingEditor.chartHelpDefaultValue
@@ -277,11 +283,11 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             onFreeChange={(v) => { setBindingDraft(v); applyBinding({ draft: v }); }}
             onDropFree={handleDropOnDraft}
           />
-          <p className="text-[10px] text-slate-400 dark:text-gray-400">
+          <p className="jpd-hint">
             {t.bindingEditor.modeLabel(tableMode === "array" ? t.bindingEditor.modeArray : t.bindingEditor.modeKeyValue)}
           </p>
           {schema.sectionId && tableMode === "array" && (
-            <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.bindingEditor.nestedHelp}</p>
+            <p className="jpd-hint">{t.bindingEditor.nestedHelp}</p>
           )}
           {!knownSources && (
             <>
@@ -331,7 +337,7 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
             const source = knownSources?.find((d) => d.path === bindingDraft.trim());
             const columns = source?.columns ?? [];
             return (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="jpd-grid2">
                 <Select
                   value={kpiAggregation}
                   onChange={(e) => {
@@ -387,8 +393,8 @@ export function BindingEditor({ schema, binding, onChangeBinding, dataSources }:
       )}
 
       {binding && (
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] text-slate-500 dark:text-gray-400">{t.bindingEditor.boundLabel(describeBindingShort(binding, t))}</p>
+        <div className="jpd-row jpd-row--between">
+          <p className="jpd-meta">{t.bindingEditor.boundLabel(describeBindingShort(binding, t))}</p>
           <Button variant="danger" onClick={() => onChangeBinding(null)}>
             {t.bindingEditor.removeBinding}
           </Button>

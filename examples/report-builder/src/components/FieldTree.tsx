@@ -1,9 +1,12 @@
 import { useState } from "react";
 import type { FieldNode, FieldTreeNode } from "../lib/jsonExplorer";
-import { NATIVE_FIELDS, buildFieldTree } from "../lib/jsonExplorer";
+import { nativeFields, buildFieldTree } from "../lib/jsonExplorer";
 import { Button, Card, CardTitle, IconPlus } from "json-pdf-designer";
+import type { Locale } from "json-pdf-designer";
+import { t } from "../i18n";
 
 type Props = {
+  locale: Locale;
   fields: FieldNode[];
   onAdd?: (field: FieldNode) => void;
   onOpenPicker?: () => void;
@@ -33,7 +36,8 @@ function rowClasses(field: FieldNode): string {
 // Cada linha de campo é arrastável (mesmo contrato de sempre: o FieldNode
 // inteiro serializado no dataTransfer, pro DesignerPanel ler no "drop") e,
 // quando `onAdd` é passado (modal "sem arrastar"), tem um botão "+".
-export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
+export default function FieldTree({ locale, fields, onAdd, onOpenPicker }: Props) {
+  const tx = t(locale);
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
 
   function onDragStart(e: React.DragEvent<HTMLDivElement>, field: FieldNode) {
@@ -57,7 +61,8 @@ export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
         onDragStart={(e) => onDragStart(e, field)}
         style={{ marginLeft: depth * INDENT_PX }}
         className={`flex flex-1 cursor-grab items-center gap-1.5 rounded-lg border p-2 text-xs transition-colors ${rowClasses(field)}`}
-        title={field.kind === "native" ? `{${field.path}} — só funciona no cabeçalho/rodapé/margem` : field.path}
+        // `field.path` sozinho não traduz — é o caminho no JSON (dado).
+        title={field.kind === "native" ? tx.fieldNativeOnlyBands(field.path) : field.path}
       >
         <span className="text-slate-400">{iconFor(field)}</span>
         <span className="truncate font-medium text-slate-700">{label}</span>
@@ -65,7 +70,7 @@ export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
           <Button
             size="icon"
             className="ml-auto"
-            title="Adicionar ao relatório"
+            title={tx.fieldAddToReport}
             onClick={(e) => {
               e.stopPropagation();
               onAdd(field);
@@ -90,7 +95,8 @@ export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
           <button
             type="button"
             onClick={() => toggleGroup(node.key)}
-            aria-label={collapsed ? `Expandir ${node.label}` : `Colapsar ${node.label}`}
+            // `node.label` é chave do JSON (dado) — entra na frase sem traduzir.
+            aria-label={collapsed ? tx.fieldGroupExpandAria(node.label) : tx.fieldGroupCollapseAria(node.label)}
             className="shrink-0 rounded px-1 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             {collapsed ? "▸" : "▾"}
@@ -109,20 +115,20 @@ export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
   return (
     <Card className="flex flex-1 flex-col gap-2 overflow-hidden p-3">
       <div className="flex items-center justify-between">
-        <CardTitle>Campos do JSON</CardTitle>
+        <CardTitle>{tx.fieldsTitle}</CardTitle>
         {onOpenPicker && (
-          <Button size="icon" title="Adicionar campo (sem arrastar)" onClick={onOpenPicker}>
+          <Button size="icon" title={tx.fieldsAddWithoutDrag} onClick={onOpenPicker}>
             <IconPlus />
           </Button>
         )}
       </div>
-      <p className="text-[11px] text-slate-500">Arraste um campo para o relatório →</p>
+      <p className="text-[11px] text-slate-500">{tx.fieldsDragHint}</p>
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
         <div className="flex flex-col gap-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Variáveis nativas</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{tx.fieldsNativeGroup}</p>
           <ul className="flex flex-col gap-1.5">
-            {NATIVE_FIELDS.map((f) => (
+            {nativeFields(tx).map((f) => (
               <li key={f.path}>{renderFieldRow(f, f.label, 0)}</li>
             ))}
           </ul>
@@ -130,7 +136,7 @@ export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
 
         {tree.length > 0 && (
           <div className="flex flex-col gap-1 border-t border-slate-200 pt-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Dados</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{tx.fieldsDataGroup}</p>
             <ul className="flex flex-col gap-1.5">{tree.map((node) => renderNode(node, 0))}</ul>
           </div>
         )}

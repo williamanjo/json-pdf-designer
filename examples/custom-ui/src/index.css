@@ -1,17 +1,245 @@
-/* CSS 100% escrito à mão — SEM Tailwind, sem nenhum componente pronto do
-   pacote. Prova que dá pra montar a casca inteira do editor (header,
-   sidebar, cards, árvore de campos, modais) com qualquer stack de estilo
-   (aqui, CSS puro); só o <Designer> em si (canvas + painel de
-   propriedades) e o <PdfPreview> (canvas do pdf.js) continuam com a
-   aparência do pacote, importada via "json-pdf-designer/style.css" em
-   main.tsx.
+/* CSS 100% escrito à mão — SEM Tailwind e SEM UMA LINHA de CSS do pacote.
+   O main.tsx não importa `json-pdf-designer/style.css` nem
+   `json-pdf-designer/theme.css`: a casca (header, sidebar, cards, árvore de
+   campos, abas de página, painel de problemas, banner de erro, modais) E o
+   miolo do <Designer> (canvas, faixas, réguas, barra de
+   zoom, abas, painel de propriedades, botões e controles) são estilizados
+   aqui, pelas classes `.jpd-*` e pelos atributos `data-*` que o pacote
+   deixa no DOM.
 
-   A paleta segue o slate/sky/red que o próprio Designer usa, pra casca e
-   miolo não destoarem. */
+   Duas metades, na ordem:
+     1. A CASCA — classes deste example (`.app-header`, `.card`, `.btn`, ...).
+     2. O <Designer> — as classes `.jpd-*` do pacote (a partir de
+        "MIOLO DO DESIGNER" lá embaixo).
+
+   A paleta é a mesma nas duas, e vem TODA do bloco `:root` logo abaixo.
+   Nada de `--jpd-*` aqui — aquelas custom properties são o contrato de tema
+   do pacote, e este example de propósito não usa: as `--ui-*` são um tema
+   nosso, com os mesmos papéis, mas montado à mão. */
+
+/* ==========================================================================
+   TEMA — a camada de variáveis
+
+   Regra do arquivo: NENHUMA cor, raio, sombra ou pilha de fonte literal
+   fora deste bloco. Foi assim que o retema deste example virou revisável:
+   trocar a identidade visual inteira é editar as ~80 linhas abaixo, e o
+   resto das ~190 classes `.jpd-*` só consome.
+
+   Antes desta camada o arquivo tinha 276 cores e 52 raios cravados no meio
+   das regras; um retema era 328 edições soltas, impossível de conferir.
+
+   A identidade daqui é APP MACIO: creme e coral, pílula em vez de retângulo,
+   sombra macia em camadas em vez de borda, espaçamento generoso, fonte
+   arredondada. Nada disso sairia do `theme.css` do pacote — é exatamente o
+   ponto de não importar CSS nenhum dele.
+   ========================================================================= */
 
 :root {
   color-scheme: light;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* --- tipografia -------------------------------------------------------
+     Pilha arredondada com fallback do SISTEMA e ZERO webfont externa: o
+     example tem de abrir offline. Em máquina sem Nunito/Quicksand cai em
+     `ui-rounded` (Safari/iOS), depois `system-ui` — e aí o look ainda se
+     sustenta por raio, cor, sombra e espaçamento. */
+  --ui-font-sans: "Nunito", "Quicksand", ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", system-ui, sans-serif;
+  --ui-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ui-font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+
+  /* --- raios ------------------------------------------------------------
+     Cinco raios de CHROME (mudam com o tema) e dois de PAPEL (não mudam).
+     O botão é pílula: é o sinal mais barato e mais visível de que este
+     example não está reproduzindo o default do pacote. */
+  --ui-radius-btn: 999px; /* botão e botão de ícone (vira círculo) */
+  --ui-radius-control: 12px; /* input, select, textarea, menuitem */
+  --ui-radius-panel: 16px; /* popover, callout, dropzone, linha de campo */
+  --ui-radius-card: 20px; /* card, modal, poço de preview */
+  --ui-radius-xs: 8px; /* marcas miúdas (renomear inline, item de lista) */
+  --ui-radius-pill: 999px; /* badge, chip, swatch, barra de zoom */
+  /* PAPEL: estes dois desenham coisa que imita o PDF que vai sair (barra do
+     gráfico, etiqueta de faixa, moldura de seção). Inflar aqui faria o
+     preview mentir sobre o resultado, então ficam onde estavam. */
+  --ui-radius-paper: 4px;
+  --ui-radius-paper-lg: 6px;
+
+  /* --- espaçamento ------------------------------------------------------
+     Um degrau ACIMA do default do pacote em tudo que é caixa: é o "macio"
+     na dimensão que não é cor. */
+  --ui-space-1: 6px;
+  --ui-space-2: 10px;
+  --ui-space-3: 14px;
+  --ui-space-4: 18px;
+  --ui-space-5: 24px;
+  --ui-pad-btn: 9px 18px; /* botão da casca */
+  --ui-pad-control: 9px 12px; /* input/select/textarea */
+
+  /* --- superfícies (quentes) --------------------------------------------
+     `--ui-bg` é o creme do fundo; `--ui-surface` é o branco dos cartões.
+     `--ui-paper` é a FOLHA do canvas e fica branco puro de propósito: é o
+     papel do PDF, não uma superfície de interface. */
+  --ui-bg: #fdf8f3;
+  --ui-bg-soft: #fbf3ec;
+  --ui-surface: #ffffff;
+  --ui-surface-alt: #f4e7dc;
+  --ui-surface-alt-hover: #ead9cb;
+  --ui-paper: #ffffff;
+
+  /* --- linhas -----------------------------------------------------------
+     A regra estética é SEM BORDA EM SUPERFÍCIE — quem separa cartão do
+     fundo é `--ui-shadow-card`. Estas duas sobraram pra divisor interno
+     (rodapé de painel, separador de menu) e pra caixa tracejada, onde a
+     linha carrega informação e não moldura. */
+  --ui-hairline: #f2e4d8;
+  --ui-hairline-strong: #e6d3c4;
+
+  /* --- texto ------------------------------------------------------------
+     Marrom, não cinza-azulado. Todos MEDIDOS no navegador contra o fundo
+     composto de verdade (não estimados): o degrau mais claro da escala
+     (`--ui-text-faint`) dá 4.8:1 na pior superfície em que aparece, então
+     nenhum papel de texto normal fica abaixo de 4.5:1. Paleta quente clara
+     é justamente onde é fácil errar isso. */
+  --ui-text-ink: #2b1d17;
+  --ui-text-strong: #33241d;
+  --ui-text: #4a382f;
+  --ui-text-body: #5c463b;
+  --ui-text-soft: #6b564d;
+  --ui-text-muted: #755d53;
+  /* O tom "fantasma" (coluna z do Inspetor, coluna já usada na tabela). No
+     tema antigo era #cbd5e1: 1.6:1, ou seja, texto que EXISTE e não se lê.
+     Aqui ele continua sendo o degrau mais claro da escala, mas passa 4.8:1
+     até dentro da linha selecionada (o fundo mais claro que ele encontra). */
+  --ui-text-faint: #786055;
+  --ui-text-on-dark: #fdf3ec; /* 10.7:1 sobre --ui-chrome-bg */
+  /* DOIS rótulos "sobre preenchimento", e a diferença não é cosmética:
+     branco em cima dos preenchimentos ESCUROS (--ui-accent 4.96:1,
+     --ui-danger 7.2:1, --ui-section 6.4:1), e marrom escuro em cima do
+     coral CLARO do brief (#ff6b5b, onde branco daria só 2.8:1). Trocar um
+     pelo outro derruba o contraste na hora. */
+  --ui-text-on-accent: #ffffff;
+  --ui-text-on-coral: #33241d; /* 5.3:1 sobre --ui-accent-solid */
+  --ui-text-on-danger: #ffffff;
+  --ui-text-on-section: #ffffff;
+  --ui-disabled: #d8c4b6;
+
+  /* --- accent CORAL -----------------------------------------------------
+     Dois tons, e a diferença importa: `--ui-accent` é o coral de TEXTO e
+     ícone (escurecido até passar 4.5:1 sobre branco e sobre creme);
+     `--ui-accent-solid` é o coral de PREENCHIMENTO do brief (#ff6b5b), que
+     em texto branco daria só 2.8:1 — por isso o rótulo em cima dele é
+     `--ui-text-on-coral`, marrom escuro. */
+  --ui-accent: #c8402f;
+  --ui-accent-hover: #a3301f;
+  --ui-accent-solid: #ff6b5b;
+  /* Hover CLAREIA em vez de escurecer: escurecendo, o rótulo marrom cairia
+     abaixo de 4.5:1. */
+  --ui-accent-solid-hover: #ff8577;
+  --ui-accent-line: #ff9c90;
+  --ui-accent-line-soft: #ffd4cc;
+  --ui-accent-line-faint: #ffe4de;
+  --ui-accent-wash: #fff4f1;
+  --ui-accent-wash-strong: #ffe3dd;
+  --ui-accent-wash-faint: #fffaf8;
+  --ui-accent-veil: rgba(255, 107, 91, 0.14);
+  --ui-accent-grab: rgba(255, 107, 91, 0.45);
+
+  /* Botão "primário" da casca. No default do pacote era um azul DIFERENTE do
+     accent; aqui os dois papéis colapsam no mesmo coral — um app macio não
+     tem dois azuis competindo. Aliases, não cópias: o valor mora num lugar
+     só, e o nome `--ui-primary` fica porque é o papel que as regras usam. */
+  --ui-primary: var(--ui-accent-solid);
+  --ui-primary-hover: var(--ui-accent-solid-hover);
+
+  /* --- foco -------------------------------------------------------------
+     Sem borda em repouso, o anel de foco é a ÚNICA pista de onde o teclado
+     está — então ele é mais forte aqui do que num tema com bordas, não mais
+     fraco. Cor escura e saturada pra contrastar com creme E com branco. */
+  --ui-focus: #a3301f;
+  --ui-focus-danger: #8c1830;
+  /* Anel de MOUSE (`:focus`) no controle: coral translúcido, macio. O anel
+     de TECLADO (`:focus-visible`) é o `outline` sólido de --ui-focus, e vem
+     por cima deste — dois indicadores diferentes de propósito. */
+  --ui-ring-focus: 0 0 0 3px rgba(255, 107, 91, 0.35);
+  --ui-ring-select: 0 0 0 4px rgba(255, 107, 91, 0.28);
+  --ui-focus-width: 3px;
+
+  /* --- perigo -----------------------------------------------------------
+     Puxado pro carmim (mais magenta) DE PROPÓSITO: com um accent coral, um
+     vermelho-tijolo comum ficaria indistinguível do botão primário. */
+  --ui-danger: #a81f3d;
+  --ui-danger-hover: #8c1830;
+  --ui-danger-deep: #741228;
+  --ui-danger-solid: #c62a48;
+  --ui-danger-line: #e08497;
+  --ui-danger-line-soft: #f4ccd5;
+  --ui-danger-wash-strong: #fbe0e6;
+  --ui-danger-wash: #fdf1f3;
+  --ui-danger-veil: rgba(198, 42, 72, 0.14);
+
+  /* --- aviso (âmbar torrado) ------------------------------------------- */
+  --ui-warn: #8a5209;
+  /* Tom do ÍCONE de aviso. Escurecido até 5.3:1 sobre `--ui-warn-wash`
+     porque o "⚠" do painel de problemas é um GLIFO DE TEXTO, não um <svg>:
+     vale a régua de 4.5:1, não a de 3:1. */
+  --ui-warn-strong: #96590f;
+  --ui-warn-line: #d99b3d;
+  --ui-warn-line-soft: #f2d9a8;
+  --ui-warn-wash-strong: #fdeed3;
+  --ui-warn-wash: #fdf8ee;
+
+  /* --- campo "seção" (ameixa) ------------------------------------------
+     O único tom frio da paleta, e é por isso que ele funciona: o campo
+     seção precisa se distinguir do coral no canvas. */
+  --ui-section: #7c4a94;
+  --ui-section-strong: #663a7b;
+  --ui-section-deep: #522f63;
+  --ui-section-line: #b98fcd;
+  --ui-section-line-soft: #e3d0ec;
+  --ui-section-wash-strong: #f1e6f6;
+  --ui-section-wash: #f9f3fb;
+  --ui-section-wash-faint: #fdfafe;
+  --ui-section-veil: rgba(249, 243, 251, 0.55);
+
+  --ui-ok: #2f7a4f;
+
+  /* --- chrome escura ---------------------------------------------------
+     A barra de topo é cacau, não azul-ardósia — é a peça que mais aparece
+     numa captura, e é onde a "temperatura" do tema se anuncia. */
+  --ui-chrome-bg: #4a332b;
+  --ui-chrome-fill: rgba(255, 255, 255, 0.14);
+  --ui-chrome-fill-hover: rgba(255, 255, 255, 0.26);
+  --ui-chrome-fill-soft: rgba(255, 255, 255, 0.12);
+  --ui-chrome-line: rgba(255, 255, 255, 0.24);
+  --ui-banner-fill: rgba(255, 255, 255, 0.62);
+  --ui-banner-well: rgba(255, 255, 255, 0.68);
+  --ui-scrim: rgba(61, 41, 33, 0.5);
+  --ui-zoombar-bg: rgba(61, 41, 33, 0.92);
+
+  /* --- sombras ---------------------------------------------------------
+     São elas que substituem as bordas. Duas camadas em cada uma: um 1px
+     rente pra "assentar" a peça, e um borrão largo e baixíssima opacidade
+     pra dar o flutuar macio. Tudo em marrom, nunca em preto/azul — sombra
+     cinza sobre creme suja o fundo. */
+  --ui-shadow-card: 0 1px 2px rgba(74, 51, 43, 0.06), 0 8px 24px rgba(74, 51, 43, 0.07);
+  --ui-shadow-pop: 0 2px 4px rgba(74, 51, 43, 0.08), 0 12px 28px rgba(74, 51, 43, 0.14);
+  --ui-shadow-pop-lg: 0 2px 6px rgba(74, 51, 43, 0.08), 0 18px 40px rgba(74, 51, 43, 0.16);
+  --ui-shadow-modal: 0 4px 10px rgba(74, 51, 43, 0.12), 0 32px 64px rgba(74, 51, 43, 0.26);
+  --ui-shadow-zoombar: 0 10px 24px rgba(74, 51, 43, 0.3);
+  --ui-shadow-btn: 0 1px 2px rgba(74, 51, 43, 0.1);
+  /* Separa a sidebar do miolo sem uma linha: sombra só pro lado direito,
+     com spread negativo pra não vazar em cima nem embaixo. */
+  --ui-shadow-rail: 10px 0 28px -18px rgba(74, 51, 43, 0.35);
+  /* A folha do canvas continua com sombra neutra: é papel sobre uma mesa,
+     não um cartão do tema. */
+  --ui-shadow-paper: 0 1px 3px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(61, 41, 33, 0.1);
+
+  /* --- canvas / papel -------------------------------------------------- */
+  --ui-grid-line: rgba(138, 114, 104, 0.2);
+  --ui-page-dim: rgba(61, 41, 33, 0.1);
+  --ui-swatch-ring: rgba(61, 41, 33, 0.14);
+
+  font-family: var(--ui-font-sans);
+  color: var(--ui-text);
+  background: var(--ui-bg);
 }
 
 * {
@@ -34,23 +262,35 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 18px;
-  background: #0f172a;
-  color: #f8fafc;
+  gap: var(--ui-space-3);
+  padding: var(--ui-space-3) var(--ui-space-5);
+  background: var(--ui-chrome-bg);
+  color: var(--ui-text-on-dark);
   flex-shrink: 0;
 }
 
 .app-header h1 {
   margin: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
+  /* Nada de caixa alta nem letter-spacing: a identidade daqui é minúscula e
+     arredondada. */
+  letter-spacing: -0.01em;
+  /* Botão em pílula com padding generoso é MAIS LARGO que o retangular do
+     default, e num viewport estreito a barra estourava: o título quebrava
+     numa coluna de dez linhas e a página ganhava barra horizontal. Com
+     `min-width: 0` + reticências, quem cede é o título — e a barra volta a
+     caber onde cabia antes. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ui-space-2);
   flex-shrink: 0;
 }
 
@@ -60,44 +300,58 @@ body {
   min-height: 0;
 }
 
+/* SEM `border-right`: a trilha se separa do miolo por SOMBRA. É a regra
+   estética central deste tema — nenhuma superfície tem moldura. */
 .sidebar {
   width: 320px;
   flex-shrink: 0;
   overflow-y: auto;
-  padding: 12px;
-  border-right: 1px solid #e2e8f0;
-  background: #ffffff;
+  padding: var(--ui-space-3);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow-rail);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--ui-space-3);
 }
 
+/* Coluna do editor: a barra de abas de página fica fixa no topo e só o
+   miolo rola — por isso o padding/overflow moraram pra `.designer-scroll`
+   em vez de ficarem aqui. */
 .designer-area {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-width: 0;
+  background: var(--ui-bg);
+}
+
+.designer-scroll {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
-  padding: 16px;
-  background: #f1f5f9;
+  padding: var(--ui-space-5);
 }
 
 .designer-stack {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--ui-space-3);
   height: 100%;
 }
 
 /* ----------------------------------------------------------------- cards */
 
+/* Cartão sem borda: raio grande + sombra em duas camadas. Comparar com o
+   `theme.css` do pacote (borda 1px + raio 12px) é o jeito mais rápido de
+   ver que este arquivo não está reproduzindo o default. */
 .card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  gap: var(--ui-space-2);
+  padding: var(--ui-space-3);
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow-card);
 }
 
 /* Card da árvore de campos — cresce pra ocupar a sobra da sidebar e rola
@@ -115,20 +369,22 @@ body {
   gap: 8px;
 }
 
+/* Rótulo de seção em MINÚSCULA com peso 600. O default do pacote (e os
+   outros examples) usa caixa alta + letter-spacing; minúscula é o registro
+   de voz deste tema. */
 .card-title {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #475569;
+  letter-spacing: -0.01em;
+  color: var(--ui-text-body);
 }
 
 .hint {
   margin: 0;
-  font-size: 11px;
-  line-height: 1.45;
-  color: #64748b;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ui-text-soft);
 }
 
 /* --------------------------------------------------------------- botões */
@@ -140,56 +396,85 @@ body {
   gap: 6px;
   appearance: none;
   border: none;
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: var(--ui-radius-btn);
+  padding: var(--ui-pad-btn);
+  font-size: 12.5px;
+  font-weight: 700;
   font-family: inherit;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Foco de teclado da casca. Vale mais aqui do que num tema com bordas: sem
+   moldura em repouso, o anel É a única pista de onde o teclado está. */
+.btn:focus-visible,
+.btn-icon:focus-visible,
+.page-tab-label:focus-visible,
+.page-tab-close:focus-visible,
+.page-tab-add:focus-visible,
+.problem-btn:focus-visible,
+.tree-toggle:focus-visible,
+.dropzone:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* Sobre a barra cacau, o anel escuro desapareceria — ali ele é claro. */
+.app-header .btn:focus-visible,
+.header-actions .select:focus-visible {
+  outline-color: var(--ui-text-on-dark);
 }
 
 .btn-primary {
-  background: #2563eb;
-  color: #ffffff;
+  background: var(--ui-primary);
+  color: var(--ui-text-on-coral);
+  box-shadow: var(--ui-shadow-btn);
 }
 
 .btn-primary:hover {
-  background: #1d4ed8;
+  background: var(--ui-primary-hover);
 }
 
 .btn-primary:disabled {
-  background: #94a3b8;
+  background: var(--ui-disabled);
+  /* O rótulo escurece junto: branco em cima do bege desabilitado ficaria em
+     1.7:1, ilegível mesmo pra quem só quer LER que o botão está travado. */
+  color: var(--ui-text);
+  box-shadow: none;
   cursor: not-allowed;
 }
 
 .btn-accent {
-  background: #0284c7;
-  color: #ffffff;
+  background: var(--ui-accent);
+  color: var(--ui-text-on-accent);
+  box-shadow: var(--ui-shadow-btn);
 }
 
 .btn-accent:hover {
-  background: #0369a1;
+  background: var(--ui-accent-hover);
 }
 
 .btn-ghost {
-  background: rgba(255, 255, 255, 0.12);
-  color: #f8fafc;
+  background: var(--ui-chrome-fill);
+  color: var(--ui-text-on-dark);
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--ui-chrome-fill-hover);
 }
 
+/* A variante "outline" perdeu a moldura e virou PREENCHIDA-macia: é assim
+   que um botão secundário se distingue do fantasma (transparente) num tema
+   sem bordas. */
 .btn-outline {
-  background: transparent;
-  border: 1px solid #cbd5e1;
-  color: #475569;
+  background: var(--ui-surface-alt);
+  border: none;
+  color: var(--ui-text-body);
 }
 
 .btn-outline:hover {
-  background: #f8fafc;
+  background: var(--ui-surface-alt-hover);
 }
 
 /* <label> que embrulha um <input type="file"> escondido — precisa do
@@ -198,18 +483,34 @@ body {
   cursor: pointer;
 }
 
+/* Botão dentro de um banner colorido (`.gen-error`): herda a cor do texto do
+   banner em vez de fixar uma, porque o banner tem dois tons (vermelho quando
+   dá pra consertar, cinza quando é bug do pacote). */
+.btn-banner {
+  background: var(--ui-banner-fill);
+  border: 1px solid currentColor;
+  color: inherit;
+  font-weight: 500;
+  padding: 3px 8px;
+}
+
+.btn-banner:hover {
+  background: var(--ui-surface);
+}
+
+/* `--ui-radius-btn` é 999px, então este 26x26 sai CIRCULAR. */
 .btn-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   appearance: none;
   border: none;
-  border-radius: 6px;
-  background: #e2e8f0;
-  color: #334155;
+  border-radius: var(--ui-radius-btn);
+  background: var(--ui-surface-alt);
+  color: var(--ui-text);
   font-size: 14px;
   line-height: 1;
   font-family: inherit;
@@ -218,55 +519,102 @@ body {
 }
 
 .btn-icon:hover {
-  background: #cbd5e1;
+  background: var(--ui-surface-alt-hover);
 }
 
 .btn-icon-danger {
   background: transparent;
-  color: #94a3b8;
+  color: var(--ui-text-muted);
 }
 
 .btn-icon-danger:hover {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--ui-danger-wash-strong);
+  color: var(--ui-danger);
+}
+
+/* O "×" do banner de erro — mesma ideia do .btn-banner: cor herdada. */
+.btn-icon-banner {
+  background: var(--ui-banner-fill);
+  color: inherit;
+}
+
+.btn-icon-banner:hover {
+  background: var(--ui-surface);
 }
 
 .push-right {
   margin-left: auto;
 }
 
+/* Contador ao lado de um `.card-title` (ex: quantos problemas o template
+   tem). Dois tons: `is-alert` quando algo já vai sair errado no PDF,
+   `is-warn` quando é só configuração pela metade. */
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: var(--ui-radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.count-badge.is-alert {
+  background: var(--ui-danger-wash-strong);
+  color: var(--ui-danger-hover);
+}
+
+.count-badge.is-warn {
+  background: var(--ui-warn-wash-strong);
+  color: var(--ui-warn);
+}
+
 /* -------------------------------------------------------------- inputs */
 
 .field-label {
   display: block;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  color: #475569;
-  margin-bottom: 4px;
+  color: var(--ui-text-body);
+  margin-bottom: var(--ui-space-1);
 }
 
+/* Campo PREENCHIDO em vez de emoldurado: o creme afundado é o que diz
+   "aqui se digita". A borda continua declarada, mas transparente — é ela
+   que o foco e o erro acendem, e manter a largura evita o pulo de 1px. */
 .text-input,
 .textarea,
 .select {
   width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-size: 12px;
-  color: #1e293b;
-  background: #ffffff;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-control);
+  padding: var(--ui-pad-control);
+  font-size: 12.5px;
+  color: var(--ui-text-strong);
+  background: var(--ui-bg-soft);
   font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .text-input:focus,
 .textarea:focus,
 .select:focus {
-  outline: 2px solid #93c5fd;
-  outline-offset: -1px;
+  outline: none;
+  border-color: var(--ui-accent);
+  box-shadow: var(--ui-ring-focus);
+}
+
+.text-input:focus-visible,
+.textarea:focus-visible,
+.select:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: 2px;
 }
 
 .textarea {
-  font-family: ui-monospace, monospace;
+  font-family: var(--ui-font-mono);
   resize: vertical;
 }
 
@@ -279,22 +627,23 @@ body {
 }
 
 /* Selects do header vivem sobre fundo escuro — variação própria, não é o
-   .select branco da sidebar. */
+   .select creme da sidebar. */
 .header-actions .select {
   width: auto;
-  padding: 5px 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #f8fafc;
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: var(--ui-radius-btn);
+  color: var(--ui-text-on-dark);
+  background: var(--ui-chrome-fill-soft);
+  border-color: var(--ui-chrome-line);
 }
 
 /* O menu aberto é desenhado pelo SO com fundo claro — sem isso as opções
    ficariam branco no branco. */
 .header-actions .select option {
-  color: #0f172a;
-  background: #ffffff;
+  color: var(--ui-text-ink);
+  background: var(--ui-surface);
 }
 
 /* ------------------------------------------------------- fontes de dados */
@@ -304,24 +653,26 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 12px;
-  border: 2px dashed #cbd5e1;
-  border-radius: 8px;
+  padding: var(--ui-space-4);
+  /* A tracejada FICA: aqui a borda não é moldura, é "solte o arquivo aqui".
+     Borda semântica é a exceção da regra do tema. */
+  border: 2px dashed var(--ui-hairline-strong);
+  border-radius: var(--ui-radius-panel);
   text-align: center;
-  font-size: 11px;
-  color: #64748b;
+  font-size: 11.5px;
+  color: var(--ui-text-soft);
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
 .dropzone:hover {
-  border-color: #38bdf8;
+  border-color: var(--ui-accent-line);
 }
 
 .dropzone.is-over {
-  border-color: #0ea5e9;
-  background: #f0f9ff;
-  color: #0369a1;
+  border-color: var(--ui-accent);
+  background: var(--ui-accent-wash);
+  color: var(--ui-accent-hover);
 }
 
 .dropzone-icon {
@@ -335,10 +686,11 @@ body {
   gap: 8px;
 }
 
+/* Item de fonte: creme afundado, sem moldura. */
 .source-item {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 8px;
+  border-radius: var(--ui-radius-panel);
+  background: var(--ui-bg-soft);
+  padding: var(--ui-space-2);
 }
 
 .source-item-head {
@@ -356,30 +708,259 @@ body {
 
 .status {
   font-size: 11px;
-  color: #64748b;
+  color: var(--ui-text-soft);
 }
 
 .status.is-error {
-  color: #dc2626;
+  color: var(--ui-danger);
 }
 
 .status.is-ok {
-  color: #15803d;
+  color: var(--ui-ok);
   font-weight: 600;
 }
 
 .msg-error {
   margin: 4px 0 0;
   font-size: 11px;
-  color: #dc2626;
+  color: var(--ui-danger);
 }
 
-.error-banner {
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 12px;
-  padding: 8px 18px;
+/* ------------------------------------------- banner de falha de geração */
+
+/* O tom carrega informação: vermelho = "você pode consertar" (dado, template
+   ou configuração), cinza = "é bug do pacote, reporte". `color` fica no
+   container porque `.btn-banner` e `.btn-icon-banner` herdam dele. */
+.gen-error {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   flex-shrink: 0;
+  padding: var(--ui-space-3) var(--ui-space-5);
+  font-size: 12.5px;
+  background: var(--ui-danger-wash);
+  color: var(--ui-danger-deep);
+}
+
+.gen-error.is-bug {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.gen-error-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gen-error-title {
+  font-weight: 600;
+}
+
+.gen-error-tag {
+  margin-left: 8px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.gen-error-action {
+  line-height: 1.45;
+  opacity: 0.9;
+}
+
+.gen-error-detail {
+  margin-top: 2px;
+  padding: var(--ui-space-2) var(--ui-space-3);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-banner-well);
+  font-family: var(--ui-font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  /* Mensagem de erro vem de um Error, então pode ter linha longa e quebra
+     própria — sem os dois a barra estica a página inteira. */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.gen-error-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* -------------------------------------------------- abas de página */
+
+/* Barra da casca, não do editor — fica sobre o fundo branco da chrome pra
+   se distinguir da barra de abas de propriedades (`.jpd-tabs`), que aparece
+   logo abaixo dentro do <Designer>. */
+/* Faixa creme com a aba ativa em BRANCO levantada — o inverso do default
+   (faixa branca, aba ativa cinza afundada). Sem linha de base: a aba ativa
+   se destaca por cor e sombra. */
+.page-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-1);
+  flex-shrink: 0;
+  padding: var(--ui-space-2) var(--ui-space-3) 0;
+  background: var(--ui-bg);
+}
+
+.page-tab {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 0 10px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-top-left-radius: var(--ui-radius-panel);
+  border-top-right-radius: var(--ui-radius-panel);
+  color: var(--ui-text-soft);
+}
+
+.page-tab:not(.is-active):hover {
+  background: var(--ui-surface-alt);
+}
+
+.page-tab.is-active {
+  border-color: transparent;
+  background: var(--ui-surface);
+  color: var(--ui-text-ink);
+  box-shadow: var(--ui-shadow-card);
+}
+
+.page-tab-label {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 7px 4px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+.page-tab-close {
+  appearance: none;
+  border: none;
+  border-radius: var(--ui-radius-pill);
+  background: transparent;
+  padding: 2px 4px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ui-text-muted);
+  cursor: pointer;
+}
+
+.page-tab-close:hover {
+  background: var(--ui-surface-alt-hover);
+  color: var(--ui-text);
+}
+
+.page-tab-add {
+  appearance: none;
+  border: none;
+  border-radius: var(--ui-radius-btn);
+  background: transparent;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ui-text-soft);
+  cursor: pointer;
+}
+
+.page-tab-add:hover {
+  background: var(--ui-surface-alt);
+  color: var(--ui-text-ink);
+}
+
+/* --------------------------------------------- problemas do template */
+
+.problem-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ui-danger-hover);
+}
+
+.problem-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Cada problema é um botão de largura cheia (leva pra página do campo), com
+   três linhas: nome do campo, mensagem, página. `text-align: left` é
+   obrigatório — botão centraliza texto por default. */
+.problem-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  appearance: none;
+  border-radius: var(--ui-radius-panel);
+  padding: var(--ui-space-2) var(--ui-space-3);
+  font-family: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.problem-btn.is-error {
+  border: 1px solid var(--ui-danger-line-soft);
+  background: var(--ui-danger-wash);
+}
+
+.problem-btn.is-error:hover {
+  background: var(--ui-danger-wash-strong);
+}
+
+.problem-btn.is-config {
+  border: 1px solid var(--ui-warn-line-soft);
+  background: var(--ui-warn-wash);
+}
+
+.problem-btn.is-config:hover {
+  background: var(--ui-warn-wash-strong);
+}
+
+.problem-btn-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--ui-text-strong);
+}
+
+.problem-icon {
+  flex-shrink: 0;
+  color: var(--ui-warn-strong);
+}
+
+.problem-where {
+  font-family: var(--ui-font-mono);
+  font-weight: 400;
+  color: var(--ui-text-soft);
+}
+
+.problem-msg {
+  line-height: 1.45;
+  color: var(--ui-text-body);
+}
+
+.problem-page {
+  font-size: 10px;
+  color: var(--ui-text-muted);
 }
 
 /* ------------------------------------------------------ árvore de campos */
@@ -400,17 +981,16 @@ body {
 }
 
 .tree-section-divided {
-  border-top: 1px solid #e2e8f0;
-  padding-top: 8px;
+  border-top: 1px solid var(--ui-hairline);
+  padding-top: var(--ui-space-2);
 }
 
+/* Minúscula, como o `.card-title`. */
 .tree-section-title {
   margin: 0;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #94a3b8;
+  color: var(--ui-text-muted);
 }
 
 .tree-list {
@@ -435,7 +1015,7 @@ body {
 .tree-group-label {
   font-size: 12px;
   font-weight: 500;
-  color: #475569;
+  color: var(--ui-text-body);
 }
 
 .tree-toggle {
@@ -443,52 +1023,55 @@ body {
   appearance: none;
   border: none;
   background: transparent;
-  border-radius: 4px;
+  border-radius: var(--ui-radius-pill);
   padding: 4px;
   font-size: 11px;
   line-height: 1;
-  color: #94a3b8;
+  color: var(--ui-text-muted);
   cursor: pointer;
   font-family: inherit;
 }
 
 .tree-toggle:hover {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--ui-bg);
+  color: var(--ui-text-body);
 }
 
+/* Campo arrastável = PÍLULA creme, sem moldura. A borda segue declarada
+   (transparente) porque `.is-array`/`.is-native` a acendem: ali ela
+   carrega o TIPO do campo, não a moldura. */
 .field-row {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 6px;
-  padding: 7px 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
-  font-size: 12px;
+  gap: var(--ui-space-1);
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-bg-soft);
+  font-size: 12.5px;
   cursor: grab;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .field-row.is-array {
-  border-color: #bae6fd;
-  background: #f0f9ff;
+  border-color: var(--ui-accent-line-soft);
+  background: var(--ui-accent-wash);
 }
 
 .field-row.is-native {
-  border-color: #fde68a;
-  background: #fffbeb;
+  border-color: var(--ui-warn-line-soft);
+  background: var(--ui-warn-wash);
 }
 
 .field-row-icon {
-  color: #94a3b8;
+  color: var(--ui-text-muted);
   flex-shrink: 0;
 }
 
 .field-row-label {
   font-weight: 500;
-  color: #334155;
+  color: var(--ui-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -504,23 +1087,24 @@ body {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(15, 23, 42, 0.55);
+  background: var(--ui-scrim);
 }
 
 .modal {
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
+  background: var(--ui-surface);
+  border-radius: var(--ui-radius-card);
+  box-shadow: var(--ui-shadow-modal);
+  overflow: hidden;
 }
 
 .modal-picker {
-  width: 420px;
+  width: 440px;
   max-width: 100%;
   max-height: calc(100vh - 64px);
-  padding: 16px;
-  gap: 6px;
+  padding: var(--ui-space-5);
+  gap: var(--ui-space-2);
 }
 
 .modal-preview {
@@ -540,15 +1124,15 @@ body {
 /* No modal de preview o cabeçalho é uma barra com borda; no picker ele é
    só uma linha solta dentro do padding do modal. */
 .modal-preview .modal-head {
-  padding: 12px 18px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: var(--ui-space-3) var(--ui-space-5);
+  border-bottom: 1px solid var(--ui-hairline);
 }
 
 .modal-title {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--ui-text-strong);
 }
 
 .modal-actions {
@@ -570,16 +1154,1969 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px;
-  background: #f1f5f9;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
+  padding: var(--ui-space-5);
+  background: var(--ui-bg);
+  border-bottom-left-radius: var(--ui-radius-card);
+  border-bottom-right-radius: var(--ui-radius-card);
 }
 
 /* Dentro do modal do picker a árvore é o conteúdo inteiro — o card dela
    não precisa da própria borda/sombra por cima da do modal. */
 .modal-picker .card {
-  border: none;
   box-shadow: none;
   padding: 0;
+}
+
+/* ==========================================================================
+   MIOLO DO DESIGNER — as classes `.jpd-*` do pacote
+
+   Daqui pra baixo é tudo elemento renderizado POR DENTRO do <Designer>. O
+   pacote não trouxe CSS nenhum (ver main.tsx), então cada regra abaixo é a
+   aparência que ESTE app escolheu pra um gancho que o pacote expõe.
+
+   Três coisas que morderam ao escrever isto, anotadas pra quem copiar:
+
+   a) `border-width` sozinho não desenha borda. Sem o Preflight do Tailwind
+      não existe mais um `*{border:0 solid}` global fornecendo o estilo, e
+      `border-width: 1px` sem `border-style` computa borda NENHUMA, sem
+      erro. Toda borda aqui é `Npx solid|dashed <cor>` de uma vez; onde a
+      largura tem de chegar depois (as faixas), a base declara
+      `border: 0 dashed <cor>` justamente pra deixar o estilo pronto.
+
+   b) Botão e controle nu voltam pro chrome do sistema operacional (Arial
+      13px, fundo `ButtonFace`, borda `2px outset`) — o reset era do
+      Preflight. Por isso o primeiro bloco abaixo é um reset local.
+
+   c) `data-active` na aba carrega o BOOLEANO cru, então aba inativa tem
+      literalmente `data-active="false"`. O seletor é `[data-active="true"]`;
+      um `[data-active]` pelado pintaria a barra inteira de ativa. Os outros
+      `data-*` booleanos (`data-selected`, `data-locked`, `data-dragging`,
+      ...) são presença/ausência — nesses o seletor pelado é o certo.
+
+   Geometria fica de fora de propósito: `.jpd-page`, `.jpd-field` e
+   `.jpd-canvas__zoom` recebem `width`/`height`/`transform: scale()` inline
+   (milímetros x zoom), e o react-rnd calcula o arraste contra essa escala.
+   Declarar tamanho/posição/transform neles faz o campo fugir do cursor.
+   ========================================================================= */
+
+/* ------------------------------------------------- reset local (Preflight) */
+
+/* Os controles e botões que passam pelo kit do pacote. */
+.jpd-btn,
+.jpd-iconbtn,
+.jpd-linkbtn,
+.jpd-input,
+.jpd-select,
+.jpd-textarea,
+.jpd-tab,
+.jpd-tabs__btn,
+.jpd-menuitem,
+.jpd-addlink,
+.jpd-fieldrow,
+.jpd-fieldrow__rename,
+.jpd-iconpick__item,
+.jpd-zoombar__btn {
+  font: inherit;
+  font-family: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  margin: 0;
+  background-color: transparent;
+}
+
+.jpd-btn,
+.jpd-iconbtn,
+.jpd-linkbtn,
+.jpd-tab,
+.jpd-tabs__btn,
+.jpd-menuitem,
+.jpd-addlink,
+.jpd-fieldrow,
+.jpd-iconpick__item,
+.jpd-zoombar__btn {
+  appearance: button;
+  /* `0 solid` e não `0`: com `border: 0` o ESTILO vira `none` e qualquer
+     border-width que venha depois (a sublinha de 2px da aba ativa, por
+     exemplo) computa 0px. */
+  border: 0 solid;
+  cursor: pointer;
+}
+
+/* Rede de segurança pro <button>/<input> que o pacote renderizar SEM classe
+   — hoje não há nenhum, mas uma versão nova pode trazer. `:where()` deixa
+   especificidade zero, e `:not([class])` garante que isto nunca alcance um
+   elemento nosso. */
+:where(.jpd-designer) :is(button, input, select, textarea, optgroup):not([class]) {
+  font: inherit;
+  font-family: inherit;
+  color: inherit;
+  margin: 0;
+  border: 0 solid;
+  border-radius: 0;
+  background-color: transparent;
+}
+
+/* `*{margin:0}` + `h1..h6{font-size:inherit}` do Preflight. */
+.jpd-hint,
+.jpd-hint--md,
+.jpd-meta,
+.jpd-error,
+.jpd-warn,
+.jpd-card__title,
+.jpd-modal__title,
+.jpd-sectionhead,
+.jpd-grouplabel,
+.jpd-callout__title,
+.jpd-callout__hint,
+.jpd-sidebar__banner,
+.jpd-preview__count {
+  margin: 0;
+}
+
+.jpd-card__title,
+.jpd-modal__title,
+.jpd-sectionhead {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/* `ol,ul{list-style:none;margin:0;padding:0}`. */
+.jpd-list,
+.jpd-popover--anchor-stretch {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* `code,kbd,pre{font-family:mono;font-size:1em}` — o <code> do editor sai
+   sem classe própria e a monoespaçada vinha só do reset global. */
+.jpd-code {
+  font-family: var(--ui-font-mono);
+  font-size: 1em;
+}
+
+/* `img,svg{display:block;vertical-align:middle}` — sem `display:block` cada
+   ícone inline ganha o vão de descendente embaixo. SEM tamanho aqui: em SVG2
+   `width`/`height` são geometry properties, então um tamanho em CSS
+   sobrescreveria o atributo do próprio <svg>. */
+.jpd-icon,
+.jpd-micon,
+.jpd-ruler,
+.jpd-chart__svg,
+.jpd-imagefield__img {
+  display: block;
+  vertical-align: middle;
+}
+
+.jpd-fieldtable {
+  text-indent: 0;
+  border-color: inherit;
+  border-collapse: collapse;
+}
+
+.jpd-input::placeholder,
+.jpd-textarea::placeholder {
+  opacity: 1;
+  color: var(--ui-text-muted);
+}
+
+/* O triângulo de <details> vem daqui. */
+.jpd-disclosure__summary {
+  display: list-item;
+}
+
+/* --------------------------------------------------- primitivas de layout */
+
+.jpd-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-2);
+}
+.jpd-stack--tight {
+  gap: 4px;
+}
+.jpd-stack--snug {
+  gap: 6px;
+}
+
+.jpd-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+}
+.jpd-row--tight {
+  gap: 4px;
+}
+.jpd-row--between {
+  justify-content: space-between;
+}
+.jpd-row--right {
+  justify-content: flex-end;
+}
+/* Rótulo em cima, controle embaixo: alinhar pela base é o que põe o botão
+   "fx" na linha do controle e não na do rótulo. */
+.jpd-row--baseline {
+  align-items: flex-end;
+}
+.jpd-row--grow > :first-child {
+  flex: 1;
+}
+
+.jpd-grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ui-space-2);
+}
+
+.jpd-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-1);
+}
+
+.jpd-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-2);
+}
+
+/* ------------------------------------------------------- papéis de texto */
+
+.jpd-hint {
+  font-size: 11px;
+  color: var(--ui-text-muted);
+}
+.jpd-hint--md {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ui-text-muted);
+}
+.jpd-meta {
+  font-size: 11px;
+  color: var(--ui-text-soft);
+}
+.jpd-meta--sm {
+  font-size: 11px;
+}
+.jpd-meta--md {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.jpd-error {
+  font-size: 10px;
+  color: var(--ui-danger);
+}
+.jpd-error--sm {
+  font-size: 11px;
+}
+.jpd-error--md {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.jpd-warn {
+  font-size: 10px;
+  color: var(--ui-warn);
+}
+.jpd-grouplabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ui-text-soft);
+}
+.jpd-grouplabel--spaced {
+  margin-bottom: 4px;
+}
+/* Mesmo desenho do `.card-title` da casca — 12px, caixa alta, cinza médio. */
+.jpd-sectionhead {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ui-text-body);
+}
+/* Irmão menor do sectionhead (zonas do Inspetor: HEADER/BODY/FOOTER). */
+/* HEADER/BODY/FOOTER do Inspetor: minúscula também. */
+.jpd-eyebrow {
+  margin: 0 0 var(--ui-space-1);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ui-text-muted);
+}
+.jpd-eyebrow[data-zone="red"] {
+  color: var(--ui-warn);
+}
+.jpd-rowname {
+  font-weight: 500;
+  color: var(--ui-text);
+}
+.jpd-muted {
+  margin-left: 6px;
+  color: var(--ui-text-muted);
+}
+.jpd-colname {
+  font-family: var(--ui-font-mono);
+  color: var(--ui-text-body);
+}
+/* Coluna que já está na tabela: fica fantasma em vez de sair da lista. */
+.jpd-colname[data-added] {
+  color: var(--ui-text-faint);
+}
+.jpd-badge {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-bg-soft);
+  padding: 3px 10px;
+  font-family: var(--ui-font-mono);
+  font-size: 11px;
+  color: var(--ui-text-body);
+}
+
+/* -------------------------------------------------------------- botões */
+
+/* Mesma linguagem do `.btn` da casca: raio 8, 12px, semibold, gap 6. */
+.jpd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-space-1);
+  border-radius: var(--ui-radius-btn);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.jpd-btn:focus {
+  outline: none;
+}
+.jpd-btn:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: 2px;
+}
+.jpd-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.jpd-btn[data-size="sm"] {
+  padding: 7px 14px;
+}
+.jpd-btn[data-size="md"] {
+  padding: var(--ui-pad-btn);
+  font-size: 13.5px;
+}
+.jpd-btn[data-size="icon"] {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.jpd-btn[data-variant="primary"] {
+  background: var(--ui-primary);
+  color: var(--ui-text-on-coral);
+  box-shadow: var(--ui-shadow-btn);
+}
+.jpd-btn[data-variant="primary"]:hover:not(:disabled) {
+  background: var(--ui-primary-hover);
+}
+.jpd-btn[data-variant="danger"] {
+  background: var(--ui-danger);
+  color: var(--ui-text-on-accent);
+  box-shadow: var(--ui-shadow-btn);
+}
+.jpd-btn[data-variant="danger"]:hover:not(:disabled) {
+  background: var(--ui-danger-hover);
+}
+.jpd-btn[data-variant="danger"]:focus-visible {
+  outline-color: var(--ui-focus-danger);
+}
+/* Igual ao `.btn-outline` da casca: preenchido-macio, não emoldurado. */
+.jpd-btn[data-variant="outline"] {
+  border: 1px solid transparent;
+  background: var(--ui-surface-alt);
+  color: var(--ui-text-body);
+}
+.jpd-btn[data-variant="outline"]:hover:not(:disabled) {
+  background: var(--ui-accent-wash-strong);
+  color: var(--ui-accent-hover);
+}
+.jpd-btn[data-variant="ghost"] {
+  color: var(--ui-text-soft);
+}
+.jpd-btn[data-variant="ghost"]:hover:not(:disabled) {
+  background: var(--ui-surface-alt);
+  color: var(--ui-text);
+}
+/* Pra usar sobre fundo escuro (barra de zoom / toolbar) — é o mesmo desenho
+   do `.btn-ghost` da casca, que vive sobre o header #0f172a. */
+.jpd-btn[data-variant="dark"] {
+  background: var(--ui-chrome-fill);
+  color: var(--ui-text-on-dark);
+}
+.jpd-btn[data-variant="dark"]:hover:not(:disabled) {
+  background: var(--ui-chrome-fill-hover);
+}
+
+/* Botão de ícone sem moldura (fechar modal, "..."). */
+/* Circular, pelo `--ui-radius-btn` de 999px. */
+.jpd-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ui-radius-btn);
+  padding: 4px;
+  color: var(--ui-text-muted);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.jpd-iconbtn:hover {
+  background: var(--ui-surface-alt);
+  color: var(--ui-text);
+}
+.jpd-iconbtn--accent[data-on] {
+  color: var(--ui-accent);
+}
+.jpd-iconbtn--accent:hover {
+  background: var(--ui-accent-wash);
+  color: var(--ui-accent);
+}
+.jpd-iconbtn--danger {
+  color: var(--ui-text-muted);
+}
+.jpd-iconbtn--danger:hover {
+  background: var(--ui-danger-wash-strong);
+  color: var(--ui-danger);
+}
+/* O glifo "fx": itálico serifado. O reset acima fixou `font-family:
+   inherit`, então o desfazer tem de ser aqui. */
+.jpd-fx {
+  font-family: var(--ui-font-serif);
+  font-style: italic;
+}
+
+/* Botão que parece link ("limpar campo") — hover vermelho, é destrutivo. */
+.jpd-linkbtn {
+  align-self: flex-start;
+  font-size: 10px;
+  color: var(--ui-text-muted);
+  text-align: left;
+}
+.jpd-linkbtn:hover {
+  color: var(--ui-danger);
+}
+/* Estes dois só navegam, então o hover é neutro. */
+.jpd-linkbtn--muted {
+  align-self: auto;
+  flex-shrink: 0;
+}
+.jpd-linkbtn--back {
+  font-size: 11px;
+}
+.jpd-linkbtn--muted:hover,
+.jpd-linkbtn--back:hover {
+  color: var(--ui-text-body);
+}
+
+/* "+ adicionar condição/grupo" — accent, sublinha no hover. */
+.jpd-addlink {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--ui-accent);
+}
+.jpd-addlink--start {
+  align-self: flex-start;
+}
+.jpd-addlink:hover {
+  text-decoration: underline;
+}
+
+/* ---------------------------------------------- controles de formulário */
+
+/* Mesmo desenho do `.text-input`/`.select`/`.textarea` da casca: raio 6,
+   borda #cbd5e1, 12px. */
+/* Mesma decisão do `.text-input` da casca: creme afundado, borda
+   transparente em repouso, e a borda só acende no foco. */
+.jpd-input,
+.jpd-select,
+.jpd-textarea {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-bg-soft);
+  padding: var(--ui-pad-control);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ui-text-strong);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.jpd-textarea {
+  resize: vertical;
+}
+.jpd-input:focus,
+.jpd-select:focus,
+.jpd-textarea:focus {
+  outline: none;
+  border-color: var(--ui-accent);
+  box-shadow: var(--ui-ring-focus);
+}
+/* Teclado ganha o anel sólido POR CIMA do anel macio de `:focus`. */
+.jpd-input:focus-visible,
+.jpd-select:focus-visible,
+.jpd-textarea:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: 2px;
+}
+.jpd-input[data-mono],
+.jpd-textarea[data-mono] {
+  font-family: var(--ui-font-mono);
+}
+
+.jpd-color-input {
+  width: 100%;
+  height: 32px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-bg-soft);
+  padding: 3px;
+}
+.jpd-color-input:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* Rótulo em cima, controle embaixo — o par do `.field-label` da casca. */
+.jpd-labeled {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jpd-labeled__text {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ui-text-body);
+}
+
+/* <label> com checkbox nativo. O checkbox fica o do sistema de propósito
+   (nenhum `appearance` trocado); só a margem do UA é zerada, senão o texto
+   desalinha ~6px. */
+.jpd-checkline {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ui-text-body);
+}
+.jpd-checkline__box {
+  margin: 0;
+  /* Sem `appearance` trocado (segue o checkbox do sistema), só a cor do
+     "aceso" vira coral — é o mínimo pra não ficar um azul do SO no meio de
+     um tema quente. */
+  accent-color: var(--ui-accent);
+}
+
+/* ----------------------------------------------------- card / caixinhas */
+
+.jpd-card {
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow-card);
+}
+.jpd-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.jpd-card__title {
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ui-text-strong);
+}
+/* Cartão DENTRO do painel — raio pequeno, padding curto. */
+.jpd-subcard {
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-bg-soft);
+  padding: var(--ui-space-2);
+}
+/* Quadrado 32x32 que mostra o ícone escolhido do KPI. */
+.jpd-box {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--ui-radius-panel);
+  background: var(--ui-bg-soft);
+  color: var(--ui-text-body);
+}
+.jpd-box__empty {
+  font-size: 9px;
+  color: var(--ui-text-muted);
+}
+
+/* Bloco desabilitado em massa + <details> — os dois são caixa tracejada. */
+.jpd-locked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-2);
+  border: 1px dashed var(--ui-hairline-strong);
+  border-radius: var(--ui-radius-panel);
+  padding: var(--ui-space-2);
+}
+.jpd-locked__hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--ui-text-muted);
+}
+.jpd-locked__body {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0.5;
+}
+.jpd-disclosure {
+  border: 1px dashed var(--ui-hairline-strong);
+  border-radius: var(--ui-radius-panel);
+  padding: var(--ui-space-2);
+}
+.jpd-disclosure__summary {
+  cursor: pointer;
+  user-select: none;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ui-text-soft);
+}
+.jpd-disclosure__body {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ------------------------------------------------------- casca do editor */
+
+.jpd-designer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-3);
+  min-height: 0;
+}
+.jpd-designer__main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ui-space-5);
+}
+/* A caixa que ROLA. O canvas tem largura inline fixa (conteúdo x zoom), e é
+   `min-width: 0` que deixa ESTA caixa encolher abaixo dele — sem isso o
+   painel lateral é empurrado fora da viewport. */
+.jpd-designer__canvas {
+  min-width: 0;
+  flex: 1 1 0%;
+  overflow-x: auto;
+}
+/* Convive com `.jpd-card` no mesmo elemento: borda/raio/fundo vêm de lá,
+   largura/padding/coluna vêm daqui. */
+.jpd-sidebar {
+  display: flex;
+  width: 336px;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: var(--ui-space-3);
+  padding: var(--ui-space-4);
+}
+.jpd-sidebar__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* "N campos selecionados". */
+.jpd-sidebar__banner {
+  font-size: 11px;
+  color: var(--ui-accent);
+}
+.jpd-sidebar__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--ui-hairline);
+  padding-top: 12px;
+}
+/* Poço da lista de campos: rola sozinho em vez de esticar o painel. */
+/* Subiu junto com a altura da linha (padding maior): com 192px caberiam
+   menos campos do que antes, e a lista passaria a rolar onde não rolava. */
+.jpd-fieldlist__scroll {
+  max-height: 232px;
+  overflow-y: auto;
+}
+.jpd-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* ---------------------------------------------------------- barra de abas */
+
+.jpd-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  border-bottom: 1px solid var(--ui-hairline);
+}
+/* Faixa que rola na horizontal sem barra visível — com seis abas em
+   português o conteúdo passa dos 320px do painel. */
+.jpd-tabs__strip {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0%;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.jpd-tabs__strip::-webkit-scrollbar {
+  display: none;
+}
+.jpd-tab {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ui-text-soft);
+  /* A sublinha da aba ativa tem 2px; reservar o espaço aqui evita que a
+     linha inteira pule 2px quando a seleção troca. */
+  border-bottom: 2px solid transparent;
+}
+.jpd-tab[draggable="true"] {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: grab;
+}
+.jpd-tab[draggable="true"]:active {
+  cursor: grabbing;
+}
+/* `[data-active="true"]`, NUNCA `[data-active]`: aba inativa tem
+   `data-active="false"` no DOM (booleano cru serializado por React), e o
+   seletor pelado casaria com TODA aba. */
+.jpd-tab[data-active="true"] {
+  border-bottom-color: var(--ui-accent);
+  color: var(--ui-accent);
+}
+.jpd-tab[data-dragging] {
+  opacity: 0.4;
+}
+.jpd-tab:not([data-active="true"]):hover {
+  color: var(--ui-text);
+}
+/* Setas de rolagem (`data-dir`) e o "+" (sem `data-dir`). */
+.jpd-tabs__btn {
+  border-radius: var(--ui-radius-pill);
+  color: var(--ui-text-muted);
+}
+.jpd-tabs__btn[data-dir] {
+  flex-shrink: 0;
+  padding: 4px;
+}
+.jpd-tabs__btn:hover {
+  background: var(--ui-surface-alt);
+  color: var(--ui-text-body);
+}
+/* Grupo do "+": ancora o popover e vai pro fim da faixa. */
+.jpd-tabs__more {
+  position: relative;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+/* Marca de destino do arraste, ANTES da aba sob o cursor. */
+/* Marca de destino do arraste: --ui-accent (4.96:1 sobre branco) e não
+   --ui-accent-solid (2.8:1). Uma marca de 2px É o indicador — se ela não
+   passa 3:1 contra o fundo, o arraste fica adivinhação. */
+.jpd-tab__dropmark {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: -2px;
+  width: 3px;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-accent);
+}
+/* "Esconder esta aba" — <span role="button">, só na aba ativa. */
+.jpd-tab__pin {
+  margin-right: -4px;
+  cursor: pointer;
+  border-radius: var(--ui-radius-pill);
+  padding: 2px;
+  color: currentcolor;
+  opacity: 0.6;
+}
+.jpd-tab__pin:hover {
+  background: var(--ui-surface-alt-hover);
+  opacity: 1;
+}
+/* Este <svg> não leva classe, e o atributo dele é 14 — 10px é o desenho
+   certo pro "x" dentro da aba. Em SVG2 `width`/`height` são geometry
+   properties, então o CSS vence o atributo. */
+.jpd-tab__pin > svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* Colapso animado do painel: grid 1fr -> 0fr anima a altura sem saber o
+   tamanho do conteúdo. `min-height: 0` é essencial — isto vive dentro de um
+   flex column, e item de flex não encolhe abaixo do próprio conteúdo. */
+.jpd-tabpanel {
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 0;
+  transition: grid-template-rows 0.2s ease;
+}
+.jpd-tabpanel[data-collapsed] {
+  grid-template-rows: 0fr;
+}
+.jpd-tabpanel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------- popover / menu / chip */
+
+.jpd-popover {
+  position: absolute;
+  top: 100%;
+  z-index: 10;
+  border-radius: var(--ui-radius-panel);
+  background: var(--ui-surface);
+}
+.jpd-popover--anchor-right {
+  right: 0;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  box-shadow: var(--ui-shadow-pop);
+}
+.jpd-popover--anchor-stretch {
+  left: 0;
+  right: 0;
+  max-height: 232px;
+  overflow-y: auto;
+  padding: 4px 0;
+  box-shadow: var(--ui-shadow-pop-lg);
+}
+.jpd-menuitem {
+  white-space: nowrap;
+  border-radius: var(--ui-radius-control);
+  padding: var(--ui-space-1) var(--ui-space-2);
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--ui-text);
+}
+.jpd-menuitem--muted {
+  color: var(--ui-text-soft);
+}
+.jpd-menuitem[data-active] {
+  background: var(--ui-accent-wash-strong);
+}
+.jpd-menuitem:hover {
+  background: var(--ui-accent-wash);
+}
+.jpd-menuitem--muted:hover {
+  background: var(--ui-surface-alt);
+}
+.jpd-menu__sep {
+  margin: 2px 0;
+  border-top: 1px solid var(--ui-hairline);
+}
+
+/* Chip monoespaçado: arrastável (fonte/coluna) ou clicável (fórmula). */
+/* Chip = pílula creme sem moldura; a borda transparente é o gancho pro
+   hover violeta (alvo de arraste). */
+.jpd-chip {
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-bg-soft);
+  padding: 3px 10px;
+  font-family: var(--ui-font-mono);
+  font-size: 10px;
+  color: var(--ui-text-body);
+}
+.jpd-chip--source {
+  cursor: grab;
+}
+.jpd-chip--source:active {
+  cursor: grabbing;
+}
+.jpd-chip--source:hover {
+  border-color: var(--ui-section-line);
+  background: var(--ui-section-wash);
+}
+/* Chip de reordenar coluna: vira linha (alça + rótulo + botões) e NEUTRALIZA
+   o hover violeta da base — a lista de colunas não é alvo de drop. Precisa
+   vir DEPOIS do `--source:hover`: mesma especificidade, decide a ordem. */
+.jpd-chip--drag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--ui-bg-soft);
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.jpd-chip--drag[data-dragging] {
+  opacity: 0.4;
+}
+.jpd-chip--drag:hover {
+  border-color: transparent;
+  background: var(--ui-bg-soft);
+}
+.jpd-chip__label {
+  flex: 1;
+}
+.jpd-chip__grip {
+  color: var(--ui-text-muted);
+}
+.jpd-chip--action {
+  background: var(--ui-bg-soft);
+  text-align: left;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.jpd-chip--action:hover {
+  border-color: var(--ui-accent-line);
+  background: var(--ui-accent-wash);
+  color: var(--ui-accent-hover);
+}
+/* Lista de campos vinculáveis do modal de fórmula. */
+.jpd-chiplist {
+  display: flex;
+  max-height: 288px;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Ícone de aviso na aba / na linha de campo. */
+.jpd-warnicon {
+  flex-shrink: 0;
+  color: var(--ui-warn-strong);
+}
+/* 12px em vez dos 14 do atributo — a barra de abas é apertada. */
+.jpd-warnicon--sm {
+  width: 12px;
+  height: 12px;
+}
+
+/* ---------------------------------------------------------------- callout */
+
+/* Caixa de dica/aviso: tracejada por padrão, `--solid` quando é ação. */
+/* Tracejada por padrão: aqui a borda é DICA, não moldura — é a segunda
+   exceção semântica do tema (a primeira é a dropzone). */
+.jpd-callout {
+  border: 1px dashed var(--ui-hairline-strong);
+  border-radius: var(--ui-radius-panel);
+  padding: var(--ui-space-2);
+}
+.jpd-callout--roomy {
+  padding: var(--ui-space-3);
+}
+.jpd-callout--solid {
+  border-style: solid;
+}
+.jpd-callout[data-tone="purple"] {
+  border-color: var(--ui-section-line-soft);
+  background: var(--ui-section-wash-faint);
+}
+.jpd-callout--solid[data-tone="purple"] {
+  background: var(--ui-section-wash);
+}
+.jpd-callout[data-tone="sky"] {
+  border-color: var(--ui-accent-line-soft);
+  background: var(--ui-accent-wash-faint);
+}
+.jpd-callout--solid[data-tone="sky"] {
+  border-color: var(--ui-accent-line-faint);
+  background: var(--ui-accent-wash);
+  border-radius: var(--ui-radius-control);
+}
+.jpd-callout[data-tone="slate"] {
+  border-color: var(--ui-hairline-strong);
+}
+.jpd-callout__title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ui-section-strong);
+}
+.jpd-callout__title--strong {
+  font-size: 12px;
+  color: var(--ui-section-deep);
+}
+.jpd-callout__title--neutral {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ui-text-body);
+}
+.jpd-callout__hint {
+  font-size: 10px;
+  color: var(--ui-section);
+}
+.jpd-callout__icon {
+  color: var(--ui-accent);
+}
+.jpd-callout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* Lista rolável de colunas disponíveis da fonte. */
+.jpd-callout__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 152px;
+  overflow-y: auto;
+}
+.jpd-callout__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  border-radius: var(--ui-radius-xs);
+  padding: 2px 4px;
+  font-size: 11px;
+}
+.jpd-callout__item:hover {
+  background: var(--ui-section-wash-strong);
+}
+.jpd-callout__item:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 1px;
+}
+.jpd-callout__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ------------------------------------------------------- seletor de paleta */
+
+.jpd-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jpd-palette__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-bg-soft);
+  padding: var(--ui-pad-control);
+  font-size: 12.5px;
+  color: var(--ui-text);
+  cursor: pointer;
+}
+.jpd-palette__trigger:hover {
+  border-color: var(--ui-accent-line);
+}
+.jpd-palette__trigger:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: 2px;
+}
+.jpd-palette__current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.jpd-palette__empty,
+.jpd-palette__arrow {
+  color: var(--ui-text-muted);
+}
+.jpd-palette__menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--ui-radius-panel);
+  background: var(--ui-surface);
+  padding: var(--ui-space-1);
+}
+.jpd-palette__menu[data-variant="grid"] {
+  gap: var(--ui-space-2);
+  max-height: 264px;
+  overflow-y: auto;
+  padding: var(--ui-space-2);
+}
+.jpd-palette__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jpd-palette__grouplabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ui-text-muted);
+}
+.jpd-palette__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+.jpd-palette__option {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  border-radius: var(--ui-radius-control);
+  padding: var(--ui-space-1) var(--ui-space-2);
+  text-align: left;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.jpd-palette__menu[data-variant="grid"] .jpd-palette__option {
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+.jpd-palette__option[data-selected] {
+  background: var(--ui-accent-wash-strong);
+}
+.jpd-palette__option:hover {
+  background: var(--ui-accent-wash);
+}
+.jpd-palette__optionlabel {
+  color: var(--ui-text);
+}
+
+.jpd-swatches {
+  display: flex;
+  gap: 4px;
+}
+.jpd-swatches[data-size="sm"] {
+  gap: 2px;
+}
+.jpd-swatch {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: var(--ui-radius-pill);
+  border: 1px solid var(--ui-swatch-ring);
+}
+/* Na tabela as bolinhas encolhem pra três caberem numa célula de duas
+   colunas — por isso o `flex-shrink: 0` da base é desfeito aqui. */
+.jpd-swatches[data-size="sm"] .jpd-swatch {
+  width: 14px;
+  height: 14px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Seletor de ícone do KPI. */
+.jpd-iconpick {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--ui-space-1);
+  max-height: 152px;
+  overflow-y: auto;
+  border-radius: var(--ui-radius-panel);
+  background: var(--ui-bg-soft);
+  padding: var(--ui-space-2);
+}
+.jpd-iconpick__empty {
+  grid-column: 1 / -1;
+  padding: 8px 0;
+  text-align: center;
+}
+.jpd-iconpick__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-surface);
+  padding: var(--ui-space-1);
+  color: var(--ui-text-body);
+}
+.jpd-iconpick__item[data-selected] {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent-wash-strong);
+  color: var(--ui-accent);
+}
+.jpd-iconpick__item:hover {
+  border-color: var(--ui-accent-line);
+  background: var(--ui-accent-wash);
+}
+/* As 7 cores da paleta customizada do gráfico. */
+.jpd-colorgrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+/* ------------------------------------------------ modal de fórmula / filtro */
+
+/* O único ponto responsivo: uma coluna até 40rem de viewport, duas daí pra
+   cima (barra de campos + editor). */
+.jpd-formula {
+  display: grid;
+  gap: var(--ui-space-5);
+}
+@media (min-width: 40rem) {
+  .jpd-formula {
+    /* 13rem e não as 11rem originais: o chip virou pílula com 10px de
+       padding horizontal, e o caminho mais longo (`rows.ticket_airline_code`)
+       passava 4px da coluna — a lista de caminhos ganhava barra HORIZONTAL
+       onde antes não tinha. Espaçamento generoso cobra largura; é aqui que
+       ele cobrou. */
+    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+  }
+}
+.jpd-formula__sources,
+.jpd-formula__editor {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Âncora do popover de sugestões — o `position: relative` é a função dela. */
+.jpd-suggest {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jpd-suggest__item {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.jpd-suggest__name {
+  font-family: var(--ui-font-mono);
+  font-size: 11px;
+  color: var(--ui-text-strong);
+}
+
+.jpd-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-1);
+  border-radius: var(--ui-radius-panel);
+  background: var(--ui-bg-soft);
+  padding: var(--ui-space-2);
+}
+/* "OU" entre grupos e "E" entre condições. O "E" mora dentro da fileira, e
+   precisa de largura fixa pra alinhar com os campos de cima. */
+.jpd-filter-group__joiner {
+  text-align: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ui-text-muted);
+}
+.jpd-filter-group__joiner[data-joiner="and"] {
+  width: 16px;
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------------ modal */
+
+/* O <Modal> do pacote sai por portal em document.body, então NÃO herda nada
+   de `.designer-area` — estas regras são a única aparência que ele tem. */
+.jpd-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-scrim);
+  padding: 16px;
+}
+.jpd-modal__panel {
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+  width: 92vw;
+  max-width: 48rem;
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow-modal);
+  overflow: hidden;
+}
+.jpd-modal__panel[data-size="sm"] {
+  max-width: 28rem;
+}
+.jpd-modal__panel[data-size="md"] {
+  max-width: 36rem;
+}
+.jpd-modal__panel[data-size="lg"] {
+  max-width: 48rem;
+}
+.jpd-modal__panel[data-size="xl"] {
+  max-width: 64rem;
+}
+.jpd-modal__panel[data-size="full"] {
+  max-width: none;
+}
+/* Painel do preview de PDF: altura FIXA, não máxima — o cálculo de zoom
+   dele mede o clientHeight do container. */
+.jpd-modal__panel[data-fill] {
+  height: 92vh;
+  max-height: none;
+}
+.jpd-modal__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--ui-hairline);
+  padding: var(--ui-space-3) var(--ui-space-5);
+}
+.jpd-modal__title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ui-text-strong);
+}
+.jpd-modal__body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--ui-space-5);
+}
+.jpd-modal__footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--ui-hairline);
+  padding: var(--ui-space-3) var(--ui-space-5);
+}
+
+/* Poço do preview de PDF (o <PdfPreview> do pacote). `align-items: center`
+   sem `justify-content`: centraliza na horizontal e alinha ao topo. */
+.jpd-preview__well {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  border-bottom-left-radius: var(--ui-radius-card);
+  border-bottom-right-radius: var(--ui-radius-card);
+  background: var(--ui-bg);
+  padding: var(--ui-space-5);
+}
+.jpd-preview__count {
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--ui-text-soft);
+}
+
+/* -------------------------------------------------- lista/árvore de campos */
+
+/* Uma linha da lista de campos (é <div> no painel e <button> no Inspetor —
+   mesma classe, e é o <button> que exigiu o reset lá em cima). */
+/* Linha de campo: creme, sem moldura. A borda transparente segue aí porque
+   `[data-selected]` a acende em coral — seleção é semântica. */
+.jpd-fieldrow {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--ui-space-1);
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-panel);
+  background: var(--ui-bg-soft);
+  padding: 6px 12px;
+  text-align: left;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.jpd-fieldrow:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: 2px;
+}
+/* Seleção: borda em --ui-accent (não --ui-accent-line, que é rosa claro e
+   dá 2:1) MAIS o fundo em coral lavado. Estado precisa de 3:1. */
+.jpd-fieldrow[data-selected] {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent-wash-strong);
+}
+/* O `:not()` importa: sem ele o hover apagaria o fundo de seleção. */
+.jpd-fieldrow:not([data-selected]):hover {
+  background: var(--ui-surface-alt);
+}
+/* Sub-linha de KPI: mais discreta que a linha-mãe. */
+.jpd-fieldrow--sub {
+  border-color: transparent;
+  background: transparent;
+  font-size: 12.5px;
+}
+/* `data-absent` = o sub-elemento não existe no schema. */
+.jpd-fieldrow[data-absent] {
+  opacity: 0.5;
+}
+.jpd-fieldrow__main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 12px;
+}
+.jpd-fieldrow__name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jpd-fieldrow__name--sub {
+  color: var(--ui-text-body);
+}
+/* Coluna x/y e coluna z do Inspetor — dois degraus de cinza, o z mais
+   apagado. */
+.jpd-fieldrow__pos {
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: var(--ui-text-muted);
+}
+.jpd-fieldrow__z {
+  flex-shrink: 0;
+  color: var(--ui-text-faint);
+}
+/* Renomear inline. Não é `.jpd-input` (depende de autoFocus + commit no
+   onBlur), então leva o desenho na mão. `padding` só no eixo horizontal de
+   propósito: o 1px vertical do UA é o que mantém a altura da linha. */
+.jpd-fieldrow__rename {
+  width: 104px;
+  border: 1px solid var(--ui-accent);
+  border-radius: var(--ui-radius-xs);
+  background: var(--ui-surface);
+  padding-left: 4px;
+  padding-right: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ui-text);
+}
+.jpd-fieldrow__rename:focus {
+  outline: none;
+  box-shadow: var(--ui-ring-focus);
+}
+/* Sub-lista de KPI: auto-contida (não soma com `.jpd-list`, que disputaria
+   margin/padding na mesma especificidade). */
+.jpd-sublist {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 0 12px;
+  padding: 0 0 0 8px;
+  border-left: 1px solid var(--ui-hairline);
+}
+
+/* ==========================================================================
+   CANVAS — a folha de papel
+
+   Aqui é papel branco: nada tem variante escura, e as cores são as do PDF
+   que vai sair (faixa vermelha de cabeçalho/rodapé, seleção azul, travado
+   âmbar, seção violeta).
+   ========================================================================= */
+
+/* `.jpd-canvas` é o retângulo externo (dimensão já multiplicada pelo zoom,
+   inline) e `.jpd-canvas__zoom` é quem recebe o `transform: scale()` inline
+   — daqui vai só a ORIGEM dele. */
+.jpd-canvas {
+  position: relative;
+}
+.jpd-canvas__zoom {
+  transform-origin: top left;
+}
+/* `display: flex` puro, e NÃO `.jpd-row`: o gap de 8px de lá empurraria a
+   folha pra direita da régua vertical. */
+.jpd-canvas__row {
+  display: flex;
+}
+
+/* A folha. Sem `position` aqui — ela já vem `position: relative` inline, e é
+   esse o ancestral posicionado que os campos (react-rnd, absolute) exigem.
+   Sem `width`/`height` também: vêm de milímetros x zoom, inline. */
+.jpd-page {
+  background: var(--ui-paper);
+  box-shadow: var(--ui-shadow-paper);
+}
+/* Letterhead/modelo PNG atrás dos campos. */
+.jpd-page__bg {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Véu do modo isolado: escurece o CORPO da folha pra sobrar só as faixas.
+   As quatro arestas são calculadas em mm e ficam inline. */
+.jpd-page__dim {
+  pointer-events: none;
+  position: absolute;
+  background: var(--ui-page-dim);
+}
+/* Quadriculado. Os gradientes são fixos; o PASSO (`background-size`) vem de
+   gridSizeMm e fica inline. */
+.jpd-grid-overlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--ui-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--ui-grid-line) 1px, transparent 1px);
+}
+/* Caixa de seleção por arraste. Posição/tamanho vêm do mouse ao vivo e
+   ficam inline. */
+.jpd-marquee {
+  pointer-events: none;
+  position: absolute;
+  z-index: 20;
+  border: 1px solid var(--ui-accent);
+  background: var(--ui-accent-veil);
+}
+
+/* --- faixas de cabeçalho / rodapé / margem -------------------------------
+   Uma classe + `data-band`. A base declara `border: 0 dashed`, e cada faixa
+   só liga a LARGURA do lado que interessa: assim o estilo `dashed` já está
+   no lugar quando a largura chega. A ESPESSURA da faixa (mm->px) é inline. */
+.jpd-band {
+  pointer-events: none;
+  position: absolute;
+  overflow: hidden;
+  border: 0 dashed var(--ui-danger-line);
+  background: var(--ui-danger-veil);
+}
+.jpd-band[data-band="header"] {
+  left: 0;
+  right: 0;
+  top: 0;
+  border-bottom-width: 1px;
+}
+.jpd-band[data-band="footer"] {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-top-width: 1px;
+}
+.jpd-band[data-band="left"] {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-right-width: 1px;
+}
+.jpd-band[data-band="right"] {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  border-left-width: 1px;
+}
+/* Etiqueta da faixa. As verticais giram 90 graus a partir do canto certo. */
+.jpd-band__label {
+  position: absolute;
+  border-radius: var(--ui-radius-paper);
+  background: var(--ui-danger-solid);
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--ui-text-on-danger);
+}
+.jpd-band__label[data-band="header"],
+.jpd-band__label[data-band="footer"] {
+  left: 4px;
+  top: 2px;
+}
+.jpd-band__label[data-band="left"],
+.jpd-band__label[data-band="right"] {
+  top: 4px;
+  white-space: nowrap;
+  transform: rotate(90deg);
+}
+.jpd-band__label[data-band="left"] {
+  left: 2px;
+  transform-origin: left top;
+}
+.jpd-band__label[data-band="right"] {
+  right: 2px;
+  transform-origin: right top;
+}
+
+/* --- a caixa de campo (o <Rnd>) -----------------------------------------
+   NADA de `width`/`height`/`transform`/`position`/`cursor` aqui: os quatro
+   primeiros vêm inline do react-rnd/re-resizable (que também força
+   `box-sizing`), e o cursor é injetado inline por ele — declarar qualquer um
+   faz o campo fugir do cursor no arraste.
+
+   ORDEM IMPORTA: `[data-locked]` vem ANTES de `[data-selected]`. As duas
+   têm especificidade (0,2,0), e num campo travado E selecionado o desenho
+   certo é o da SELEÇÃO — ou seja, a última ganha. */
+.jpd-field {
+  border: 1px dashed var(--ui-hairline-strong);
+  transition: box-shadow 0.15s ease;
+}
+.jpd-field[data-locked] {
+  border-color: var(--ui-warn-line);
+}
+/* A borda do campo selecionado é o indicador mais importante do editor, e
+   fica sobre PAPEL BRANCO: --ui-accent-solid (o coral claro do brief) dá só
+   2.8:1 ali, então quem desenha a borda é --ui-accent (4.96:1) e o coral
+   claro fica no halo (--ui-ring-select), que é decoração. */
+.jpd-field[data-selected] {
+  border: 2px solid var(--ui-accent);
+  box-shadow: var(--ui-ring-select);
+}
+/* Campo de outra zona no modo isolado. */
+.jpd-field[data-wrongmode] {
+  opacity: 0.55;
+}
+/* `[data-editing]` fica SEM regra de propósito: o que ele controlava
+   (`cursor: text`) tem de ser inline pra vencer o cursor do react-rnd. Segue
+   no DOM como gancho pra quem quiser marcar a célula em edição. */
+
+/* --- régua --------------------------------------------------------------
+   `stroke`/`fill` como PROPRIEDADE CSS: são atributos de apresentação no
+   SVG, e atributo de apresentação perde de qualquer regra de autor. */
+.jpd-ruler {
+  flex-shrink: 0;
+  user-select: none;
+  background: var(--ui-bg-soft);
+}
+.jpd-ruler__tick {
+  stroke: var(--ui-text-muted);
+  stroke-width: 0.5;
+}
+.jpd-ruler__tick[data-major] {
+  stroke-width: 1;
+}
+.jpd-ruler__label {
+  fill: var(--ui-text-soft);
+}
+/* Quadradinho no cruzamento das duas réguas — a largura é a espessura da
+   régua e fica inline. */
+.jpd-ruler__corner {
+  flex-shrink: 0;
+}
+
+/* --- barra de zoom ----------------------------------------------------- */
+.jpd-zoombar {
+  pointer-events: auto;
+  position: sticky;
+  bottom: 16px;
+  left: 0;
+  margin-top: 16px;
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-zoombar-bg);
+  padding: var(--ui-space-1) var(--ui-space-2);
+  color: var(--ui-text-on-dark);
+  box-shadow: var(--ui-shadow-zoombar);
+  backdrop-filter: blur(8px);
+}
+.jpd-zoombar__btn {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ui-radius-pill);
+}
+.jpd-zoombar__btn:hover {
+  background: var(--ui-chrome-fill-hover);
+}
+.jpd-zoombar__btn:focus-visible {
+  outline: 2px solid var(--ui-text-on-dark);
+  outline-offset: 1px;
+}
+.jpd-zoombar__value {
+  width: 40px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.jpd-zoombar__sep {
+  margin: 0 4px;
+  width: 1px;
+  height: 16px;
+  background: var(--ui-chrome-fill-hover);
+}
+
+/* --- campo SEÇÃO -------------------------------------------------------
+   ATENÇÃO: as duas classes daqui são lidas por JAVASCRIPT, não só por CSS.
+   `.jpd-section__body` é testada com classList.contains() no hit-test de
+   área vazia do PageCanvas, e `.jpd-section__handle` vai pro
+   `dragHandleClassName` do react-rnd. Estilizar pode, renomear/remover
+   quebra arraste e seleção sem erro no console. */
+.jpd-section__body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--ui-radius-paper-lg);
+  border: 2px dashed var(--ui-section-line);
+  background: var(--ui-section-veil);
+}
+.jpd-section__handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  height: 16px;
+  align-items: center;
+  cursor: move;
+  border-top-left-radius: var(--ui-radius-paper);
+  border-top-right-radius: var(--ui-radius-paper);
+  background: var(--ui-section);
+  padding: 0 6px;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--ui-text-on-section);
+}
+/* A altura de 16px acima é replicada em mm pelo hit-test da caixa de
+   seleção (SECTION_HEADER_HEIGHT_MM = pxToMm(16) no pacote) — mudar uma
+   desalinha a outra. */
+
+/* --- campo GRÁFICO ----------------------------------------------------- */
+.jpd-chart__bars,
+.jpd-chart__frame {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--ui-radius-paper-lg);
+  border: 1px solid var(--ui-hairline);
+  background: var(--ui-surface);
+}
+.jpd-chart__bars {
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+}
+.jpd-chart__frame {
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 6px;
+}
+/* Cada barra: a altura é fixa; a LARGURA (% do valor) e a cor da paleta
+   ficam inline. */
+.jpd-chart__bar {
+  height: 8px;
+  border-radius: var(--ui-radius-paper);
+}
+.jpd-chart__svg {
+  flex-shrink: 0;
+}
+.jpd-chart__legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1;
+  color: var(--ui-text-body);
+}
+.jpd-chart__dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: var(--ui-radius-pill);
+}
+/* Arranjo donut+legenda: a ORDEM dos filhos já vem do JSX, daqui vai só o
+   eixo. */
+.jpd-chart__layout {
+  display: flex;
+  align-items: center;
+}
+.jpd-chart__layout[data-legend="top"],
+.jpd-chart__layout[data-legend="bottom"] {
+  flex-direction: column;
+  gap: 4px;
+}
+.jpd-chart__layout[data-legend="left"],
+.jpd-chart__layout[data-legend="right"] {
+  gap: 8px;
+}
+
+/* --- campo TABELA -----------------------------------------------------
+   `table-layout: fixed` trava a largura das colunas na divisão calculada
+   (igual à geração real do PDF). Sem ele uma célula com token comprido
+   alarga a coluna e a tabela estoura pra fora do campo. */
+.jpd-fieldtable {
+  width: 100%;
+  height: 100%;
+  font-size: 10px;
+  table-layout: fixed;
+}
+/* Recorta os cantos arredondados da moldura inteira de uma vez; os raios
+   vêm do template em mm e ficam inline. */
+.jpd-table__wrap {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+/* Cor de fundo, cor de texto, tamanho de fonte, alinhamento e cor de borda
+   vêm do TEMPLATE (por coluna) e continuam inline — daqui vai o resto. */
+.jpd-table__cell {
+  border: 1px solid var(--ui-hairline-strong);
+  padding: 4px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Só o cabeçalho ancora o handle de redimensionar coluna. */
+.jpd-table__cell[data-role="head"] {
+  position: relative;
+}
+.jpd-table__cell[data-role="foot"] {
+  font-weight: 600;
+}
+/* Zebrado embutido. Três estados no JSX: sem zebra (nada), zebra com cor do
+   template (inline, e inline vence isto) e zebra sem cor (só esta regra) —
+   por isso `[data-banded]` e não uma classe escolhida no JSX. */
+.jpd-table__row[data-banded] {
+  background: var(--ui-bg-soft);
+}
+/* Divisor entre duas colunas; o translateX centra a pega em cima da borda. */
+.jpd-table__resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 10;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  transform: translateX(50%);
+}
+.jpd-table__resizer:hover {
+  background: var(--ui-accent-grab);
+}
+/* Célula em edição: o <input> tem de desaparecer DENTRO da célula, sem
+   caixa branca nem borda do sistema. */
+.jpd-cell-input {
+  width: 100%;
+  border: 0 solid;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  padding: 0;
+}
+/* Camada de texto no modo de edição — só a célula CLICADA vira input.
+   `min-height: 1em` garante alvo de clique em célula vazia. */
+.jpd-cell-text {
+  cursor: text;
+  min-height: 1em;
+}
+
+/* --- campo KPI --------------------------------------------------------
+   Posição (mm->px), largura máxima e tamanho de fonte (pt->px) são cálculo
+   e ficam inline — têm de bater ponto a ponto com o render do PDF. */
+.jpd-kpi {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.jpd-kpi__box {
+  position: absolute;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.jpd-kpi__box[data-draggable] {
+  cursor: move;
+}
+.jpd-kpi__box[data-focused] {
+  outline: 1px dashed currentcolor;
+  outline-offset: 2px;
+}
+.jpd-kpi__part[data-part="title"] {
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  opacity: 0.9;
+}
+.jpd-kpi__part[data-part="value"] {
+  font-weight: 700;
+  line-height: 1.25;
+}
+.jpd-kpi__part[data-part="subtitle"] {
+  opacity: 0.8;
+}
+
+/* --- campo IMAGEM ----------------------------------------------------- */
+.jpd-imagefield__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.jpd-image-placeholder {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ui-radius-paper-lg);
+  border: 1px dashed var(--ui-hairline-strong);
+  font-size: 11px;
+  color: var(--ui-text-muted);
+}
+
+/* --- campo TEXTO ------------------------------------------------------
+   Duas formas do MESMO campo: <textarea> em edição, <div> fora dela.
+   Tamanho de fonte, cor, alinhamento, fundo e borda vêm do TEMPLATE e
+   continuam inline — são dado, não tema. */
+.jpd-textfield {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 2px;
+  white-space: pre-wrap;
+}
+.jpd-textfield--editing {
+  font: inherit;
+  font-family: inherit;
+  color: inherit;
+  background: transparent;
+  resize: none;
+  border: 0 solid;
+  outline: none;
+}
+.jpd-textfield--static {
+  overflow: hidden;
 }

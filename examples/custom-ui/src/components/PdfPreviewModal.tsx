@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { I18nProvider, downloadPdf } from "json-pdf-designer";
+import { I18nProvider, dictFor, downloadPdf } from "json-pdf-designer";
 // PdfPreview (canvas do pdf.js) mora no entry "/preview" — peer opcional
 // pdfjs-dist, instalado por este example porque ele usa o preview.
 import { PdfPreview } from "json-pdf-designer/preview";
@@ -20,9 +20,10 @@ type Props = {
   page: PageSize;
   // Nome do arquivo ao baixar, sem ".pdf".
   name?: string;
-  // Só pro <PdfPreview> (mensagens de carregando/erro dele usam useT());
-  // fora de um I18nProvider ele cairia no inglês fixo do default do
-  // contexto, ignorando o idioma escolhido no header.
+  // Serve a DUAS coisas: o <I18nProvider> em volta do <PdfPreview> (as
+  // mensagens de carregando/erro dele usam useT(); fora de um provider ele
+  // cairia no inglês fixo do default do contexto) e os rótulos da casca deste
+  // modal — que aqui saem todos de `dictFor`, ver abaixo.
   locale?: Locale;
   onClose: () => void;
 };
@@ -43,6 +44,13 @@ type Props = {
 export default function PdfPreviewModal({ bytes, page, name, locale, onClose }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState<number | null>(null);
+
+  // ZERO entrada no dicionário próprio: título, "Baixar", o "x" e o nome
+  // default do arquivo são todos conceitos DO PACOTE — ele exporta um
+  // PdfPreviewModal pronto com exatamente estes rótulos (`dict.pdfPreviewModal`,
+  // `dict.modal.close`). Este example só reescreve a MARCAÇÃO do modal; o
+  // vocabulário continua sendo dele, então `dictFor` em vez de duplicar.
+  const dict = dictFor(locale ?? "en");
 
   const pageWidthPt = page.width * MM_TO_PT;
   const pageHeightPt = page.height * MM_TO_PT;
@@ -68,12 +76,16 @@ export default function PdfPreviewModal({ bytes, page, name, locale, onClose }: 
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal modal-preview" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h3 className="modal-title">Pré-visualização do PDF</h3>
+          <h3 className="modal-title">{dict.pdfPreviewModal.title}</h3>
           <div className="modal-actions">
-            <button type="button" className="btn btn-primary" onClick={() => downloadPdf(bytes, `${name ?? "relatorio"}.pdf`)}>
-              ⭳ Baixar
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => downloadPdf(bytes, `${name ?? dict.pdfPreviewModal.defaultFileName}.pdf`)}
+            >
+              ⭳ {dict.pdfPreviewModal.download}
             </button>
-            <button type="button" className="btn-icon" onClick={onClose} aria-label="Fechar">
+            <button type="button" className="btn-icon" onClick={onClose} aria-label={dict.modal.close}>
               ×
             </button>
           </div>

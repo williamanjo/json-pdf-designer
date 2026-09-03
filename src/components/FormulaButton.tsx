@@ -28,11 +28,12 @@ export function FormulaButton({ target, sources, showDataType, active }: Props) 
         onClick={() => setOpen(true)}
         aria-label={t.formulaModal.openAria(target.label)}
         title={t.formulaModal.openTitle}
-        className={`font-serif italic ${
-          open || active
-            ? "text-sky-600 dark:text-blue-400"
-            : "text-slate-400 hover:text-sky-600 dark:text-gray-400 dark:hover:text-blue-400"
-        }`}
+        // `jpd-iconbtn--accent` + `data-on` é o MESMO par de estados do ƒx da
+        // lista de colunas (PropertyPanelTable) — as duas strings de cor eram
+        // byte-idênticas. O que é só deste botão é o glifo em serifada
+        // itálica, que mora em `jpd-fx`.
+        className="jpd-iconbtn jpd-iconbtn--accent jpd-fx"
+        data-on={open || active || undefined}
       >
         ƒx
       </button>

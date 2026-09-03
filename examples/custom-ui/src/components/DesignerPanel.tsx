@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Designer, classifyZone, makeSectionColumnPair } from "json-pdf-designer";
+import { Designer, classifyZone, dictFor, makeSectionColumnPair } from "json-pdf-designer";
 import type { Binding, Locale, Schema, SectionSchema, TableSchema, Template, TextSchema } from "json-pdf-designer";
 import type { FieldNode } from "../lib/jsonExplorer";
 import { sanitizeName } from "../lib/jsonExplorer";
 import { uid } from "../lib/uid";
+import { t } from "../i18n";
 import FieldTree from "./FieldTree";
 
 type Props = {
@@ -17,7 +18,10 @@ type Props = {
   onChangeTemplate: React.Dispatch<React.SetStateAction<Template>>;
   onChangeBindings: React.Dispatch<React.SetStateAction<Binding[]>>;
   openFieldPickerRef?: React.MutableRefObject<(() => void) | null>;
-  locale?: Locale;
+  // Obrigatório: alimenta o <Designer> (chrome do editor) E o modal de picker
+  // daqui (casca). Deixá-lo opcional deixaria o modal cair num idioma fixo
+  // sem ninguém notar.
+  locale: Locale;
 };
 
 function nextFreeY(schemas: Schema[]): number {
@@ -46,6 +50,7 @@ export default function DesignerPanel({
   locale,
 }: Props) {
   const [showFieldPicker, setShowFieldPicker] = useState(false);
+  const d = t(locale);
 
   useEffect(() => {
     if (openFieldPickerRef) openFieldPickerRef.current = () => setShowFieldPicker(true);
@@ -172,15 +177,24 @@ export default function DesignerPanel({
         <div className="modal-overlay" onClick={() => setShowFieldPicker(false)}>
           <div className="modal modal-picker" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
-              <h3 className="modal-title">Campos do JSON</h3>
-              <button type="button" className="btn-icon" onClick={() => setShowFieldPicker(false)} aria-label="Fechar">
+              <h3 className="modal-title">{d.fieldsTitle}</h3>
+              {/* "Fechar" de modal é conceito DO PACOTE (ele já traduz o "x"
+                  da própria casca de modal em `dict.modal.close`) — sai de
+                  `dictFor` em vez de virar mais uma entrada nossa. */}
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => setShowFieldPicker(false)}
+                aria-label={dictFor(locale).modal.close}
+              >
                 ×
               </button>
             </div>
-            <p className="hint">Clique em + pra adicionar direto no canvas (sem arrastar).</p>
+            <p className="hint">{d.pickerHint}</p>
             <div className="modal-body">
               <FieldTree
                 fields={fields}
+                locale={locale}
                 onAdd={(field) => {
                   addFieldToCanvas(field);
                   setShowFieldPicker(false);

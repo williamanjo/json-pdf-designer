@@ -143,7 +143,10 @@ export function makeKpiSchema(nextY: number, t: Dict = en): KpiSchema {
   };
 }
 
-export function nextFreeY(schemas: Schema[]): number {
+// `gridMm` vem da config do <Designer> (gridSizeMm). Sem o parametro, um
+// grid customizado alinhava o ARRASTO (PageCanvas ja recebia a prop) mas nao
+// o NASCIMENTO do campo — campo novo caia fora da propria grade do consumidor.
+export function nextFreeY(schemas: Schema[], gridMm?: number): number {
   if (schemas.length === 0) return 10;
-  return snapToGrid(Math.max(...schemas.map((s) => s.y + s.height)) + 5);
+  return snapToGrid(Math.max(...schemas.map((s) => s.y + s.height)) + 5, gridMm);
 }

@@ -28,7 +28,7 @@ export function ImageField({ schema, onUpdate }: { schema: ImageSchema; onUpdate
         e.stopPropagation();
         pickFile();
       }}
-      style={{ width: "100%", height: "100%", objectFit: "contain" }}
+      className="jpd-imagefield__img"
     />
   ) : (
     <div
@@ -36,7 +36,7 @@ export function ImageField({ schema, onUpdate }: { schema: ImageSchema; onUpdate
         e.stopPropagation();
         pickFile();
       }}
-      className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-slate-300 text-[11px] text-slate-400 dark:border-gray-500 dark:text-gray-500"
+      className="jpd-image-placeholder"
     >
       {t.image.dropHint}
     </div>

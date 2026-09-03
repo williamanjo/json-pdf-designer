@@ -1,7 +1,14 @@
 import inflate from "tiny-inflate";
+import { FontDecompressFailedError, FontDecompressTimeoutError, Woff2SupportMissingError } from "../errors";
 
 const WOFF2_SIGNATURE = 0x774f4632; // "wOF2"
 const WOFF1_SIGNATURE = 0x774f4646; // "wOFF"
+
+// Teto de espera pela descompressão WOFF2 (ver withTimeout abaixo). Vive numa
+// constante porque ele vai pro DADO do erro (FontDecompressTimeoutError.
+// timeoutMs) — antes o número aparecia só dentro da frase da mensagem, e
+// quem capturava não tinha como saber quanto foi esperado.
+const WOFF2_TIMEOUT_MS = 8000;
 
 function readUint32(view: DataView): number {
   return view.getUint32(0, false);
@@ -128,11 +135,7 @@ async function loadDecompressBinding(): Promise<{
     const mod = await import(/* @vite-ignore */ "wawoff2/build/decompress_binding.js");
     return mod.default ?? mod;
   } catch {
-    throw new Error(
-      "Embedding a .woff2 font needs the optional 'wawoff2' package — " +
-        "run `npm install wawoff2`, or convert the font to .ttf/.otf offline " +
-        "(e.g. via wawoff2 in a throwaway Node script) and pass that instead."
-    );
+    throw new Woff2SupportMissingError();
   }
 }
 
@@ -142,7 +145,7 @@ function decompressWoff2(input: Uint8Array): Promise<Uint8Array> {
       new Promise((resolve, reject) => {
         function run() {
           const result = decompressBinding.decompress(input);
-          if (result === false) reject(new Error("ConvertWOFF2ToTTF failed"));
+          if (result === false) reject(new FontDecompressFailedError("woff2"));
           else resolve(result);
         }
         if (decompressBinding.calledRun) run();
@@ -155,9 +158,9 @@ function decompressWoff2(input: Uint8Array): Promise<Uint8Array> {
 // nosso controle — CSP bloqueando wasm-eval, engine muito antiga etc):
 // sem isso, qualquer outra causa de travamento ainda deixaria quem chamou
 // (generatePdf) esperando pra sempre, sem feedback nenhum pro usuário.
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
+    const timer = setTimeout(() => reject(new FontDecompressTimeoutError("woff2", ms)), ms);
     promise.then(
       (value) => {
         clearTimeout(timer);
@@ -190,13 +193,7 @@ export async function normalizeFontBytes(bytes: Uint8Array | ArrayBuffer): Promi
   const signature = readUint32(view);
 
   if (signature === WOFF2_SIGNATURE) {
-    return withTimeout(
-      decompressWoff2(arr),
-      8000,
-      "Descompressão de WOFF2 travou (instabilidade conhecida do WASM em alguns ambientes) — " +
-        "converta o arquivo pra .ttf/.otf uma vez, offline (wawoff2 rodando em Node, por exemplo), " +
-        "e use esse .ttf/.otf direto como fontBytes."
-    );
+    return withTimeout(decompressWoff2(arr), WOFF2_TIMEOUT_MS);
   }
 
   if (signature === WOFF1_SIGNATURE) {

@@ -15,6 +15,7 @@ import { normalizeFontBytes } from "./fontUtils";
 import { layoutDocument, type LayoutPage, type Placement } from "./layout/layoutDocument";
 import { migrateTemplate } from "../template/migrate";
 import { evaluateConditionLenient } from "../expressions/resolve";
+import { BackgroundImageUnreadableError, InvalidPageSizeError } from "../errors";
 
 export type GeneratePdfOptions = {
   // Teto de páginas físicas do documento — default DEFAULT_MAX_PAGES (5000).
@@ -40,9 +41,7 @@ function pageData(data: unknown, pageNumber: number, pageCount: number): unknown
 function assertFinitePageSize(pageDef: { id: string; page: { width: number; height: number } }): void {
   const { width, height } = pageDef.page;
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    throw new Error(
-      `Página "${pageDef.id}": tamanho inválido (width=${width}, height=${height}) — esperado dois números finitos maiores que zero, em mm.`
-    );
+    throw new InvalidPageSizeError(pageDef.id, width, height);
   }
 }
 
@@ -95,7 +94,8 @@ async function renderLayoutPage(
   // com o mesmo fundo também compartilham).
   let background: PDFImage | null = null;
   if (pageDef.backgroundImage) {
-    assertImageWithinSizeLimit(pageDef.backgroundImage, "Imagem de fundo da página");
+    // `null` = fundo de página, que não tem nome de campo.
+    assertImageWithinSizeLimit(pageDef.backgroundImage, null);
     const cached = backgroundCache.get(pageDef.backgroundImage);
     if (cached) {
       background = cached;
@@ -107,7 +107,7 @@ async function renderLayoutPage(
         // file!"), não um Error — então `catch (e) { e.message }` de quem chama
         // dava `undefined`. Mesmo tratamento que drawImageField já dava ao
         // campo de imagem.
-        throw new Error("Imagem de fundo da página: não deu pra ler esse PNG — arquivo corrompido ou não é PNG.");
+        throw new BackgroundImageUnreadableError();
       }
       backgroundCache.set(pageDef.backgroundImage, background);
     }

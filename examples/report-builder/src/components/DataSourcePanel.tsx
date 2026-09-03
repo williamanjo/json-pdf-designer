@@ -1,16 +1,27 @@
 import { useRef, useState } from "react";
 import { Card, CardTitle, Input, Textarea, IconPlus, IconRefresh, IconUpload, IconX } from "json-pdf-designer";
+import type { Locale } from "json-pdf-designer";
 import { uid } from "../lib/uid";
+import type { SourceProblem } from "../lib/sources";
+import { t, type AppDict } from "../i18n";
 
 export type JsonSource = { id: string; name: string; raw: string };
 
 type Props = {
+  // Mesmo `locale` que vai pro `<I18nProvider>` do editor — a casca e o
+  // pacote leem do mesmo estado, sem sincronização manual.
+  locale: Locale;
   sources: JsonSource[];
   onChangeSources: (sources: JsonSource[]) => void;
   onResync: () => void;
   fieldCount: number;
-  errorsById: Record<string, string>;
+  // MOTIVO do erro de cada fonte, não a frase pronta — ver lib/sources.ts.
+  errorsById: Record<string, SourceProblem>;
 };
+
+function sourceProblemText(problem: SourceProblem, t: AppDict): string {
+  return problem === "invalidJson" ? t.sourceInvalidJson : t.sourceNotObject;
+}
 
 function nameFromFile(file: File): string {
   return file.name.replace(/\.json$/i, "");
@@ -21,17 +32,20 @@ function nameFromFile(file: File): string {
 // sobrescreve em caso de chave repetida) num objeto só antes de vincular
 // campo. "Resync campos" atualiza a lista de campos disponíveis com base
 // nessa mescla.
-export default function DataSourcePanel({ sources, onChangeSources, onResync, fieldCount, errorsById }: Props) {
+export default function DataSourcePanel({ locale, sources, onChangeSources, onResync, fieldCount, errorsById }: Props) {
+  const tx = t(locale);
   const [isDragOver, setIsDragOver] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
-  const [readError, setReadError] = useState<string | null>(null);
+  // Nomes dos arquivos que não deu pra ler — a frase é montada no render, no
+  // idioma atual, em vez de guardada pronta no estado.
+  const [failedFileNames, setFailedFileNames] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function readFileAsText(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result ?? ""));
-      reader.onerror = () => reject(new Error(`Não deu pra ler "${file.name}".`));
+      reader.onerror = () => reject(reader.error);
       reader.readAsText(file);
     });
   }
@@ -42,19 +56,26 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
   // soltar 2+ arquivos de uma vez só mantinha o último (cada um sobrescrevia
   // o anterior em vez de acumular).
   async function addFilesAsSources(files: FileList) {
-    setReadError(null);
-    const results = await Promise.allSettled(Array.from(files).map((file) => readFileAsText(file).then((raw) => ({ file, raw }))));
+    setFailedFileNames([]);
+    // Cada leitura devolve um resultado MARCADO (ok/falhou) em vez de rejeitar
+    // com texto: assim a falha carrega o ARQUIVO, e a frase de erro é
+    // escolhida no render, no idioma atual.
+    const results = await Promise.all(
+      Array.from(files).map((file) =>
+        readFileAsText(file).then(
+          (raw) => ({ ok: true as const, file, raw }),
+          () => ({ ok: false as const, file, raw: "" })
+        )
+      )
+    );
     const newSources: JsonSource[] = [];
-    const failedNames: string[] = [];
+    const failed: string[] = [];
     for (const result of results) {
-      if (result.status === "fulfilled") {
-        newSources.push({ id: uid(), name: nameFromFile(result.value.file), raw: result.value.raw });
-      } else {
-        failedNames.push(result.reason instanceof Error ? result.reason.message : "arquivo desconhecido");
-      }
+      if (result.ok) newSources.push({ id: uid(), name: nameFromFile(result.file), raw: result.raw });
+      else failed.push(result.file.name);
     }
     if (newSources.length > 0) onChangeSources([...sources, ...newSources]);
-    if (failedNames.length > 0) setReadError(failedNames.join(" "));
+    if (failed.length > 0) setFailedFileNames(failed);
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
@@ -68,6 +89,10 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
     e.target.value = "";
   }
 
+  // `fonte_N` NÃO é traduzido (aqui nem no placeholder abaixo): é o
+  // IDENTIFICADOR da fonte, editável pelo usuário e guardado no autosave —
+  // mesma família de `text_a3f2`, o nome de schema que o app gera. Trocar de
+  // idioma não pode renomear o que o usuário já nomeou.
   function addBlankSource() {
     onChangeSources([...sources, { id: uid(), name: `fonte_${sources.length + 1}`, raw: "{}" }]);
   }
@@ -90,13 +115,8 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
 
   return (
     <Card className="flex flex-col gap-2 p-3">
-      <CardTitle>Fontes de dados (JSON)</CardTitle>
-      <p className="text-[11px] text-slate-500">
-        Cole ou arraste um ou mais arquivos .json — cada um vira uma fonte. Na
-        hora de gerar, todas são juntadas (nível superior; em caso de chave
-        repetida, a última fonte da lista vence) num objeto só antes de
-        vincular campo.
-      </p>
+      <CardTitle>{tx.sourcesTitle}</CardTitle>
+      <p className="text-[11px] text-slate-500">{tx.sourcesHelp}</p>
 
       <div
         className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-dashed px-3 py-3 text-center text-[11px] transition-colors ${
@@ -111,10 +131,13 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
         onClick={() => fileInputRef.current?.click()}
       >
         <IconUpload />
-        Solte um ou mais arquivos .json aqui ou clique para escolher
+        {tx.sourcesDropzone}
         <input ref={fileInputRef} type="file" accept="application/json,.json" multiple hidden onChange={handleFilePick} />
       </div>
-      {readError && <p className="text-[11px] text-red-600">{readError}</p>}
+      {failedFileNames.length > 0 && (
+        // Nome do arquivo é dado; só a moldura da frase traduz.
+        <p className="text-[11px] text-red-600">{failedFileNames.map((name) => tx.sourceReadFailed(name)).join(" ")}</p>
+      )}
 
       <div className="flex flex-col gap-2">
         {sources.map((source, i) => (
@@ -130,7 +153,7 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
                 type="button"
                 onClick={() => removeSource(source.id)}
                 className="shrink-0 rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
-                aria-label={`Remover fonte ${source.name}`}
+                aria-label={tx.sourceRemoveAria(source.name)}
               >
                 <IconX />
               </button>
@@ -141,9 +164,16 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
               value={source.raw}
               onChange={(e) => updateSource(source.id, { raw: e.target.value })}
               spellCheck={false}
+              // O placeholder é uma AMOSTRA de JSON — dado, não interface.
+              // "rows"/"status"/"ERRO" são chaves e valores de exemplo, e
+              // traduzi-los ensinaria a chave errada.
               placeholder='{ "rows": [ { "count": "10", "status": "ERRO" } ] }'
             />
-            {errorsById[source.id] && <p className="mt-1 text-[11px] text-red-600">Erro: {errorsById[source.id]}</p>}
+            {errorsById[source.id] && (
+              <p className="mt-1 text-[11px] text-red-600">
+                {tx.sourceErrorPrefix} {sourceProblemText(errorsById[source.id], tx)}
+              </p>
+            )}
           </div>
         ))}
       </div>
@@ -153,7 +183,7 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
         onClick={addBlankSource}
         className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
       >
-        <IconPlus /> nova fonte em branco
+        <IconPlus /> {tx.sourceAddBlank}
       </button>
 
       <div className="flex items-center gap-2.5">
@@ -161,14 +191,10 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
           onClick={handleResyncClick}
           className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-sky-700"
         >
-          <IconRefresh /> Resync campos
+          <IconRefresh /> {tx.sourcesResync}
         </button>
         <span className={`text-[11px] ${errorCount > 0 ? "text-red-600" : justSynced ? "font-semibold text-green-700" : "text-slate-500"}`}>
-          {errorCount > 0
-            ? `${errorCount} fonte(s) com erro`
-            : justSynced
-              ? `✓ ${fieldCount} campo(s) encontrado(s)`
-              : `${fieldCount} campo(s) carregado(s)`}
+          {errorCount > 0 ? tx.sourcesWithError(errorCount) : justSynced ? tx.fieldsFound(fieldCount) : tx.fieldsLoaded(fieldCount)}
         </span>
       </div>
     </Card>

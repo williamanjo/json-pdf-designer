@@ -1,0 +1,24 @@
+{
+  "resumoVendas": {
+    "total": 1240,
+    "ativas": 890,
+    "canceladas": 84,
+    "naoEncontradas": 32,
+    "divergentes": 51,
+    "encontradas": 1157
+  },
+  "vendasPorAgente": [
+    { "label": "Ana Souza", "quantity": 142, "value": 187650.4 },
+    { "label": "Carlos Lima", "quantity": 118, "value": 165230.75 },
+    { "label": "Fernanda Reis", "quantity": 97, "value": 121890.3 },
+    { "label": "Bruno Alves", "quantity": 88, "value": 98420.15 },
+    { "label": "Juliana Costa", "quantity": 76, "value": 87340.6 },
+    { "label": "Marcos Pereira", "quantity": 61, "value": 64510.2 },
+    { "label": "Patricia Gomes", "quantity": 54, "value": 58730.9 },
+    { "label": "Rafael Santos", "quantity": 43, "value": 41280.5 },
+    { "label": "Camila Rocha", "quantity": 39, "value": 36950.25 },
+    { "label": "Diego Martins", "quantity": 31, "value": 28470.8 },
+    { "label": "Larissa Nunes", "quantity": 24, "value": 21340.6 },
+    { "label": "Eduardo Freitas", "quantity": 18, "value": 15680.35 }
+  ]
+}

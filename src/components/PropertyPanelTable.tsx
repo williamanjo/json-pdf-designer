@@ -5,7 +5,8 @@ import type { FieldSources } from "../designer/helpers";
 import { TABLE_PALETTES, TABLE_PALETTE_GROUPS, type TableStylePresetName } from "../table/colors";
 import { BindingEditor } from "./BindingEditor";
 import { FormulaButton } from "./FormulaButton";
-import { Button, ClearFieldButton, ColorInput, Input, PalettePicker, Select } from "./ui";
+import { ClearFieldButton, PalettePicker } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 import { CollapsibleSection } from "./ui/CollapsibleSection";
 import { IconDots, IconGrip, IconPlus, IconX } from "./ui/icons";
 import type { PaletteGroup } from "./ui/PalettePicker";
@@ -29,8 +30,9 @@ function AlignSelects({
   onVAlign: (v: VAlign) => void;
 }) {
   const t = useT();
+  const { Select } = useUiComponents();
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="jpd-grid2">
       <Select label={t.table.alignHorizontal} value={align} onChange={(e) => onAlign(e.target.value as HAlign)}>
         <option value="left">{t.table.alignLeft}</option>
         <option value="center">{t.table.alignCenter}</option>
@@ -61,6 +63,7 @@ function CornerInputs({
   disabledHint?: string;
 }) {
   const t = useT();
+  const { Input } = useUiComponents();
   const cornerLabel: Record<CornerKey, string> = {
     topLeft: t.table.cornerTopLeft,
     topRight: t.table.cornerTopRight,
@@ -68,9 +71,9 @@ function CornerInputs({
     bottomRight: t.table.cornerBottomRight,
   };
   return (
-    <div className="flex flex-col gap-1">
-      <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">{t.table.cornerRadius}</p>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="jpd-stack jpd-stack--tight">
+      <p className="jpd-grouplabel">{t.table.cornerRadius}</p>
+      <div className="jpd-grid2">
         {corners.map((c) => (
           <Input
             key={c}
@@ -83,7 +86,7 @@ function CornerInputs({
           />
         ))}
       </div>
-      {disabledHint && <p className="text-[10px] text-slate-400 dark:text-gray-400">{disabledHint}</p>}
+      {disabledHint && <p className="jpd-hint">{disabledHint}</p>}
     </div>
   );
 }
@@ -126,6 +129,7 @@ export function PropertyPanelTable({
   fieldSources,
 }: Props) {
   const t = useT();
+  const { Button, Checkbox, ColorInput, Input } = useUiComponents();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [styleColIndex, setStyleColIndex] = useState<number | null>(null);
   const bindingColumns = binding?.type === "array" ? binding.columns : null;
@@ -189,16 +193,16 @@ export function PropertyPanelTable({
             }}
           />
           {schema.head.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <p className="text-[10px] font-medium text-slate-500 dark:text-gray-400">{t.table.currentColumnsHint}</p>
-              <ul className="flex flex-col gap-1">
+            <div className="jpd-stack jpd-stack--tight">
+              <p className="jpd-grouplabel">{t.table.currentColumnsHint}</p>
+              <ul className="jpd-list jpd-stack jpd-stack--tight">
                 {schema.head.map((col, i) => {
                   const colStyle = schema.columnStyles?.[i];
                   const styleOpen = styleColIndex === i;
                   const bindingCol = bindingColumns?.[i];
                   const currentFormula = bindingCol && typeof bindingCol !== "string" ? bindingCol.formula : "";
                   return (
-                    <li key={`${col}-${i}`} className="flex flex-col gap-1">
+                    <li key={`${col}-${i}`} className="jpd-stack jpd-stack--tight">
                       <div
                         draggable
                         onDragStart={(e) => {
@@ -212,12 +216,11 @@ export function PropertyPanelTable({
                           setDragIndex(null);
                         }}
                         onDragEnd={() => setDragIndex(null)}
-                        className={`flex cursor-grab items-center gap-1 rounded border border-slate-300 bg-slate-50 px-1.5 py-1 font-mono text-[10px] text-slate-600 active:cursor-grabbing dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 ${
-                          dragIndex === i ? "opacity-40" : ""
-                        }`}
+                        className="jpd-chip jpd-chip--drag"
+                        data-dragging={dragIndex === i || undefined}
                       >
-                        <IconGrip className="text-slate-400" />
-                        <span className="flex-1">{col}</span>
+                        <IconGrip className="jpd-chip__grip" />
+                        <span className="jpd-chip__label">{col}</span>
                         {bindingColumns && (
                           <FormulaButton
                             active={Boolean(currentFormula)}
@@ -236,22 +239,23 @@ export function PropertyPanelTable({
                           onClick={() => setStyleColIndex(styleOpen ? null : i)}
                           aria-label={t.table.styleAria(col)}
                           title={t.table.styleTitle}
-                          className={styleOpen ? "text-sky-600 dark:text-blue-400" : "text-slate-400 hover:text-sky-600 dark:text-gray-400 dark:hover:text-blue-400"}
+                          className="jpd-iconbtn jpd-iconbtn--accent"
+                          data-on={styleOpen || undefined}
                         >
-                          <IconDots />
+                          <IconDots className="jpd-icon" />
                         </button>
                         <button
                           type="button"
                           onClick={() => onRemoveTableColumn?.(i)}
                           aria-label={t.table.removeColAria(col)}
                           title={t.table.removeColTitle}
-                          className="text-slate-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                          className="jpd-iconbtn jpd-iconbtn--danger"
                         >
-                          <IconX />
+                          <IconX className="jpd-icon" />
                         </button>
                       </div>
                       {styleOpen && (
-                        <div className="flex flex-col gap-2 rounded border border-sky-200 bg-sky-50/60 p-2 dark:border-blue-800 dark:bg-blue-900/20">
+                        <div className="jpd-stack jpd-callout jpd-callout--solid" data-tone="sky">
                           <Input
                             label={t.table.columnWidth}
                             type="number"
@@ -264,8 +268,8 @@ export function PropertyPanelTable({
                             }
                           />
                           <div>
-                            <p className="mb-1 text-[10px] font-medium text-slate-500 dark:text-gray-400">{t.table.header}</p>
-                            <div className="grid grid-cols-2 gap-2">
+                            <p className="jpd-grouplabel jpd-grouplabel--spaced">{t.table.header}</p>
+                            <div className="jpd-grid2">
                               <ColorInput
                                 label={t.table.background}
                                 value={colStyle?.headBackgroundColor ?? schema.headBackgroundColor ?? "#0284c7"}
@@ -289,8 +293,8 @@ export function PropertyPanelTable({
                             />
                           </div>
                           <div>
-                            <p className="mb-1 text-[10px] font-medium text-slate-500 dark:text-gray-400">{t.table.value}</p>
-                            <div className="grid grid-cols-2 gap-2">
+                            <p className="jpd-grouplabel jpd-grouplabel--spaced">{t.table.value}</p>
+                            <div className="jpd-grid2">
                               <ColorInput
                                 label={t.table.background}
                                 value={colStyle?.cellBackgroundColor ?? schema.bodyBackgroundColor ?? "#ffffff"}
@@ -336,19 +340,19 @@ export function PropertyPanelTable({
             </div>
           )}
           {tableDataSource && (
-            <div className="flex flex-col gap-1 rounded-lg border border-dashed border-purple-300 bg-purple-50/40 p-2 dark:border-purple-700 dark:bg-purple-900/20">
-              <p className="text-[10px] font-medium text-purple-700 dark:text-purple-300">
+            <div className="jpd-stack jpd-stack--tight jpd-callout" data-tone="purple">
+              <p className="jpd-callout__title">
                 {t.table.fieldsFromSource(tableDataSource.path)}
               </p>
-              <ul className="flex max-h-32 flex-col gap-0.5 overflow-y-auto">
+              <ul className="jpd-list jpd-callout__list">
                 {tableDataSource.columns.map((col) => {
                   const already = schema.head.includes(col);
                   return (
                     <li
                       key={col}
-                      className="flex items-center justify-between gap-1 rounded px-1 py-0.5 text-[11px] hover:bg-purple-100 dark:hover:bg-purple-900/40"
+                      className="jpd-callout__item"
                     >
-                      <span className={`font-mono ${already ? "text-slate-300 dark:text-gray-600" : "text-slate-600 dark:text-gray-300"}`}>{col}</span>
+                      <span className="jpd-colname" data-added={already || undefined}>{col}</span>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -357,7 +361,7 @@ export function PropertyPanelTable({
                         aria-label={t.table.addColumnAria(col)}
                         title={already ? t.table.alreadyColumn : t.table.addColumnTitle(col)}
                       >
-                        <IconPlus />
+                        <IconPlus className="jpd-icon" />
                       </Button>
                     </li>
                   );
@@ -399,38 +403,28 @@ export function PropertyPanelTable({
             }}
             groups={tablePaletteGroups}
             variant="grid"
-            swatchSize="h-3.5 w-3.5"
-            swatchGap="gap-0.5"
-            swatchShrink={false}
-            staticArrow
           />
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">
-            <input
-              type="checkbox"
-              checked={zebraOn}
-              onChange={(e) =>
-                onChangeSchema({
-                  bodyBandColor: e.target.checked ? (currentTablePreset?.bandColor ?? schema.bodyBandColor ?? "#f1f5f9") : undefined,
-                })
-              }
-            />
-            {t.table.zebraStripes}
-          </label>
+          <Checkbox
+            label={t.table.zebraStripes}
+            checked={zebraOn}
+            onChange={(e) =>
+              onChangeSchema({
+                bodyBandColor: e.target.checked ? (currentTablePreset?.bandColor ?? schema.bodyBandColor ?? "#f1f5f9") : undefined,
+              })
+            }
+          />
           <ColorInput
             label={t.table.borderColor}
             value={schema.borderColor ?? "#94a3b8"}
             onChange={(e) => onChangeSchema({ borderColor: e.target.value })}
           />
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">
-            <input
-              type="checkbox"
-              checked={schema.repeatHeader ?? true}
-              onChange={(e) => onChangeSchema({ repeatHeader: e.target.checked })}
-            />
-            {t.table.repeatHeader}
-          </label>
+          <Checkbox
+            label={t.table.repeatHeader}
+            checked={schema.repeatHeader ?? true}
+            onChange={(e) => onChangeSchema({ repeatHeader: e.target.checked })}
+          />
           <CollapsibleSection title={t.table.headerRow}>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="jpd-grid2">
               <ColorInput
                 label={t.table.background}
                 value={schema.headBackgroundColor ?? "#0284c7"}
@@ -464,7 +458,7 @@ export function PropertyPanelTable({
           </CollapsibleSection>
 
           <CollapsibleSection title={t.table.bodyRow}>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="jpd-grid2">
               <ColorInput
                 label={t.table.background}
                 value={schema.bodyBackgroundColor ?? "#ffffff"}
@@ -505,27 +499,28 @@ export function PropertyPanelTable({
             />
           </CollapsibleSection>
 
-          <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-2 dark:border-gray-600">
-            <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={Boolean(schema.footer && schema.footer.length > 0)}
-                onChange={(e) => onChangeSchema({ footer: e.target.checked ? schema.head.map(() => "") : undefined })}
-              />
-              {t.table.totalsRow}
-            </label>
+          <div className="jpd-stack jpd-stack--snug jpd-callout" data-tone="slate">
+            <Checkbox
+              label={t.table.totalsRow}
+              checked={Boolean(schema.footer && schema.footer.length > 0)}
+              onChange={(e) => onChangeSchema({ footer: e.target.checked ? schema.head.map(() => "") : undefined })}
+            />
+            {/* NÃO é <CollapsibleSection>: o <details> aqui é NU de
+                propósito — a caixa tracejada que o componente desenha já vem
+                do `.jpd-callout` do <div> acima, e embrulhar de novo
+                aninharia duas molduras. Só as classes de summary/body são
+                reusadas, que é o que faz o visual bater byte a byte. */}
             {schema.footer && schema.footer.length > 0 && (
               <details>
-                <summary className="cursor-pointer select-none text-[10px] font-medium text-slate-500 dark:text-gray-400">
+                <summary className="jpd-disclosure__summary">
                   {t.table.totalsRow}
                 </summary>
-                <div className="mt-2 flex flex-col gap-1.5">
-                  <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.table.footerHelp)}</p>
-                  <div className="flex flex-col gap-1">
+                <div className="jpd-disclosure__body">
+                  <p className="jpd-hint">{withInlineCode(t.table.footerHelp)}</p>
+                  <div className="jpd-stack jpd-stack--tight">
                     {schema.footer.map((cell, i) => (
-                      <div key={i} className="flex items-center gap-1">
+                      <div key={i} className="jpd-row jpd-row--tight jpd-row--grow">
                         <Input
-                          className="flex-1"
                           mono
                           placeholder={schema.head[i] ?? t.table.footerCellPlaceholder(i + 1)}
                           value={cell}
@@ -543,7 +538,7 @@ export function PropertyPanelTable({
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="jpd-grid2">
                     <ColorInput
                       label={t.table.footerBackground}
                       value={schema.footerBackgroundColor ?? "#e5e7eb"}

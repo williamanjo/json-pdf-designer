@@ -13,6 +13,8 @@
 //   coluna nenhuma pra oferecer individualmente)
 // - valor simples (string/number/boolean/null) -> campo "scalar"
 
+import type { AppDict } from "../i18n";
+
 export type ColumnType = "number" | "string" | "boolean" | "other";
 
 export type FieldNode =
@@ -30,10 +32,17 @@ export type FieldNode =
 // Campos sintéticos sempre disponíveis, independente do JSON carregado —
 // mostrados numa seção fixa própria na árvore ("Variáveis nativas", ver
 // FieldTree.tsx).
-export const NATIVE_FIELDS: FieldNode[] = [
-  { path: "pageNumber", label: "Nº da página", kind: "native" },
-  { path: "pageCount", label: "Total de páginas", kind: "native" },
-];
+//
+// Função (e não mais const) porque o `label` é UI: é o rótulo humano que a
+// árvore mostra, e ele troca com o idioma. O `path` NÃO troca — `pageNumber`
+// é o token que vai pro template e é resolvido na geração do PDF, então é
+// dado, igual em qualquer idioma.
+export function nativeFields(t: AppDict): FieldNode[] {
+  return [
+    { path: "pageNumber", label: t.nativePageNumber, kind: "native" },
+    { path: "pageCount", label: t.nativePageCount, kind: "native" },
+  ];
+}
 
 function valueColumnType(v: unknown): ColumnType {
   if (typeof v === "number") return "number";

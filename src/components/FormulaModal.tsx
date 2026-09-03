@@ -6,7 +6,7 @@ import { templateSuspiciousOperators } from "../expressions/suspicious";
 import { braceError, tokenAtCaret } from "../expressions/templateText";
 import { applySuggestion, insertAtCaret, suggestAt, type Suggestion } from "../expressions/suggest";
 import { DataTypeFields } from "./DataTypeFields";
-import { Button, Modal, Textarea } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 
 export type FormulaTarget = {
   // Como o alvo é chamado no título ("coluna Fatura", "linha de totais, 3").
@@ -48,6 +48,7 @@ type Props = {
 // Este arquivo é casca.
 export function FormulaModal({ target, sources, showDataType, onClose }: Props) {
   const t = useT();
+  const { Button, Modal, Textarea } = useUiComponents();
   const areaRef = useRef<HTMLTextAreaElement>(null);
   // Rascunho: nada é gravado até o "Salvar".
   const [draft, setDraft] = useState(target.value);
@@ -136,28 +137,18 @@ export function FormulaModal({ target, sources, showDataType, onClose }: Props) 
     write(result.text, result.caret);
   }
 
+  // MESMO widget da barra de abas da sidebar do Designer: `jpd-tab` +
+  // `data-active` são as mesmas classes de lá. A definição completa (que
+  // acrescenta o arrasto pra reordenar) mora com a barra do Designer; esta
+  // aqui usa só o subconjunto sem arrasto.
   const tabButton = (key: "item" | "arrays", label: string) => (
-    <button
-      type="button"
-      onClick={() => setFieldsTab(key)}
-      className={`flex-shrink-0 whitespace-nowrap px-2 py-1.5 text-xs font-medium ${
-        fieldsTab === key
-          ? "border-b-2 border-sky-500 text-sky-600 dark:border-blue-400 dark:text-blue-400"
-          : "text-slate-500 hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-200"
-      }`}
-    >
+    <button type="button" onClick={() => setFieldsTab(key)} className="jpd-tab" data-active={fieldsTab === key || undefined}>
       {label}
     </button>
   );
 
   const fieldChip = (path: string) => (
-    <button
-      key={path}
-      type="button"
-      onClick={() => insertField(path)}
-      aria-label={t.formulaModal.insertFieldAria(path)}
-      className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-left font-mono text-[10px] text-slate-600 transition-colors hover:border-sky-400 hover:text-sky-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-400 dark:hover:text-blue-300"
-    >
+    <button key={path} type="button" onClick={() => insertField(path)} aria-label={t.formulaModal.insertFieldAria(path)} className="jpd-chip jpd-chip--action">
       {path}
     </button>
   );
@@ -184,28 +175,31 @@ export function FormulaModal({ target, sources, showDataType, onClose }: Props) 
         </>
       }
     >
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-2">
+      {/* `jpd-formula` é grid de UMA coluna até 40rem de viewport e de duas
+          (barra de 11rem + editor fluido) a partir daí — o único ponto
+          responsivo da biblioteca. Ver o @media em _group-c.css. */}
+      <div className="jpd-formula">
+        <div className="jpd-formula__sources">
           {(sources.item || sources.arrays.length > 0) && (
-            <div className="flex flex-nowrap items-center gap-0.5 border-b border-slate-200 dark:border-gray-700">
+            <div className="jpd-tabs jpd-tabs--scroll">
               {sources.item && tabButton("item", t.formulaModal.itemTab)}
               {sources.arrays.length > 0 && tabButton("arrays", t.formulaModal.arrayPaths)}
             </div>
           )}
 
           {fieldsTab === "item" && sources.item && (
-            <div className="flex flex-col gap-1">
-              <p className="text-[10px] text-slate-400 dark:text-gray-400">
+            <div className="jpd-stack jpd-stack--tight">
+              <p className="jpd-hint">
                 {t.formulaModal.itemFields(sources.item.path)} {t.formulaModal.itemFieldsHint}
               </p>
-              <div className="flex max-h-72 flex-col gap-1 overflow-y-auto pr-1">{sources.item.columns.map(fieldChip)}</div>
+              <div className="jpd-chiplist">{sources.item.columns.map(fieldChip)}</div>
             </div>
           )}
 
           {fieldsTab === "arrays" && sources.arrays.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.formulaModal.arrayPathsHint}</p>
-              <div className="flex max-h-72 flex-col gap-1 overflow-y-auto pr-1">
+            <div className="jpd-stack jpd-stack--tight">
+              <p className="jpd-hint">{t.formulaModal.arrayPathsHint}</p>
+              <div className="jpd-chiplist">
                 {sources.arrays.flatMap((source) => [
                   fieldChip(source.path),
                   ...(source.columns ?? []).map((col) => fieldChip(`${source.path}.${col}`)),
@@ -214,15 +208,13 @@ export function FormulaModal({ target, sources, showDataType, onClose }: Props) 
             </div>
           )}
 
-          {!sources.item && sources.arrays.length === 0 && (
-            <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.formulaModal.noFields}</p>
-          )}
+          {!sources.item && sources.arrays.length === 0 && <p className="jpd-hint">{t.formulaModal.noFields}</p>}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-2">
+        <div className="jpd-formula__editor">
           {showDataType && <DataTypeFields formula={draft} onChange={setDraft} pathPlaceholder={target.pathPlaceholder} />}
 
-          <div className="relative flex flex-col gap-1">
+          <div className="jpd-suggest">
             <Textarea
               ref={areaRef}
               mono
@@ -242,14 +234,14 @@ export function FormulaModal({ target, sources, showDataType, onClose }: Props) 
               // clicar no campo.
               onBlur={() => setSuggestOpen(false)}
             />
-            <p className="text-[10px] text-slate-400 dark:text-gray-400">
+            <p className="jpd-hint">
               {withInlineCode(t.formulaModal.fieldValueHint)} {t.formulaModal.suggestionsHint}
             </p>
 
             {suggestions.length > 0 && (
               // `mouseDown` em vez de `click`: o blur do textarea fecha a
               // lista antes de um click chegar.
-              <ul className="absolute left-0 right-0 top-full z-10 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
+              <ul className="jpd-popover jpd-popover--anchor-stretch">
                 {suggestions.map((s, i) => (
                   <li key={s.name}>
                     <button
@@ -259,16 +251,11 @@ export function FormulaModal({ target, sources, showDataType, onClose }: Props) 
                         accept(s);
                       }}
                       onMouseEnter={() => setActiveIndex(i)}
-                      className={`flex w-full flex-col items-start px-2 py-1 text-left ${
-                        s === active ? "bg-sky-50 dark:bg-blue-900/30" : ""
-                      }`}
+                      className="jpd-menuitem jpd-suggest__item"
+                      data-active={s === active || undefined}
                     >
-                      <span className="font-mono text-[11px] text-slate-700 dark:text-gray-100">
-                        {s.hintKey ? t.fieldFunctionSnippets[s.hintKey] : s.name}
-                      </span>
-                      {s.hintKey && (
-                        <span className="text-[10px] text-slate-400 dark:text-gray-400">{t.fieldFunctions[s.hintKey]}</span>
-                      )}
+                      <span className="jpd-suggest__name">{s.hintKey ? t.fieldFunctionSnippets[s.hintKey] : s.name}</span>
+                      {s.hintKey && <span className="jpd-hint">{t.fieldFunctions[s.hintKey]}</span>}
                     </button>
                   </li>
                 ))}
@@ -276,9 +263,9 @@ export function FormulaModal({ target, sources, showDataType, onClose }: Props) 
             )}
           </div>
 
-          {braces && <p className="text-[10px] text-red-600 dark:text-red-400">{braces}</p>}
-          {syntax && <p className="text-[10px] text-red-600 dark:text-red-400">{syntax}</p>}
-          {suspicious && <p className="text-[10px] text-amber-600 dark:text-amber-400">{suspicious}</p>}
+          {braces && <p className="jpd-error">{braces}</p>}
+          {syntax && <p className="jpd-error">{syntax}</p>}
+          {suspicious && <p className="jpd-warn">{suspicious}</p>}
         </div>
       </div>
     </Modal>

@@ -1,6 +1,6 @@
 import type { Binding, ChartFilterCondition, ChartFilterGroup, ChartFilterOp } from "../types";
 import { useT, type Dict } from "../i18n";
-import { Button, Input, Select } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 import { IconPlus, IconX } from "./ui/icons";
 
 function filterOps(t: Dict): { value: ChartFilterOp; label: string }[] {
@@ -33,6 +33,7 @@ export function FilterTab({
   columns: string[];
 }) {
   const t = useT();
+  const { Button, Input, Select } = useUiComponents();
   const filters = binding.filters ?? [];
 
   function applyFilters(next: ChartFilterGroup[]) {
@@ -56,16 +57,22 @@ export function FilterTab({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      {filters.length === 0 && (
-        <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.filter.noFilter}</p>
-      )}
+    <div className="jpd-stack jpd-stack--snug">
+      {filters.length === 0 && <p className="jpd-hint">{t.filter.noFilter}</p>}
       {filters.map((group, gi) => (
-        <div key={gi} className="flex flex-col gap-1 rounded-md border border-slate-200 p-1.5 dark:border-gray-700">
-          {gi > 0 && <span className="text-center text-[9px] font-semibold text-slate-400">{t.filter.or}</span>}
+        <div key={gi} className="jpd-filter-group">
+          {gi > 0 && (
+            <span className="jpd-filter-group__joiner" data-joiner="or">
+              {t.filter.or}
+            </span>
+          )}
           {group.map((cond, ci) => (
-            <div key={ci} className="flex items-center gap-1">
-              {ci > 0 && <span className="w-4 flex-shrink-0 text-center text-[9px] font-semibold text-slate-400">{t.filter.and}</span>}
+            <div key={ci} className="jpd-row jpd-row--tight">
+              {ci > 0 && (
+                <span className="jpd-filter-group__joiner" data-joiner="and">
+                  {t.filter.and}
+                </span>
+              )}
               {columns.length > 0 ? (
                 <Select value={cond.column} onChange={(e) => updateCondition(gi, ci, { column: e.target.value })}>
                   <option value="">{t.filter.columnPlaceholder}</option>
@@ -91,13 +98,9 @@ export function FilterTab({
               </Button>
             </div>
           ))}
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              className="flex items-center gap-1 text-[10px] text-sky-600 hover:underline dark:text-blue-400"
-              onClick={() => addCondition(gi)}
-            >
-              <IconPlus /> {t.filter.addCondition}
+          <div className="jpd-row jpd-row--between">
+            <button type="button" className="jpd-addlink" onClick={() => addCondition(gi)}>
+              <IconPlus className="jpd-icon" /> {t.filter.addCondition}
             </button>
             <Button variant="ghost" size="icon" onClick={() => removeGroup(gi)}>
               <IconX />
@@ -105,12 +108,8 @@ export function FilterTab({
           </div>
         </div>
       ))}
-      <button
-        type="button"
-        className="flex items-center gap-1 self-start text-[10px] text-sky-600 hover:underline dark:text-blue-400"
-        onClick={addGroup}
-      >
-        <IconPlus /> {t.filter.addGroup}
+      <button type="button" className="jpd-addlink jpd-addlink--start" onClick={addGroup}>
+        <IconPlus className="jpd-icon" /> {t.filter.addGroup}
       </button>
     </div>
   );

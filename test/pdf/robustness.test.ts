@@ -4,6 +4,7 @@ import { generatePdf } from "../../src/pdf/generate";
 import { DEFAULT_MAX_PAGES, layoutDocument, PageLimitError } from "../../src/pdf/layout/layoutDocument";
 import { buildInputs } from "../../src/bindings/bindings";
 import { UnsupportedGlyphError, sanitizeText } from "../../src/pdf/textSafety";
+import { BackgroundImageUnreadableError, ImageUnreadableError, InvalidPageSizeError } from "../../src/errors";
 import type { Binding, Schema, Template } from "../../src/types";
 
 // O que pode e o que NÃO pode derrubar `generatePdf`.
@@ -86,7 +87,9 @@ describe("caractere sem glifo na fonte: falha, mas dizendo onde", () => {
   it("nomeia o campo, o caractere e o que fazer", async () => {
     const t: Template = { page: A4, schemas: [text("{nome}", { name: "cliente_nome" })] };
     await expect(generatePdf(t, { nome: "Ana 🎉" }, [])).rejects.toThrow(UnsupportedGlyphError);
-    await expect(generatePdf(t, { nome: "Ana 🎉" }, [])).rejects.toThrow(/Campo "cliente_nome"/);
+    // A mensagem é INGLÊS (diagnóstico de desenvolvedor); o nome do campo
+    // também sai em `err.field`, que é o que quem chama deve usar.
+    await expect(generatePdf(t, { nome: "Ana 🎉" }, [])).rejects.toThrow(/Field "cliente_nome"/);
     await expect(generatePdf(t, { nome: "Ana 🎉" }, [])).rejects.toThrow(/U\+1F389/);
     await expect(generatePdf(t, { nome: "Ana 🎉" }, [])).rejects.toThrow(/fontBytes/);
   });
@@ -111,16 +114,16 @@ describe("caractere sem glifo na fonte: falha, mas dizendo onde", () => {
     } as Schema;
     const tb: Binding[] = [{ schemaName: "tabela_vendas", type: "array", path: "rows", columns: ["nome"] }];
     await expect(generatePdf({ page: A4, schemas: [tab] }, { rows: [{ nome: E }] }, tb)).rejects.toThrow(
-      /Campo "tabela_vendas"/
+      /Field "tabela_vendas"/
     );
 
     const kpi: Schema = { id: "k", name: "indicador_x", type: "kpi", x: 10, y: 20, width: 60, height: 30, value: "{v}" } as Schema;
-    await expect(generatePdf({ page: A4, schemas: [kpi] }, { v: E }, [])).rejects.toThrow(/Campo "indicador_x"/);
+    await expect(generatePdf({ page: A4, schemas: [kpi] }, { v: E }, [])).rejects.toThrow(/Field "indicador_x"/);
 
     const chart: Schema = { id: "c", name: "grafico_x", type: "chart", x: 10, y: 20, width: 80, height: 60, chartType: "bar" } as Schema;
     const cb: Binding[] = [{ schemaName: "grafico_x", type: "chart", path: "itens", labelColumn: "l", valueColumn: "v" }];
     await expect(generatePdf({ page: A4, schemas: [chart] }, { itens: [{ l: E, v: 1 }] }, cb)).rejects.toThrow(
-      /Campo "grafico_x"/
+      /Field "grafico_x"/
     );
 
     // Tabela membro de uma secao repetida - o caminho mais fundo.
@@ -135,7 +138,7 @@ describe("caractere sem glifo na fonte: falha, mas dizendo onde", () => {
     ];
     await expect(
       generatePdf({ page: A4, schemas: [sec, membro] }, { itens: [{ linhas: [{ p: E }] }] }, sb)
-    ).rejects.toThrow(/Campo "tab_membro"/);
+    ).rejects.toThrow(/Field "tab_membro"/);
   });
 
   it("acentuação latina continua funcionando sem fonte customizada", async () => {
@@ -169,8 +172,12 @@ describe("imagem", () => {
 
   it("PNG corrompido no campo dá erro nomeando o campo", async () => {
     await expect(generatePdf({ page: A4, schemas: [img("data:image/png;base64,AAAA")] }, {}, [])).rejects.toThrow(
-      /Campo "logo".*corrompido/
+      ImageUnreadableError
     );
+    await expect(generatePdf({ page: A4, schemas: [img("data:image/png;base64,AAAA")] }, {}, [])).rejects.toMatchObject({
+      code: "imageUnreadable",
+      field: "logo",
+    });
   });
 
   it("fundo de página corrompido dá um Error de verdade, não uma string crua", async () => {
@@ -178,7 +185,11 @@ describe("imagem", () => {
     // `catch (e) { e.message }` de quem chama dava `undefined`.
     const t: Template = { page: A4, backgroundImage: "data:image/png;base64,AAAA", schemas: [text("x")] };
     await expect(generatePdf(t, {}, [])).rejects.toBeInstanceOf(Error);
-    await expect(generatePdf(t, {}, [])).rejects.toThrow(/Imagem de fundo da página.*corrompido|não é PNG/);
+    // E é uma classe PRÓPRIA, separada da imagem de campo: o fundo é artefato
+    // de autoria (letterhead), a imagem de campo vem do dado — ações
+    // diferentes, e o consumidor precisa poder dizer qual das duas é.
+    await expect(generatePdf(t, {}, [])).rejects.toBeInstanceOf(BackgroundImageUnreadableError);
+    await expect(generatePdf(t, {}, [])).rejects.toMatchObject({ code: "backgroundImageUnreadable" });
   });
 });
 
@@ -191,9 +202,16 @@ describe("números degenerados no schema", () => {
     // Estrutural: não há default sensato pra adivinhar. Antes vinha um
     // TypeError opaco do pdf-lib, sem dizer de qual página.
     for (const page of [{ width: NaN, height: 297 }, { width: 210, height: 0 }, { width: -1, height: 297 }]) {
-      await expect(generatePdf({ page, schemas: [text("x")] }, {}, []), JSON.stringify(page)).rejects.toThrow(
-        /tamanho inválido/
+      await expect(generatePdf({ page, schemas: [text("x")] }, {}, []), JSON.stringify(page)).rejects.toBeInstanceOf(
+        InvalidPageSizeError
       );
+      // Os números vão no ERRO, não só na frase: `width`/`height` crus são o
+      // que deixa quem chama logar ou mostrar sem parsear a mensagem.
+      await expect(generatePdf({ page, schemas: [text("x")] }, {}, []), JSON.stringify(page)).rejects.toMatchObject({
+        code: "invalidPageSize",
+        width: page.width,
+        height: page.height,
+      });
     }
   });
 
@@ -266,14 +284,18 @@ describe("volume: completa ou falha, nunca trunca em silencio", () => {
     const tabela = bigTable(5000);
     expect(() => layoutOf(tabela, { maxPages: 20 })).toThrow(PageLimitError);
     expect(() => layoutOf(tabela, { maxPages: 20 })).toThrow(/tabela_linhas/);
-    expect(() => layoutOf(tabela, { maxPages: 20 })).toThrow(/20 páginas/);
+    expect(() => layoutOf(tabela, { maxPages: 20 })).toThrow(/20 pages/);
+    // O campo e o teto saem estruturados também — é o que o consumidor usa.
+    expect(() => layoutOf(tabela, { maxPages: 20 })).toThrow(
+      expect.objectContaining({ code: "pageLimit", maxPages: 20, field: "tabela_linhas" })
+    );
     expect(() => layoutOf(bigSection(5000), { maxPages: 20 })).toThrow(/secao_pedidos/);
   });
 
   it("o teto default e o DEFAULT_MAX_PAGES, nao um numero solto", () => {
     // Sem `maxPages`, a mensagem tem de citar o default exportado — se alguém
     // mudar a constante e esquecer a mensagem, isto acusa.
-    expect(() => layoutOf(bigTable(300000))).toThrow(new RegExp(`${DEFAULT_MAX_PAGES} páginas`));
+    expect(() => layoutOf(bigTable(300000))).toThrow(new RegExp(`${DEFAULT_MAX_PAGES} pages`));
   }, 30000);
 
   it("maxPages e configuravel nas duas direcoes", () => {
@@ -296,7 +318,7 @@ describe("volume: completa ou falha, nunca trunca em silencio", () => {
       throw new Error("deveria ter falhado");
     } catch (e) {
       const msg = (e as Error).message;
-      expect(msg).toMatch(/filtre antes de gerar|divida em vários PDFs/);
+      expect(msg).toMatch(/filter it before generating|split it into several PDFs/);
       expect(msg).toMatch(/maxPages/);
     }
   });

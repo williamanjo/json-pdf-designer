@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { CURRENT_TEMPLATE_VERSION, migrateTemplate } from "../../src/template/migrate";
+import { TemplateNotAnObjectError, TemplateVersionInvalidError, TemplateVersionTooNewError } from "../../src/errors";
 import type { Template } from "../../src/types";
+
+// Colhe o erro que `fn` lança, pra afirmar sobre a CLASSE e os campos
+// estruturados em vez de casar a frase. `toThrow(/texto/)` era o que os
+// examples faziam, e é exatamente o acoplamento que as classes removem.
+function thrownBy(fn: () => unknown): unknown {
+  try {
+    fn();
+  } catch (err) {
+    return err;
+  }
+  throw new Error("expected the call to throw, and it did not");
+}
 
 function baseTemplate(): Record<string, unknown> {
   return {
@@ -59,18 +72,42 @@ describe("migrateTemplate", () => {
     // Arquivo salvo por um build mais novo do pacote: pode ter campos que
     // este build ignoraria em silêncio. Erro é melhor que PDF errado.
     const input = { ...baseTemplate(), version: 99 };
-    expect(() => migrateTemplate(input)).toThrow(/versão 99.*só entende até a 1/i);
+    const err = thrownBy(() => migrateTemplate(input));
+    expect(err).toBeInstanceOf(TemplateVersionTooNewError);
+    const typed = err as TemplateVersionTooNewError;
+    expect(typed.code).toBe("templateVersionTooNew");
+    expect(typed.found).toBe(99);
+    expect(typed.supported).toBe(CURRENT_TEMPLATE_VERSION);
+    expect(typed.blame).toBe("template");
   });
 
-  it("`version` de tipo/valor inválido dá erro claro citando o valor recebido", () => {
+  it("`version` de tipo/valor inválido dá TemplateVersionInvalidError carregando o valor recebido", () => {
     for (const bad of ["1", 0, -1, 1.5, true, {}]) {
-      expect(() => migrateTemplate({ ...baseTemplate(), version: bad })).toThrow(/Template\.version inválida/i);
+      const err = thrownBy(() => migrateTemplate({ ...baseTemplate(), version: bad }));
+      expect(err, JSON.stringify(bad)).toBeInstanceOf(TemplateVersionInvalidError);
+      const typed = err as TemplateVersionInvalidError;
+      expect(typed.code).toBe("templateVersionInvalid");
+      // O valor CRU, não a frase: é o que deixa quem chama logar/decidir sem
+      // parsear a mensagem.
+      expect(typed.received).toEqual(bad);
+      expect(typed.implicitVersion).toBe(1);
     }
   });
 
-  it("entrada que não é objeto dá erro claro (null, array, string, número)", () => {
-    for (const bad of [null, undefined, [], "x", 42]) {
-      expect(() => migrateTemplate(bad)).toThrow(/Template inválido/i);
+  it("entrada que não é objeto dá TemplateNotAnObjectError nomeando o tipo recebido", () => {
+    const esperado: Array<[unknown, string]> = [
+      [null, "object"],
+      [undefined, "undefined"],
+      [[], "array"],
+      ["x", "string"],
+      [42, "number"],
+    ];
+    for (const [bad, tipo] of esperado) {
+      const err = thrownBy(() => migrateTemplate(bad));
+      expect(err, JSON.stringify(bad ?? null)).toBeInstanceOf(TemplateNotAnObjectError);
+      const typed = err as TemplateNotAnObjectError;
+      expect(typed.code).toBe("templateNotAnObject");
+      expect(typed.receivedType, JSON.stringify(bad ?? null)).toBe(tipo);
     }
   });
 });

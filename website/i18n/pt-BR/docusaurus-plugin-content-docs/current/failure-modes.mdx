@@ -28,16 +28,90 @@ porque uma linha tinha um `\n`.
 
 **Falha alto (e por quê):**
 
-| Situação | Erro | Por que não degradar |
+Cada uma destas é uma **classe tipada** com um `code` literal, exportada dos
+dois entries (`json-pdf-designer` e `json-pdf-designer/server`). A coluna
+abaixo é o que você casa — nunca `error.message`, que é uma string de
+diagnóstico em inglês e pode ser reescrita numa release de patch.
+
+| Situação | Classe (`code`) | `blame` | Por que não degradar |
+|---|---|---|---|
+| Caractere sem glifo na fonte **padrão** (emoji/CJK sem `fontBytes`) | `UnsupportedGlyphError` (`unsupportedGlyph`) | `data` | Ele *tem* glifo numa fonte completa — descartá-lo removeria conteúdo, em silêncio, de um documento que alguém assina. Passe `fontBytes`, ou tire o caractere do dado |
+| Tamanho de página inválido (`NaN`, 0, negativo) | `InvalidPageSizeError` (`invalidPageSize`) | `template` | Estrutural: não há default sensato pra adivinhar |
+| Imagem corrompida num campo | `ImageUnreadableError` (`imageUnreadable`) | `template` | Quem montou escolheu aquele arquivo; descartar calado esconde o erro |
+| Imagem corrompida como fundo da página | `BackgroundImageUnreadableError` (`backgroundImageUnreadable`) | `template` | Idem, e papel timbrado faltando não é óbvio no resultado |
+| Formato de imagem que não é PNG nem JPEG | `UnsupportedImageFormatError` (`unsupportedImageFormat`) | `template` | Reenvie pelo editor, que converte |
+| Uma imagem acima de 15MB (decodificada) | `ImageTooLargeError` (`imageTooLarge`) | `template` | Protege quem está gerando — template pode vir de fonte não confiável |
+| Mais de 200 imagens **distintas** num documento | `TooManyImagesError` (`tooManyImages`) | `template` | Idem. Imagens idênticas são deduplicadas por conteúdo antes, então isso conta as de verdade |
+| Upload acima de 20MB, ou que o navegador não consegue ler | `ImageUploadTooLargeError` / `ImageUploadUnreadableError` | `data` | Pego no upload, antes de poder chegar num template |
+| Documento acima de `maxPages` (default `DEFAULT_MAX_PAGES`, 5000) | `PageLimitError` (`pageLimit`) | `data` | Relatório truncado que parece completo é pior que relatório nenhum. Filtre o dado, divida em vários PDFs, ou aumente o `maxPages` |
+| Uma passada de paginação que não consome nada | `PaginationStalledError` (`paginationStalled`) | `package` | Bug de aritmética do pacote — girar até um contador estourar escondia isso |
+| `.woff2` passado onde o runtime não consegue descomprimir | `Woff2SupportMissingError` / `FontDecompressFailedError` / `FontDecompressTimeoutError` | `config` | Problema de ambiente, não de template |
+| `Template` que não é objeto, ou `version` que não é número | `TemplateNotAnObjectError` / `TemplateVersionInvalidError` | `template` | Não há de onde migrar |
+| `Template.version` mais novo que este build | `TemplateVersionTooNewError` (`templateVersionTooNew`) | `template` | Formato mais novo pode carregar campo que este build ignoraria calado |
+| Falta um passo de migração entre duas versões | `TemplateMigrationMissingError` (`templateMigrationMissing`) | `package` | Lacuna nossa, não sua |
+| `fontBytes` inválido (`Unknown font format`) | **não é nosso** — quem lança é o pdf-lib | — | Erro de quem chamou, não do template nem do dado. Veja o caso `null` abaixo |
+
+## Como tratar
+
+Três linhas, e a ordem importa:
+
+```ts
+import { describePdfError, dictFor, PageLimitError } from "json-pdf-designer/server";
+
+try {
+  const bytes = await generatePdf(template, data, bindings, { fontBytes });
+} catch (err) {
+  // 1. Um caso específico que você quer tratar à parte — por classe, não por mensagem.
+  if (err instanceof PageLimitError) return dividirETentarDeNovo(err.maxPages);
+
+  // 2. Todo o resto: uma chamada transforma o erro em texto que uma pessoa lê.
+  const problem = describePdfError(err, dictFor("pt-BR"));
+  //    → { code, blame, title, action?, field?, detail } | null
+}
+```
+
+O `describePdfError` é exaustivo, então não existe ramo "não reconheci este"
+dentro dele. Ele devolve **`null`** pra erro que não é do pacote — a linha do
+`Unknown font format` acima é exatamente esse caso — em vez de inventar um
+título pra uma falha que ele não entende. Guarde a sua cópia pros seus erros, e
+caia num genérico só quando as duas coisas vierem vazias.
+
+Se você quer o estreitamento sem a cópia — log, métrica, um status HTTP e nada
+mostrado pra ninguém — o `isPdfError(err)` estreita `unknown` pra
+`AnyPdfError`, o que já te dá `code` e `blame` sem dicionário nenhum
+envolvido.
+
+:::warning[Nunca guarde o texto descrito em estado]
+`title` e `action` saem no idioma do `dict` que você passou. Guarde os dois, e
+eles congelam naquele idioma — então quem troca o idioma da interface vê aquele
+pedaço da tela ficar atrás, sem nada falhar e sem nada no log. **Guarde o erro
+cru e descreva na renderização.**
+
+```diff
+- catch (err) { setErro(describePdfError(err, dictFor(locale))); }
++ catch (err) { setCaixaDeErro({ err }); }
++ // …e no corpo do render, pra rederivar a cada troca de idioma:
++ const problem = caixaDeErro && describePdfError(caixaDeErro.err, dictFor(locale));
+```
+
+A caixa (`{ err }`) não é enfeite: `null` não distingue "sem erro" de "um erro
+que é null", e `setErro(err)` com um erro que por acaso seja função seria lido
+pelo React como updater.
+:::
+
+### Num servidor
+
+O `blame` existe pra esta decisão não precisar ser tomada duas vezes:
+
+| `blame` | O que significa | Status razoável |
 |---|---|---|
-| Caractere sem glifo na fonte **padrão** (emoji/CJK sem `fontBytes`) | `Campo "x": o caractere "🎉" (U+1F389) não existe na fonte usada …` | Ele *tem* glifo numa fonte completa — descartar removeria conteúdo em silêncio de um documento assinado. Passe `fontBytes`, ou tire do dado |
-| Tamanho de página inválido (`NaN`, 0, negativo) | `Página "x": tamanho inválido …` | Estrutural: não há default sensato pra adivinhar |
-| Imagem corrompida, num campo ou como fundo de página | `Campo "x": não deu pra ler essa imagem …` | Quem montou escolheu aquele arquivo; descartar em silêncio esconde o erro |
-| Imagem acima de 15MB, ou mais de 200 imagens distintas | `… maior que o limite de 15MB …` | Protege quem gera (um template pode vir de fonte não confiável) |
-| Documento acima de `maxPages` (default 5000) | `O documento passou de 5000 páginas ao paginar "x" …` | Relatório truncado que parece completo é pior que relatório nenhum. Filtre o dado, divida em vários PDFs, ou suba o `maxPages` |
-| Passada de paginação que não consome nada | `Paginação travada em "x" …` | Bug de aritmética do pacote — girar até um contador esgotar escondia isso |
-| `fontBytes` inválido | `Unknown font format` | Erro de quem chama, não do template nem do dado |
-| `Template.version` mais nova que este build | `Template na versão N, mas este build só entende até a M` | Formato mais novo pode trazer campos que este build ignoraria em silêncio |
+| `data` | O payload não consegue produzir este documento | `400`, ou `413` no caso do `pageLimit` |
+| `template` | O template salvo está errado | `422` |
+| `config` | Falta algo no ambiente (uma fonte, um codec) | `500`, e acorde alguém |
+| `package` | Bug nosso | `500`, e por favor abra um issue |
+
+Nada acima precisa de React: as classes, o `isPdfError`, o `describePdfError` e
+o `dictFor` saem todos do `json-pdf-designer/server`.
 
 **Uma ressalva sobre o erro de glifo.** Ele só dispara com a fonte **padrão**
 (Helvetica/WinAnsi). Com uma fonte embutida via `fontBytes`, um caractere que a

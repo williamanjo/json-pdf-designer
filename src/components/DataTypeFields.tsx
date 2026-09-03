@@ -1,6 +1,6 @@
 import { useT } from "../i18n";
 import { buildColumnFormula, parseColumnFormula } from "../table/columnFormula";
-import { Input, Select } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 
 type Props = {
   // A fórmula inteira, como texto — a mesma string que vai pro campo.
@@ -23,6 +23,7 @@ type Props = {
 // misturadas, e não há como decompor isso num seletor sem perder o prefixo.
 export function DataTypeFields({ formula, onChange, pathPlaceholder }: Props) {
   const t = useT();
+  const { Input, Select } = useUiComponents();
   const parsed = parseColumnFormula(formula);
   if (parsed.kind === "raw") return null;
 
@@ -34,8 +35,8 @@ export function DataTypeFields({ formula, onChange, pathPlaceholder }: Props) {
   const fn = parsed.kind === "func" ? parsed.fn : "";
 
   return (
-    <div className="flex flex-col gap-1.5 rounded border border-slate-200 bg-white p-1.5 dark:border-gray-600 dark:bg-gray-800">
-      <div className="grid grid-cols-2 gap-2">
+    <div className="jpd-stack jpd-stack--snug jpd-subcard">
+      <div className="jpd-grid2">
         <Select
           label={t.table.dataType}
           value={fn}
@@ -58,7 +59,7 @@ export function DataTypeFields({ formula, onChange, pathPlaceholder }: Props) {
         />
       </div>
       {fn === "CURRENCY" && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="jpd-grid2">
           <Input
             label={t.table.symbol}
             value={symbol}
@@ -83,7 +84,7 @@ export function DataTypeFields({ formula, onChange, pathPlaceholder }: Props) {
         />
       )}
       {fn === "DATE" && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="jpd-grid2">
           <Input
             label={t.table.outputFormat}
             mono

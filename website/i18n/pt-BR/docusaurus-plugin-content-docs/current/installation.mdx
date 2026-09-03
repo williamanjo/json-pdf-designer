@@ -33,24 +33,32 @@ Deixar de instalar economiza ~35MB no seu `node_modules`; `<Designer>`,
 `examples/no-preview` pra um app que nunca o instala.
 
 Importe o CSS do pacote **uma vez**, no entrypoint do seu app — ele
-estiliza o próprio `<Designer>` (painel de propriedades, toolbar,
-abas). Sem isso, alguns elementos do editor ficam com posição/cor
-errada, porque o Tailwind do seu app (se tiver) nunca escaneia o código
-desta lib:
+estiliza o próprio `<Designer>` (painel de propriedades, toolbar, abas):
 
 ```ts
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 ```
 
-`dist/style.css` é uma folha de estilo pré-compilada e independente —
-funciona com qualquer versão do Tailwind (ou nenhuma) no seu app.
+O `theme.css` é CSS escrito à mão e independente — sem build step, sem
+Tailwind em ponta nenhuma, e ele importa o reset do pacote por dentro,
+então esta única linha é tudo. Não importar é **modo suportado**, não
+erro: as classes `.jpd-*` e os atributos `data-*` continuam no DOM, e
+você os estiliza com o que usar. Veja [Tema e CSS](./theming) pro
+contrato de classe e de token, e o `json-pdf-designer/reset.css` se você
+quiser o reset sem a nossa aparência.
+
+:::info[Vindo da 2.x?]
+O `json-pdf-designer/style.css` morreu e não tem alias — o import antigo
+falha com `ERR_PACKAGE_PATH_NOT_EXPORTED`. Veja
+[Migrando pra 3.0.0](./migration-3).
+:::
 
 ## Uso básico
 
 ```tsx
 import { useState } from "react";
 import { Designer, generatePdf, downloadPdf, type Template, type Binding } from "json-pdf-designer";
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 
 const initialTemplate: Template = {
   page: { width: 210, height: 297 }, // A4 em mm

@@ -84,9 +84,15 @@ src/
                           used internally by Designer itself (PropertyPanel/Toolbar/BindingEditor)
   index.ts             -> the package's public exports (React + generation)
   server.ts            -> the React-free subset of index.ts, for json-pdf-designer/server
-examples/
+examples/                 (each one on a different point of the styling spectrum)
   report-builder/      -> a full app (JSON data sources, field explorer) using the package's ready-made UI
+                          -- theme.css as it ships, no customization
+  composed-layout/     -> the same editor in a layout the preset cannot do: 8 parts in the DOM at once, no tab bar
+                          -- theme.css rethemed by --jpd-* token only, not one rule rewritten
   custom-ui/           -> the same idea, a 100% custom shell (hand-written CSS, no package component)
+                          -- no package CSS at all: 192 .jpd-* selectors from scratch
   headless-designer/   -> no <Designer> at all — a hand-built editor over json-pdf-designer/server + PdfPreview
+                          -- reset.css alone, the only example on the appearance-free export
   no-preview/          -> generates + downloads with no preview and no pdfjs-dist installed
+                          -- theme.css in dark mode, the only app that exercises dark
 ```

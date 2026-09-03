@@ -7,10 +7,19 @@ import type { KpiElementKey } from "../types";
 // oxlint react(only-export-components), quebra o Fast Refresh senão),
 // mesmo motivo de src/bindingBuilders.ts e src/canvasGeometry.ts.
 
-// `setSidebarCollapsed` continua em DesignerInner (mexe em bem mais coisa
-// que só seleção — TabPanel, duplo clique na aba ativa etc), por isso
-// entra como parâmetro em vez de state próprio deste hook.
-export function useSelection(setSidebarCollapsed: (collapsed: boolean) => void) {
+export type UseSelectionParams = {
+  // Chamado quando o usuário SELECIONA algo (clique ou caixa de seleção) —
+  // nunca ao limpar a seleção. O DesignerProvider liga isto em
+  // "reabre a sidebar colapsada", e a config `expandOnSelect={false}`
+  // simplesmente não passa nada.
+  //
+  // Antes era `setSidebarCollapsed` direto. Invertido porque seleção não
+  // sabe o que é sidebar: com a decomposição existe layout SEM sidebar, e
+  // ali "reabrir" não é um conceito. O hook agora só anuncia atividade.
+  onActivity?: () => void;
+};
+
+export function useSelection({ onActivity }: UseSelectionParams = {}) {
   // Seleção múltipla (Ctrl/Cmd+clique) — o último clicado é o "principal"
   // (quem aparece no painel de propriedades); os demais só ganham
   // destaque no canvas e movem junto quando o principal é arrastado.
@@ -36,7 +45,7 @@ export function useSelection(setSidebarCollapsed: (collapsed: boolean) => void) 
     // guarda mais abaixo (useEffect em useTabBar) cuida de sair de uma
     // aba que não faz mais sentido pro tipo do novo campo (ex: tava em
     // "Filtro" e selecionou uma seção).
-    setSidebarCollapsed(false);
+    onActivity?.();
     if (!additive) {
       setSelectedIds([id]);
       return;
@@ -48,7 +57,7 @@ export function useSelection(setSidebarCollapsed: (collapsed: boolean) => void) 
   // pelos ids que caíram dentro da caixa, ou soma (Ctrl/Cmd segurado).
   function handleSelectMany(ids: string[], additive?: boolean) {
     if (ids.length > 0) {
-      setSidebarCollapsed(false);
+      onActivity?.();
     }
     setSelectedIds((prev) => {
       if (!additive) return ids;

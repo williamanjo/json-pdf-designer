@@ -1,0 +1,236 @@
+---
+title: Customizando os Componentes
+sidebar_label: Customizando componentes
+description: className/style/rest, parts, Modal.size, e trocar os primitivos do editor pelo UiComponentsProvider.
+---
+
+# Customizando os componentes
+
+Duas coisas diferentes moram nesta página, e vale manter as duas
+separadas:
+
+- **Estilizar** o que o pacote renderiza — `className`, `style`, `parts`.
+- **Substituir** os primitivos que o editor renderiza *por dentro* —
+  `UiComponentsProvider`.
+
+A primeira é pra ajustar; a segunda é pra pôr o `Button` do seu design
+system dentro do painel de propriedades.
+
+Só que nenhuma das duas é a opção mais barata. Se o que você quer é o
+editor inteiro nas suas cores e nos seus raios, sobrescreva tokens
+`--jpd-*` e não escreva regra nenhuma — o exemplo `composed-layout`
+retematiza de sky pra violeta assim, sem um seletor `.jpd-*`. Use
+`className`/`style` quando você precisa que *um* elemento seja
+diferente, não quando você quer outra aparência; ver
+[Tema e CSS](./theming#o-espectro-em-cinco-apps-que-rodam).
+
+## `className`, `style` e o resto das props
+
+Todo componente do kit de UI aceita `className`, `style` e o resto das
+props do elemento nativo. Uma regra decide onde eles caem:
+
+> **`className`/`style`/`...rest` vão pro elemento que dá o NOME ao
+> componente. Todo outro elemento que ele renderiza é endereçado por
+> `parts`, por papel.**
+
+Então o `Input.className` continua caindo no `<input>` — igual à 2.x, sem
+migração — e o `<label>` que embrulha é `parts.root`. No `Modal` o
+elemento nomeado é o **painel**; o fundo escurecido é `parts.overlay`.
+
+A alternativa ("`className` sempre na raiz") foi recusada porque
+realocaria em silêncio todo `<Input className="w-24">` existente do
+controle pro wrapper sempre que `label` estivesse presente — quebra sem
+erro nenhum, só UI errada.
+
+```tsx
+<Input
+  label="Nome"
+  className="meu-input"                     // -> o <input>
+  parts={{ root: "meu-campo", label: { style: { fontWeight: 600 } } }}
+/>
+```
+
+O `parts` aceita **só** `className` e `style` — sem handler, sem ref, de
+propósito. É esse limite que impede o `parts` de crescer de volta pra um
+mapa global de 50 chaves. Precisa de handler ou ref no wrapper? Omita o
+`label` e componha o seu: `Input`, `Select` e `Textarea` devolvem o
+controle nu quando não recebem rótulo.
+
+Duas formas, use a que couber:
+
+```tsx
+parts={{ label: "minha-classe" }}                      // atalho de string
+parts={{ label: { className: "x", style: { … } } }}    // objeto, quando precisa de style
+```
+
+Cada componente declara um conjunto **fechado** de 2 a 6 chaves, então
+você descobre por autocomplete no próprio componente e o TypeScript
+reprova typo.
+
+### Como o merge funciona de verdade
+
+- **`className` faz merge**, a nossa primeiro, a sua depois, com dedupe
+  de token exato. A ordem dentro do atributo não decide nada — `.jpd-btn`
+  e a sua classe têm a mesma especificidade (0-1-0), então quem ganha é a
+  ordem na *folha de estilo*. Ver [Tema e CSS](./theming) pra entender
+  por que a nossa layer perde de propósito.
+- **`style` ganha, chave por chave.** É a saída de último recurso — o que
+  sobrou quando classe e token não bastaram —, então o componente não
+  pode sobrescrevê-la. Duas consequências são assumidas de propósito: o
+  `gridTemplateRows` do `TabPanel` *É* o mecanismo de colapso, e o
+  `backgroundColor` de cada swatch em `PaletteSwatches` *É* a paleta.
+  Sobrescrever qualquer um dos dois quebra a função do componente — e
+  isso é aceitável numa saída de último recurso.
+- O `cx` devolve `undefined` em vez de `""` quando nada sobra, então o
+  markup não fica com um `class=""` sobrando (o `Card` antes emitia um
+  espaço no fim).
+
+### `Modal`: `size`, não classe do Tailwind
+
+**Breaking na 3.0.0.** O `maxWidthClass` — uma string de classe TAILWIND
+na API pública de um pacote que não envia mais Tailwind — foi substituído
+por:
+
+```tsx
+<Modal title="Fórmula" size="xl" onClose={fechar}>…</Modal>
+```
+
+`"sm" | "md" | "lg" | "xl" | "full"`, default `"lg"` = 48rem, que é
+exatamente o que o antigo `max-w-3xl` dava. Largura arbitrária agora é
+`style={{ maxWidth: 900 }}` — e ela chega no painel, porque
+`className`/`style` vão pro elemento nomeado, e o nome aqui é o painel,
+não o fundo.
+
+Nenhum call site interno passava `maxWidthClass`, e ele não estava
+documentado em lugar nenhum (vivia só no código), então nada que você
+leu antes ficou falso.
+
+### Os componentes do kit repassam ref agora
+
+Eles estão embrulhados em `forwardRef`, o que significa que **não são
+mais funções simples**: `Button.name` deixa de ser `"Button"`, e chamar
+`Button(props)` direto para de funcionar. É `forwardRef` e não a prop
+`ref` do React 19 porque o React 18 é peer suportado.
+
+Os **20 ícones são a exceção** — continuam funções simples, sem ref. As
+props deles alargaram de `{ className }` pra `IconProps` =
+`SVGAttributes`. De propósito NÃO `SVGProps`, que estende
+`ClassAttributes` e aceitaria um `ref` que não vai a lugar nenhum; o tipo
+mentiria.
+
+## Substituindo os primitivos do editor
+
+O `className` estiliza o que a gente renderiza. O
+`UiComponentsProvider` substitui:
+
+```tsx
+import { UiComponentsProvider, Designer, type ButtonProps, type UiComponentsOverride } from "json-pdf-designer";
+import { Button as MuiButton } from "@mui/material";
+
+// Constante de MÓDULO — ver o aviso abaixo.
+const MEU_KIT = {
+  Button: ({ variant, size, ...rest }: ButtonProps) => <MuiButton {...rest} />,
+} satisfies UiComponentsOverride;
+
+<UiComponentsProvider components={MEU_KIT}>
+  <Designer … />
+</UiComponentsProvider>
+```
+
+`<Designer components={MEU_KIT}>` é açúcar pra mesma coisa. O
+`useUiComponents()` é como uma peça sua resolve o conjunto atual, e o
+`defaultUiComponents` guarda os nossos.
+
+### Os doze slots
+
+`Button`, `Input`, `ColorInput`, `Select`, `Textarea`, `Checkbox`,
+`Modal`, `Card`, `CardHeader`, `CardTitle`, `Badge`, `TabPanel`.
+
+O conjunto é **fechado** de propósito: cada chave é contrato público e
+permanente. A substituição é parcial — o que você não passar continua
+sendo o nosso, e os providers compõem chave a chave, então dá pra
+definir o vocabulário do app na raiz e sobrescrever só o `Modal` num
+canto.
+
+`undefined` numa chave significa **herda** (do provider pai), não
+volta-ao-default. Pra voltar ao nosso explicitamente:
+`{ Modal: defaultUiComponents.Modal }`.
+
+### A pegadinha: seu adapter recebe as props como o chamador as escreveu
+
+Esta morde na prática. Os defaults moram **dentro** dos nossos
+componentes, então o slot vê o que o call site passou de verdade. O
+`<Button>` faz `{ variant = "primary", size = "sm" }` na desestruturação
+dele, o que significa que um chamador que escreve `<Button>ok</Button>`
+manda `variant: undefined` pro seu adapter. Medido: dos seis botões da
+Toolbar, **cinco chegam sem `variant`**.
+
+Então o seu adapter precisa do próprio default:
+
+```tsx
+Button: ({ variant = "primary", size = "sm", ...rest }: ButtonProps) => …
+```
+
+Os defaults do editor, pra copiar: `Button` `variant="primary"`
+`size="sm"`; `Modal` `size="lg"`; o `collapsed` do `TabPanel` é
+obrigatório (sem default). Todo o resto das props não-DOM é opcional e
+sem default — ausente significa "não mostra" (`label`, `parts`, `mono`).
+
+:::danger[Identidade instável é o footgun mais afiado daqui]
+Um objeto inline cria **componente novo a cada render**, o React vê tipo
+novo, e ele desmonta e remonta o componente slotado — o sintoma é o campo
+perder o foco a cada tecla, que ninguém liga ao registry. Hoiste o mapa
+pra uma constante de módulo (ou memoize). Fora de produção o provider
+avisa no console, uma vez, nomeando os slots cuja identidade mudou.
+:::
+
+### Escrevendo o adapter
+
+`components={{ Button: MuiButton }}` **não** type-checka direto — o
+`variant` do MUI conflita com o nosso — e nenhum truque resolve. A meta é
+um adapter de ~5 linhas, tipado nas duas pontas. É por isso que todo
+`*Props` é exportado, toda prop não-DOM é opcional, e o exemplo usa
+`satisfies UiComponentsOverride`.
+
+Três pontos do contrato:
+
+- **`label` é a prop que morde.** Um slot que descarta `label` remove o
+  nome acessível de uns 16 controles. O `TextField` do MUI tem `label`
+  compatível; o `Input` do Chakra não tem.
+- **`Textarea` é o slot em que ignorar a `ref` QUEBRA algo**: o modal de
+  fórmula passa uma ref pra reposicionar o caret depois de aceitar uma
+  sugestão. Todo outro slot pode ignorar a ref dele.
+- **Nenhum primitivo slotável chama `useUiComponents`.** Senão o adapter
+  mais óbvio que existe — embrulhar o *nosso* componente pra ajustar
+  algo — recursionaria pra sempre. É invariante, guardado por varredura
+  de fonte nos testes.
+
+### O que não é slotável, e por quê
+
+- **`PageCanvas` / `Ruler` / `FieldBox`** — isto é a maquete do PDF. O
+  padding de um primitivo estranho quebra o WYSIWYG.
+- **A barra de abas** — a 2.1.1 foi gasta encaixando seis abas em 290px;
+  um `Button` slotado com `min-width` próprio desfaz isso. Continua
+  `<button>` cru com classe nossa.
+- **O input de rename do FieldList** — depende de `autoFocus` mais commit
+  no `onBlur`.
+- **O input de arquivo escondido, o glifo "ƒx" e os ícones.**
+
+Mais uma fronteira que vale saber: **o `PdfPreviewModal` NÃO herda
+primitivos de um `<Designer>` em outro lugar da página.** Ele vive no
+entry `/preview` e resolve do `UiComponentsProvider` mais próximo.
+
+## O que ficou público agora no kit
+
+`Checkbox` (que fecha a lacuna de três `<input type="checkbox">` crus),
+`PalettePicker`, `PaletteSwatches`, `MaterialIcon`, `CollapsibleSection`
+e `ClearFieldButton` passam a ser exportados. O `mono` não adiciona mais
+a classe `font-mono` — virou `data-mono`.
+
+O `BulkLocked` fica **interno** de propósito: ele significa "travado
+porque você selecionou vários do mesmo tipo", que é um *modo* do
+`<Designer>`. Fora daquele contexto o componente não quer dizer nada.
+
+Veja [Componentes de UI prontos](./ready-made-ui) pro kit em si,
+[Tema e CSS](./theming) pro contrato de CSS, e
+[Migrando pra 3.0.0](./migration-3) se você vem da 2.x.

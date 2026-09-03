@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Designer, classifyZone, makeSectionColumnPair } from "json-pdf-designer";
+import { DesignerCanvas, DesignerProvider, DesignerSidebar, I18nProvider, classifyZone, makeSectionColumnPair } from "json-pdf-designer";
 import type { Binding, Locale, Schema, SectionSchema, TableSchema, Template, TextSchema } from "json-pdf-designer";
 import type { FieldNode } from "../lib/jsonExplorer";
 import { sanitizeName } from "../lib/jsonExplorer";
 import { uid } from "../lib/uid";
+import { t } from "../i18n";
 import FieldTree from "./FieldTree";
+import SelectedFieldBar from "./SelectedFieldBar";
 
 type Props = {
   fields: FieldNode[];
@@ -17,6 +19,7 @@ type Props = {
   onChangeTemplate: React.Dispatch<React.SetStateAction<Template>>;
   onChangeBindings: React.Dispatch<React.SetStateAction<Binding[]>>;
   openFieldPickerRef?: React.MutableRefObject<(() => void) | null>;
+  // Um só `locale`: alimenta o `<I18nProvider>` (editor) e o `t()` da casca.
   locale?: Locale;
 };
 
@@ -45,6 +48,7 @@ export default function DesignerPanel({
   openFieldPickerRef,
   locale,
 }: Props) {
+  const tx = t(locale ?? "en");
   const [showFieldPicker, setShowFieldPicker] = useState(false);
 
   useEffect(() => {
@@ -156,17 +160,38 @@ export default function DesignerPanel({
     .filter((f): f is Extract<FieldNode, { kind: "arraySource" }> => f.kind === "arraySource")
     .map((f) => ({ path: f.path, label: f.path, columns: f.columns, columnTypes: f.columnTypes }));
 
+  // Composição em vez do `<Designer>`, e o LAYOUT é idêntico ao do preset
+  // (canvas + sidebar, lado a lado). A migração não foi por causa do layout:
+  // foi pra içar o `<DesignerProvider>` acima da casca deste app, e assim a
+  // `<SelectedFieldBar>` abaixo poder LER a seleção do editor por hook.
+  //
+  // Isso era impossível na 2.x — o `<Designer>` era dono da seleção e não
+  // havia como consultá-la de fora.
+  //
+  // O `<I18nProvider>` fica explícito porque a prop `locale` era do preset;
+  // montando na mão, o idioma é responsabilidade de quem monta. E é o MESMO
+  // valor que a casca usa: a `<SelectedFieldBar>` abaixo lê o idioma daqui
+  // por `useLocale()`, então não há como as duas camadas dessincronizarem.
   return (
-    <div className="flex h-full flex-col gap-2.5">
-      <Designer
+    <I18nProvider locale={locale}>
+      <DesignerProvider
         template={template}
         onChangeTemplate={onChangeTemplate}
         bindings={bindings}
         onChangeBindings={onChangeBindings}
         onCanvasDrop={handleCanvasDrop}
         dataSources={dataSources}
-        locale={locale}
-      />
+      >
+        <div className="flex h-full flex-col gap-2.5">
+          <SelectedFieldBar />
+          {/* As mesmas duas colunas que o `<Designer>` monta. As classes são
+              nossas: `jpd-designer`/`jpd-designer__main` são do theme.css e
+              serviriam, mas escrever o layout aqui deixa explícito que ele é
+              do app, não do pacote. */}
+          <div className="flex items-start gap-4">
+            <DesignerCanvas className="min-w-0 flex-1" />
+            <DesignerSidebar className="w-80 flex-shrink-0" />
+          </div>
 
       {showFieldPicker && (
         <div
@@ -178,7 +203,7 @@ export default function DesignerPanel({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-800">Campos do JSON</h3>
+              <h3 className="text-base font-semibold text-slate-800">{tx.fieldsTitle}</h3>
               <button
                 className="rounded p-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                 onClick={() => setShowFieldPicker(false)}
@@ -186,11 +211,10 @@ export default function DesignerPanel({
                 ×
               </button>
             </div>
-            <p className="mb-2 mt-1 text-xs text-slate-500">
-              Clique em + pra adicionar direto no canvas (sem arrastar).
-            </p>
+            <p className="mb-2 mt-1 text-xs text-slate-500">{tx.pickerHint}</p>
             <div className="overflow-y-auto">
               <FieldTree
+                locale={locale ?? "en"}
                 fields={fields}
                 onAdd={(field) => {
                   addFieldToCanvas(field);
@@ -199,8 +223,10 @@ export default function DesignerPanel({
               />
             </div>
           </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </DesignerProvider>
+    </I18nProvider>
   );
 }

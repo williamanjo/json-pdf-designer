@@ -48,7 +48,11 @@ export function PdfPreview({ bytes, scale = 1.4, className = "" }: Props) {
           canvas.height = viewport.height;
           canvas.style.display = "block";
           canvas.style.marginBottom = "16px";
-          canvas.style.boxShadow = "0 1px 3px rgba(0,0,0,0.15), 0 8px 24px rgba(15,23,42,0.08)";
+          // Via token, pra o tema poder trocar. Note que este valor DIVERGE
+          // da sombra do canvas do editor (0.15 aqui, 0.1 lá) — divergência
+          // que já existia no 2.1.1 e ficou preservada de propósito:
+          // unificar mudaria pixel.
+          canvas.style.boxShadow = "var(--jpd-shadow-page-preview)";
           const ctx = canvas.getContext("2d");
           if (!ctx) continue;
           // Anexa antes de renderizar — alguns caminhos internos do pdf.js
@@ -68,10 +72,10 @@ export function PdfPreview({ bytes, scale = 1.4, className = "" }: Props) {
   }, [bytes, scale]);
 
   if (!bytes) return null;
-  if (error) return <p className="text-xs text-red-600">{t.pdfPreview.renderError(error)}</p>;
+  if (error) return <p className="jpd-error jpd-error--md">{t.pdfPreview.renderError(error)}</p>;
   return (
     <div className={className}>
-      {pageCount > 1 && <p className="mb-2 text-[11px] text-slate-500">{t.pdfPreview.pageCount(pageCount)}</p>}
+      {pageCount > 1 && <p className="jpd-preview__count">{t.pdfPreview.pageCount(pageCount)}</p>}
       <div ref={containerRef} />
     </div>
   );

@@ -47,7 +47,7 @@ já mostram — a única diferença é que "Salvar projeto" (que hoje baixa um
 ```tsx
 import { useState } from "react";
 import { Designer, type Template, type Binding } from "json-pdf-designer";
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 
 function TemplateEditorPage({ templateId }: { templateId?: string }) {
   const [template, setTemplate] = useState<Template>(/* carregado do backend ou vazio */);

@@ -1,9 +1,12 @@
 import { useState } from "react";
+import type { Locale } from "json-pdf-designer";
 import type { FieldNode, FieldTreeNode } from "../lib/jsonExplorer";
-import { NATIVE_FIELDS, buildFieldTree } from "../lib/jsonExplorer";
+import { nativeFields, buildFieldTree } from "../lib/jsonExplorer";
+import { t } from "../i18n";
 
 type Props = {
   fields: FieldNode[];
+  locale: Locale;
   onAdd?: (field: FieldNode) => void;
   onOpenPicker?: () => void;
 };
@@ -35,8 +38,9 @@ function rowClass(field: FieldNode): string {
 //
 // Toda a marcação aqui é HTML nativo + classes de src/index.css — nenhum
 // Card/Button/ícone importado do pacote (é a premissa deste example).
-export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
+export default function FieldTree({ fields, locale, onAdd, onOpenPicker }: Props) {
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
+  const d = t(locale);
 
   function onDragStart(e: React.DragEvent<HTMLDivElement>, field: FieldNode) {
     e.dataTransfer.setData("application/json", JSON.stringify(field));
@@ -59,15 +63,19 @@ export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
         onDragStart={(e) => onDragStart(e, field)}
         style={{ marginLeft: depth * INDENT_PX }}
         className={rowClass(field)}
-        title={field.kind === "native" ? `{${field.path}} — só funciona no cabeçalho/rodapé/margem` : field.path}
+        // O `title` de um campo do JSON é o PATH cru (`rows.total`) — dado, e
+        // é justamente o que a pessoa precisa ler. Só o aviso do campo nativo
+        // é frase, e essa sim vem do dicionário.
+        title={field.kind === "native" ? d.nativeOnlyInBands(field.path) : field.path}
       >
         <span className="field-row-icon">{iconFor(field)}</span>
+        {/* `label` é dado: nome da chave do JSON ou da coluna do array. */}
         <span className="field-row-label">{label}</span>
         {onAdd && (
           <button
             type="button"
             className="btn-icon push-right"
-            title="Adicionar ao relatório"
+            title={d.addToReport}
             onClick={(e) => {
               e.stopPropagation();
               onAdd(field);
@@ -92,7 +100,7 @@ export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
           <button
             type="button"
             onClick={() => toggleGroup(node.key)}
-            aria-label={collapsed ? `Expandir ${node.label}` : `Colapsar ${node.label}`}
+            aria-label={collapsed ? d.expandGroup(node.label) : d.collapseGroup(node.label)}
             className="tree-toggle"
           >
             {collapsed ? "▸" : "▾"}
@@ -109,20 +117,22 @@ export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
   return (
     <section className="card card-grow">
       <div className="card-head">
-        <h2 className="card-title">Campos do JSON</h2>
+        <h2 className="card-title">{d.fieldsTitle}</h2>
         {onOpenPicker && (
-          <button type="button" className="btn-icon" title="Adicionar campo (sem arrastar)" onClick={onOpenPicker}>
+          <button type="button" className="btn-icon" title={d.addFieldNoDrag} onClick={onOpenPicker}>
             +
           </button>
         )}
       </div>
-      <p className="hint">Arraste um campo para o relatório →</p>
+      <p className="hint">{d.fieldsHint}</p>
 
       <div className="tree-scroll">
         <div className="tree-section">
-          <p className="tree-section-title">Variáveis nativas</p>
+          <p className="tree-section-title">{d.nativeSection}</p>
           <ul className="tree-list">
-            {NATIVE_FIELDS.map((f) => (
+            {/* O PATH do campo nativo (`pageNumber`) é token do motor e não
+                muda; só o RÓTULO exibido sai do dicionário. */}
+            {nativeFields(locale).map((f) => (
               <li key={f.path}>{renderFieldRow(f, f.label, 0)}</li>
             ))}
           </ul>
@@ -130,7 +140,7 @@ export default function FieldTree({ fields, onAdd, onOpenPicker }: Props) {
 
         {tree.length > 0 && (
           <div className="tree-section tree-section-divided">
-            <p className="tree-section-title">Dados</p>
+            <p className="tree-section-title">{d.dataSection}</p>
             <ul className="tree-list">{tree.map((node) => renderNode(node, 0))}</ul>
           </div>
         )}

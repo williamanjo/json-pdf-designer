@@ -1,5 +1,5 @@
 import { useT } from "../i18n";
-import { Button } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 import { IconPlus } from "./ui/icons";
 
 type Props = {
@@ -13,8 +13,9 @@ type Props = {
 
 export function Toolbar({ onAddText, onAddTable, onAddImage, onAddSection, onAddChart, onAddKpi }: Props) {
   const t = useT();
+  const { Button } = useUiComponents();
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="jpd-toolbar">
       <Button onClick={onAddText}>
         <IconPlus /> {t.toolbar.text}
       </Button>

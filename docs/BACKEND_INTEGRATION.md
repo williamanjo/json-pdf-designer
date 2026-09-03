@@ -50,7 +50,7 @@ to the API instead of a file:
 ```tsx
 import { useState } from "react";
 import { Designer, type Template, type Binding } from "json-pdf-designer";
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 
 function TemplateEditorPage({ templateId }: { templateId?: string }) {
   const [template, setTemplate] = useState<Template>(/* loaded from the backend, or empty */);

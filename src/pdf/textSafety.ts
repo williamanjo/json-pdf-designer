@@ -1,4 +1,5 @@
 import type { PDFFont } from "pdf-lib";
+import { UnsupportedGlyphError } from "../errors";
 
 // Duas coisas separam "o dado tem um caractere estranho" de "não sai PDF
 // nenhum". Este arquivo é as duas.
@@ -51,33 +52,10 @@ function firstUnencodableChar(text: string, font: PDFFont, size: number): string
   return null;
 }
 
-function codePointLabel(char: string): string {
-  const cp = char.codePointAt(0) ?? 0;
-  return `U+${cp.toString(16).toUpperCase().padStart(4, "0")}`;
-}
-
-// Erro de glifo ausente com contexto suficiente pra agir: qual campo, qual
-// caractere, e o que fazer.
-//
-// A alternativa seria descartar o caractere e seguir. Não fazemos: um relatório
-// é um documento que alguém assina, e sumir com um caractere do conteúdo em
-// silêncio é pior que falhar. Caractere de CONTROLE é outra história (não tem
-// glifo em fonte nenhuma) — esse o sanitizeText acima já resolve.
-export class UnsupportedGlyphError extends Error {
-  constructor(
-    readonly field: string,
-    readonly char: string,
-    readonly text: string
-  ) {
-    super(
-      `Campo "${field}": o caractere ${JSON.stringify(char)} (${codePointLabel(char)}) não existe na fonte usada. ` +
-        `A fonte padrão (Helvetica/WinAnsi) cobre acentuação latina, mas não emoji/CJK/árabe — ` +
-        `passe \`fontBytes\` com uma fonte que cubra esse caractere em generatePdf(..., { fontBytes }), ` +
-        `ou remova o caractere do dado.`
-    );
-    this.name = "UnsupportedGlyphError";
-  }
-}
+// A classe mora em src/errors.ts (com todas as outras, ver o comentário de
+// lá) e é REEXPORTADA daqui: `UnsupportedGlyphError` já era importada deste
+// módulo por código e por teste, e mudar o caminho não traria nada.
+export { UnsupportedGlyphError } from "../errors";
 
 // Roda `draw` e, se o pdf-lib recusar por causa de um caractere, troca o erro
 // cru ("WinAnsi cannot encode …", que não diz onde) por um que nomeia o campo.

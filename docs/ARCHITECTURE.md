@@ -41,29 +41,194 @@ about — an A4 sheet is 210×297mm). Converted to **px** only to render on
 the editor canvas (`src/units.ts`, `mmToPx`/`pxToMm`) and to **pt** when
 drawing the real PDF via pdf-lib (`mmToPt`).
 
-## Editor (`src/designer/Designer.tsx` + `src/components/`)
+## Editor (`src/designer/` + `src/components/`)
 
-`Designer.tsx` owns selection state, the tab bar (Fields/Data/Style/
-Filter/Page), clipboard (copy/paste), keyboard shortcuts, and every
-mutation on `Template`/`Binding[]` (add/remove/reorder schemas, update a
-binding, resize page bands...). It renders two children:
+`Designer.tsx` used to be the editor. Since 3.0.0 it is a **preset**, 101
+lines where it was 986: three providers (`I18nProvider`,
+`UiComponentsProvider`, `DesignerProvider`) and two parts
+(`DesignerCanvas`, `DesignerSidebar`) in a two-column layout. The state it
+used to own moved into `designer/context/`, and the layout it used to
+hard-code moved into `designer/parts/`.
 
-- **`PageCanvas.tsx`** — the actual page: one `<Rnd>` (react-rnd) per
-  schema for drag/resize, the header/footer/margin bands drawn in red,
-  the grid, marquee (box) selection, zoom controls. Delegates what a
-  field actually looks like to **`FieldBox/`** (one small component per
-  `schema.type` — `TextField.tsx`, `TableField.tsx`, `ImageField.tsx`,
+The two-children shape below is therefore what the **preset** renders, not
+what the editor is. Anyone can mount `<DesignerProvider>` and place the ten
+parts anywhere — see "The decomposition" below and, for the consumer-facing
+version, "Composing the editor" in [USAGE.md](./USAGE.md).
+
+- **`PageCanvas.tsx`** (wrapped by `parts/DesignerCanvas.tsx`) — the actual
+  page: one `<Rnd>` (react-rnd) per schema for drag/resize, the
+  header/footer/margin bands drawn in red, the grid, marquee (box)
+  selection, zoom controls. Delegates what a field actually looks like to
+  **`FieldBox/`** (one small component per `schema.type` —
+  `TextField.tsx`, `TableField.tsx`, `ImageField.tsx`,
   `SectionField.tsx`, `ChartField.tsx`, `KpiField.tsx`).
-- **The side panel** — `FieldList.tsx` (the field list, click to select),
-  `Toolbar.tsx` (add-field buttons), and, once a field is selected,
-  `PropertyPanel.tsx` — a thin dispatcher to one `PropertyPanel<Type>.tsx`
-  per schema type, each split into a "Data" and a "Style" tab.
-  `BindingEditor.tsx` (the generic path/array/section/chart binding
-  editor) and `PropertyPanelFields.tsx` (shared X/Y/width/height inputs)
-  are reused across several of them.
+- **The side panel** (`parts/DesignerSidebar.tsx`, which composes the seven
+  content parts with the per-tab gate) — `FieldList.tsx` (the field list,
+  click to select), `Toolbar.tsx` (add-field buttons), and, once a field is
+  selected, `PropertyPanel.tsx` — a thin dispatcher to one
+  `PropertyPanel<Type>.tsx` per schema type, each split into a "Data" and a
+  "Style" tab. `BindingEditor.tsx` (the generic path/array/section/chart
+  binding editor) and `PropertyPanelFields.tsx` (shared X/Y/width/height
+  inputs) are reused across several of them.
 
 Selection, editing, and binding all live in the same React tree — no
 module bridge, no imperative API between the canvas and the panel.
+
+### The decomposition (`designer/context/`, `designer/parts/`)
+
+`context/DesignerProvider.tsx` mounts the state; `context/contexts.ts`
+declares **five** contexts; `context/hooks.ts` holds the ten public hooks
+(five accessors, five selectors); `context/derived.ts` holds the pure
+derivations the selectors call; `actions.ts` holds every mutator.
+
+**Why five contexts and not one:** each part subscribes only to what it
+reads, and React re-renders a consumer when the *value* of the context it
+reads changes identity — not when the provider re-renders. One context
+would re-render every part on every keystroke in a text field. The split is
+by **frequency of change**, measured against what each thing is:
+
+| Context | Changes |
+|---|---|
+| `data` | on every template/binding edit — the hottest |
+| `actions` | **never**; stable identity for the provider's lifetime |
+| `selection` | on every canvas click |
+| `ui` | on every tab switch / collapse / isolate toggle |
+| `config` | when the provider's props change (almost never) |
+
+`actions` is the load-bearing one: stable identity is what lets a memoized
+part consume a mutator without re-rendering when the template changes. It
+is only stable because every mutator was rewritten to read from the
+updater's `prev` instead of from a closure — see the opening comment in
+`designer/actions.ts`. Break that and the whole split degrades quietly
+into "one context, five names".
+
+Derived values (`selected`, `bulkEditActive`, `fieldListSchemas`) are
+**selectors**, not context entries, for the mirror-image reason: in the
+data context, its value would change identity whenever any one of them
+changed, and every part reading data would re-render because of a derived
+value it never touches.
+
+The access hooks **throw** with a message naming the provider when used
+outside one, rather than returning `null`. Different from `I18nContext`
+(whose default is the English dictionary, so a kit component works
+standalone): a designer part with no template has no fallback behaviour at
+all — it would simply not render, and a silent `null` becomes "the part
+doesn't appear and doesn't say why".
+
+`parts/useTabGate.ts` holds the release's subtlest decision: the per-tab
+gate is **opt-in**. Without `whenTab`, a part renders always. If gating
+were the default, two panels side by side in a custom layout would erase
+one of the two, because only one tab can be active — they would be parts
+that *look* decomposed but only work inside a tabbed sidebar. The gate also
+forces the two-component shape every part file has: `useTabGate` must be
+called first and `return null` must follow immediately, so no other hook can
+precede it — hence a `*Body` component holding the real work.
+
+Three things deliberately stayed put, and each would fail *silently* if
+decomposed: the `TabPanel` collapse (its `1fr`→`0fr` grid trick needs a
+flex-column parent with `min-block-size: 0`, which a standalone part cannot
+guarantee), `useClipboardAndDelete` (registered exactly once by the
+provider — in one part, whoever doesn't render the canvas loses the
+shortcuts; in two, every paste fires twice), and the per-type
+`FieldBox`/`PropertyPanel*` components (dispatched by `schema.type`, with no
+answer to "which schema?" other than "the selected one").
+
+## Styling (`src/css/`)
+
+Two hand-written stylesheets, no build step of their own:
+
+- **`theme.css`** (2,770 lines) — the finished look. `@import`s
+  `reset.css`, so one import is enough for a consumer.
+- **`reset.css`** (236 lines) — the appearance-free subset: what the
+  editor's markup used to inherit from Tailwind's Preflight, and nothing
+  with a color, a size or a layout in it. Published as its own export for
+  whoever styles `.jpd-*` from scratch.
+
+They reach `dist/` through **`publicDir: "src/css"`** in
+`tsup.config.ts` — tsup does not *process* CSS, it just copies the
+directory. That runs after `clean: true` and re-copies under `--watch`, so
+`npm run dev` tracks it, and it beats a `cp` script on portability. Both
+are unminified on purpose: they are public contract, the consumer reads
+them to learn the class and token names, and the consumer's bundler
+minifies. `npm run build` is therefore just `tsup` — 3.0.0 dropped
+`tailwindcss`/`@tailwindcss/cli` from devDependencies, deleted the
+`build:css` script and deleted `src/style.css`.
+
+**No global reset.** Up to 2.1.1 the shipped stylesheet was Tailwind v4
+output and carried Preflight, which landed on the consumer's whole app.
+Now each `.jpd-*` class carries the reset the element under it depended
+on, and the only rule with a `*` is scoped to the editor's roots and
+wrapped in `:where()` — specificity zero, so any consumer rule beats it.
+The trap worth remembering when writing those local resets: `border: 0`
+also sets `border-style: none`, after which any `border-width` computes to
+zero. It has to be `border: 0 solid`.
+
+**Conventions.** Classes are `jpd-block__element--modifier`, one element
+level deep — 194 distinct `.jpd-*` selectors across 80 blocks. State is a
+`data-*` attribute, never a class, and the rule that produced that split is
+mechanical: *if the JSX would have to concatenate or choose a class string,
+it's a `data-*`.* Values are 125 `--jpd-*` custom properties, 122 public;
+the largest families are `--jpd-accent-*` (14), `--jpd-text-*` (13),
+`--jpd-section-*` (12), `--jpd-space-*` (10), `--jpd-font-*` (9),
+`--jpd-surface-*` (8), `--jpd-danger-*` (7). The other three are internal
+knobs of a single component each and take a leading underscore
+(`--jpd-_btn-ring`, `--jpd-_modal-max`, `--jpd-_swatch-size`), which is
+what keeps the public list readable. Spacing is in `rem`, not px, because
+the original value was `calc(var(--spacing) * N)` and emitting px would
+break anyone whose root font size isn't 16.
+
+**`@layer json-pdf-designer`** wraps everything, and both files declare
+`@layer json-pdf-designer, utilities;` before any rule. Unlayered CSS beats
+layered CSS regardless of specificity, so every consumer rule wins by
+default — which is what makes accepting `className` mean anything, and why
+the layer order has to be declared rather than inferred from import order
+(measured: an example app's `bg-sky-600` computed to `rgba(0,0,0,0)`
+because our reset won). The side effect is that a bare element selector
+also wins and reaches the editor's chrome; that is not new — Tailwind v4
+output emitted `@layer utilities`, so a loose `button { … }` already beat
+2.x's stylesheet.
+
+Dark mode is `[data-jpd-theme="dark"]` with `.dark` kept as an alias (what
+2.x consumers already set), and `[data-jpd-theme="light"]` to force light.
+No media query, deliberately: a library should not turn a light-only app
+dark because the OS is. Tokens live on `:root` because `<Modal>` renders
+through `createPortal(document.body)` — a dark island scoped to a container
+would otherwise leave every portalled modal light.
+
+**Both exports have example coverage, and so does the mode that takes
+neither.** The five apps in `examples/` sit at five different points on
+the spectrum: `theme.css` as it ships (`report-builder`), `theme.css`
+rethemed by token only (`composed-layout`), `theme.css` in dark mode
+(`no-preview`), `reset.css` alone (`headless-designer`), and no package
+CSS at all (`custom-ui`). That matters because until 3.0.0 `reset.css`
+was a public export with zero examples using it. The split is guarded by
+`test/docsFreshness.test.ts`, which reads each example's real CSS import
+lines and fails when one moves without the documentation moving with it —
+including the reset-only trap it also asserts: `PdfPreview` reads
+`--jpd-shadow-page-preview` inline through `canvas.style.boxShadow`, so a
+`reset.css`-only consumer has to declare that token or the shadow
+disappears with no error.
+
+**Where the line runs between the part and the consumer.** A part owns
+whatever is *structural* to itself and nothing more. `DesignerCanvas` owns
+the sheet geometry (mm→px, `transform: scale(zoom)`) because `react-rnd`
+computes its drag delta against that transform — override it from outside
+and the field runs away from the cursor. The consumer owns the scrolling
+viewport around it, which is what the part's `className` reaches, and the
+sidebar's width: it is `inline-size: 20rem` on `.jpd-sidebar` in
+`theme.css` — an overridable stylesheet rule, not a value hard-coded in
+`DesignerSidebar`. Panel width is a layout decision, and layout belongs to
+the consumer.
+
+The same rule shapes the UI kit's props: **`className`/`style`/`...rest` go
+to the element that gives the component its name; every other element it
+renders is addressed through `parts`, by role.** So `Input.className` stays
+on the `<input>` (source-compatible with 2.x) and its `<label>` wrapper is
+`parts.root`; `Modal.className` is the panel and the backdrop is
+`parts.overlay`. `parts` accepts only `className`/`style` — no handlers, no
+refs. `cx` (in `components/ui/cx.ts`) merges class strings, dedupes exact
+tokens and returns `undefined` when empty; `mergeStyle` lets the
+consumer's `style` win.
 
 ## Bindings and templates (`src/bindings/`, `src/table/columns.ts`)
 
@@ -259,11 +424,22 @@ touch the DOM. Everything else under `src/pdf/`, `src/bindings/`, and
 Three built entries, each a hand-maintained export subset:
 
 - `src/index.ts` — `"json-pdf-designer"`, the full browser surface
-  (`<Designer>`, UI components, `generatePdf`/`downloadPdf`, i18n).
+  (`<Designer>` and the ten parts, `DesignerProvider` and the ten hooks,
+  the primitive registry, the UI kit, `generatePdf`/`downloadPdf`, i18n):
+  130 exports, measured on the built `dist`.
 - `src/server.ts` — `"json-pdf-designer/server"`, the same minus
-  everything React/DOM, so a Node backend never resolves react.
+  everything React/DOM, so a Node backend never resolves react. Untouched
+  by 3.0.0 — the emitted `server.d.ts` is byte-identical to 2.1.1's.
 - `src/preview.ts` — `"json-pdf-designer/preview"`, `PdfPreview`,
   `PdfPreviewModal`, `configurePdfWorker`.
+
+Plus two CSS exports that are not built entries at all —
+`"json-pdf-designer/theme.css"` and `"json-pdf-designer/reset.css"`, copied
+from `src/css/` (see "Styling" above). The 2.x `"./style.css"` and
+`"./dist/style.css"` keys were **removed rather than aliased**: an alias
+would have quietly resolved to a different stylesheet, and a build-time
+`ERR_PACKAGE_PATH_NOT_EXPORTED` that points at the changelog is a better
+failure than a silent visual change.
 
 `pdfjs-dist` is an **optional peer dependency** (~35MB installed), and the
 `/preview` graph is the only place allowed to import it. Rendering the

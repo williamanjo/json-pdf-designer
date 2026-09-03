@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generatePdf } from "../../src/pdf/generate";
 import { estimateDataUriBytes, MAX_DISTINCT_IMAGES, MAX_IMAGE_BYTES } from "../../src/pdf/render/renderImage";
+import { ImageTooLargeError, TooManyImagesError } from "../../src/errors";
 import type { ImageSchema, Template } from "../../src/types";
 
 // 1x1 PNG real (menor PNG válido possível) — usado como base pra montar data
@@ -37,6 +38,17 @@ function makeTemplate(schemas: ImageSchema[]): Template {
   return { page: { width: 210, height: 297 }, schemas };
 }
 
+// O erro com que `promise` rejeita — pra afirmar sobre a CLASSE e os campos
+// estruturados em vez de casar a frase da mensagem.
+async function rejection(promise: Promise<unknown>): Promise<unknown> {
+  try {
+    await promise;
+  } catch (err) {
+    return err;
+  }
+  throw new Error("expected the promise to reject, and it resolved");
+}
+
 describe("estimateDataUriBytes", () => {
   it("calcula o tamanho decodificado aproximado (len*3/4) a partir do base64 depois da vírgula", () => {
     // "QQQQ" (4 chars base64) decodifica pra 3 bytes reais — fórmula bate.
@@ -52,22 +64,38 @@ describe("generatePdf — limites de imagem", () => {
     expect(bytes.length).toBeGreaterThan(0);
   });
 
-  it("imagem de campo acima do limite de tamanho lança erro claro (não tenta decodificar)", async () => {
+  it("imagem de campo acima do limite lança ImageTooLargeError nomeando o campo (não tenta decodificar)", async () => {
     const template = makeTemplate([makeImageSchema({ content: oversizedDataUri() })]);
-    await expect(generatePdf(template, {}, [])).rejects.toThrow(/maior que o limite/i);
+    const err = await rejection(generatePdf(template, {}, []));
+    expect(err).toBeInstanceOf(ImageTooLargeError);
+    const typed = err as ImageTooLargeError;
+    expect(typed.code).toBe("imageTooLarge");
+    expect(typed.field).toBe("imagem");
+    expect(typed.limitBytes).toBe(MAX_IMAGE_BYTES);
+    expect(typed.bytes).toBeGreaterThan(MAX_IMAGE_BYTES);
   });
 
-  it("fundo de página acima do limite de tamanho lança erro claro", async () => {
+  it("fundo de página acima do limite lança ImageTooLargeError com `field` null (não é campo)", async () => {
     const template: Template = { page: { width: 210, height: 297 }, schemas: [], backgroundImage: oversizedDataUri() };
-    await expect(generatePdf(template, {}, [])).rejects.toThrow(/imagem de fundo.*maior que o limite/i);
+    const err = await rejection(generatePdf(template, {}, []));
+    expect(err).toBeInstanceOf(ImageTooLargeError);
+    const typed = err as ImageTooLargeError;
+    // `null` é o discriminante entre "campo de imagem" e "fundo da página":
+    // antes a única pista era o rótulo colado na frase.
+    expect(typed.field).toBeNull();
+    expect(typed.limitBytes).toBe(MAX_IMAGE_BYTES);
   });
 
-  it(`mais de ${MAX_DISTINCT_IMAGES} imagens DISTINTAS no mesmo documento lança erro claro`, async () => {
+  it(`mais de ${MAX_DISTINCT_IMAGES} imagens DISTINTAS no mesmo documento lança TooManyImagesError com o limite`, async () => {
     const schemas = Array.from({ length: MAX_DISTINCT_IMAGES + 1 }, (_, i) =>
       makeImageSchema({ id: `img${i}`, name: `imagem${i}`, content: distinctTinyPng(i) })
     );
     const template = makeTemplate(schemas);
-    await expect(generatePdf(template, {}, [])).rejects.toThrow(/excede o limite de.*imagens distintas/i);
+    const err = await rejection(generatePdf(template, {}, []));
+    expect(err).toBeInstanceOf(TooManyImagesError);
+    const typed = err as TooManyImagesError;
+    expect(typed.code).toBe("tooManyImages");
+    expect(typed.maxImages).toBe(MAX_DISTINCT_IMAGES);
   }, 20000);
 
   it(`até ${MAX_DISTINCT_IMAGES} imagens distintas (no limite) ainda gera normalmente`, async () => {

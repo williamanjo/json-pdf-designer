@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { forwardRef, useState, type HTMLAttributes } from "react";
+import { cx } from "./cx";
+import { Labeled, type LabeledParts } from "./Labeled";
 import { PaletteSwatches } from "./PaletteSwatches";
 
 // Uma opção dentro do dropdown: nome estável (é o que `onSelect` recebe e o
@@ -22,7 +24,7 @@ export type PaletteGroup = {
   items: PaletteGroupItem[];
 };
 
-type PalettePickerProps = {
+export type PalettePickerProps = Omit<HTMLAttributes<HTMLDivElement>, "onSelect"> & {
   /** Rótulo acima do botão (ex.: "Paleta de cores"). Omitido = sem rótulo. */
   label?: string;
   /** Nome da paleta atualmente selecionada — usado só pra destacar a opção certa na lista. */
@@ -44,44 +46,33 @@ type PalettePickerProps = {
    * com bolinhas (sem `item.label`).
    */
   variant?: "list" | "grid";
-  swatchSize?: string;
-  swatchGap?: string;
-  swatchShrink?: boolean;
-  /**
-   * Quando true, a seta do botão fica sempre "▾" (não alterna com o estado
-   * aberto/fechado) e sem a cor de dark mode — reproduz o comportamento que
-   * o seletor de tabela já tinha (aparentemente um detalhe não intencional
-   * da versão original, preservado aqui pra não mudar nada visualmente).
-   * Padrão: false (seta alterna ▾/▴, caso do gráfico).
-   */
-  staticArrow?: boolean;
+  /** Tamanho das bolinhas. "md" (gráfico) | "sm" (tabela). */
+  swatchSize?: "sm" | "md";
+  parts?: LabeledParts;
 };
 
 // Dropdown de paleta nomeada, reaproveitável: botão mostra a paleta atual
 // (bolinhas + texto), clique abre/fecha uma lista de opções (bolinhas de
 // cada uma), escolher uma aplica e fecha de novo. Generaliza os dois
 // seletores quase idênticos que PropertyPanelChart.tsx e
-// PropertyPanelTable.tsx tinham cada um o seu: `variant="list"` cobre o
-// caso do gráfico (lista plana com nome ao lado de cada opção) e
-// `variant="grid"` cobre o da tabela (grupos Claro/Médio/Escuro, grade 2
-// colunas, só bolinhas). Estado `open` é interno — o caller não precisa
-// gerenciar nada além de currentName/currentColors/onSelect/groups.
-export function PalettePicker({
-  label,
-  currentName,
-  currentColors,
-  currentLabel,
-  onSelect,
-  groups,
-  emptyPlaceholder = "—",
-  variant = "list",
-  swatchSize,
-  swatchGap,
-  swatchShrink,
-  staticArrow = false,
-}: PalettePickerProps) {
+// PropertyPanelTable.tsx tinham cada um o seu.
+//
+// BREAKING em 3.0.0, duas coisas:
+//
+// - `swatchSize`/`swatchGap`/`swatchShrink` (três strings de classe Tailwind)
+//   colapsaram num `swatchSize` de dois valores. As duas chamadas reais
+//   sempre passavam o mesmo trio junto, e sempre casado com o `variant`.
+// - `staticArrow` morreu. Ele existia só pra preservar o que o comentário
+//   dele mesmo chamava de "detalhe não intencional da versão original": a
+//   seta do seletor da TABELA não alternava ▾/▴ e não tinha cor de dark
+//   mode. Com token, existe uma cor de seta; a seta alterna nos dois casos.
+export const PalettePicker = forwardRef<HTMLDivElement, PalettePickerProps>(function PalettePicker(
+  { label, currentName, currentColors, currentLabel, onSelect, groups, emptyPlaceholder = "—", variant = "list", swatchSize, className, parts, ...rest },
+  ref
+) {
   const [open, setOpen] = useState(false);
   const isGrid = variant === "grid";
+  const size = swatchSize ?? (isGrid ? "sm" : "md");
 
   function choose(name: string) {
     onSelect(name);
@@ -89,74 +80,57 @@ export function PalettePicker({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      {label && <span className="text-[11px] font-medium text-slate-600 dark:text-gray-300">{label}</span>}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between gap-2 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:border-sky-400 dark:border-gray-600 dark:text-gray-200 dark:hover:border-blue-400"
-      >
-        <span className="flex items-center gap-2">
-          {currentColors.length > 0 ? (
-            <PaletteSwatches colors={currentColors} size={swatchSize} gap={swatchGap} shrink={swatchShrink} />
-          ) : (
-            <span className="text-slate-400 dark:text-gray-500">{emptyPlaceholder}</span>
-          )}
-          <span>{currentLabel ?? currentName}</span>
-        </span>
-        <span className={staticArrow ? "text-slate-400" : "text-slate-400 dark:text-gray-500"}>
-          {staticArrow ? "▾" : open ? "▴" : "▾"}
-        </span>
-      </button>
-      {open && (
-        <div
-          className={
-            isGrid
-              ? "flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-200 p-1.5 dark:border-gray-600"
-              : "flex flex-col gap-0.5 rounded-lg border border-slate-200 p-1 dark:border-gray-600"
-          }
-        >
-          {isGrid
-            ? groups.map((group) => (
-                <div key={group.label} className="flex flex-col gap-1">
-                  {group.label && (
-                    <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-gray-500">
-                      {group.label}
-                    </span>
-                  )}
-                  <div className="grid grid-cols-2 gap-1">
-                    {group.items.map((item) => (
-                      <button
-                        key={item.name}
-                        type="button"
-                        onClick={() => choose(item.name)}
-                        className={`flex items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] hover:bg-sky-50 dark:hover:bg-blue-400/10 ${
-                          item.name === currentName ? "bg-sky-50 dark:bg-blue-400/10" : ""
-                        }`}
-                      >
-                        <PaletteSwatches colors={item.colors} size={swatchSize} gap={swatchGap} shrink={swatchShrink} />
-                      </button>
-                    ))}
+    <Labeled label={label} parts={parts}>
+      <div ref={ref} {...rest} className={cx("jpd-palette", className)}>
+        <button type="button" onClick={() => setOpen((o) => !o)} className="jpd-palette__trigger">
+          <span className="jpd-palette__current">
+            {currentColors.length > 0 ? (
+              <PaletteSwatches colors={currentColors} size={size} />
+            ) : (
+              <span className="jpd-palette__empty">{emptyPlaceholder}</span>
+            )}
+            <span>{currentLabel ?? currentName}</span>
+          </span>
+          <span className="jpd-palette__arrow">{open ? "▴" : "▾"}</span>
+        </button>
+        {open && (
+          <div data-variant={variant} className="jpd-palette__menu">
+            {isGrid
+              ? groups.map((group) => (
+                  <div key={group.label} className="jpd-palette__group">
+                    {group.label && <span className="jpd-palette__grouplabel">{group.label}</span>}
+                    <div className="jpd-palette__options">
+                      {group.items.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => choose(item.name)}
+                          data-selected={item.name === currentName || undefined}
+                          className="jpd-palette__option"
+                        >
+                          <PaletteSwatches colors={item.colors} size={size} />
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))
-            : groups
-                .flatMap((group) => group.items)
-                .map((item) => (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={() => choose(item.name)}
-                    className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-sky-50 dark:hover:bg-blue-400/10 ${
-                      item.name === currentName ? "bg-sky-50 dark:bg-blue-400/10" : ""
-                    }`}
-                  >
-                    <PaletteSwatches colors={item.colors} size={swatchSize} gap={swatchGap} shrink={swatchShrink} />
-                    <span className="text-slate-700 dark:text-gray-200">{item.label ?? item.name}</span>
-                  </button>
-                ))}
-        </div>
-      )}
-    </div>
+                ))
+              : groups
+                  .flatMap((group) => group.items)
+                  .map((item) => (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => choose(item.name)}
+                      data-selected={item.name === currentName || undefined}
+                      className="jpd-palette__option"
+                    >
+                      <PaletteSwatches colors={item.colors} size={size} />
+                      <span className="jpd-palette__optionlabel">{item.label ?? item.name}</span>
+                    </button>
+                  ))}
+          </div>
+        )}
+      </div>
+    </Labeled>
   );
-}
+});

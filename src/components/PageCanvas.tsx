@@ -140,14 +140,17 @@ export function PageCanvas({
   }
 
   function handleBackgroundMouseDown(e: React.MouseEvent<HTMLDivElement>) {
-    // Fundo da página OU fundo de uma seção (classe "section-body") contam
-    // como "vazio" pra começar a caixa — assim dá pra selecionar campos que
-    // estão dentro/por cima de uma seção sem mover ela (só a barra do topo
+    // Fundo da página OU fundo de uma seção (classe "jpd-section__body")
+    // contam como "vazio" pra começar a caixa — assim dá pra selecionar campos
+    // que estão dentro/por cima de uma seção sem mover ela (só a barra do topo
     // arrasta a seção — ver dragHandleClassName). Campo de verdade (Rnd
     // próprio) nunca bate aqui, e a seção só entra na seleção resultante se
     // a caixa cruzar a faixa do header dela (ver hit-test abaixo).
+    //
+    // Esta classe é CONTRATO com FieldBox/SectionField.tsx, lida por JS e não
+    // só por CSS: renomear lá sem renomear aqui mata o hit-test em silêncio.
     const targetEl = e.target as HTMLElement;
-    const isEmptyArea = targetEl === e.currentTarget || targetEl.classList.contains("section-body");
+    const isEmptyArea = targetEl === e.currentTarget || targetEl.classList.contains("jpd-section__body");
     if (!isEmptyArea || !onSelectMany) return;
     const pageRect = e.currentTarget.getBoundingClientRect();
     const additive = e.ctrlKey || e.metaKey;
@@ -216,17 +219,20 @@ export function PageCanvas({
   const contentHeight = mmToPx(page.height) + RULER_THICKNESS;
 
   return (
-    <div style={{ position: "relative", width: contentWidth * zoom, height: contentHeight * zoom + 56 }}>
-      <div style={{ width: contentWidth, height: contentHeight, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
-        <div className="flex">
+    <div className="jpd-canvas" style={{ width: contentWidth * zoom, height: contentHeight * zoom + 56 }}>
+      <div className="jpd-canvas__zoom" style={{ width: contentWidth, height: contentHeight, transform: `scale(${zoom})` }}>
+        <div className="jpd-canvas__row">
           <Ruler orientation="vertical" lengthMm={page.height} thickness={RULER_THICKNESS} />
           <div
-            className="bg-white shadow-[0_1px_3px_rgba(0,0,0,0.1),0_8px_24px_rgba(15,23,42,0.08)]"
-            // position:relative inline (não via classe Tailwind) — o Tailwind
-            // do app consumidor só escaneia o próprio src dele, não o código
-            // desta lib; "relative" nunca era gerado, então os campos (Rnd,
-            // position:absolute) perdiam o ancestral posicionado certo e
-            // ficavam presos na tela ao rolar em vez de rolar com a página.
+            className="jpd-page"
+            // position:relative continua INLINE (não vai pro .jpd-page do
+            // theme.css) de propósito: é o contrato de posicionamento do
+            // react-rnd. Os campos são Rnd (position:absolute) e precisam
+            // deste ancestral posicionado; uma regra de folha de estilo pode
+            // ser sobrescrita pelo consumidor (a @layer perde de qualquer CSS
+            // sem layer), e aí os campos ficariam presos na tela ao rolar em
+            // vez de rolar com a página. Inline nenhum CSS de consumidor
+            // desliga sem `!important`.
             style={{ position: "relative", width: mmToPx(page.width), height: mmToPx(page.height) }}
             onClick={() => {
               if (suppressClickRef.current) {
@@ -242,77 +248,50 @@ export function PageCanvas({
           >
             {marqueeRect && (
               <div
-                className="pointer-events-none absolute z-20 border border-sky-500 bg-sky-500/10"
+                className="jpd-marquee"
                 style={{ left: marqueeRect.x, top: marqueeRect.y, width: marqueeRect.width, height: marqueeRect.height }}
               />
             )}
             {backgroundImage && (
               // eslint-disable-next-line jsx-a11y/alt-text
-              <img
-                src={backgroundImage}
-                alt=""
-                className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-              />
+              <img src={backgroundImage} alt="" className="jpd-page__bg" />
             )}
             {gridPx > 0 && (
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(to right, rgba(100,116,139,0.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(100,116,139,0.18) 1px, transparent 1px)",
-                  backgroundSize: `${gridPx}px ${gridPx}px`,
-                }}
-              />
+              // Só o PASSO da grade fica inline (vem de gridSizeMm); os dois
+              // gradientes são literal fixo e moraram pro CSS.
+              <div className="jpd-grid-overlay" style={{ backgroundSize: `${gridPx}px ${gridPx}px` }} />
             )}
             {headerHeight > 0 && (
-              <div
-                className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden border-b border-dashed border-red-400 bg-red-500/15"
-                style={{ height: mmToPx(headerHeight) }}
-              >
-                <span className="absolute left-1 top-0.5 rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white">
+              <div className="jpd-band" data-band="header" style={{ height: mmToPx(headerHeight) }}>
+                <span className="jpd-band__label" data-band="header">
                   {t.pageCanvas.headerBand}
                 </span>
               </div>
             )}
             {footerHeight > 0 && (
-              <div
-                className="pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden border-t border-dashed border-red-400 bg-red-500/15"
-                style={{ height: mmToPx(footerHeight) }}
-              >
-                <span className="absolute left-1 top-0.5 rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white">
+              <div className="jpd-band" data-band="footer" style={{ height: mmToPx(footerHeight) }}>
+                <span className="jpd-band__label" data-band="footer">
                   {t.pageCanvas.footerBand}
                 </span>
               </div>
             )}
             {marginLeft > 0 && (
-              <div
-                className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden border-r border-dashed border-red-400 bg-red-500/15"
-                style={{ width: mmToPx(marginLeft) }}
-              >
-                <span
-                  className="absolute left-0.5 top-1 whitespace-nowrap rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white"
-                  style={{ transform: "rotate(90deg)", transformOrigin: "left top" }}
-                >
+              <div className="jpd-band" data-band="left" style={{ width: mmToPx(marginLeft) }}>
+                <span className="jpd-band__label" data-band="left">
                   {t.pageCanvas.marginLeftBand}
                 </span>
               </div>
             )}
             {marginRight > 0 && (
-              <div
-                className="pointer-events-none absolute inset-y-0 right-0 overflow-hidden border-l border-dashed border-red-400 bg-red-500/15"
-                style={{ width: mmToPx(marginRight) }}
-              >
-                <span
-                  className="absolute right-0.5 top-1 whitespace-nowrap rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white"
-                  style={{ transform: "rotate(90deg)", transformOrigin: "right top" }}
-                >
+              <div className="jpd-band" data-band="right" style={{ width: mmToPx(marginRight) }}>
+                <span className="jpd-band__label" data-band="right">
                   {t.pageCanvas.marginRightBand}
                 </span>
               </div>
             )}
             {isolateBands && (
               <div
-                className="pointer-events-none absolute bg-slate-900/10"
+                className="jpd-page__dim"
                 style={{
                   left: mmToPx(marginLeft),
                   top: mmToPx(headerHeight),
@@ -349,7 +328,10 @@ export function PageCanvas({
                   enableResizing={!isEditing && !isLocked}
                   dragGrid={dragResizeGrid}
                   resizeGrid={dragResizeGrid}
-                  dragHandleClassName={schema.type === "section" ? "section-drag-handle" : undefined}
+                  // Contrato com FieldBox/SectionField.tsx: o react-rnd monta
+                  // um seletor `.<classe>` e casa no DOM por conta própria, então
+                  // a string tem de ser IGUAL à className escrita lá.
+                  dragHandleClassName={schema.type === "section" ? "jpd-section__handle" : undefined}
                   onDragStart={() => {
                     if (!onMoveGroup) return;
                     // Seção sempre arrasta os membros dela junto (sectionId),
@@ -462,14 +444,28 @@ export function PageCanvas({
                       setEditingId(schema.id);
                     }
                   }}
-                  className="transition-shadow"
-                  style={{
-                    border: selectedIds.includes(schema.id) ? "2px solid #0284c7" : isLocked ? "1px dashed #f59e0b" : "1px dashed #cbd5e1",
-                    boxShadow: selectedIds.includes(schema.id) ? "0 0 0 3px rgba(2,132,199,0.15)" : undefined,
-                    boxSizing: "border-box",
-                    opacity: inWrongMode ? 0.55 : 1,
-                    cursor: isEditing ? "text" : isLocked ? "not-allowed" : undefined,
-                  }}
+                  // `className` e `data-*` desconhecidos do <Rnd> chegam no
+                  // div renderizado: o Rnd só extrai a lista de props que
+                  // conhece e repassa o resto pro <Resizable>, que passa o
+                  // `className` direto e espalha todo prop fora da lista dele
+                  // (os `data-*` inclusive) no nó. Verificado no
+                  // react-rnd/lib/index.js e re-resizable/lib/index.js.
+                  className="jpd-field"
+                  data-selected={selectedIds.includes(schema.id) || undefined}
+                  data-locked={isLocked || undefined}
+                  data-wrongmode={inWrongMode || undefined}
+                  data-editing={isEditing || undefined}
+                  // `cursor` é o ÚNICO que continua inline: o react-rnd compõe
+                  // o style final como {...resizableStyle, ...cursorStyle,
+                  // ...style} e o cursorStyle dele é `cursor: move`/`auto`
+                  // INLINE — qualquer classe perde disso, só um inline
+                  // posterior ganha (e o nosso é o último do spread).
+                  //
+                  // `boxSizing: "border-box"` saiu daqui porque o
+                  // re-resizable já o força inline DEPOIS do nosso style
+                  // (index.js: `{...this.props.style, ...sizeStyle,
+                  // boxSizing: 'border-box'}`) — era declaração morta.
+                  style={{ cursor: isEditing ? "text" : isLocked ? "not-allowed" : undefined }}
                 >
                   <FieldBox
                     schema={schema}
@@ -486,38 +482,35 @@ export function PageCanvas({
             })}
           </div>
         </div>
-        <div className="flex">
-          <div style={{ width: RULER_THICKNESS, flexShrink: 0 }} />
+        <div className="jpd-canvas__row">
+          <div className="jpd-ruler__corner" style={{ width: RULER_THICKNESS }} />
           <Ruler orientation="horizontal" lengthMm={page.width} thickness={RULER_THICKNESS} />
         </div>
       </div>
 
-      <div
-        className="pointer-events-auto sticky bottom-4 left-0 mt-4 flex w-fit items-center gap-1 rounded-full bg-slate-800/90 px-2 py-1.5 text-white shadow-lg backdrop-blur"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="jpd-zoombar" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
           aria-label={t.pageCanvas.zoomOut}
-          className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
+          className="jpd-zoombar__btn"
           onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
         >
           <IconMinus />
         </button>
-        <span className="w-10 text-center text-xs font-medium tabular-nums">{Math.round(zoom * 100)}%</span>
+        <span className="jpd-zoombar__value">{Math.round(zoom * 100)}%</span>
         <button
           type="button"
           aria-label={t.pageCanvas.zoomIn}
-          className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
+          className="jpd-zoombar__btn"
           onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
         >
           <IconPlus />
         </button>
-        <div className="mx-1 h-4 w-px bg-white/20" />
+        <div className="jpd-zoombar__sep" />
         <button
           type="button"
           aria-label={t.pageCanvas.fitWidth}
-          className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
+          className="jpd-zoombar__btn"
           onClick={(e) => fitTo("width", e.currentTarget)}
         >
           <IconArrowsHorizontal />
@@ -525,17 +518,17 @@ export function PageCanvas({
         <button
           type="button"
           aria-label={t.pageCanvas.fitHeight}
-          className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
+          className="jpd-zoombar__btn"
           onClick={(e) => fitTo("height", e.currentTarget)}
         >
           <IconArrowsVertical />
         </button>
-        <div className="mx-1 h-4 w-px bg-white/20" />
+        <div className="jpd-zoombar__sep" />
         <button
           type="button"
           aria-label={t.pageCanvas.resetZoom}
           title={t.pageCanvas.resetZoomTitle}
-          className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
+          className="jpd-zoombar__btn"
           onClick={() => setZoom(1)}
         >
           <IconDots />

@@ -1,4 +1,10 @@
 import type { Template, TemplateVersion } from "../types";
+import {
+  TemplateMigrationMissingError,
+  TemplateNotAnObjectError,
+  TemplateVersionInvalidError,
+  TemplateVersionTooNewError,
+} from "../errors";
 
 // Versão do FORMATO de documento que este build entende. NÃO é a versão do
 // pacote: o pacote vai de 2.0.0 pra 2.1.0 pra 3.0.0 sem que o formato do
@@ -27,9 +33,7 @@ function readVersion(input: Record<string, unknown>): number {
   const raw = input.version;
   if (raw === undefined || raw === null) return IMPLICIT_VERSION;
   if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1) {
-    throw new Error(
-      `Template.version inválida (${JSON.stringify(raw)}) — esperado um inteiro >= 1, ou ausente para o formato ${IMPLICIT_VERSION}.`
-    );
+    throw new TemplateVersionInvalidError(raw, IMPLICIT_VERSION);
   }
   return raw;
 }
@@ -47,22 +51,20 @@ function readVersion(input: Record<string, unknown>): number {
 // pedaço sem ninguém perceber.
 export function migrateTemplate(input: unknown): Template {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error(`Template inválido — esperado um objeto, recebido ${Array.isArray(input) ? "array" : typeof input}.`);
+    throw new TemplateNotAnObjectError(Array.isArray(input) ? "array" : typeof input);
   }
 
   let current = input as Record<string, unknown>;
   const from = readVersion(current);
 
   if (from > CURRENT_TEMPLATE_VERSION) {
-    throw new Error(
-      `Template na versão ${from}, mas este build só entende até a ${CURRENT_TEMPLATE_VERSION} — atualize o json-pdf-designer.`
-    );
+    throw new TemplateVersionTooNewError(from, CURRENT_TEMPLATE_VERSION);
   }
 
   for (let v = from; v < CURRENT_TEMPLATE_VERSION; v++) {
     const step = MIGRATIONS[v];
     if (!step) {
-      throw new Error(`Falta a migração de Template da versão ${v} para a ${v + 1} — bug do pacote, não do seu template.`);
+      throw new TemplateMigrationMissingError(v, v + 1);
     }
     current = step(current);
   }

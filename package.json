@@ -1,6 +1,6 @@
 {
   "name": "json-pdf-designer",
-  "version": "2.1.1",
+  "version": "3.0.0",
   "private": false,
   "description": "Simple visual PDF report editor (drag/resize canvas + JSON data binding) — lean, i18n-ready, and built to be modified.",
   "keywords": [
@@ -11,6 +11,11 @@
     "report-builder",
     "drag-and-drop",
     "react",
+    "headless",
+    "composable",
+    "theming",
+    "css-variables",
+    "unstyled",
     "pdf-lib",
     "wysiwyg",
     "data-binding",
@@ -59,8 +64,8 @@
       "import": "./dist/preview.js",
       "require": "./dist/preview.cjs"
     },
-    "./style.css": "./dist/style.css",
-    "./dist/style.css": "./dist/style.css"
+    "./theme.css": "./dist/theme.css",
+    "./reset.css": "./dist/reset.css"
   },
   "files": [
     "dist"
@@ -69,8 +74,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsup && npm run build:css",
-    "build:css": "tailwindcss -i ./src/style.css -o ./dist/style.css --minify",
+    "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint .",
@@ -108,7 +112,6 @@
     "tiny-inflate": "^1.0.3"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.3.3",
     "@types/fontkit": "^2.0.9",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
@@ -117,7 +120,6 @@
     "react-rnd": "^10.4.13",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "tailwindcss": "^4.3.3",
     "tsup": "^8.3.5",
     "typescript": "~5.9.3",
     "vitest": "^4.1.10",

@@ -48,16 +48,6 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
   // (displayCell), igual fora do modo de edição.
   const [focusedCell, setFocusedCell] = useState<{ row: "body" | "footer"; ri: number; ci: number } | null>(null);
 
-  const cellInputStyle: React.CSSProperties = {
-    width: "100%",
-    border: "none",
-    outline: "none",
-    background: "transparent",
-    font: "inherit",
-    color: "inherit",
-    padding: 0,
-  };
-
   const headBg = schema.headBackgroundColor ?? "#0284c7";
   const headColor = schema.headTextColor ?? "#ffffff";
   const footerBg = schema.footerBackgroundColor ?? "#e5e7eb";
@@ -104,12 +94,6 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
     });
   }
 
-  // table-layout fixed trava a largura das colunas na divisão calculada
-  // (igual ao render/renderTable.ts na geração real) — sem isso, célula de rodapé
-  // com token comprido (ex: "{SUM(faturas.total)}") força a coluna toda
-  // mais larga que a tabela, estourando pra direita, fora da grid do campo.
-  const cellClipStyle: React.CSSProperties = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
-
   // Aproximação visual de cantos arredondados — o canvas não precisa ser
   // pixel-perfeito (o PDF gerado, via pdf/render/renderTable.ts, é a fonte da
   // verdade); um `overflow: hidden` recorta os 4 cantos da MOLDURA
@@ -125,11 +109,12 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
   };
 
   return (
-    <div className="h-full w-full overflow-hidden" style={wrapperRadiusPx}>
-      <table
-        className="border-collapse"
-        style={{ width: "100%", height: "100%", fontSize: 10, tableLayout: "fixed" }}
-      >
+    <div className="jpd-table__wrap" style={wrapperRadiusPx}>
+      {/* `table-layout: fixed` e o recorte por célula vivem no CSS
+          (.jpd-fieldtable / .jpd-table__cell) — ver o comentário lá: sem eles
+          uma célula de rodapé com token comprido alarga a coluna e estoura a
+          tabela pra fora da grid do campo. */}
+      <table className="jpd-fieldtable">
         <thead>
           <tr>
             {schema.head.map((h, i) => {
@@ -137,9 +122,9 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
               return (
                 <th
                   key={i}
-                  className="relative border border-slate-300 px-1.5 py-1"
+                  className="jpd-table__cell"
+                  data-role="head"
                   style={{
-                    ...cellClipStyle,
                     width: colWidthsPx[i],
                     backgroundColor: colStyle?.headBackgroundColor ?? headBg,
                     color: colStyle?.headTextColor ?? headColor,
@@ -155,17 +140,13 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
                       onChange={(e) => updateHead(i, e.target.value)}
                       onKeyDown={onKeyDown}
                       onPointerDown={(e) => e.stopPropagation()}
-                      style={{ ...cellInputStyle, color: "inherit", textAlign: "inherit" }}
+                      className="jpd-cell-input"
                     />
                   ) : (
                     h
                   )}
                   {i < schema.head.length - 1 && (
-                    <div
-                      onMouseDown={(e) => startColumnResize(i, e)}
-                      className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize hover:bg-sky-400/40"
-                      style={{ transform: "translateX(50%)" }}
-                    />
+                    <div onMouseDown={(e) => startColumnResize(i, e)} className="jpd-table__resizer" />
                   )}
                 </th>
               );
@@ -177,19 +158,20 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
             const banded = ri % 2 === 1;
             const bandColor = schema.bodyBandColor;
             return (
-              <tr
-                key={ri}
-                style={banded && bandColor ? { backgroundColor: bandColor } : undefined}
-                className={banded && !bandColor ? "bg-slate-50" : undefined}
-              >
+              // TRÊS estados, não dois: linha não zebrada não tem nada; zebrada
+              // com cor do schema usa a cor (inline, que vence a @layer);
+              // zebrada sem cor cai no zebrado embutido, que agora vem do
+              // [data-banded] no CSS. Trocar isto por só `data-banded` mataria
+              // o caminho da cor do schema.
+              <tr key={ri} className="jpd-table__row" data-banded={banded || undefined} style={bandColor && banded ? { backgroundColor: bandColor } : undefined}>
                 {row.map((cell, ci) => {
                   const colStyle = schema.columnStyles?.[ci];
                   return (
                     <td
                       key={ci}
-                      className="border border-slate-300 px-1.5 py-1"
+                      className="jpd-table__cell"
+                      data-role="body"
                       style={{
-                        ...cellClipStyle,
                         backgroundColor: colStyle?.cellBackgroundColor ?? schema.bodyBackgroundColor,
                         color: colStyle?.cellTextColor ?? schema.bodyTextColor,
                         fontSize: colStyle?.cellFontSize ?? schema.bodyFontSize,
@@ -206,13 +188,13 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={onKeyDown}
                           onPointerDown={(e) => e.stopPropagation()}
-                          style={{ ...cellInputStyle, color: "inherit" }}
+                          className="jpd-cell-input"
                         />
                       ) : editing ? (
                         <div
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={() => setFocusedCell({ row: "body", ri, ci })}
-                          style={{ cursor: "text", minHeight: "1em" }}
+                          className="jpd-cell-text"
                         >
                           {displayCell(cell)}
                         </div>
@@ -232,9 +214,9 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
               {schema.footer.map((cell, i) => (
                 <td
                   key={i}
-                  className="border border-slate-300 px-1.5 py-1 font-medium"
+                  className="jpd-table__cell"
+                  data-role="foot"
                   style={{
-                    ...cellClipStyle,
                     backgroundColor: footerBg,
                     color: footerColor,
                     fontSize: schema.footerFontSize,
@@ -251,13 +233,13 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
                       onBlur={() => setFocusedCell(null)}
                       onKeyDown={onKeyDown}
                       onPointerDown={(e) => e.stopPropagation()}
-                      style={{ ...cellInputStyle, color: "inherit" }}
+                      className="jpd-cell-input"
                     />
                   ) : editing ? (
                     <div
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => setFocusedCell({ row: "footer", ri: 0, ci: i })}
-                      style={{ cursor: "text", minHeight: "1em" }}
+                      className="jpd-cell-text"
                     >
                       {cell}
                     </div>

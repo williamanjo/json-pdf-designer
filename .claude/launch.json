@@ -4,33 +4,130 @@
     {
       "name": "report-builder",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "examples/report-builder", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "examples/report-builder",
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "name": "custom-ui",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "examples/custom-ui", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "examples/custom-ui",
+        "run",
+        "dev"
+      ],
       "port": 5174
     },
     {
       "name": "headless-designer",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "examples/headless-designer", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "examples/headless-designer",
+        "run",
+        "dev"
+      ],
       "port": 5175
     },
     {
       "name": "no-preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "examples/no-preview", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "examples/no-preview",
+        "run",
+        "dev"
+      ],
       "port": 5176
+    },
+    {
+      "name": "report-builder-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "-l",
+        "5180",
+        "examples/report-builder/dist"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "custom-ui-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "-l",
+        "5181",
+        "examples/custom-ui/dist"
+      ],
+      "port": 5181
     },
     {
       "name": "docs-site",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "serve", "-l", "3010", "site-preview-root"],
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "-l",
+        "3010",
+        "site-preview-root"
+      ],
       "port": 3010,
       "url": "http://localhost:3010/json-pdf-designer/"
+    },
+    {
+      "name": "no-preview-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "-l",
+        "5182",
+        "examples/no-preview/dist"
+      ],
+      "port": 5182
+    },
+    {
+      "name": "headless-designer-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "-l",
+        "5183",
+        "examples/headless-designer/dist"
+      ],
+      "port": 5183
+    },
+    {
+      "name": "composed-layout",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "examples/composed-layout",
+        "run",
+        "dev"
+      ],
+      "port": 5177
+    },
+    {
+      "name": "composed-layout-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "-l",
+        "5184",
+        "examples/composed-layout/dist"
+      ],
+      "port": 5184
     }
   ]
 }

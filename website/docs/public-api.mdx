@@ -12,8 +12,39 @@ The PDF preview lives in a third entry point, `json-pdf-designer/preview`
 — listed at the end of this page.
 
 ```ts
-// Component
+// The preset component
 Designer                                   // the full React canvas (toolbar + list + rulers + zoom + bands)
+type DesignerProps
+
+// Composition — build your own editor layout (see "Composing the Designer")
+DesignerProvider                           // holds all the editor state; every part below needs it above
+type DesignerProviderProps
+
+// The 10 placeable parts. DesignerSidebar is convenience: it composes the
+// seven content parts with the tab gate <Designer> uses.
+DesignerCanvas, DesignerTabBar, DesignerFieldList, DesignerToolbar, DesignerPageSettings,
+DesignerPropertyPanel, DesignerFilterPanel, DesignerBindingEditor, DesignerInspector, DesignerSidebar
+type DesignerCanvasProps, DesignerTabBarProps, DesignerFieldListProps, DesignerToolbarProps,
+     DesignerPageSettingsProps, DesignerPropertyPanelProps, DesignerFilterPanelProps,
+     DesignerBindingEditorProps, DesignerInspectorProps, DesignerSidebarProps
+type TabGate                               // whenTab: a tab key, an array of them, or undefined (= always render)
+
+// The 10 hooks. Five accessors (the context value as-is) and five selectors
+// (derived, so a part pays only for what it reads). They throw outside a
+// <DesignerProvider>, naming the provider — they never return null quietly.
+useDesignerData, useDesignerActions, useDesignerSelection, useDesignerUi, useDesignerConfig
+useDesignerSelectedSchema, useDesignerFieldListSchemas, useDesignerBulkEdit,
+useDesignerTabWarnings, useDesignerFilterColumns
+type DesignerDataValue, DesignerActionsValue, DesignerSelectionValue,
+     DesignerUiValue, DesignerConfigValue
+
+// Primitive registry — swap the components the editor renders INSIDE itself
+// (see "Customizing components"). 12 slots: Button, Input, ColorInput, Select,
+// Textarea, Checkbox, Modal, Card, CardHeader, CardTitle, Badge, TabPanel.
+UiComponentsProvider                       // <Designer components={...}> is sugar for this
+useUiComponents()                          // how a part of your own resolves the current set
+defaultUiComponents                        // ours — `{ Modal: defaultUiComponents.Modal }` to opt back in
+type UiComponents, type UiComponentsOverride, type UiComponentsProviderProps
 
 // UI language (see "UI language")
 I18nProvider, useT, useLocale, withInlineCode
@@ -21,9 +52,19 @@ type Locale, type Dict
 
 // Ready-made UI (optional — see "Ready-made UI components")
 Button, Card, CardHeader, CardTitle, Badge, TabPanel, Modal, Input, ColorInput, Textarea, Select
+Checkbox, PalettePicker, PaletteSwatches, MaterialIcon, CollapsibleSection, ClearFieldButton
+type BadgeProps, ButtonProps, CardProps, CardTitleProps, CheckboxProps, ClearFieldButtonProps,
+     CollapsibleSectionProps, ColorInputProps, InputProps, MaterialIconProps, ModalProps,
+     PaletteGroup, PaletteGroupItem, PalettePickerProps, PaletteSwatchesProps, SelectProps,
+     TabPanelProps, TextareaProps
+type ClassValue, LabeledParts, PartStyle    // the styling API: cx's input, and any `parts` value
+
+// The 20 icons — plain functions (no ref), props are IconProps = SVGAttributes
 IconPlus, IconX, IconTrash, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
-IconArrowsVertical, IconDots, IconUpload, IconLock, IconLockOpen, IconBringToFront,
-IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle
+IconArrowsVertical, IconChevronLeft, IconChevronRight, IconDots, IconUpload, IconLock,
+IconLockOpen, IconBringToFront, IconSendToBack, IconRefresh, IconDownload, IconFolderUp,
+IconAlertTriangle
+type IconProps
 
 // Generation (also in json-pdf-designer/server, except downloadPdf)
 generatePdf(template, data, bindings, { fontBytes?, maxPages? }) => Promise<Uint8Array>
@@ -70,12 +111,28 @@ orientationOf(page), applyOrientation(page, orientation), matchPreset(page)
 migrateTemplate(input) => Template         // normalizes a template from a DB/file/API
 CURRENT_TEMPLATE_VERSION                   // the format version this build writes
 
-// Generation errors, as classes (also in json-pdf-designer/server) — see Failure modes
-PageLimitError                             // document over maxPages
+// Generation errors, as classes (all also in json-pdf-designer/server) — see Failure modes
+PdfGenerationError                         // abstract base; nothing throws it directly
+PageLimitError, PaginationStalledError     // pagination: too many pages / a pass that consumed nothing
+InvalidPageSizeError                       // width/height not two finite numbers > 0
 UnsupportedGlyphError                      // character with no glyph in the font
-ExpressionError                            // base of the two below
-ExpressionSyntaxError, ExpressionDepthError
+Woff2SupportMissingError, FontDecompressFailedError, FontDecompressTimeoutError
+ImageUploadTooLargeError, ImageUploadUnreadableError            // rejected at upload
+ImageTooLargeError, TooManyImagesError, UnsupportedImageFormatError
+ImageUnreadableError, BackgroundImageUnreadableError
+TemplateNotAnObjectError, TemplateVersionInvalidError, TemplateVersionTooNewError
+TemplateMigrationMissingError              // our gap between two versions
+isPdfError(err) => err is AnyPdfError      // narrows unknown; gives you code + blame
+PDF_ERROR_CODES                            // the 18 codes, as a const tuple
+type PdfErrorCode, PdfErrorBlame, AnyPdfError
 DEFAULT_MAX_PAGES                          // 5000
+
+// Turning a caught error into copy someone can read (also in json-pdf-designer/server)
+describePdfError(err, dict) => PdfProblem | null   // null when the error is not ours
+type PdfProblem                            // { code, blame, title, action?, field?, detail }
+type PdfProblemCode                        // PdfErrorCode | "expression" — 19 members
+ExpressionError                            // base of the two below; its own hierarchy
+ExpressionSyntaxError, ExpressionDepthError
 
 // Expression validation (also in json-pdf-designer/server) — see Conditional visibility
 expressionError(source) => string | null   // one expression: the syntax error, or null

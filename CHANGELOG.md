@@ -5,6 +5,499 @@
 All notable changes to this package are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 3.0.0 (2026-09-02)
+
+Takes Tailwind out of the package, and breaks `<Designer>` into pieces you
+place yourself. Those are one change and not two: the preset could only
+become positionable pieces once the markup stopped carrying utility strings
+that a Tailwind build had to resolve. What ships instead is a hand-written
+`theme.css` over `.jpd-*` classes and `--jpd-*` custom properties, a
+`<DesignerProvider>` with ten pieces and ten hooks around it, and a registry
+that swaps the editor's own Button/Input/Modal for yours.
+
+### Breaking
+
+- **`json-pdf-designer/style.css` no longer exists — import
+  `json-pdf-designer/theme.css`.** Both `./style.css` and `./dist/style.css`
+  left the `exports` map, and there is **no alias**, so the old import now
+  fails to resolve at build time (`ERR_PACKAGE_PATH_NOT_EXPORTED`).
+
+  ```diff
+  - import "json-pdf-designer/style.css";
+  + import "json-pdf-designer/theme.css";
+  ```
+
+  One line is all you need: `theme.css` imports the reset itself.
+  - Why: the package shipped compiled Tailwind, and that included
+    **Preflight** — a global reset, landing in *your* app, from a
+    stylesheet whose only job was to paint one editor.
+  - Why not an alias: it would quietly hand over a *different* stylesheet
+    (no Preflight, new internals) and you would find out from a page that
+    renders wrong. A resolve error is the better failure, because it
+    happens in the build and points at this entry.
+  - Tailwind left the package entirely: `tailwindcss` and
+    `@tailwindcss/cli` are out of `devDependencies`, the `build:css` script
+    is gone, `src/style.css` is deleted, and `npm run build` is now just
+    `tsup`. `theme.css` and `reset.css` are hand-written and **not
+    minified**, on purpose — they are the public contract you read to learn
+    the class and token names, and your bundler minifies them anyway.
+- **`theme.css` does not carry a global reset.** Every `.jpd-*` class now
+  carries the reset the element under it depended on — the job Preflight
+  used to do. The only rule with a `*` in it is scoped to the editor's own
+  roots and wrapped in `:where()`, which gives it **zero specificity**: any
+  rule of yours beats it.
+  - What Preflight gave you for free, and may now be missing from *your*
+    markup: `box-sizing: border-box`, `margin`/`padding: 0` on headings,
+    paragraphs and lists, `list-style: none`, `font`/`color`/`background`
+    on form controls, `svg { display: block }`, `code` in a monospace
+    family, `table { border-collapse: collapse }`, and
+    `appearance: button`. If your app was leaning on the package's
+    stylesheet for those, put back the ones you need.
+  - New export **`json-pdf-designer/reset.css`** — the appearance-free
+    subset, for styling `.jpd-*` from scratch without taking the theme.
+    Importing both is redundant, not an error.
+  - **The trap almost everyone hits writing a reset by hand:** `border: 0`
+    sets `border-style: none`, and then any later `border-width` computes
+    to **zero**. It has to be `border: 0 solid`. Preflight wrote it that
+    way deliberately; both of our stylesheets do too.
+- **Dark mode has a documented hook now: `[data-jpd-theme="dark"]`.** Put it
+  on `<html>` or on any ancestor. **`.dark` still works**, kept as an alias
+  of what 2.x used (`@custom-variant dark (&:where(.dark, .dark *))`) —
+  verified in the browser that the two paint identically.
+  `[data-jpd-theme="light"]` forces light.
+  - No media query, on purpose: a library should not turn your light-only
+    app dark because the OS is. Follow the OS by reading `matchMedia` and
+    writing the attribute yourself.
+  - **Limitation worth knowing:** a *scoped* dark island — the attribute on
+    a container rather than on `<html>` — does not paint a portalled modal.
+    `<Modal>` renders through `createPortal(document.body)`, which is
+    exactly why the tokens live on `:root`.
+- **Every class inside `<Designer>` changed.** The markup is `.jpd-*` plus
+  `data-*` now, in a `jpd-block__element--modifier` convention with one
+  element level; state is a `data-*` attribute, never a class (the rule: if
+  the JSX would have to *concatenate* or *choose* a class string, it is a
+  `data-*`). CSS you wrote against the old Tailwind class names stops
+  matching.
+  - Checked against this repo's own examples: `examples/custom-ui` styles
+    only the containers *around* the editor, with no descendant selector
+    reaching into its markup, so no in-repo consumer broke. That is also
+    the shape that keeps working — style your own shell, and target
+    `.jpd-*` on purpose when you want to redefine the editor.
+- **`Modal`: `maxWidthClass` → `size`.** The old prop took a Tailwind class
+  string, which cannot survive a package with no Tailwind in it.
+
+  ```diff
+  - <Modal title="Fields" maxWidthClass="max-w-3xl" onClose={close}>
+  + <Modal title="Fields" size="lg" onClose={close}>
+  ```
+
+  `size` is `"sm" | "md" | "lg" | "xl" | "full"`, defaulting to `"lg"` =
+  48rem, which is what `max-w-3xl` gave. An arbitrary width is
+  `style={{ maxWidth: 900 }}`, and `style` now reaches the panel.
+  - No internal call site passed `maxWidthClass`, and it was not documented
+    anywhere — it only ever existed in the code — so dropping it does not
+    invalidate any prose we wrote.
+- **`className` stops concatenating and starts merging.** `cx` dedupes by
+  exact token and returns `undefined` (not `""`) when nothing is left, so
+  components that used to emit `class="… "` with a trailing space no longer
+  do — `Card` was the worst of them, appending a space even with no
+  `className` at all. If you assert on markup, that space is gone.
+  - Token order inside the `class` attribute now decides nothing. It never
+    decided cascade even with Tailwind, but with no utilities left there is
+    nothing for it to decide: `.jpd-btn` and your class have the same
+    specificity, so the winner is stylesheet order. Whoever needs to beat
+    `theme.css` loads their CSS **after** it, or uses `style`, which always
+    wins.
+- **Kit components forward a ref, so they are no longer plain functions.**
+  `Button`, `Input`, `Select`, `Textarea`, `Modal`, `Card`, `TabPanel` and
+  the rest are `forwardRef` components: `Button.name` is no longer
+  `"Button"`, and calling `Button(props)` directly stops working. It is
+  `forwardRef` and not React 19's `ref`-as-a-prop because React 18 is still
+  a supported peer.
+  - **The 20 icons are the exception.** They stay plain functions with no
+    ref, and their props **widened** from `{ className }` to `IconProps` =
+    `SVGAttributes`. Deliberately not `SVGProps`, which extends
+    `ClassAttributes` and would accept a `ref` that goes nowhere — the type
+    would lie.
+- **`mono` no longer adds `font-mono`, and no component emits a Tailwind
+  class at all.** On `Input` and `Textarea`, `mono` became a `data-mono`
+  attribute that `theme.css` styles. `PaletteSwatches` and `PalettePicker`
+  lost every prop whose *value* was a Tailwind class (`size = "h-4 w-4"`,
+  `swatchSize`, `swatchGap`, `swatchShrink`); since the clean API is the one
+  making its public debut, there is no migration note for those.
+  - **This retires the "Using your own Tailwind installation" workflow.**
+    There are no utilities left in `dist` to scan, so every `@source` or
+    `content` recipe pointing at this package is now *actively harmful*
+    advice: it silently produces nothing. Bring your own Tailwind by all
+    means — just point it at your own files and style `.jpd-*` with it.
+- **The DOM structure inside `<Designer>` changed too**, not only the class
+  names: each piece renders its own wrapper, with a `jpd-*` class on the
+  root. If you were reaching into the editor's markup with a descendant
+  selector, or with a Tailwind arbitrary variant like `[&_.foo]:…` on a
+  container, that can break. Nothing in this repo did — the arbitrary-variant
+  search over `examples/` at 2.1.1 comes back empty.
+- **Double-click-to-collapse is an affordance of `DesignerSidebar`, not of
+  each piece.** Inside `<Designer>` it is identical: double-click the active
+  tab and the panel collapses. `DesignerTabBar` writes the flag;
+  `DesignerSidebar` is what reads it and collapses. So a standalone
+  `<DesignerTabBar>` gives you a double-click with no visible effect, which
+  is the right behavior for something with nothing to collapse.
+  - Why not per piece: the `TabPanel` trick is a grid `1fr`→`0fr`, and that
+    needs a `flex column` parent with `min-block-size: 0`. A loose piece
+    cannot guarantee that parent, so per-piece collapse would have animated
+    *wrong*, in silence, instead of degrading.
+- **`sidebarTab` no longer gates a panel unless you ask it to.** Tab gating
+  is opt-in, through `whenTab`: with no `whenTab` a piece renders **always**;
+  with `whenTab="pagina"` (or an array of tabs) it appears only there. That
+  is how `DesignerSidebar` and `<Designer>` reproduce today's behavior, so
+  inside the preset nothing changed.
+  - Why: if gating were the default, putting `DesignerPropertyPanel` and
+    `DesignerPageSettings` side by side in your own layout would erase one
+    of them, because only one tab can be active. They would be pieces that
+    *look* decomposed but only work inside a sidebar with tabs, which
+    cancels the whole feature.
+- **`PdfPreviewModal` does not inherit primitives from a `<Designer>`
+  elsewhere on the page.** It lives in the `json-pdf-designer/preview` entry
+  and resolves from the nearest `UiComponentsProvider` — and `<Designer>`'s
+  provider only wraps `<Designer>`'s own subtree. If you want your Button
+  inside the preview modal, put a `<UiComponentsProvider>` above the modal
+  too (the same module-level constant is fine).
+
+- **`generatePdf` throws typed errors now, and `error.message` is English.**
+  This is the one break in this list that has nothing to do with CSS or
+  markup — it reaches code that never imports a stylesheet, including a
+  backend using the `json-pdf-designer/server` entry.
+
+  Up to 2.1.1 every failure was a plain `Error`, and its message was
+  **hardcoded Portuguese** — for everyone, including consumers running the
+  editor in English. The only way to tell one failure from another was to
+  match that prose:
+
+  ```diff
+  - // 2.1.1 — matching a Portuguese sentence, in an app that may be English
+  - if (/tamanho inválido/.test(err.message)) showPageSizeHelp();
+  - else if (/Paginação travada/.test(err.message)) reportBug(err);
+  + // 3.0.0 — matching a class
+  + if (err instanceof InvalidPageSizeError) showPageSizeHelp(err.pageId);
+  + else if (err instanceof PaginationStalledError) reportBug(err);
+  ```
+
+  There are **18 concrete classes** under one abstract base
+  (`PdfGenerationError`, abstract on purpose — nothing should throw the
+  base). Each carries a literal `code` and the structured fields the failure
+  actually knows, so nothing has to be parsed back out of a sentence:
+
+  ```ts
+  class InvalidPageSizeError extends PdfGenerationError {
+    readonly code = "invalidPageSize";
+    readonly blame = "template";
+    constructor(readonly pageId: string, readonly width: number, readonly height: number) { … }
+  }
+  ```
+
+  - Why `message` is English: it is the **diagnostic** layer — the console,
+    your error tracker, the string someone pastes into an issue. A message
+    that changes language makes log grouping depend on the reader's locale,
+    and it makes a stack trace unsearchable.
+  - **This adds localization, it does not remove it.** The text a *person*
+    reads now comes from the same dictionary you already hand the editor:
+
+    ```ts
+    const problem = describePdfError(err, dictFor(locale));
+    // → { code, blame, title, action?, field?, detail } | null
+    ```
+
+    `title` and `action` are in `locale`; `detail` is the raw English
+    message. So an English consumer stops seeing Portuguese, and switching
+    `locale` re-translates.
+  - **The trap, and it is the whole reason `describePdfError` is a separate
+    call:** never put the described text in state. Store the raw error and
+    describe it *while rendering*. A translated phrase held in state freezes
+    in the language it was created in, so the language switch leaves that
+    one piece of the screen behind — and nothing fails, it just renders
+    stale. We hit this thirteen times in this repo's own examples while
+    migrating them, which is why all five now store a reason and resolve the
+    text at render.
+
+    ```diff
+    - catch (err) { setError(describePdfError(err, dictFor(locale))); }
+    + catch (err) { setErrorBox({ err }); }        // the raw error
+    + // …and in the render body:
+    + const problem = errorBox && describePdfError(errorBox.err, dictFor(locale));
+    ```
+  - `describePdfError` returns **`null`** for an error that is not the
+    package's, on purpose, instead of inventing a title for a failure it
+    does not understand. Your own errors keep your own copy — see
+    `examples/*/src/lib/generationError.ts` for the shape.
+  - `blame` is `"data" | "template" | "config" | "package"` — the same
+    distinction a backend uses to choose between 4xx and 500, so it should
+    not exist in two versions. `blame: "package"` means it is our bug, not
+    the caller's template.
+  - Everything above is exported from **both** entries — `json-pdf-designer`
+    and `json-pdf-designer/server` — so a server classifies a failure
+    without pulling in React.
+
+### The cascade layer, and why it is not a regression
+
+`theme.css` lives inside `@layer json-pdf-designer`. That is what makes the
+`className` you pass always count: unlayered CSS beats layered CSS
+regardless of specificity, so any rule of yours wins over ours by default,
+with no specificity fight. The layer order is declared before the first rule
+(`@layer json-pdf-designer, utilities;`) so it holds no matter which
+stylesheet you import first.
+
+The side effect is that a bare **element** selector — `button { … }` in your
+global CSS — also wins, and reaches the editor's chrome. **This is not new
+in 3.0.0.** It was measured: 2.x's `dist/style.css` was Tailwind v4 output,
+and Tailwind v4 emits `@layer theme` / `@layer base` / `@layer utilities`,
+so an unlayered element selector already won there. The layer **preserves**
+2.1.1's cascade position rather than changing it. The advice is the same as
+it was: scope by class, and target `.jpd-*` on purpose when you mean to
+redefine the editor.
+
+### Added
+
+- **`<DesignerProvider>`** — the state provider, and the thing that makes
+  the rest of this list possible. Props: `template`, `onChangeTemplate`,
+  `bindings`, `onChangeBindings`, `onCanvasDrop`, `dataSources`,
+  `gridSizeMm`, `expandOnSelect`, `children`. `Designer.tsx` went from 986
+  lines to 101, because that is all the preset is now: three providers and
+  two pieces in a two-column layout.
+- **Ten positionable pieces**: `DesignerCanvas`, `DesignerTabBar`,
+  `DesignerFieldList`, `DesignerToolbar`, `DesignerPageSettings`,
+  `DesignerPropertyPanel`, `DesignerFilterPanel`, `DesignerBindingEditor`,
+  `DesignerInspector`, and `DesignerSidebar` — the last one a convenience
+  that composes the seven content pieces with the preset's tab gating.
+  - Every piece takes `className` (merged, yours last), `style` (yours
+    wins) and `whenTab`. Several take `parts`, addressing the elements
+    *inside* them by role, plus flags like `heading`, `hint`, `header` and
+    `position`.
+  - `DesignerPropertyPanel` takes `section="dados" | "estilo"` as a **prop**
+    rather than reading the active tab, so two instances with different
+    sections render together.
+  - Not positionable, on purpose: `FieldBox/*` and the
+    `PropertyPanel{Text,Table,…}` panels, which are dispatched by
+    `schema.type`. A loose `<DesignerTextPanel/>` has no answer to "which
+    schema?" other than "the selected one", and then it is just a worse
+    `DesignerPropertyPanel`.
+- **Ten public hooks.** Accessors `useDesignerData`, `useDesignerActions`,
+  `useDesignerSelection`, `useDesignerUi`, `useDesignerConfig`; selectors
+  `useDesignerSelectedSchema`, `useDesignerFieldListSchemas`,
+  `useDesignerBulkEdit`, `useDesignerTabWarnings`,
+  `useDesignerFilterColumns`.
+  - The five contexts are split by **how often they change**, so a piece
+    reads only what it uses. `useDesignerActions` never changes identity —
+    it is the load-bearing one, the reason a memoized piece can hold a
+    mutator without re-rendering every time the template changes — while
+    `useDesignerData` changes on every edit.
+  - Used outside the provider they **throw**, with a message naming the
+    provider, instead of returning `null`. A piece with no state has no
+    fallback at all, so a silent `null` would leave you staring at a hole
+    in the screen.
+- **`UiComponentsProvider` / `useUiComponents` / `defaultUiComponents`** —
+  swap the primitives the editor uses *internally*. **Twelve slots**:
+  `Button`, `Input`, `ColorInput`, `Select`, `Textarea`, `Checkbox`,
+  `Modal`, `Card`, `CardHeader`, `CardTitle`, `Badge`, `TabPanel`. Every
+  `*Props` type is exported so an adapter is about five lines, typed at both
+  ends, and the example writes it with `satisfies UiComponentsOverride`.
+  `<Designer components={…}>` is sugar for mounting the provider.
+  - `undefined` on a key means **inherit** from the provider above, not
+    back-to-default. To get ours back, name it:
+    `{ Modal: defaultUiComponents.Modal }`.
+  - **The gotcha to read before writing an adapter:** a slot receives props
+    *as the caller wrote them*, and the defaults live inside our components.
+    `<Button>` destructures `{ variant = "primary", size = "sm" }` in *its
+    own* signature, so a caller writing `<Button>ok</Button>` sends
+    `variant: undefined` to your adapter — measured: five of the Toolbar's
+    six buttons arrive with no `variant`. Your adapter needs its own
+    defaults. The editor's are Button primary/sm, Modal `lg`, and
+    `TabPanel.collapsed` with no default.
+  - **Unstable identity is the sharpest edge.** An inline object creates a
+    new component type on every render and React remounts what you slotted
+    — the symptom is the field losing focus on every keystroke. Hoist the
+    map to a module constant. Outside production the provider warns in the
+    console, once.
+  - `components={{ Button: MuiButton }}` does **not** type-check directly
+    (MUI's `variant` conflicts with ours), and no trick fixes it — the
+    adapter is the answer. `label` is the prop that bites: a slot that
+    discards `label` removes the accessible name from about sixteen
+    controls. MUI's `TextField` has a compatible `label`; Chakra's `Input`
+    does not. And `Textarea` is the one slot where ignoring `ref` breaks
+    something: the formula modal passes a ref to reposition the caret after
+    you accept a suggestion.
+  - Not slottable: `PageCanvas`/`Ruler`/`FieldBox` (they are the PDF's
+    mock-up — a stray primitive's padding breaks WYSIWYG), the tab bar (all
+    of 2.1.1 went into fitting six tabs into 290px; a slotted Button's
+    `min-width` undoes it), the `FieldList` rename input (it depends on
+    `autoFocus` plus commit on `onBlur`), the hidden file input, the "ƒx"
+    glyph, and the icons.
+- **`Checkbox`** — closes the gap left by three bare `<input type="checkbox">`
+  in the editor, and is the twelfth slot.
+- **Kit components now public**: `PalettePicker`, `PaletteSwatches`,
+  `MaterialIcon`, `CollapsibleSection`, `ClearFieldButton`. All of them —
+  and everything already public — take `className`, `style` and `...rest`,
+  under one rule: **`className`/`style`/`...rest` go to the element that
+  gives the component its NAME; every other element it renders is addressed
+  through `parts`, by role.** So `Input.className` is still on the `<input>`
+  (unchanged from 2.x) and the wrapping `<label>` is `parts.root`;
+  `Modal.className` is the panel and the backdrop is `parts.overlay`.
+  `parts` accepts only `className`/`style` — no handlers, no refs — with a
+  string shorthand (`parts={{ label: "my-class" }}`) and an object form when
+  you need `style`. `mergeStyle` gives your `style` the win.
+  - `BulkLocked` stays internal on purpose: it means "locked because you
+    selected several of the same type", which is a *mode* of `<Designer>`.
+    Outside that context the component says nothing.
+- **A typed error surface**: `PdfGenerationError` (abstract) plus 18
+  concrete classes, `PDF_ERROR_CODES` (the 18 codes as a `const` tuple),
+  `PdfErrorCode`, `PdfErrorBlame`, `AnyPdfError`, and `isPdfError(err)`,
+  which narrows `unknown` to `AnyPdfError`. All from both entries. See the
+  Breaking section for why the old `Error` messages had to go.
+- **`describePdfError(err, dict)` → `PdfProblem | null`** — one call that
+  turns a caught error into `{ code, blame, title, action?, field?, detail }`
+  with the copy already in the dictionary's language. Pair it with
+  `dictFor(locale)`, also exported from both entries.
+  - It is exhaustive, so "it fell through to the generic branch because I
+    did not recognise it" is no longer a state the package can be in — and
+    a code added to `PDF_ERROR_CODES` stops compiling until it has copy in
+    both languages.
+  - `PdfProblemCode` has **19** members while `PDF_ERROR_CODES` has 18, and
+    the extra one is not an oversight: `"expression"` covers
+    `ExpressionError`, which is its own hierarchy rather than one of the 18
+    (it already carries a `localize(dict)`, so re-describing it here would
+    give the same failure two different sentences). It is also the one
+    problem code you are unlikely to see from `generatePdf` — generation is
+    deliberately tolerant, and an invalid expression renders as an empty
+    field. It surfaces when you call the strict API, e.g. `parse` in a
+    backend validating a template before saving it.
+- **`json-pdf-designer/reset.css`** as its own export — see the Breaking
+  entry above.
+- **New `<Designer>` props, all optional**: `gridSizeMm`, `expandOnSelect`,
+  `className`, `style`, `components`. The seven props it always had are
+  unchanged.
+- **`examples/composed-layout`** (port 5177) — the app that only works
+  because tab gating is opt-in: toolbar across the top, field list on the
+  left, canvas in the middle, and a right-hand column of five stacked panels
+  that inside `<Designer>` would be separate tabs. No piece receives
+  `whenTab`. Measured: eight pieces in the DOM at once, and zero
+  `.jpd-tabs`.
+  - `examples/report-builder` moved to the pieces with an **identical**
+    layout, and what the migration bought is `<SelectedFieldBar>` — the
+    app's own shell reading the editor's selection through a hook, which was
+    impossible in 2.x (the old comment in `App.tsx` said exactly that:
+    `<Designer>` owned the selection and there was no prop to drive it from
+    outside). Verified: "remove" in the app's own bar takes the template
+    from three fields to two, and the app's Ctrl+Z undoes it (two back to
+    three) — so the package's mutator goes through the consumer's
+    `setState`, and the consumer's undo/redo sees it.
+  - `examples/custom-ui` deliberately stays on `<Designer>`: it is the
+    regression test for the one-line path, and it imports **no** CSS from
+    the package at all, styling `.jpd-*` from scratch — that is the
+    no-stylesheet mode. `examples/no-preview` is a different thing: it
+    imports `theme.css` normally, and is the best smoke test for the
+    PREFLIGHT LOSS, because it has no Tailwind pipeline at any end — `report-builder` has its own, so it emits
+    Preflight by itself and will *not* reproduce a missing reset. Testing
+    there first gives a false green.
+
+### Fixed
+
+- **The `Modal` close button's `aria-label` was the dialog's title.** A
+  screen reader announced "Formula editor" as the name of the button that
+  closes the formula editor. It has its own translated name now
+  (`t.modal.close`).
+- **The canvas's `fitTo` never used the canvas's viewport.** It looked for
+  `[data-scroll-root], [class*="overflow-auto"], [class*="overflow-y-auto"]`
+  — but `data-scroll-root` was never written anywhere, and the wrapper used
+  `overflow-x-auto`, which contains neither of those strings as a substring.
+  Measured on 2.1.1: "fit width" produced 113% with **338px of the page
+  outside the viewport**. With the attribute in place: 67%, and zero
+  overflow.
+- **The ruler had no dark mode.** The background did darken
+  (`dark:bg-gray-800`), but the ticks and the numbers were SVG presentation
+  attributes with fixed hex values (`stroke="#94a3b8"`, `fill="#64748b"`) —
+  dark ticks on a dark background. All three come from tokens now
+  (`--jpd-ruler-bg`, `--jpd-ruler-tick`, `--jpd-ruler-label`), so they move
+  together.
+- **The formula modal's tab strip overflowed, in pt-BR only.** Measured in
+  `examples/no-preview` at a 1280px viewport: "Campos do item" (96.7px) plus
+  "Caminhos de dado" (108.8px) is **205.4px inside a 176px column**, and the
+  strip had `overflow: visible` — so the buttons painted over the editor
+  column beside them. In English the same two tabs ("Item fields" /
+  "Data paths") come to 151px and fit with room to spare, which is why the
+  bug only existed translated. The strip is now `jpd-tabs jpd-tabs--scroll`
+  (`overflow-x: auto` plus `min-inline-size: 0`), so it measures
+  `scrollWidth` 207 against `clientWidth` 176 and **scrolls instead of
+  clipping**.
+  - Only *that* instance gets the modifier. The sidebar's own `.jpd-tabs`
+    must not take `overflow`, because it would cut off the `.jpd-tabs__more`
+    popover.
+- **Icons lost their `display: block`.** With no Preflight, every inline
+  `<svg>` goes back to inline-baseline and picks up descender space inside a
+  flex line — about 23 call sites, including the `<IconX/>` inside the kit's
+  own buttons. Fixed at the base of `icons.tsx`, where `jpd-icon` now goes
+  on every icon rather than at each call site.
+- **The rename input's border had no dark colour.** `FieldList`'s inline
+  input carried `border-sky-400` with no `dark:border-*` — sky-400 over
+  gray-800.
+- **The table's palette picker arrow had no dark colour.** It was preserved
+  by a `staticArrow` prop that existed only to keep an unintentional detail
+  alive. The prop is gone and the arrow follows the theme.
+- **`gridSizeMm` was honoured by neither paste nor spawn.** `PageCanvas`
+  already took the prop, but `computeSpawnPosition`, `nextFreeY` and the
+  paste path used the constant directly: with `gridSizeMm={3}`, dragging
+  snapped to 3 while spawning and pasting snapped to 5, so a new field was
+  born off your grid. All **four** paths take the step now, and
+  `<Designer gridSizeMm>` exists.
+- **`.jpd-tabs__strip` lost its `::-webkit-scrollbar { display: none }`** in
+  the migration — the old `.jpd-scroll-x` had both rules and only one came
+  across. `scrollbar-width` alone covers neither Safari nor Chromium < 121,
+  and in a 28px-tall strip the bar eats half the height.
+- **Text on the page had no colour of its own, so in dark mode it was
+  unreadable.** `.jpd-page` is the mock-up of the PDF, and the sheet is
+  always white paper — the PDF has no dark mode. But it only set
+  `background-color`, so any field text without a colour of its own
+  inherited `--jpd-text` from the *theme*: light grey on white. Measured in
+  `examples/no-preview`, a table's empty `—` cells came out at **1.54:1** —
+  text that is there and cannot be read. `.jpd-page` now also sets
+  `color: var(--jpd-canvas-ink)` (**17.75:1**), a token that deliberately
+  has no dark override. A field with `fontColor` in the schema still
+  overrides it inline, as always.
+- **The palette trigger fell back to the system button colour.** It is a
+  `<button>` that *has* a class, so the reset's per-element rule
+  (`:not([class])`) does not reach it — by design, so the reset never
+  repaints a consumer's own button — and it was not in `reset.css`'s
+  by-class list either. With no `background-color` of its own it landed on
+  the system `ButtonFace`, which under `color-scheme: dark` is dark grey:
+  the label measured **3.45:1** and the arrow **1.25:1**. It now declares
+  `background-color: var(--jpd-surface-field)`, like every other control.
+- **`reset.css` read three tokens only `theme.css` declares.**
+  `--jpd-font-sans`, `--jpd-font-mono` and `--jpd-text-placeholder`, all
+  with no fallback — and since `reset.css` is a public export in its own
+  right, used on its own each `var()` resolved to nothing and the rule died
+  silently. The worst of the three was `withInlineCode`'s `<code>`, which
+  ships with no class and got its monospace family from Preflight alone.
+
+### What does not break, and is worth saying out loud
+
+- **The seven props `<Designer>` always had are identical**: `template`,
+  `onChangeTemplate`, `bindings`, `onChangeBindings`, `onCanvasDrop`,
+  `dataSources`, `locale`. Everything new on it is optional.
+- **The tab-order and tab-visibility localStorage keys are preserved** —
+  `json-pdf-designer:tab-order` and `json-pdf-designer:hidden-tabs`. A
+  user's tab layout survives the upgrade; verified in the browser.
+- **`PageCanvas`, `Toolbar`, `FieldList`, `PropertyPanel`, `BindingEditor`,
+  `FilterTab` and `TemplateInspector` keep today's props** and are still
+  exported from their own modules, so the headless-by-props path keeps
+  working exactly as it did.
+- **`react-rnd` is still only needed for the canvas.** The piece owns the
+  sheet's geometry (mm→px, `transform: scale(zoom)`) because react-rnd
+  computes the drag delta against that transform — override it and the field
+  runs away from the cursor. You own the viewport that *scrolls*, which is
+  what `className` reaches, and the sidebar's width (the 320px lives in the
+  preset's CSS, not in the piece). Zoom is still `<PageCanvas>`'s internal
+  state and never moved into context.
+- **`server.ts` is untouched** — byte-identical `server.d.ts` in the build.
+  The React-free backend install is exactly what it was in 2.0.0.
+
 ## 2.1.1 (2026-09-01)
 
 ### Fixed

@@ -1,6 +1,8 @@
-import type { TemplatePage } from "json-pdf-designer";
+import type { Locale, TemplatePage } from "json-pdf-designer";
+import { t } from "../i18n";
 
 type Props = {
+  locale: Locale;
   pages: TemplatePage[];
   activeIndex: number;
   onSelect: (index: number) => void;
@@ -12,7 +14,8 @@ type Props = {
 // do MESMO Template (ver lib/pages.ts). Rótulo é sempre a posição no array
 // ("Página N"), não um nome guardado — evita nome desatualizado depois de
 // reordenar/remover uma aba do meio.
-export default function PageTabs({ pages, activeIndex, onSelect, onAdd, onRemove }: Props) {
+export default function PageTabs({ locale, pages, activeIndex, onSelect, onAdd, onRemove }: Props) {
+  const tx = t(locale);
   return (
     <div className="flex items-center gap-1 border-b border-slate-200 bg-white px-2 pt-2">
       {pages.map((p, i) => (
@@ -25,13 +28,13 @@ export default function PageTabs({ pages, activeIndex, onSelect, onAdd, onRemove
           }`}
         >
           <button type="button" className="cursor-pointer" onClick={() => onSelect(i)}>
-            Página {i + 1}
+            {tx.pageLabel(i + 1)}
           </button>
           {pages.length > 1 && (
             <button
               type="button"
               className="rounded px-1 leading-none text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-              aria-label={`Remover página ${i + 1}`}
+              aria-label={tx.pageRemoveAria(i + 1)}
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove(i);
@@ -46,7 +49,7 @@ export default function PageTabs({ pages, activeIndex, onSelect, onAdd, onRemove
         type="button"
         className="rounded-t-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50"
         onClick={onAdd}
-        aria-label="Adicionar página"
+        aria-label={tx.pageAddAria}
       >
         +
       </button>

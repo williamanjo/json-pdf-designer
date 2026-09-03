@@ -65,15 +65,16 @@ function ElementBox({
     <div
       data-kpi-element={el}
       onMouseDown={onMouseDown}
-      className="absolute truncate"
-      style={{
-        left: mmToPx(xMm),
-        top: mmToPx(yMm),
-        maxWidth: Math.max(maxWidthPx, 10),
-        cursor: draggable ? "move" : "pointer",
-        outline: focused ? "1px dashed currentColor" : undefined,
-        outlineOffset: focused ? 2 : undefined,
-      }}
+      className="jpd-kpi__box"
+      data-draggable={draggable || undefined}
+      data-focused={focused || undefined}
+      // Só a POSIÇÃO fica inline (mm→px, tem de bater ponto a ponto com
+      // render/renderKpi.ts); cursor e contorno de foco são dois estados
+      // fixos e viraram data-*. O `cursor` daqui pode morar no CSS (ao
+      // contrário do <Rnd> em PageCanvas): o inline `cursor: move` do
+      // react-rnd está no elemento ANCESTRAL, e valor herdado perde de uma
+      // regra que casa no próprio elemento.
+      style={{ left: mmToPx(xMm), top: mmToPx(yMm), maxWidth: Math.max(maxWidthPx, 10) }}
     >
       {children}
     </div>
@@ -117,7 +118,7 @@ export function KpiField({ schema, selected = false, zoom = 1, selectedElement =
 
   return (
     <div
-      className="relative h-full w-full overflow-hidden"
+      className="jpd-kpi"
       style={{ backgroundColor: schema.backgroundColor, color: schema.textColor, borderRadius: radiusPx }}
     >
       {schema.title !== undefined && (
@@ -130,7 +131,7 @@ export function KpiField({ schema, selected = false, zoom = 1, selectedElement =
           draggable={selected && !kpiElementLocked(schema, "title")}
           onMouseDown={(e) => startDrag("title", e)}
         >
-          <span className="font-medium uppercase tracking-wide opacity-90" style={{ fontSize: ptToPx(titleSizePt) }}>
+          <span className="jpd-kpi__part" data-part="title" style={{ fontSize: ptToPx(titleSizePt) }}>
             {schema.title}
           </span>
         </ElementBox>
@@ -160,7 +161,7 @@ export function KpiField({ schema, selected = false, zoom = 1, selectedElement =
           draggable={selected && !kpiElementLocked(schema, "value")}
           onMouseDown={(e) => startDrag("value", e)}
         >
-          <span className="font-bold leading-tight" style={{ fontSize: ptToPx(valueSizePt) }}>
+          <span className="jpd-kpi__part" data-part="value" style={{ fontSize: ptToPx(valueSizePt) }}>
             {formatKpiValue(schema.value, schema.numberFormat)}
           </span>
         </ElementBox>
@@ -176,7 +177,7 @@ export function KpiField({ schema, selected = false, zoom = 1, selectedElement =
           draggable={selected && !kpiElementLocked(schema, "subtitle")}
           onMouseDown={(e) => startDrag("subtitle", e)}
         >
-          <span className="opacity-80" style={{ fontSize: ptToPx(subtitleSizePt) }}>
+          <span className="jpd-kpi__part" data-part="subtitle" style={{ fontSize: ptToPx(subtitleSizePt) }}>
             {schema.subtitle}
           </span>
         </ElementBox>

@@ -46,7 +46,7 @@ export function TemplateInspector({ template, bindings, selectedIds, onSelect }:
   };
 
   if (template.schemas.length === 0) {
-    return <p className="text-xs text-slate-400 dark:text-gray-400">{t.templateInspector.empty}</p>;
+    return <p className="jpd-hint jpd-hint--md">{t.templateInspector.empty}</p>;
   }
 
   const grouped = new Map<Zone, { schema: Schema; zIndex: number }[]>();
@@ -58,17 +58,13 @@ export function TemplateInspector({ template, bindings, selectedIds, onSelect }:
   });
 
   return (
-    <div className="flex flex-col gap-3 text-xs">
+    <div className="jpd-inspector">
       {ZONE_ORDER.filter((zone) => grouped.has(zone)).map((zone) => (
         <div key={zone}>
-          <h4
-            className={`mb-1 text-[10px] font-semibold uppercase tracking-wide ${
-              isRedZone(zone) ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-gray-400"
-            }`}
-          >
+          <h4 className="jpd-eyebrow" data-zone={isRedZone(zone) ? "red" : "normal"}>
             {zoneLabel[zone]}
           </h4>
-          <ul className="flex flex-col gap-1">
+          <ul className="jpd-list jpd-stack jpd-stack--tight">
             {grouped.get(zone)!.map(({ schema, zIndex }) => {
               const binding = bindings.find((b) => b.schemaName === schema.name);
               const isSelected = selectedIds.includes(schema.id);
@@ -80,31 +76,28 @@ export function TemplateInspector({ template, bindings, selectedIds, onSelect }:
                   <button
                     type="button"
                     onClick={(e) => onSelect(schema.id, e.ctrlKey || e.metaKey)}
-                    className={`flex w-full items-center gap-1.5 rounded-lg border px-1.5 py-1 text-left transition-colors ${
-                      isSelected
-                        ? "border-sky-500 bg-sky-50 dark:border-blue-400 dark:bg-blue-400/10"
-                        : "border-slate-200 hover:bg-slate-50 dark:border-gray-700 dark:hover:bg-gray-700"
-                    }`}
+                    className="jpd-fieldrow"
+                    data-selected={isSelected || undefined}
                   >
-                    <span className="min-w-0 flex-1 truncate">
-                      <span className="font-medium text-slate-700 dark:text-gray-200">{schema.name}</span>
-                      <span className="ml-1.5 text-slate-400 dark:text-gray-400">{typeLabel[schema.type]}</span>
+                    <span className="jpd-fieldrow__name">
+                      <span className="jpd-rowname">{schema.name}</span>
+                      <span className="jpd-muted">{typeLabel[schema.type]}</span>
                       {parentSection && (
-                        <span className="ml-1.5 text-slate-400 dark:text-gray-400">
+                        <span className="jpd-muted">
                           · {t.templateInspector.columnSection}: {parentSection.name}
                         </span>
                       )}
                       {binding && (
-                        <span className="ml-1.5 truncate text-slate-400 dark:text-gray-400">
+                        <span className="jpd-muted">
                           · {describeBindingShort(binding, t)}
                         </span>
                       )}
                     </span>
-                    <span className="flex-shrink-0 whitespace-nowrap text-slate-400 dark:text-gray-500">
+                    <span className="jpd-fieldrow__pos">
                       x{Math.round(schema.x)} y{Math.round(schema.y)}
                     </span>
                     <span
-                      className="flex-shrink-0 text-slate-300 dark:text-gray-600"
+                      className="jpd-fieldrow__z"
                       title={t.templateInspector.columnZIndex}
                     >
                       z{zIndex}

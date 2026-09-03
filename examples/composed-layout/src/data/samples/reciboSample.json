@@ -1,0 +1,8 @@
+{
+  "recibo": { "numero": "0042", "data": "2026-07-15" },
+  "cliente": { "nome": "Maria Fernandes Souza", "cpf": "123.456.789-00" },
+  "servico": {
+    "descricao": "Consultoria em viagens corporativas — pacote anual",
+    "valor": 4500
+  }
+}

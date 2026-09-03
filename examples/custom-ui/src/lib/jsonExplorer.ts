@@ -13,6 +13,9 @@
 //   coluna nenhuma pra oferecer individualmente)
 // - valor simples (string/number/boolean/null) -> campo "scalar"
 
+import type { Locale } from "json-pdf-designer";
+import { t } from "../i18n";
+
 export type ColumnType = "number" | "string" | "boolean" | "other";
 
 export type FieldNode =
@@ -30,10 +33,18 @@ export type FieldNode =
 // Campos sintéticos sempre disponíveis, independente do JSON carregado —
 // mostrados numa seção fixa própria na árvore ("Variáveis nativas", ver
 // FieldTree.tsx).
-export const NATIVE_FIELDS: FieldNode[] = [
-  { path: "pageNumber", label: "Nº da página", kind: "native" },
-  { path: "pageCount", label: "Total de páginas", kind: "native" },
-];
+//
+// Função (e não constante de módulo) porque o RÓTULO é texto de UI e segue o
+// idioma da casca. O `path` é o único lado que não muda: `pageNumber` é o
+// token que o motor de PDF resolve, então ele é dado — traduzi-lo quebraria o
+// template.
+export function nativeFields(locale: Locale): FieldNode[] {
+  const d = t(locale);
+  return [
+    { path: "pageNumber", label: d.nativePageNumber, kind: "native" },
+    { path: "pageCount", label: d.nativePageCount, kind: "native" },
+  ];
+}
 
 function valueColumnType(v: unknown): ColumnType {
   if (typeof v === "number") return "number";

@@ -14,7 +14,7 @@ backend. Lean, i18n-ready, and built to be modified.
 
 | Piece | What it does |
 | --- | --- |
-| `<Designer>` | The React canvas — drag/resize fields, a tabbed side panel (Fields/Data/Style/Filter/Page), zoom, rulers, multi-select, copy/paste, undo-friendly state. |
+| `<Designer>` | The React canvas — drag/resize fields, a tabbed side panel (Fields/Data/Style/Filter/Page), zoom, rulers, multi-select, copy/paste, undo-friendly state. Since 3.0.0 it's a preset over ten placeable parts, so you can lay the editor out yourself — see [Composing the Designer](./composing-the-designer). |
 | `generatePdf` | Turns a `Template` + real JSON data + `Binding[]` into PDF bytes (`pdf-lib`) — works in the browser **or** in Node, no headless browser involved. |
 | Field types | Text, table, image, repeated **section** (master-detail), **chart** (pie/bar), **KPI** indicator card. |
 | Data binding | `{token}`/`{FUNCTION(...)}` templates against real JSON — `SUM`, `COUNT`, `AVG`, `DATE`, `CURRENCY`, `NUMBER`, arithmetic, and more. |
@@ -27,9 +27,11 @@ backend. Lean, i18n-ready, and built to be modified.
 - Only generating PDFs on a server, no editor UI? Jump straight to
   [Server-only usage](./server-only-usage).
 - Want to see it running before reading anything? Open the
-  [Playground](/playground) — three live
-  variants, from "uses the ready-made UI kit" to "no `<Designer>` at
-  all."
+  [Playground](/playground) — five live variants, from "uses the
+  ready-made UI kit" to "the editor assembled part by part" to "no
+  `<Designer>` at all."
+- Styling it, or upgrading from 2.x? [Theming](./theming) is the CSS
+  contract, and [Migrating to 3.0.0](./migration-3) is the upgrade path.
 - Building the frontend-designs / backend-generates split? See
   [Backend integration](./backend-integration).
 

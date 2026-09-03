@@ -1,0 +1,232 @@
+---
+title: Customizing Components
+sidebar_label: Customizing components
+description: className/style/rest, parts, Modal.size, and swapping the editor's primitives through UiComponentsProvider.
+---
+
+# Customizing components
+
+Two different things live on this page, and it's worth keeping them apart:
+
+- **Styling** what the package renders — `className`, `style`, `parts`.
+- **Replacing** the primitives the editor renders *inside itself* —
+  `UiComponentsProvider`.
+
+The first is for adjusting; the second is for putting your own design
+system's `Button` inside the property panel.
+
+Neither is the cheapest option, though. If what you want is the whole
+editor in your colors and radii, override `--jpd-*` tokens and write no
+rule at all — the `composed-layout` example rethemes sky to violet that
+way without a single `.jpd-*` selector. Reach for `className`/`style`
+when you need *one* element to differ, not when you want a different
+look; see [Theming](./theming#the-spectrum-in-five-running-apps).
+
+## `className`, `style`, and the rest of the props
+
+Every component in the UI kit accepts `className`, `style` and the
+remaining native element props. One rule decides where they land:
+
+> **`className`/`style`/`...rest` go to the element that gives the
+> component its NAME. Every other element it renders is addressed through
+> `parts`, by role.**
+
+So `Input.className` still lands on the `<input>` — same as 2.x, no
+migration — and the `<label>` that wraps it is `parts.root`. In `Modal`
+the named element is the **panel**; the dimmed backdrop is
+`parts.overlay`.
+
+The alternative ("`className` always on the root") was rejected because
+it would have silently relocated every existing `<Input className="w-24">`
+from the control to the wrapper whenever `label` was present — a break
+with no error, just wrong UI.
+
+```tsx
+<Input
+  label="Name"
+  className="my-input"                    // -> the <input>
+  parts={{ root: "my-field", label: { style: { fontWeight: 600 } } }}
+/>
+```
+
+`parts` accepts **only** `className` and `style` — no handlers, no refs,
+deliberately. That limit is what stops `parts` from growing back into a
+global 50-key style map. Need a handler or a ref on the wrapper? Omit
+`label` and compose your own: `Input`, `Select` and `Textarea` all return
+the bare control when they get no label.
+
+Two shapes, use whichever fits:
+
+```tsx
+parts={{ label: "my-class" }}                        // string shorthand
+parts={{ label: { className: "x", style: { … } } }}  // object, when you need style
+```
+
+Each component declares a **closed** set of 2 to 6 keys, so you discover
+them by autocomplete on the component itself and TypeScript rejects a
+typo.
+
+### How merging actually works
+
+- **`className` merges**, ours first, yours last, with exact-token
+  dedupe. Order inside the attribute decides nothing — `.jpd-btn` and
+  your class have the same specificity (0-1-0), so what wins is order in
+  the *stylesheet*. See [Theming](./theming) for why our layer loses on
+  purpose.
+- **`style` wins, key by key.** It is the last resort — what's left when
+  class and token weren't enough — so the component may not override it.
+  Two consequences are accepted knowingly: `TabPanel`'s
+  `gridTemplateRows` *is* the collapse mechanism, and each swatch's
+  `backgroundColor` in `PaletteSwatches` *is* the palette. Override
+  either and you break the component's function; that's acceptable in a
+  last resort.
+- `cx` returns `undefined` rather than `""` when nothing is left, so the
+  markup doesn't carry a stray `class=""` (`Card` used to emit a trailing
+  space).
+
+### `Modal`: `size`, not a Tailwind class
+
+**Breaking in 3.0.0.** `maxWidthClass` — a Tailwind class string, in the
+public API of a package that no longer ships Tailwind — is replaced by:
+
+```tsx
+<Modal title="Formula" size="xl" onClose={close}>…</Modal>
+```
+
+`"sm" | "md" | "lg" | "xl" | "full"`, default `"lg"` = 48rem, which is
+exactly what the old `max-w-3xl` gave. An arbitrary width is now
+`style={{ maxWidth: 900 }}` — and that reaches the panel, because
+`className`/`style` go to the named element and the name here is the
+panel, not the backdrop.
+
+No internal call site ever passed `maxWidthClass`, and it wasn't
+documented anywhere (it lived only in the code), so nothing you read
+before is now wrong.
+
+### The kit components forward refs now
+
+They are wrapped in `forwardRef`, which means they are **no longer plain
+functions**: `Button.name` is no longer `"Button"`, and calling
+`Button(props)` directly stops working. It's `forwardRef` rather than
+React 19's `ref` prop because React 18 is a supported peer.
+
+The **20 icons are the exception** — still plain functions, no ref. Their
+props widened from `{ className }` to `IconProps` = `SVGAttributes`.
+Deliberately not `SVGProps`, which extends `ClassAttributes` and would
+accept a `ref` that goes nowhere; the type would be lying.
+
+## Replacing the editor's primitives
+
+`className` styles what we render. `UiComponentsProvider` replaces it:
+
+```tsx
+import { UiComponentsProvider, Designer, type ButtonProps, type UiComponentsOverride } from "json-pdf-designer";
+import { Button as MuiButton } from "@mui/material";
+
+// MODULE constant — see the warning below.
+const MY_KIT = {
+  Button: ({ variant, size, ...rest }: ButtonProps) => <MuiButton {...rest} />,
+} satisfies UiComponentsOverride;
+
+<UiComponentsProvider components={MY_KIT}>
+  <Designer … />
+</UiComponentsProvider>
+```
+
+`<Designer components={MY_KIT}>` is sugar for the same thing.
+`useUiComponents()` is how a part of your own resolves the current set,
+and `defaultUiComponents` holds ours.
+
+### The twelve slots
+
+`Button`, `Input`, `ColorInput`, `Select`, `Textarea`, `Checkbox`,
+`Modal`, `Card`, `CardHeader`, `CardTitle`, `Badge`, `TabPanel`.
+
+The set is **closed** on purpose: each key is a public, permanent
+contract. Replacement is partial — anything you don't provide stays ours,
+and providers compose key by key, so you can define the app's vocabulary
+at the root and override just `Modal` in one corner.
+
+`undefined` on a key means **inherit** (from the parent provider), not
+back-to-default. To go back to ours explicitly:
+`{ Modal: defaultUiComponents.Modal }`.
+
+### The trap: your adapter receives the props as the caller wrote them
+
+This one bites in practice. The defaults live **inside** our components,
+so the slot sees what the call site actually passed. `<Button>` does
+`{ variant = "primary", size = "sm" }` in its own destructuring, which
+means a caller who writes `<Button>ok</Button>` sends
+`variant: undefined` to your adapter. Measured: of the Toolbar's six
+buttons, **five arrive with no `variant`**.
+
+So your adapter needs its own default:
+
+```tsx
+Button: ({ variant = "primary", size = "sm", ...rest }: ButtonProps) => …
+```
+
+The editor's defaults, to copy: `Button` `variant="primary"`
+`size="sm"`; `Modal` `size="lg"`; `TabPanel`'s `collapsed` is required
+(no default). Everything else non-DOM is optional and undefaulted —
+absent means "don't show it" (`label`, `parts`, `mono`).
+
+:::danger[Unstable identity is the sharpest footgun here]
+An inline object creates a **new component on every render**, React sees
+a new type, and it unmounts and remounts the slotted component — the
+symptom is the input losing focus on every keystroke, which nobody
+connects to the registry. Hoist the map to a module constant (or memoize
+it). Outside production the provider warns in the console, once, naming
+the slots whose identity changed.
+:::
+
+### Writing the adapter
+
+`components={{ Button: MuiButton }}` does **not** type-check directly —
+MUI's `variant` conflicts with ours — and no trick fixes that. The target
+is a ~5-line adapter, typed on both ends. That's why every `*Props` is
+exported, every non-DOM prop is optional, and the example uses
+`satisfies UiComponentsOverride`.
+
+Three points from the contract:
+
+- **`label` is the prop that bites.** A slot that drops `label` removes
+  the accessible name from about 16 controls. MUI's `TextField` has a
+  compatible `label`; Chakra's `Input` does not.
+- **`Textarea` is the slot where ignoring the `ref` breaks something**:
+  the formula modal passes a ref to reposition the caret after accepting
+  a suggestion. Every other slot may ignore its ref.
+- **No slottable primitive calls `useUiComponents`.** Otherwise the most
+  obvious adapter there is — wrapping *our* component to tweak
+  something — would recurse forever. An invariant, guarded by a source
+  scan in the test suite.
+
+### What is not slottable, and why
+
+- **`PageCanvas` / `Ruler` / `FieldBox`** — this is the mock-up of the
+  PDF. A foreign primitive's padding breaks the WYSIWYG.
+- **The tab bar** — 2.1.1 was spent fitting six tabs into 290px; a
+  slotted `Button` with its own `min-width` undoes that. It stays a raw
+  `<button>` with our class.
+- **The field list's rename input** — depends on `autoFocus` plus commit
+  on `onBlur`.
+- **The hidden file input, the "ƒx" glyph, and the icons.**
+
+One more boundary worth knowing: **`PdfPreviewModal` does not inherit
+primitives from a `<Designer>` elsewhere on the page.** It lives in the
+`/preview` entry and resolves from the nearest `UiComponentsProvider`.
+
+## What's newly public in the kit
+
+`Checkbox` (closing the gap of three raw `<input type="checkbox">`),
+`PalettePicker`, `PaletteSwatches`, `MaterialIcon`, `CollapsibleSection`
+and `ClearFieldButton` are exported now. `mono` no longer adds a
+`font-mono` class — it's `data-mono`.
+
+`BulkLocked` stays **internal** on purpose: it means "locked because you
+selected several of the same type", which is a *mode* of `<Designer>`.
+Outside that context the component means nothing.
+
+See [Ready-made UI components](./ready-made-ui) for the kit itself,
+[Theming](./theming) for the CSS contract, and
+[Migrating to 3.0.0](./migration-3) if you're coming from 2.x.

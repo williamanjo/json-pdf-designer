@@ -7,8 +7,10 @@ import react from "@vitejs/plugin-react";
 // "json-pdf-designer/preview" — se algum import de pdf.js voltar pra entry
 // principal, o `npm ci && npm run build` deste app quebra na CI.
 //
-// Sem plugin de Tailwind: o CSS do <Designer> já vem compilado em
-// "json-pdf-designer/style.css" (import em main.tsx).
+// Sem plugin de Tailwind: o CSS do <Designer> vem pronto em
+// "json-pdf-designer/theme.css" (import em main.tsx), que é CSS escrito à
+// mão — nada pra compilar. Este é o único example sem pipeline de Tailwind
+// em ponta nenhuma, o que faz dele o smoke test da perda do Preflight.
 export default defineConfig({
   // Relativo — funciona em qualquer subpath do GitHub Pages
   // (playground/no-preview/) sem hardcodar o nome do repo. Seguro aqui

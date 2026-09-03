@@ -1,5 +1,6 @@
 import { dictFor, expressionErrors, fieldWarning } from "json-pdf-designer";
 import type { Binding, Locale, Schema, Template, TemplatePage } from "json-pdf-designer";
+import { t } from "../i18n";
 
 // Tudo que está torto no template ANTES de gerar.
 //
@@ -26,8 +27,10 @@ export type TemplateProblem = {
   message: string;
 };
 
-function pageLabel(page: TemplatePage, index: number): string {
-  return page.name?.trim() || `Página ${index + 1}`;
+// `page.name` é DADO (o nome que o usuário deu à página, e que pode sair no
+// PDF) — só o fallback "Página N" é rótulo da casca, então só ele traduz.
+function pageLabel(page: TemplatePage, index: number, locale: Locale): string {
+  return page.name?.trim() || t(locale).pageLabel(index + 1);
 }
 
 function problemsOfSchema(
@@ -40,7 +43,7 @@ function problemsOfSchema(
   const binding = bindings.find((b) => b.schemaName === schema.name);
   const base = {
     pageIndex,
-    pageName: pageLabel(page, pageIndex),
+    pageName: pageLabel(page, pageIndex, locale),
     schemaId: schema.id,
     schemaName: schema.name,
   };

@@ -1,0 +1,1085 @@
+/* Casca em CSS puro, sem Tailwind.
+
+   ESTE EXAMPLE RETEMATIZA O EDITOR SÓ POR TOKEN. Ele importa o `theme.css`
+   inteiro e não reescreve UMA regra — só troca valores de `--jpd-*` no
+   `:root`. É o caminho mais barato de "deixa parecido com a nossa marca", e
+   o que a maioria dos consumidores quer.
+
+   O LOOK É BRUTALISTA de propósito: preto e amarelo, zero raio, zero sombra
+   difusa, mono em tudo, borda dura. Escolhemos o retema mais AGRESSIVO que
+   deu pra fazer justamente porque a restrição é a demonstração — se o
+   resultado ainda parecesse o default com outra cor, o example não provaria
+   nada. Nenhuma regra `.jpd-*` foi escrita aqui (há guard em
+   `test/docsFreshness.test.ts`), então tudo o que você vê no editor —
+   inclusive o fato de NADA ser arredondado e de TUDO estar em mono — saiu de
+   custom property. Isso é a prova de que os tokens controlam ESTRUTURA
+   (raio, sombra, fonte, densidade), e não só matiz.
+
+   (Os outros examples cobrem os outros pontos do espectro: `report-builder`
+   usa o tema como vem; `no-preview` soma override de regra `.jpd-*` ao
+   token; `custom-ui` não importa CSS nenhum do pacote e escreve as ~190
+   classes `.jpd-*` do zero; `headless-designer` importa só o `reset.css`.)
+
+   NOTA sobre seletor solto: todo `button { ... }` sem escopo alcança TAMBÉM
+   os botões dentro do editor e GANHA — o theme.css mora numa `@layer`, e CSS
+   sem layer vence CSS com layer independente de especificidade. Por isso
+   toda regra de elemento aqui é escopada por classe. Se você QUISER
+   redefinir o chrome do editor, mire `.jpd-*` de propósito — mas aqui não
+   fazemos isso, é o ponto do example. */
+
+:root {
+  color-scheme: light;
+
+  /* Mono também na casca — o editor recebe a mesma pilha via
+     `--jpd-font-sans` mais abaixo, então app e editor ficam na MESMA fonte.
+     Sem webfont: pilha do sistema com fallback. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  color: #000;
+
+  /* ---- RETEMA DO EDITOR, só por token -----------------------------------
+     Nada aqui é regra: são valores de custom property que o `theme.css` já
+     consome. O editor inteiro (botão, aba, input, callout, faixa do canvas)
+     muda de cor, de raio, de sombra, de fonte e de densidade sem uma linha
+     de seletor.
+
+     Funciona porque os tokens moram no `:root` do `theme.css`, e uma
+     declaração no `:root` do SEU CSS, fora de `@layer`, ganha da nossa.
+     É também por isso que os tokens não estão escopados em `.jpd-designer`:
+     o `<Modal>` renderiza por portal no `document.body`, e escopado ele
+     ficaria sem tema — inclusive o modal de preview de PDF, que este
+     example usa.
+
+     Os nomes vêm de `src/css/theme.css` — o arquivo não é minificado
+     justamente pra ser lido. Todos os valores abaixo são hex ou `rgb()`:
+     o tema default usa `oklch()`, e trocar por hex é legítimo (é só um
+     valor de cor) e deixa o contraste conferível com uma calculadora
+     comum. */
+
+  /* --- 1. A PALETA. Três cores e uma rampa de cinza. ---------------------
+     Preto = estrutura (borda, texto, superfície escura).
+     Amarelo = interação (fundo de ação primária, seleção, foco).
+     Vermelho = erro. Nada mais.
+
+     O amarelo tem DOIS papéis e por isso DOIS valores:
+       · fundo  → `#ffd400` puro, sempre com texto PRETO em cima (13,2:1);
+       · texto  → `#8a6d00`, porque amarelo puro sobre branco dá 1,4:1 e
+                  não se lê. Usar o mesmo valor nos dois papéis é o erro
+                  clássico deste tipo de paleta.
+
+     Superfícies puras: branco e um cinza claro. Sem gradiente de cinza
+     azulado como o default. */
+
+  --jpd-surface: #fff;
+  --jpd-surface-field: #fff;
+  --jpd-surface-sunken: #f2f2f2;
+  --jpd-surface-muted: #f2f2f2;
+  --jpd-surface-muted-2: #f7f7f7;
+  /* Hover em amarelo pálido em vez de cinza: é o que faz o amarelo aparecer
+     no editor inteiro sem pintar nada de amarelo em repouso. */
+  --jpd-surface-hover: #fff3b0;
+  --jpd-surface-hover-soft: #fff8d0;
+  --jpd-surface-active: #ffe97a;
+  /* Véu do modal opaco e sem matiz — o default é slate-900/60. */
+  --jpd-overlay: rgb(0 0 0 / 0.75);
+
+  /* --- 2. BORDAS QUASE-PRETAS -------------------------------------------
+     O theme.css desenha as bordas do editor em 1px (é regra, e regra aqui
+     não se toca). O que dá o peso brutalista é a COR: a 1px preta lê como
+     traço de nanquim, enquanto slate-200 lê como sombra. A casca `.app-*`,
+     que é nossa, usa 2px — ver a seção da casca. */
+  --jpd-border: #111;
+  --jpd-border-alt: #111;
+  --jpd-border-strong: #000;
+  --jpd-border-strong-2: #000;
+  --jpd-swatch-ring: #111;
+
+  /* --- 3. TEXTO ---------------------------------------------------------
+     Rampa curta e escura. `--jpd-text-label` vai a preto puro: rótulo de
+     campo é o texto que mais se lê no editor. */
+  --jpd-text-strong: #000;
+  --jpd-text: #111;
+  --jpd-text-field: #111;
+  --jpd-text-muted: #333;
+  --jpd-text-label: #000;
+  --jpd-text-faint: #555;
+  --jpd-text-disabled: #8a8a8a;
+  --jpd-text-disabled-2: #8a8a8a;
+  --jpd-text-ghost: #b0b0b0;
+  /* `#767676` é o cinza mais claro que ainda dá 4,54:1 sobre branco. */
+  --jpd-text-placeholder: #767676;
+  --jpd-text-hover: #000;
+  --jpd-text-hover-strong: #000;
+
+  /* PRETO sobre o accent. Este token é lido por CINCO fundos diferentes
+     (botão primário, botão de perigo, etiqueta da faixa de cabeçalho, barra
+     de zoom, cabeçalho de seção no canvas) — por isso todos os cinco fundos
+     abaixo tiveram de ir pra tons CLAROS o bastante pra texto preto. O
+     default deixava a barra de zoom em slate-800 com texto branco; se a
+     gente só trocasse este token pra preto, a barra de zoom sumiria. */
+  --jpd-text-on-accent: #000;
+
+  /* --- 4. ACCENT AMARELO ------------------------------------------------ */
+  --jpd-accent: #8a6d00;              /* TEXTO: 4,92:1 sobre branco */
+  --jpd-accent-hover: #6b5400;        /* TEXTO em hover: 7,26:1 */
+  --jpd-accent-text-hover: #6b5400;
+  --jpd-accent-solid: #ffd400;        /* FUNDO: com texto preto, 13,2:1 */
+  --jpd-accent-solid-hover: #e6bf00;  /* FUNDO em hover, ainda com preto */
+  /* Borda de accent = preta. Num tema de duas cores a borda amarela
+     desapareceria sobre branco (1,4:1) — quem marca "isto está ativo" aqui
+     é o FUNDO amarelo, não a linha. */
+  --jpd-accent-border: #000;
+  --jpd-accent-border-soft: #111;
+  --jpd-accent-border-solid: #000;
+  --jpd-accent-border-hover: #000;
+  --jpd-accent-soft: #fff3b0;         /* item selecionado na lista */
+  --jpd-accent-soft-hover: #ffe97a;
+  --jpd-accent-soft-strong: #ffd400;  /* item de menu ativo */
+  /* Os DOIS anéis de foco em amarelo puro: é o único lugar onde amarelo
+     saturado sobre branco é bom — anel de 2-3px não é texto, e ele fica
+     colado numa borda preta, o que o torna impossível de perder. */
+  --jpd-accent-ring: #ffd400;
+  --jpd-accent-ring-visible: #ffd400;
+  --jpd-ring-offset: #fff;
+
+  /* --- 5. ERRO ----------------------------------------------------------
+     Vermelho de sinalização. `--jpd-danger` é FUNDO (com o preto do
+     `--jpd-text-on-accent` em cima: 5,92:1), `--jpd-danger-text` é TEXTO
+     sobre branco (6,48:1) — mesma separação de papéis do amarelo. */
+  --jpd-danger: #ff3b30;
+  --jpd-danger-hover: #e62a20;
+  --jpd-danger-text: #c00000;
+  --jpd-danger-text-hover: #a30000;
+  /* `--jpd-danger-soft` tem UM consumidor só: o preenchimento das faixas de
+     cabeçalho/rodapé/margem no canvas (`.jpd-band`). O default é vermelho a
+     15%, e numa folha A4 inteira isso vira uma mancha rosa que briga com a
+     paleta. Vira lavagem cinza; quem carrega o "não ponha campo aqui" é a
+     linha tracejada vermelha + a etiqueta vermelha, que ficam. */
+  --jpd-danger-soft: rgb(0 0 0 / 0.06);
+  --jpd-danger-border: #c00000;
+  --jpd-danger-ring: #ff3b30;
+
+  /* Aviso: o amber do default É o nosso accent agora, então aviso vira o
+     amarelo ESCURO — legível sobre branco (4,92:1) e sem se confundir com
+     o amarelo saturado, que só aparece como fundo. */
+  --jpd-warn-text: #8a6d00;
+  --jpd-warn-text-2: #6b5400;
+
+  /* --- 6. SEÇÃO (campo container) ---------------------------------------
+     O default pinta seção de roxo. Aqui a paleta é de duas cores, e
+     amarelo já significa "selecionado/ativo" — repetir amarelo na seção
+     tiraria a leitura de seleção. Então seção fica NEUTRA: barra cinza
+     média com texto preto, moldura preta tracejada. A leitura passa a ser
+     "cinza = estrutura, amarelo = interação".
+     `--jpd-section` é fundo do cabeçalho arrastável e leva
+     `--jpd-text-on-accent` (preto) — 12,7:1. */
+  --jpd-section: #c9c9c9;
+  --jpd-section-text: #000;
+  --jpd-section-text-strong: #000;
+  --jpd-section-text-soft: #333;
+  --jpd-section-border: #111;
+  --jpd-section-border-hover: #000;
+  --jpd-section-border-strong: #000;
+  --jpd-section-soft: #f2f2f2;
+  --jpd-section-soft-2: #ededed;
+  --jpd-section-soft-3: #f0f0f0;
+  --jpd-section-hover: #e5e5e5;
+  --jpd-section-hover-2: #dcdcdc;
+
+  /* --- 7. CANVAS --------------------------------------------------------
+     A folha e o que se desenha em cima dela.
+
+     Seleção: PRETO 2px + halo AMARELO de 3px (`--jpd-selection-ring` é o
+     `box-shadow` do campo selecionado). O contrário — amarelo na borda —
+     não funciona: sobre papel branco o amarelo dá 1,4:1 e a seleção
+     desapareceria. Preto marca, amarelo grita.
+
+     O contorno do campo NÃO selecionado fica cinza (`#8a8a8a`, 3,45:1 sobre
+     o papel): se fosse preto como o resto das bordas, selecionado e
+     não-selecionado ficariam iguais. É a única borda do tema que NÃO é
+     escura, e é de propósito — `#8a8a8a` é o cinza mais claro que ainda
+     cumpre o 3:1 de elemento de UI (o default usava slate-300, 1,5:1). */
+  --jpd-canvas-border: #111;
+  --jpd-canvas-text: #111;
+  --jpd-canvas-band: #f2f2f2;
+  --jpd-canvas-page: #fff;
+  --jpd-canvas-guide: rgb(0 0 0 / 0.28);
+  --jpd-canvas-dim: rgb(0 0 0 / 0.08);
+  --jpd-field-outline: #8a8a8a;
+  --jpd-selection: #000;
+  --jpd-selection-ring: #ffd400;
+  /* Travado: amarelo escuro. Distingue de preto (seleção) e de vermelho
+     (erro) sem introduzir uma quarta cor. */
+  --jpd-locked: #6b5400;
+
+  --jpd-ruler-bg: #f2f2f2;
+  --jpd-ruler-tick: #555;
+  --jpd-ruler-label: #111;
+
+  /* A barra de zoom era slate-800/90 com texto branco. Como
+     `--jpd-text-on-accent` virou preto (ver seção 3), ela TEM de virar
+     clara — e amarelo puro é o que combina. Hover/active em preto
+     translúcido em vez de branco translúcido, que sobre amarelo não
+     apareceria. */
+  --jpd-zoombar-bg: #ffd400;
+  --jpd-zoombar-hover: rgb(0 0 0 / 0.14);
+  --jpd-zoombar-active: rgb(0 0 0 / 0.26);
+
+  /* Callout (as caixas de dica do editor): amarelo pálido, borda preta. */
+  --jpd-callout-sky: #fff8d0;
+  --jpd-callout-sky-solid: #fff3b0;
+  --jpd-callout-sky-border: #111;
+  --jpd-callout-sky-border-solid: #111;
+
+  /* --- 8. ESTRUTURA: raio ZERO ------------------------------------------
+     Isto é metade do look, e não dá pra fazer com paleta. Note que
+     `--jpd-radius-full` (a "pílula") também vai a 0.
+
+     Conferido no navegador o que o `radius-full` afeta — são quatro sites,
+     e nenhum precisa ser redondo:
+       · `.jpd-swatch`     → quadradinho de cor no painel de estilo;
+       · `.jpd-zoombar`    → a pílula da barra de zoom vira retângulo;
+       · `.jpd-zoombar__btn`;
+       · `.jpd-chart__dot` → bolinha da legenda do gráfico no canvas. Esta
+         era a única candidata a exceção, mas o renderizador de PDF desenha
+         a legenda com `page.drawRectangle` (src/pdf/render/renderChart.ts):
+         quadrado no canvas é MAIS fiel ao PDF que redondo.
+     Não sobrou nada pra excetuar — se sobrasse, o certo seria devolver só
+     aquele token a 9999px e comentar aqui. */
+  --jpd-radius-sm: 0;
+  --jpd-radius-md: 0;
+  --jpd-radius-lg: 0;
+  --jpd-radius-xl: 0;
+  --jpd-radius-full: 0;
+
+  /* --- 9. ESTRUTURA: sombra ---------------------------------------------
+     Nada de sombra difusa. O chrome inline fica plano; o que FLUTUA (menu,
+     modal, barra de zoom, a folha) ganha bloco preto deslocado, que é a
+     assinatura do estilo e substitui a profundidade sem borrar nada.
+
+     ARMADILHA REAL: `--jpd-shadow-sm` NÃO pode ser `none`. O theme.css
+     compõe o foco do input como
+       `box-shadow: 0 0 0 2px var(--jpd-accent-ring), var(--jpd-shadow-sm)`
+     e `none` dentro de uma lista de sombras é CSS inválido — a declaração
+     inteira cai e o anel de foco amarelo desaparece calado. `0 0 0 0
+     transparent` é a forma de "sem sombra" que sobrevive a estar numa
+     lista. */
+  --jpd-shadow-sm: 0 0 0 0 transparent;
+  --jpd-shadow-md: 3px 3px 0 0 #000;
+  --jpd-shadow-lg: 4px 4px 0 0 #000;
+  --jpd-shadow-2xl: 8px 8px 0 0 #000;
+  --jpd-shadow-page: 6px 6px 0 0 #000;
+  --jpd-shadow-page-preview: 6px 6px 0 0 #000;
+
+  /* --- 10. ESTRUTURA: fonte --------------------------------------------
+     O editor inteiro em mono. Aponta pro token de mono do próprio tema em
+     vez de repetir a pilha — se o pacote mudar a pilha, a casca acompanha.
+     (Por default `--jpd-font-sans` é `inherit`, e o `:root` daqui já está
+     em mono; declarar explícito é o que documenta a intenção.) */
+  --jpd-font-sans: var(--jpd-font-mono);
+  /* Rótulo de seção em caixa alta com tracking largo — legenda técnica. */
+  --jpd-tracking-wide: 0.08em;
+
+  /* --- 11. ESTRUTURA: densidade ----------------------------------------
+     Escala de espaçamento um degrau pra baixo a partir de `space-2`. Os
+     três primeiros degraus (`0-5`, `1`, `1-5`) ficaram COMO ESTÃO de
+     propósito: `space-1` é o padding vertical do botão `sm` e do item de
+     menu, e do botão de ícone. Baixando ele também, o botão pequeno ia de
+     ~20px pra ~16px de altura — pequeno demais pra acertar com o mouse.
+     Medido no navegador depois da troca: botão `sm` 20px, botão de ícone
+     24px, item de menu 22px.
+
+     Lembre que o `:root` daqui está em 13px, não 16px: como a escala é em
+     `rem`, o editor JÁ vinha 19% mais compacto que o default antes deste
+     ajuste. */
+  --jpd-space-2: 0.375rem;   /* era 0.5rem   */
+  --jpd-space-2-5: 0.5rem;   /* era 0.625rem */
+  --jpd-space-3: 0.625rem;   /* era 0.75rem  */
+  --jpd-space-3-5: 0.75rem;  /* era 0.875rem */
+  --jpd-space-4: 0.875rem;   /* era 1rem     */
+  --jpd-space-5: 1rem;       /* era 1.25rem  */
+
+  /* ---- CORES DA CASCA ----------------------------------------------------
+     Os painéis próprios deste app (fontes de dados, explorador de campos,
+     abas de página, problemas, banner de erro) usam ESTES tokens, não os
+     `--jpd-*`. Motivo: o editor e a casca são duas peles diferentes, e
+     misturar faz o app depender de nome de token nosso pra pintar o que é
+     dele. O que eles têm em comum é a linguagem — mesmo preto, mesmo
+     amarelo, mesmo raio zero — repetida aqui em `--app-*`.
+
+     A casca é onde as bordas ficam GROSSAS: 2px. No editor não dá (a
+     espessura é regra, e regra aqui não se toca), então a casca carrega
+     essa parte do look. */
+
+  /* A casca só usa o amarelo como FUNDO (botão, aba ativa, filete) e como
+     texto SOBRE PRETO (chip e subtítulo da faixa de topo) — nos dois casos o
+     amarelo puro é o valor certo. Ela não tem nenhum texto amarelo sobre
+     branco, então não existe aqui um par de tokens claro/escuro como o
+     `--jpd-accent` / `--jpd-accent-solid` do editor. */
+  --app-accent: #ffd400;        /* FUNDO amarelo, texto preto em cima */
+  --app-accent-hover: #e6bf00;
+  --app-accent-soft: #fff3b0;
+
+  --app-ink: #000;
+  --app-ink-soft: #333;
+  --app-ink-faint: #555;
+  --app-line: #111;             /* moldura: 2px desta cor */
+  --app-line-soft: #555;        /* divisória interna: 1px */
+  --app-surface: #fff;
+  --app-surface-soft: #f2f2f2;
+  --app-ground: #e5e5e5;
+  --app-danger: #c00000;        /* TEXTO vermelho sobre pálido: 5,27:1 */
+  --app-danger-solid: #ff3b30;  /* FUNDO vermelho, texto preto */
+  --app-danger-soft: #ffe1de;
+  --app-danger-line: #c00000;
+  --app-ok: #0a6b2a;
+
+  /* Dois tokens de raio que valem ZERO. Parece bobo, mas o app tinha 14
+     `var(--app-radius)` espalhados: manter o token é o que faz "voltar a
+     arredondar" ser uma linha, e é o que deixa óbvio, lendo o arquivo, que
+     o raio zero é escolha e não esquecimento. */
+  --app-radius: 0;
+  --app-radius-lg: 0;
+
+  /* O bloco preto deslocado (a "sombra" brutalista) mora só nos tokens do
+     EDITOR (`--jpd-shadow-*`): a casca é feita de molduras de 2px encostadas
+     umas nas outras, e slab em oito cartões viraria ruído. */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--app-ground);
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+}
+
+/* ---- topo ---------------------------------------------------------------- */
+
+/* Faixa preta sólida com um filete amarelo embaixo — o par que anuncia o
+   tema antes de qualquer outra coisa aparecer. */
+.app-top {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 3px solid var(--app-accent);
+  background: #000;
+  padding: 7px 14px;
+  color: #fff;
+}
+
+.app-top h1 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* O subtítulo fica em caixa BAIXA: em caixa alta com tracking ele ganhava
+   ~40% de largura e quebrava em duas linhas na faixa de topo, que já leva
+   dois selects e quatro botões. Caixa alta só no título e nos rótulos
+   curtos. */
+.app-top small {
+  color: var(--app-accent);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  /* O `uppercase` do h1 herda; desligar aqui é o que faz a diferença. */
+  text-transform: none;
+}
+
+.app-version {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #8a8a8a;
+  text-transform: none;
+}
+
+.app-top__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Etiqueta de recurso que não tem botão: undo/redo é atalho de teclado
+   (hooks/useUndoRedo.ts) e autosave é efeito (hooks/useAutosave.ts) — sem
+   isto escrito, os dois ficam invisíveis. Amarelo puro sobre preto: 14,7:1. */
+.app-chip {
+  border: 1px solid var(--app-accent);
+  border-radius: var(--app-radius);
+  padding: 3px 7px;
+  color: var(--app-accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: default;
+}
+
+.app-select {
+  border: 1px solid #767676;
+  border-radius: var(--app-radius);
+  background: #000;
+  padding: 5px 6px;
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.app-select:hover,
+.app-select:focus-visible {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  outline: none;
+}
+
+/* O <option> herda o fundo do popup do SO, não do <select> — em branco ele
+   sairia texto claro sobre fundo claro. */
+.app-select option {
+  background: var(--app-surface);
+  color: var(--app-ink);
+}
+
+/* ---- botões da casca ----------------------------------------------------- */
+
+/* Caixa alta e tracking em TODO botão da casca: é o que faz um botão de 10px
+   em mono parecer etiqueta de máquina em vez de link. */
+.app-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 2px solid var(--app-line);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  padding: 4px 8px;
+  color: var(--app-ink);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.app-btn:hover {
+  background: var(--app-accent);
+  color: #000;
+}
+
+/* Na faixa preta a moldura de 2px preta seria invisível; ali o botão é linha
+   cinza que vira amarela no hover. */
+.app-btn--dark {
+  border-width: 1px;
+  border-color: #767676;
+  background: transparent;
+  color: #fff;
+}
+
+.app-btn--dark:hover {
+  border-color: var(--app-accent);
+  background: transparent;
+  color: var(--app-accent);
+}
+
+.app-btn--accent {
+  border-color: var(--app-line);
+  background: var(--app-accent);
+  color: #000;
+}
+
+.app-btn--accent:hover {
+  background: var(--app-accent-hover);
+  color: #000;
+}
+
+.app-btn--ghost {
+  border-style: dashed;
+  background: transparent;
+  justify-content: center;
+}
+
+/* A ação principal: bloco amarelo maciço na faixa preta. */
+.app-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid var(--app-accent);
+  border-radius: var(--app-radius);
+  background: var(--app-accent);
+  padding: 5px 12px;
+  color: #000;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.app-generate:hover:not(:disabled) {
+  border-color: var(--app-accent-hover);
+  background: var(--app-accent-hover);
+}
+
+.app-generate:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.app-icon-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--app-radius);
+  background: transparent;
+  padding: 3px;
+  color: var(--app-ink-faint);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-icon-btn:hover {
+  background: var(--app-accent);
+  color: #000;
+}
+
+.app-icon-btn--danger:hover {
+  background: var(--app-danger-solid);
+  color: #000;
+}
+
+/* ---- banner de erro de geração ------------------------------------------ */
+
+/* Substituiu o `.app-error` de uma linha (que mostrava `err.message` cru).
+   Ver components/GenerationErrorBanner.tsx e lib/generationError.ts.
+   Filete grosso embaixo em vez de moldura: o banner é uma faixa, e faixa
+   brutalista se marca com um traço, não com uma caixa. */
+.app-banner {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 3px solid var(--app-danger-line);
+  background: var(--app-danger-soft);
+  padding: 8px 14px;
+  color: var(--app-danger);
+  font-size: 12px;
+}
+
+/* Culpa "pacote" = bug nosso, não erro do usuário. Preto em vez de vermelho
+   pra não acusar quem só apertou o botão. */
+.app-banner--bug {
+  border-bottom-color: var(--app-line);
+  background: var(--app-ground);
+  color: var(--app-ink);
+}
+
+.app-banner__body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.app-banner__title {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-banner__blame {
+  margin-left: 6px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.75;
+}
+
+.app-banner__detail {
+  display: block;
+  overflow-wrap: break-word;
+  border-radius: var(--app-radius);
+  background: rgb(255 255 255 / 0.7);
+  padding: 5px;
+  font-size: 10px;
+  white-space: pre-wrap;
+}
+
+.app-banner__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---- toolbar (largura toda, o que o preset nunca faz) -------------------- */
+
+/* `className` da peça faz MERGE com a classe dela (`.jpd-sidebar__footer`),
+   então isto só ACRESCENTA — não substitui. E como a nossa regra está fora de
+   `@layer`, ela ganha. */
+.app-toolbar {
+  flex-shrink: 0;
+  border-bottom: 2px solid var(--app-line);
+  background: var(--app-surface);
+  padding: 7px 14px;
+}
+
+/* ---- corpo em três colunas ---------------------------------------------- */
+
+.app-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  gap: 10px;
+  padding: 10px 14px 14px;
+  align-items: stretch;
+}
+
+/* Cada coluna rola por conta própria: o corpo não rola (`overflow: hidden`
+   implícito no `min-height: 0` + `overflow-y` das colunas), então a toolbar
+   e o header ficam sempre visíveis. */
+.app-left,
+.app-right {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.app-left {
+  width: 288px;
+}
+
+.app-right {
+  width: 320px;
+}
+
+.app-center {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2px solid var(--app-line);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+}
+
+/* `parts.scroll` da peça aponta pra cá: dentro do <Designer> a lista é curta
+   porque divide a sidebar com a toolbar; aqui a coluna é só dela. */
+.app-list-scroll {
+  max-height: none;
+  overflow: visible;
+}
+
+/* O canvas é dono da GEOMETRIA da folha; esta caixa é o viewport que rola, e
+   ela é nossa. `min-width: 0` porque o canvas tem largura inline fixa
+   (contentWidth * zoom) e não encolhe — sem isto ele empurraria as colunas
+   vizinhas fora da tela. */
+.app-canvas {
+  min-width: 0;
+  flex: 1;
+  overflow: auto;
+  /* O `--jpd-shadow-page` virou bloco preto de 6px deslocado; sem folga o
+     bloco ficaria cortado pelo `overflow`. */
+  padding: 10px 14px 14px 10px;
+}
+
+.app-card {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 6px;
+  border: 2px solid var(--app-line);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  padding: 9px;
+}
+
+.app-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+/* Rótulo de cartão: caixa alta preta com um filete amarelo do tamanho do
+   texto. É o detalhe que amarra as oito colunas de painel ao tema sem
+   pintar nenhum fundo. */
+.app-h2 {
+  margin: 0;
+  border-bottom: 2px solid var(--app-accent);
+  padding-bottom: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--app-ink);
+}
+
+.app-h3 {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--app-ink-faint);
+}
+
+.app-h3--sep {
+  margin-top: 6px;
+  border-top: 1px solid var(--app-line-soft);
+  padding-top: 6px;
+}
+
+.app-note {
+  margin: 0;
+  color: var(--app-ink-soft);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.app-note.is-error {
+  color: var(--app-danger);
+  font-weight: 700;
+}
+
+.app-note.is-ok {
+  color: var(--app-ok);
+  font-weight: 700;
+}
+
+.app-alert {
+  margin: 0;
+  color: var(--app-danger);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* Era pílula (999px). Vira retângulo vermelho de texto preto, igual ao
+   `--jpd-radius-full: 0` do editor. */
+.app-badge {
+  border-radius: var(--app-radius);
+  background: var(--app-danger-solid);
+  padding: 1px 6px;
+  color: #000;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.app-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---- fontes de dados JSON ------------------------------------------------ */
+
+.app-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 2px dashed var(--app-line);
+  border-radius: var(--app-radius);
+  padding: 10px;
+  color: var(--app-ink-soft);
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.app-dropzone:hover,
+.app-dropzone.is-over {
+  background: var(--app-accent);
+  color: #000;
+}
+
+.app-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-source {
+  border: 1px solid var(--app-line-soft);
+  border-radius: var(--app-radius);
+  padding: 7px;
+}
+
+.app-source__head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+/* `font: inherit` já traz a mono do `:root` — não repetimos a pilha. */
+.app-input,
+.app-textarea {
+  width: 100%;
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  padding: 4px 6px;
+  color: var(--app-ink);
+  font: inherit;
+  font-size: 11px;
+}
+
+/* Anel amarelo colado na borda preta — o mesmo par que o editor usa via
+   `--jpd-accent-ring` + `--jpd-accent-border`. */
+.app-input:focus,
+.app-textarea:focus {
+  border-color: var(--app-line);
+  outline: 2px solid var(--app-accent);
+  outline-offset: 0;
+}
+
+.app-textarea {
+  display: block;
+  resize: vertical;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+/* ---- explorador de campos do JSON --------------------------------------- */
+
+.app-field-scroll {
+  display: flex;
+  max-height: 320px;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+}
+
+.app-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 4px 0 0;
+  list-style: none;
+}
+
+.app-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--app-line-soft);
+  border-radius: var(--app-radius);
+  background: var(--app-surface-soft);
+  padding: 4px 6px;
+  font-size: 11px;
+  cursor: grab;
+}
+
+.app-field:hover {
+  border-color: var(--app-line);
+  background: var(--app-accent-soft);
+}
+
+/* Array de objetos — arrastar cria a tabela inteira. */
+.app-field--source {
+  border-color: var(--app-line);
+  background: var(--app-accent-soft);
+}
+
+/* Token sintético do motor (pageNumber/pageCount) — só resolve no
+   cabeçalho/rodapé/margem. Era amber, e amber agora É o accent: marcar isto
+   de amarelo faria parecer selecionado. Vira TRACEJADO — a diferença é de
+   forma, não de cor, que é a saída num tema de duas cores. */
+.app-field--native {
+  border-style: dashed;
+  border-color: var(--app-line);
+  background: var(--app-surface);
+}
+
+.app-field__icon {
+  flex-shrink: 0;
+  color: var(--app-ink-faint);
+}
+
+.app-field__label {
+  overflow: hidden;
+  font-weight: 500;
+  color: var(--app-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-field__add {
+  margin-left: auto;
+}
+
+.app-field-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.app-field-group__label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--app-ink);
+}
+
+/* ---- abas de PÁGINA (não são as abas do editor — ver PageTabs.tsx) ------- */
+
+.app-pagetabs {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
+  border-bottom: 2px solid var(--app-line);
+  background: var(--app-surface-soft);
+  padding: 5px 6px 0;
+}
+
+/* Aba retangular. Sem o canto arredondado de cima, a "aba" precisa da cor
+   pra se ler como ativa — daí o bloco amarelo. */
+.app-pagetab {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 2px solid transparent;
+  border-bottom: none;
+  border-radius: var(--app-radius);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--app-ink-faint);
+}
+
+.app-pagetab:hover {
+  background: var(--app-accent-soft);
+  color: var(--app-ink);
+}
+
+.app-pagetab.is-active {
+  border-color: var(--app-line);
+  background: var(--app-accent);
+  color: #000;
+}
+
+.app-pagetab__label,
+.app-pagetab__close,
+.app-pagetab__add {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-pagetab__close,
+.app-pagetab__add {
+  border-radius: var(--app-radius);
+  color: var(--app-ink-faint);
+  line-height: 1;
+}
+
+.app-pagetab.is-active .app-pagetab__close {
+  color: #000;
+}
+
+.app-pagetab__close:hover,
+.app-pagetab__add:hover {
+  background: #000;
+  color: var(--app-accent);
+}
+
+.app-pagetab__add {
+  padding: 3px 8px;
+  font-size: 13px;
+}
+
+/* ---- painel de problemas ------------------------------------------------- */
+
+.app-problem-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Barra grossa à esquerda em vez de moldura colorida: dá pra distinguir erro
+   de aviso pela ESPESSURA e pela cor da barra, sem gastar uma quarta cor. */
+.app-problem {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--app-line-soft);
+  border-left: 5px solid var(--app-danger-line);
+  border-radius: var(--app-radius);
+  background: var(--app-danger-soft);
+  padding: 5px 7px;
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-problem:hover {
+  border-color: var(--app-line);
+  border-left-color: var(--app-danger-line);
+}
+
+/* "config" = configuração pela metade (falta vínculo, filtro sem valor) —
+   não vai renderizar errado agora, então é aviso, não erro. Barra preta e
+   fundo cinza: o amarelo está reservado pra interação. */
+.app-problem--config {
+  border-left-color: var(--app-line);
+  background: var(--app-surface-soft);
+}
+
+.app-problem__title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--app-ink);
+}
+
+.app-problem__title code {
+  font-weight: 400;
+  color: var(--app-ink-soft);
+}
+
+.app-problem__msg {
+  display: block;
+  margin-top: 2px;
+  color: var(--app-ink-soft);
+}
+
+.app-problem__page {
+  display: block;
+  margin-top: 2px;
+  color: var(--app-ink-faint);
+  font-size: 10px;
+}

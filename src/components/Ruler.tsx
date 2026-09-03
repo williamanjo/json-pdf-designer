@@ -11,6 +11,13 @@ const MID_EVERY_MM = 5;
 
 // Régua em mm (marcas a cada 1mm, número a cada 10mm) — só pra referência
 // visual de tamanho/margem real da página, não é interativa.
+//
+// Cor de marca/número vem de CLASSE (`stroke`/`fill` via --jpd-ruler-tick /
+// --jpd-ruler-label), não de atributo de apresentação SVG. Além de tirar o
+// hex fixo, é o que conserta o dark: o fundo da régua tinha `dark:bg-gray-800`
+// mas `stroke="#94a3b8"`/`fill="#64748b"` não tinham contraparte dark, então
+// no escuro ficava marca escura sobre fundo escuro. Atributo de apresentação
+// perde de qualquer regra de autor, então a classe assume sem briga.
 export function Ruler({ lengthMm, orientation, thickness = 16 }: Props) {
   const pxLength = mmToPx(lengthMm);
   const ticks: React.ReactElement[] = [];
@@ -25,17 +32,17 @@ export function Ruler({ lengthMm, orientation, thickness = 16 }: Props) {
       ticks.push(
         <line
           key={mm}
+          className="jpd-ruler__tick"
+          data-major={isMajor || undefined}
           x1={pos}
           y1={thickness - tickLen}
           x2={pos}
           y2={thickness}
-          stroke="#94a3b8"
-          strokeWidth={isMajor ? 1 : 0.5}
         />
       );
       if (isMajor) {
         ticks.push(
-          <text key={`t${mm}`} x={pos + 2} y={thickness - tickLen - 2} fontSize={8} fill="#64748b">
+          <text key={`t${mm}`} className="jpd-ruler__label" x={pos + 2} y={thickness - tickLen - 2} fontSize={8}>
             {mm}
           </text>
         );
@@ -44,17 +51,17 @@ export function Ruler({ lengthMm, orientation, thickness = 16 }: Props) {
       ticks.push(
         <line
           key={mm}
+          className="jpd-ruler__tick"
+          data-major={isMajor || undefined}
           x1={thickness - tickLen}
           y1={pos}
           x2={thickness}
           y2={pos}
-          stroke="#94a3b8"
-          strokeWidth={isMajor ? 1 : 0.5}
         />
       );
       if (isMajor && mm > 0) {
         ticks.push(
-          <text key={`t${mm}`} x={2} y={pos - 2} fontSize={8} fill="#64748b">
+          <text key={`t${mm}`} className="jpd-ruler__label" x={2} y={pos - 2} fontSize={8}>
             {mm}
           </text>
         );
@@ -66,12 +73,7 @@ export function Ruler({ lengthMm, orientation, thickness = 16 }: Props) {
   const height = orientation === "horizontal" ? thickness : pxLength;
 
   return (
-    <svg
-      width={width}
-      height={height}
-      className="select-none bg-slate-50 dark:bg-gray-800"
-      style={{ display: "block", flexShrink: 0 }}
-    >
+    <svg width={width} height={height} className="jpd-ruler">
       {ticks}
     </svg>
   );

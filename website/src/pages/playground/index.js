@@ -18,6 +18,15 @@ const EXAMPLES = [
     },
   },
   {
+    slug: 'composed-layout',
+    badge: { en: 'Part by part', 'pt-BR': 'Peça por peça' },
+    description: {
+      en: 'The editor assembled part by part, without the <Designer> component — DesignerProvider mounted by hand, toolbar on top, and five stacked panels that inside <Designer> would be five tabs. Proves the tab gate is opt-in.',
+      'pt-BR':
+        'O editor montado peça por peça, sem o componente <Designer> — o DesignerProvider montado na mão, toolbar em cima, e cinco painéis empilhados que dentro do <Designer> seriam cinco abas. Prova que o gate por aba é opt-in.',
+    },
+  },
+  {
     slug: 'custom-ui',
     badge: { en: 'Custom shell', 'pt-BR': 'Casca própria' },
     description: {
@@ -49,13 +58,13 @@ const EXAMPLES = [
 const TEXT = {
   title: { en: 'Playground', 'pt-BR': 'Playground' },
   description: {
-    en: 'Four live example apps built on json-pdf-designer.',
-    'pt-BR': 'Quatro apps de exemplo ao vivo, construídos com o json-pdf-designer.',
+    en: 'Five live example apps built on json-pdf-designer.',
+    'pt-BR': 'Cinco apps de exemplo ao vivo, construídos com o json-pdf-designer.',
   },
   lead: {
-    en: "Four live example apps — same package, four different ways to build the editor around it. Each runs independently; changes here don't affect the others.",
+    en: "Five live example apps — same package, five different ways to build the editor around it. Each runs independently; changes here don't affect the others.",
     'pt-BR':
-      'Quatro apps de exemplo ao vivo — mesmo pacote, quatro jeitos diferentes de montar o editor em volta dele. Cada um roda independente; mudanças aqui não afetam os outros.',
+      'Cinco apps de exemplo ao vivo — mesmo pacote, cinco jeitos diferentes de montar o editor em volta dele. Cada um roda independente; mudanças aqui não afetam os outros.',
   },
   open: { en: 'Open →', 'pt-BR': 'Abrir →' },
 };

@@ -206,6 +206,86 @@ export const ptBR: Dict = {
     suspiciousOperator: (op, ident) =>
       `Operador "${op}" com espaço de um lado só em "${ident}" — virou parte do nome do campo, não uma operação, e o campo renderiza vazio. Espaço dos dois lados faz a conta; sem espaço nenhum, se a chave do JSON tem "${op}" no nome mesmo.`,
   },
+  // Falhas de geração em texto de usuário final. O `error.message` continua
+  // em INGLÊS (é log/stack/Sentry) — isto é o que vai pra tela, via
+  // `describePdfError(err, t)`. Ver o topo de src/errors.ts.
+  errors: {
+    pageLimit: {
+      title: (maxPages) => `O relatório passou de ${maxPages} páginas`,
+      action: "Filtre o dado antes de gerar, ou divida em vários PDFs. Se o relatório é grande mesmo, suba o teto de páginas.",
+    },
+    paginationStalled: {
+      title: (field) => `A paginação travou em "${field}" — isso é bug do json-pdf-designer, por favor reporte`,
+    },
+    invalidPageSize: {
+      title: (pageId) => `A página "${pageId}" está com tamanho inválido`,
+      action: (pageTab) => `Defina a largura e a altura, em milímetros, na aba "${pageTab}".`,
+    },
+    unsupportedGlyph: {
+      title: (char, codePoint) => `A fonte em uso não tem o caractere ${char} (${codePoint})`,
+      action: "Tire esse caractere do dado, ou gere usando uma fonte que o cubra.",
+    },
+    woff2SupportMissing: {
+      title: "Não dá pra embutir esta fonte .woff2",
+      action: "Instale o pacote opcional 'wawoff2', ou converta a fonte pra .ttf/.otf e use esse arquivo.",
+    },
+    fontDecompressFailed: {
+      title: "Não deu pra descompactar o arquivo da fonte",
+      action: "O arquivo provavelmente está corrompido. Converta a fonte pra .ttf/.otf e use esse arquivo.",
+    },
+    fontDecompressTimeout: {
+      title: "Descompactar a fonte demorou demais e foi cancelado",
+      action: "Converta a fonte pra .ttf/.otf uma vez, offline, e use esse arquivo.",
+    },
+    imageUploadTooLarge: {
+      title: (limitMb) => `Este arquivo passa do limite de ${limitMb}MB`,
+      action: "Reduza ou reexporte a imagem antes de enviar.",
+    },
+    imageUploadUnreadable: {
+      title: "Não deu pra usar este arquivo como fundo",
+      action: "Confira se é mesmo uma imagem (PNG ou JPEG) e tente de novo.",
+    },
+    imageTooLarge: {
+      titleField: (field, limitMb) => `A imagem do campo "${field}" passa do limite de ${limitMb}MB`,
+      titleBackground: (limitMb) => `A imagem de fundo da página passa do limite de ${limitMb}MB`,
+      action: "Reduza a imagem e reenvie pelo editor.",
+    },
+    tooManyImages: {
+      title: (maxImages) => `O relatório usa mais de ${maxImages} imagens diferentes`,
+      action: "Reaproveite a mesma imagem onde der, ou divida o relatório em vários PDFs.",
+    },
+    unsupportedImageFormat: {
+      title: (field) => `A imagem do campo "${field}" está num formato que não dá pra embutir`,
+      action: "Só PNG e JPEG funcionam. Reenvie o arquivo pelo editor.",
+    },
+    imageUnreadable: {
+      title: (field) => `Não deu pra ler a imagem do campo "${field}"`,
+      action: "O arquivo está corrompido. Reenvie pelo editor.",
+    },
+    backgroundImageUnreadable: {
+      title: "Não deu pra ler a imagem de fundo da página",
+      action: "O arquivo está corrompido, ou não é PNG. Reenvie nas configurações da página.",
+    },
+    templateNotAnObject: {
+      title: (receivedType) => `Isto não é um template (recebido ${receivedType})`,
+      action: "Confira o que está sendo carregado — um template é um objeto JSON.",
+    },
+    templateVersionInvalid: {
+      title: (received) => `O template está com versão inválida (${received})`,
+      action: "O arquivo provavelmente está danificado. Carregue um backup, ou salve de novo pelo editor.",
+    },
+    templateVersionTooNew: {
+      title: (found, supported) => `O template foi salvo por uma versão mais nova (${found}; este build entende até a ${supported})`,
+      action: "Atualize o json-pdf-designer pra abrir este template.",
+    },
+    templateMigrationMissing: {
+      title: (from, to) => `Não dá pra atualizar o template da versão ${from} pra ${to} — isso é bug do json-pdf-designer, por favor reporte`,
+    },
+    expression: {
+      title: "O template tem uma expressão inválida",
+      action: (message) => `Corrija a expressão no template — ${message}`,
+    },
+  },
   binding: {
     keyValue: "chave/valor",
     repeatedSection: "(seção repetida)",
@@ -402,6 +482,9 @@ export const ptBR: Dict = {
     pastel: "Pastel",
     grayscale: "Escala de cinza",
     custom: "Personalizada",
+  },
+  modal: {
+    close: "Fechar",
   },
   pdfPreview: {
     renderError: (msg) => `Erro ao renderizar preview: ${msg}`,

@@ -17,7 +17,8 @@ import {
   kpiElementPresent,
   kpiElementRestorePatch,
 } from "../kpiFormat";
-import { BulkLocked, Button, ClearFieldButton, ColorInput, Input, MaterialIcon, Select } from "./ui";
+import { BulkLocked, ClearFieldButton, MaterialIcon } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 
 type Props = {
   schema: KpiSchema;
@@ -52,6 +53,7 @@ function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, n
   searchPlaceholder: string;
   noneFoundLabel: string;
 }) {
+  const { Input } = useUiComponents();
   const [query, setQuery] = useState("");
   const labels = materialIconLabels(locale);
   const q = query.trim().toLowerCase();
@@ -60,10 +62,10 @@ function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, n
     : MATERIAL_ICON_NAMES;
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-600 dark:border-gray-600 dark:text-gray-300">
-          {value && value !== "none" ? <MaterialIcon icon={value} size={18} /> : <span className="text-[9px] text-slate-400 dark:text-gray-500">—</span>}
+    <div className="jpd-stack jpd-stack--snug">
+      <div className="jpd-row">
+        <span className="jpd-box">
+          {value && value !== "none" ? <MaterialIcon icon={value} size={18} /> : <span className="jpd-box__empty">—</span>}
         </span>
         <Input
           placeholder={searchPlaceholder}
@@ -71,24 +73,21 @@ function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, n
           onChange={(e) => setQuery(e.target.value)}
         />
         {value && value !== "none" && (
-          <button type="button" className="flex-shrink-0 text-[10px] text-slate-400 hover:text-slate-600 dark:text-gray-400 dark:hover:text-gray-200" onClick={() => onChange("none")}>
+          <button type="button" className="jpd-linkbtn jpd-linkbtn--muted" onClick={() => onChange("none")}>
             {removeLabel}
           </button>
         )}
       </div>
-      <div className="grid max-h-32 grid-cols-6 gap-1 overflow-y-auto rounded-lg border border-slate-200 p-1.5 dark:border-gray-600">
-        {matches.length === 0 && <p className="col-span-6 py-2 text-center text-[10px] text-slate-400 dark:text-gray-400">{noneFoundLabel}</p>}
+      <div className="jpd-iconpick">
+        {matches.length === 0 && <p className="jpd-hint jpd-iconpick__empty">{noneFoundLabel}</p>}
         {matches.map((name) => (
           <button
             key={name}
             type="button"
             title={labels[name]}
             onClick={() => onChange(name)}
-            className={`flex items-center justify-center rounded-md border p-1.5 text-slate-600 hover:border-sky-400 hover:bg-sky-50 dark:text-gray-300 dark:hover:border-blue-400 dark:hover:bg-blue-400/10 ${
-              value === name
-                ? "border-sky-500 bg-sky-50 text-sky-600 dark:border-blue-400 dark:bg-blue-400/10 dark:text-blue-400"
-                : "border-slate-200 dark:border-gray-600"
-            }`}
+            className="jpd-iconpick__item"
+            data-selected={value === name || undefined}
           >
             <MaterialIcon icon={name} size={18} />
           </button>
@@ -114,6 +113,7 @@ function ResetPositionButton({ schema, el, label, onChangeSchema }: {
 
 export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, binding, onChangeBinding, dataSources, fieldSources, selectedElement, onSelectElement }: Props) {
   const t = useT();
+  const { Button, ColorInput, Input, Select } = useUiComponents();
   const locale = useLocale();
 
   // Os três campos de conteúdo do KPI são templates ({token}/{FUNCAO()}),
@@ -127,18 +127,25 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
   );
   const contentFields = (
     <>
-      <div className="flex items-end gap-1">
+      {/* SEM `jpd-row--grow` de propósito. Estes três campos tinham
+          `className="flex-1"` no `<Input>`, que o componente repassa pro
+          `<input>` de DENTRO do wrapper de rótulo — um flex column, onde o
+          controle já é largura total por `align-items: stretch`. Medido no
+          navegador: 181.33px com e sem o `flex-1`, ou seja, no-op.
+          Aplicar o grow aqui faria o controle passar a ocupar a linha
+          inteira — melhoria plausível, e provavelmente o que o autor
+          queria, mas é MUDANÇA DE LAYOUT, e esta fase é rename de classe.
+          Fica registrado como dívida, não entra escondido. */}
+      <div className="jpd-row jpd-row--tight jpd-row--baseline">
         <Input
-          className="flex-1"
           label={t.kpi.title}
           value={schema.title ?? ""}
           onChange={(e) => onChangeSchema({ title: e.target.value })}
         />
         {formulaButton("title", t.kpi.title)}
       </div>
-      <div className="flex items-end gap-1">
+      <div className="jpd-row jpd-row--tight jpd-row--baseline">
         <Input
-          className="flex-1"
           mono
           label={t.kpi.valueLabel}
           value={schema.value ?? ""}
@@ -154,16 +161,15 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
         />
         {formulaButton("value", t.formulaModal.valueTarget)}
       </div>
-      <div className="flex items-end gap-1">
+      <div className="jpd-row jpd-row--tight jpd-row--baseline">
         <Input
-          className="flex-1"
           label={t.kpi.subtitle}
           value={schema.subtitle ?? ""}
           onChange={(e) => onChangeSchema({ subtitle: e.target.value })}
         />
         {formulaButton("subtitle", t.kpi.subtitle)}
       </div>
-      <p className="text-[10px] text-slate-400 dark:text-gray-400">{withInlineCode(t.kpi.hint)}</p>
+      <p className="jpd-hint">{withInlineCode(t.kpi.hint)}</p>
     </>
   );
 
@@ -191,7 +197,7 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
             searchPlaceholder={t.kpi.iconSearchPlaceholder}
             noneFoundLabel={t.kpi.noIconFound}
           />
-          <div className="flex items-center gap-2">
+          <div className="jpd-row">
             <Input
               type="number"
               label={t.kpi.iconSize}
@@ -206,7 +212,7 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
 
     if (el === "title") {
       return (
-        <div className="flex items-center gap-2">
+        <div className="jpd-row">
           <Input
             type="number"
             label={t.kpi.titleFontSize}
@@ -221,7 +227,7 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
     if (el === "value") {
       return (
         <>
-          <div className="flex items-center gap-2">
+          <div className="jpd-row">
             <Input
               type="number"
               label={t.kpi.valueFontSize}
@@ -245,7 +251,7 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
 
     // "subtitle"
     return (
-      <div className="flex items-center gap-2">
+      <div className="jpd-row">
         <Input
           type="number"
           label={t.kpi.subtitleFontSize}
@@ -258,7 +264,7 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="jpd-stack">
       {activeTab === "dados" && (
         <>
           {bulkEdit ? <BulkLocked hint={t.fieldsPanel.bulkDataLocked}>{contentFields}</BulkLocked> : contentFields}
@@ -273,16 +279,16 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
           </Select>
           <BindingEditor schema={schema} binding={binding} onChangeBinding={onChangeBinding} dataSources={dataSources} />
           {binding?.type === "kpi" && (
-            <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.kpi.boundOverridesValueHint}</p>
+            <p className="jpd-hint">{t.kpi.boundOverridesValueHint}</p>
           )}
         </>
       )}
 
       {activeTab === "estilo" && !bulkEdit && selectedElement && (
-        <div className="flex flex-col gap-2">
+        <div className="jpd-stack">
           <button
             type="button"
-            className="self-start text-[11px] text-slate-400 hover:text-slate-600 dark:text-gray-400 dark:hover:text-gray-200"
+            className="jpd-linkbtn jpd-linkbtn--back"
             onClick={() => onSelectElement?.(null)}
           >
             {t.kpi.backToCardStyle}
@@ -292,8 +298,8 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
       )}
 
       {activeTab === "estilo" && (bulkEdit || !selectedElement) && (
-        <div className="flex flex-col gap-2">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="jpd-stack">
+          <div className="jpd-grid2">
             <ColorInput label={t.kpi.background} value={schema.backgroundColor} onChange={(e) => onChangeSchema({ backgroundColor: e.target.value })} />
             <ColorInput label={t.kpi.textIcon} value={schema.textColor} onChange={(e) => onChangeSchema({ textColor: e.target.value })} />
           </div>
@@ -305,7 +311,7 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
             value={schema.borderRadius ?? DEFAULT_KPI_BORDER_RADIUS_PERCENT}
             onChange={(e) => onChangeSchema({ borderRadius: Number(e.target.value) })}
           />
-          {!bulkEdit && <p className="text-[10px] text-slate-400 dark:text-gray-400">{t.kpi.elementStyleHint}</p>}
+          {!bulkEdit && <p className="jpd-hint">{t.kpi.elementStyleHint}</p>}
         </div>
       )}
     </div>

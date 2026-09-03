@@ -1,42 +1,26 @@
-import type { ButtonHTMLAttributes } from "react";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
+import { cx } from "./cx";
 
 type Variant = "primary" | "danger" | "outline" | "ghost" | "dark";
 type Size = "sm" | "md" | "icon";
 
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
+export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
   size?: Size;
 };
 
-const sizeCls: Record<Size, string> = {
-  sm: "px-2.5 py-1 text-xs",
-  md: "px-3.5 py-2 text-sm",
-  icon: "h-6 w-6 p-0",
-};
-
-const variantCls: Record<Variant, string> = {
-  primary: "bg-sky-600 text-white shadow-sm hover:bg-sky-700 focus-visible:ring-sky-300 dark:bg-sky-700 dark:hover:bg-sky-600",
-  danger: "bg-red-500 text-white shadow-sm hover:bg-red-600 focus-visible:ring-red-300",
-  outline: "border border-sky-600 text-sky-600 hover:bg-sky-50 focus-visible:ring-sky-300 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-400/10",
-  ghost: "text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus-visible:ring-slate-300 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200",
-  // Pra usar em cima de fundo escuro (ex: header/toolbar), onde as outras
-  // variantes (feitas pra fundo claro) ficam sem contraste.
-  dark: "bg-white/10 text-white hover:bg-white/20 focus-visible:ring-white/30",
-};
-
-export function Button({ variant = "primary", size = "sm", className = "", type = "button", ...props }: Props) {
-  return (
-    <button
-      type={type}
-      className={[
-        "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
-        "disabled:cursor-not-allowed disabled:opacity-40",
-        sizeCls[size],
-        variantCls[variant],
-        className,
-      ].join(" ")}
-      {...props}
-    />
-  );
-}
+// `variant`/`size` são ATRIBUTO, não classe. Antes eram dois mapas de string
+// Tailwind (`sizeCls`/`variantCls`) que o componente escolhia e concatenava;
+// agora o JSX escreve `data-variant`/`data-size` e quem decide aparência é o
+// theme.css. É a regra geral da migração: se o componente teria de ESCOLHER
+// uma classe, é atributo.
+//
+// `...rest` vem ANTES de `className`/`data-*` de propósito: assim um atributo
+// funcional (`type`, `aria-*`, `onClick`) continua sobrescrevível pelo
+// consumidor, mas o cálculo de classe e de estado é sempre o nosso.
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant = "primary", size = "sm", className, type = "button", ...rest },
+  ref
+) {
+  return <button ref={ref} type={type} {...rest} data-variant={variant} data-size={size} className={cx("jpd-btn", className)} />;
+});

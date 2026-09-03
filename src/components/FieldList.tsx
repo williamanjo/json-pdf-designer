@@ -3,7 +3,7 @@ import type { Binding, KpiElementKey, Schema } from "../types";
 import { fieldWarning } from "../fieldWarnings";
 import { kpiElementLocked, kpiElementLockedPatch, kpiElementPresent, kpiElementRestorePatch } from "../kpiFormat";
 import { useT } from "../i18n";
-import { Button } from "./ui";
+import { useUiComponents } from "./ui/useUiComponents";
 import { IconAlertTriangle, IconBringToFront, IconLock, IconLockOpen, IconPlus, IconSendToBack, IconTrash } from "./ui/icons";
 
 type Props = {
@@ -55,6 +55,7 @@ export function FieldList({
   onChangeSchema,
 }: Props) {
   const t = useT();
+  const { Button } = useUiComponents();
   const typeLabel: Record<Schema["type"], string> = {
     text: t.fieldTypeLabels.text,
     table: t.fieldTypeLabels.table,
@@ -95,11 +96,11 @@ export function FieldList({
   }
 
   if (schemas.length === 0) {
-    return <p className="text-xs text-slate-400 dark:text-gray-400">{t.fieldList.empty}</p>;
+    return <p className="jpd-hint jpd-hint--md">{t.fieldList.empty}</p>;
   }
 
   return (
-    <ul className="flex flex-col gap-1">
+    <ul className="jpd-list jpd-stack jpd-stack--tight">
       {schemas.map((schema) => {
         const warning = fieldWarning(schema, bindings?.find((b) => b.schemaName === schema.name), t);
         const isSelected = selectedIds.includes(schema.id);
@@ -112,21 +113,18 @@ export function FieldList({
             else itemRefs.current.delete(schema.id);
           }}
           onClick={(e) => onSelect(schema.id, e.ctrlKey || e.metaKey)}
-          className={`flex cursor-pointer items-center gap-1 rounded-lg border px-1.5 py-1 transition-colors ${
-            isSelected
-              ? "border-sky-500 bg-sky-50 dark:border-blue-400 dark:bg-blue-400/10"
-              : "border-slate-200 hover:bg-slate-50 dark:border-gray-700 dark:hover:bg-gray-700"
-          }`}
+          className="jpd-fieldrow"
+          data-selected={isSelected || undefined}
         >
-          <span className="flex min-w-0 flex-1 items-center gap-1 truncate text-left text-xs">
+          <span className="jpd-fieldrow__main">
             {warning && (
-              <IconAlertTriangle className="flex-shrink-0 text-amber-500 dark:text-amber-400" />
+              <IconAlertTriangle className="jpd-icon jpd-warnicon" />
             )}
-            <span className="min-w-0 truncate" title={warning ?? undefined}>
+            <span className="jpd-fieldrow__name" title={warning ?? undefined}>
               {renamingId === schema.id ? (
                 <input
                   autoFocus
-                  className="w-24 rounded border border-sky-400 bg-white px-1 text-xs font-medium text-slate-700 dark:bg-gray-800 dark:text-gray-200"
+                  className="jpd-fieldrow__rename"
                   value={draftName}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => setDraftName(e.target.value)}
@@ -144,13 +142,13 @@ export function FieldList({
                 />
               ) : (
                 <span
-                  className="font-medium text-slate-700 dark:text-gray-200"
+                  className="jpd-rowname"
                   onDoubleClick={onRename ? (e) => startRename(schema, e) : undefined}
                 >
                   {schema.name}
                 </span>
               )}
-              <span className="ml-1.5 text-slate-400 dark:text-gray-400">{typeLabel[schema.type]}</span>
+              <span className="jpd-muted">{typeLabel[schema.type]}</span>
             </span>
           </span>
           {isSelected && onSendToBack && (
@@ -178,7 +176,7 @@ export function FieldList({
         </div>
 
         {showKpiElements && schema.type === "kpi" && (
-          <ul className="ml-3 mt-1 flex flex-col gap-1 border-l border-slate-200 pl-2 dark:border-gray-700">
+          <ul className="jpd-sublist">
             {KPI_ELEMENTS.map((el) => {
               const present = kpiElementPresent(schema, el);
               const locked = kpiElementLocked(schema, el);
@@ -187,13 +185,11 @@ export function FieldList({
                 <li
                   key={el}
                   onClick={(e) => { e.stopPropagation(); onSelectKpiElement?.(el); }}
-                  className={`flex cursor-pointer items-center gap-1 rounded-lg border px-1.5 py-1 text-xs transition-colors ${
-                    focused
-                      ? "border-sky-400 bg-sky-50 dark:border-blue-400 dark:bg-blue-400/10"
-                      : "border-transparent hover:bg-slate-50 dark:hover:bg-gray-700"
-                  } ${present ? "" : "opacity-50"}`}
+                  className="jpd-fieldrow jpd-fieldrow--sub"
+                  data-selected={focused || undefined}
+                  data-absent={!present || undefined}
                 >
-                  <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-gray-300">{kpiElementLabel[el]}</span>
+                  <span className="jpd-fieldrow__name jpd-fieldrow__name--sub">{kpiElementLabel[el]}</span>
                   {present && (
                     <Button
                       variant="ghost"

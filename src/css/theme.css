@@ -1,0 +1,2813 @@
+/* json-pdf-designer — folha de estilo OPCIONAL.
+ *
+ * Importar é opt-in: `import "json-pdf-designer/theme.css"`. Não importar
+ * deixa o <Designer> sem aparência, e isso é modo SUPORTADO — as classes
+ * `.jpd-*` e os atributos `data-*` continuam no DOM pra você estilizar com o
+ * que usar (CSS puro, SCSS, Bootstrap, styled-components, seu Tailwind).
+ *
+ * NÃO CARREGA RESET GLOBAL. Até 2.1.1 o `dist/style.css` era Tailwind
+ * compilado e trazia o Preflight embutido — um reset que caía no SEU app
+ * inteiro. Aqui não: o que o editor precisava do Preflight virou regra nas
+ * próprias classes `.jpd-*` (ver "Resets locais" abaixo), e a única regra
+ * com `*` é escopada e tem especificidade zero.
+ *
+ * TEMA: sobrescreva as custom properties `--jpd-*`. Dark mode em
+ * `[data-jpd-theme="dark"]` (ou na classe `.dark`, mantida como alias do que
+ * o 2.x usava).
+ *
+ * ORDEM DE CASCATA: tudo mora numa @layer chamada `json-pdf-designer`. CSS
+ * SEM layer ganha de CSS COM layer, independente de especificidade — então
+ * qualquer regra sua vence estas por default, inclusive uma classe passada
+ * por `className`. Sem a layer, o `.jpd-input` daqui venceria o `p-4` que
+ * você passou, o que anularia metade do sentido de aceitar `className`.
+ * Precisa de controle mais fino? Declare a ordem antes de importar:
+ *   @layer json-pdf-designer, minhas-utilitarias;
+ */
+
+/* ORDEM DE LAYER, declarada antes de qualquer regra.
+ *
+ * Layer declarada DEPOIS tem prioridade MAIOR. Sem esta linha, um consumidor
+ * que importe o Tailwind dele antes deste arquivo acaba com as utilitárias
+ * dele numa layer declarada ANTES da nossa — e aí o NOSSO CSS ganha do dele,
+ * exatamente o contrário do objetivo. Medido: um `bg-sky-600` do app do
+ * exemplo computava `rgba(0,0,0,0)` porque o reset daqui vencia.
+ *
+ * Declarando `json-pdf-designer` primeiro, ela fica com a prioridade mais
+ * baixa não importa a ordem de import. `utilities` está aqui porque é o nome
+ * que Tailwind v3/v4 usa; declarar uma layer que o consumidor não tem custa
+ * nada. Quem usa outro nome de layer declara a ordem própria antes de
+ * importar — a regra vale igual.
+ */
+@layer json-pdf-designer, utilities;
+
+/* O reset mora em `reset.css`, publicado à parte pra quem quer estilizar do
+ * zero sem levar a aparência (ver o cabeçalho de lá). Importado aqui pra
+ * `theme.css` continuar bastando por si — uma linha de import é melhor que
+ * duas cópias que precisam ficar em sincronia. */
+@import url("./reset.css");
+
+@layer json-pdf-designer {
+  /* ==========================================================================
+   * 1. TOKENS
+   *
+   * Os valores de cor são os literais `oklch()` que o Tailwind v4 já
+   * resolvia no bundle de 2.1.1, copiados verbatim — é o que mantém o 3.0.0
+   * pixel-idêntico em light. Cuidado: v4 != v3. `red-500` do v4 é `#fb2c36`,
+   * não o `#ef4444` que a memória sugere (prova: o próprio Tailwind emitia
+   * `#fb2c3626` como fallback de `bg-red-500/15`).
+   *
+   * Espaçamento em `rem`, não px: o valor original era
+   * `calc(var(--spacing) * N)` com `--spacing: .25rem`, então escala com o
+   * root font-size do usuário. Emitir px quebraria quem não usa root de 16.
+   * ========================================================================= */
+  :root {
+    /* --- superfícies ------------------------------------------------------
+     * `surface` e `surface-field` têm o MESMO valor em light e valores
+     * DIFERENTES em dark: controle de formulário ia pra gray-700 enquanto
+     * card/modal/popover iam pra gray-800. Um token só não seria
+     * pixel-idêntico. Vale pro par text/text-field e border/border-alt. */
+    --jpd-surface: #fff;                                  /* bg-white */
+    --jpd-surface-field: #fff;                            /* bg-white em Input/Select/Textarea */
+    --jpd-surface-sunken: oklch(96.8% 0.007 247.896);     /* bg-slate-100 */
+    --jpd-surface-muted: oklch(96.8% 0.007 247.896);      /* bg-slate-100 (Badge) */
+    --jpd-surface-muted-2: oklch(98.4% 0.003 247.858);    /* bg-slate-50 */
+    --jpd-surface-hover: oklch(96.8% 0.007 247.896);      /* hover:bg-slate-100 */
+    --jpd-surface-hover-soft: oklch(98.4% 0.003 247.858); /* hover:bg-slate-50 */
+    --jpd-surface-active: oklch(92.9% 0.013 255.508);     /* hover:bg-slate-200 */
+    /* Scrim de modal — sem contraparte dark de propósito. */
+    --jpd-overlay: color-mix(in oklab, oklch(20.8% 0.042 265.755) 60%, transparent); /* bg-slate-900/60 */
+
+    /* --- bordas -----------------------------------------------------------
+     * `border` e `border-alt` são o mesmo slate-200 em light; no dark um vai
+     * pra gray-700 (11 sites) e o outro pra gray-600 (9 sites). */
+    --jpd-border: oklch(92.9% 0.013 255.508);             /* border-slate-200 */
+    --jpd-border-alt: oklch(92.9% 0.013 255.508);         /* border-slate-200 (variante dark gray-600) */
+    --jpd-border-strong: oklch(86.9% 0.022 252.894);      /* border-slate-300 */
+    --jpd-border-strong-2: oklch(86.9% 0.022 252.894);    /* border-slate-300 (variante dark gray-500) */
+    --jpd-swatch-ring: color-mix(in oklab, #000 10%, transparent); /* border-black/10 */
+
+    /* --- texto ------------------------------------------------------------
+     * ATENÇÃO: a rampa light tem 6 degraus (slate-300..800) e a dark tem 5 —
+     * slate-400 E slate-500 viram os dois gray-400. Ou seja, no escuro a
+     * diferença entre `text-disabled` e `text-faint` desaparece. Isso é o
+     * comportamento de 2.1.1; separar os dois no dark MUDARIA o tema. */
+    --jpd-text-strong: oklch(27.9% 0.041 260.031);        /* text-slate-800 */
+    --jpd-text: oklch(37.2% 0.044 257.287);               /* text-slate-700 */
+    --jpd-text-field: oklch(37.2% 0.044 257.287);         /* text-slate-700 em controle */
+    --jpd-text-muted: oklch(44.6% 0.043 257.281);         /* text-slate-600 */
+    --jpd-text-label: oklch(44.6% 0.043 257.281);         /* text-slate-600 em label de campo */
+    --jpd-text-faint: oklch(55.4% 0.046 257.417);         /* text-slate-500 */
+    --jpd-text-disabled: oklch(70.4% 0.04 256.788);       /* text-slate-400 */
+    --jpd-text-disabled-2: oklch(70.4% 0.04 256.788);     /* text-slate-400 (variante dark gray-500) */
+    --jpd-text-ghost: oklch(86.9% 0.022 252.894);         /* text-slate-300 */
+    --jpd-text-placeholder: oklch(70.4% 0.04 256.788);    /* placeholder:text-slate-400 */
+    --jpd-text-hover: oklch(44.6% 0.043 257.281);         /* hover:text-slate-600 */
+    --jpd-text-hover-strong: oklch(37.2% 0.044 257.287);  /* hover:text-slate-700 */
+    /* Lido por SEIS superfícies, não uma: botão primário, botão de perigo,
+     * etiqueta de faixa do canvas, barra de zoom, cabeçalho de seção e o
+     * chip de coluna. Trocar este token exige auditar os seis fundos — foi
+     * o que o retema do `composed-layout` topou (pôr `#000` aqui deixou o
+     * texto da barra de zoom invisível sobre o fundo escuro dela). */
+    --jpd-text-on-accent: #fff;                           /* text-white */
+
+    /* --- accent -----------------------------------------------------------
+     * O botão SÓLIDO fica na rampa sky no dark (sky-600 -> sky-700); texto e
+     * borda de accent trocam pra blue. Não unificar. */
+    --jpd-accent: oklch(58.8% 0.158 241.966);             /* text-sky-600 */
+    --jpd-accent-solid: oklch(58.8% 0.158 241.966);       /* bg-sky-600 */
+    --jpd-accent-solid-hover: oklch(50% 0.134 242.749);   /* hover:bg-sky-700 */
+    --jpd-accent-hover: oklch(58.8% 0.158 241.966);       /* hover:text-sky-600 */
+    --jpd-accent-border: oklch(68.5% 0.169 237.323);      /* border-sky-500 */
+    --jpd-accent-border-soft: oklch(74.6% 0.16 232.661);  /* border-sky-400 */
+    --jpd-accent-border-solid: oklch(58.8% 0.158 241.966);/* border-sky-600 */
+    --jpd-accent-border-hover: oklch(74.6% 0.16 232.661); /* hover:border-sky-400 */
+    --jpd-accent-soft: oklch(97.7% 0.013 236.62);         /* bg-sky-50 */
+    --jpd-accent-soft-hover: oklch(97.7% 0.013 236.62);   /* hover:bg-sky-50 */
+    --jpd-accent-ring: oklch(95.1% 0.026 236.824);        /* focus:ring-sky-100 (campo) */
+    --jpd-accent-ring-visible: oklch(82.8% 0.111 230.318);/* focus-visible:ring-sky-300 (botão) */
+    /* Vão de 1px por DENTRO do anel de foco do botão. Era
+     * `--tw-ring-offset-color: #fff` fixo — branco até no dark. */
+    --jpd-ring-offset: #fff;
+
+    /* --- danger ----------------------------------------------------------- */
+    --jpd-danger: oklch(63.7% 0.237 25.331);              /* bg-red-500 */
+    --jpd-danger-hover: oklch(57.7% 0.245 27.325);        /* hover:bg-red-600 */
+    --jpd-danger-text: oklch(57.7% 0.245 27.325);         /* text-red-600 */
+    --jpd-danger-text-hover: oklch(63.7% 0.237 25.331);   /* hover:text-red-500 */
+    --jpd-danger-soft: color-mix(in oklab, oklch(63.7% 0.237 25.331) 15%, transparent); /* bg-red-500/15 */
+    --jpd-danger-border: oklch(70.4% 0.191 22.216);       /* border-red-400 */
+    --jpd-danger-ring: oklch(80.8% 0.114 19.571);         /* focus-visible:ring-red-300 */
+
+    /* --- warn -------------------------------------------------------------
+     * Só texto: não existe fundo nem borda âmbar no editor. */
+    --jpd-warn-text: oklch(76.9% 0.188 70.08);            /* text-amber-500 */
+    --jpd-warn-text-2: oklch(66.6% 0.179 58.318);         /* text-amber-600 */
+
+    /* --- section (o roxo do campo "seção") -------------------------------- */
+    --jpd-section: oklch(55.8% 0.288 302.321);            /* bg-purple-600 */
+    --jpd-section-text: oklch(49.6% 0.265 301.924);       /* text-purple-700 */
+    --jpd-section-text-strong: oklch(43.8% 0.218 303.724);/* text-purple-800 */
+    --jpd-section-text-soft: oklch(55.8% 0.288 302.321);  /* text-purple-600 */
+    --jpd-section-border: oklch(82.7% 0.119 306.383);     /* border-purple-300 */
+    --jpd-section-border-hover: oklch(71.4% 0.203 305.504); /* hover:border-purple-400 */
+    --jpd-section-soft: color-mix(in oklab, oklch(97.7% 0.014 308.299) 40%, transparent);  /* bg-purple-50/40 */
+    --jpd-section-soft-2: color-mix(in oklab, oklch(97.7% 0.014 308.299) 60%, transparent);/* bg-purple-50/60 */
+    --jpd-section-hover: oklch(97.7% 0.014 308.299);      /* hover:bg-purple-50 */
+    --jpd-section-hover-2: oklch(94.6% 0.033 307.174);    /* hover:bg-purple-100 */
+
+    /* --- canvas / régua / zoom bar ----------------------------------------
+     * Chrome do canvas: é uma folha de papel, então quase nada tem dark de
+     * propósito. As exceções são a régua (fundo escurece, tick e número NÃO —
+     * bug de 2.1.1) e as bordas de seleção/travado, que eram hex fixo. */
+    /* Chrome do canvas: desenhado sobre papel BRANCO, então light-only de
+     * propósito — não entram no bloco dark. Os tokens "parecidos" que já
+     * existem (border, text-muted, surface-muted-2) todos viram escuro no
+     * dark, o que pintaria a folha. */
+    --jpd-canvas-border: oklch(92.9% 0.013 255.508);  /* border-slate-200, moldura do gráfico */
+    --jpd-canvas-text: oklch(44.6% 0.043 257.281);    /* text-slate-600, legenda do gráfico */
+    --jpd-canvas-band: oklch(98.4% 0.003 247.858);    /* bg-slate-50, zebra da tabela */
+    --jpd-section-border-strong: oklch(71.4% 0.203 305.504); /* border-purple-400 */
+    --jpd-section-soft-3: color-mix(in oklab, oklch(97.7% 0.014 308.299) 50%, transparent); /* bg-purple-50/50 */
+    --jpd-canvas-page: #fff;
+    /* Tinta sobre o papel. Fica JUNTO do `--jpd-canvas-page` e, como ele,
+     * NÃO tem contraparte no bloco escuro: os dois descrevem a folha, que é
+     * a maquete do PDF e não segue o tema da aplicação. Ver `.jpd-page`. */
+    --jpd-canvas-ink: oklch(21% 0.034 264.665);           /* text-slate-900 */
+    --jpd-canvas-guide: rgb(100 116 139 / 0.18);
+    --jpd-canvas-dim: color-mix(in oklab, oklch(20.8% 0.042 265.755) 10%, transparent); /* bg-slate-900/10 */
+    --jpd-field-outline: oklch(86.9% 0.022 252.894);      /* era #cbd5e1 (slate-300 do v3) */
+    --jpd-selection: oklch(58.8% 0.158 241.966);          /* era #0284c7 (sky-600 do v3) */
+    --jpd-selection-ring: color-mix(in oklab, oklch(58.8% 0.158 241.966) 15%, transparent);
+    --jpd-locked: oklch(76.9% 0.188 70.08);               /* era #f59e0b (amber-500 do v3) */
+    --jpd-ruler-bg: oklch(98.4% 0.003 247.858);           /* bg-slate-50 */
+    --jpd-ruler-tick: oklch(70.4% 0.04 256.788);          /* era #94a3b8 (slate-400 do v3) */
+    --jpd-ruler-label: oklch(55.4% 0.046 257.417);        /* era #64748b (slate-500 do v3) */
+    --jpd-zoombar-bg: color-mix(in oklab, oklch(27.9% 0.041 260.031) 90%, transparent); /* bg-slate-800/90 */
+    --jpd-zoombar-hover: color-mix(in oklab, #fff 10%, transparent);  /* hover:bg-white/10 */
+    --jpd-zoombar-active: color-mix(in oklab, #fff 20%, transparent); /* bg-white/20 */
+
+    /* --- tokens que a migração da Fase 2 revelou faltando ---------------
+     * A família `bg-sky-50` tinha TRÊS contrapartes dark diferentes no
+     * código (`blue-400/10`, `blue-900/20`, `blue-900/30`) e duas alfas
+     * diferentes em light. Não é deriva pra unificar: são papéis distintos
+     * (tint de seleção, item de menu ativo, fundo de callout), e dois grupos
+     * chegaram a propor o MESMO nome pra dois valores. Nomeados por papel
+     * justamente pra isso não acontecer de novo. */
+    --jpd-accent-soft-strong: oklch(97.7% 0.013 236.62);   /* bg-sky-50, item de menu ativo */
+    --jpd-callout-sky: color-mix(in oklab, oklch(97.7% 0.013 236.62) 40%, transparent);       /* bg-sky-50/40 */
+    --jpd-callout-sky-solid: color-mix(in oklab, oklch(97.7% 0.013 236.62) 60%, transparent); /* bg-sky-50/60 */
+    --jpd-callout-sky-border: oklch(82.8% 0.111 230.318);       /* border-sky-300 */
+    --jpd-callout-sky-border-solid: oklch(90.1% 0.058 230.902); /* border-sky-200 */
+    --jpd-accent-text-hover: oklch(50% 0.134 242.749);          /* hover:text-sky-700 */
+    --jpd-font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+
+    /* --- espaçamento ------------------------------------------------------
+     * Passos medidos em uso. `10` e `14` existem (px-2.5, p-3.5) e faltavam
+     * na estimativa; `-1` é o único negativo (-mr-1). */
+    --jpd-space-0: 0;
+    --jpd-space-0-5: 0.125rem; /* 2px */
+    --jpd-space-1: 0.25rem;    /* 4px */
+    --jpd-space-1-5: 0.375rem; /* 6px */
+    --jpd-space-2: 0.5rem;     /* 8px */
+    --jpd-space-2-5: 0.625rem; /* 10px */
+    --jpd-space-3: 0.75rem;    /* 12px */
+    --jpd-space-3-5: 0.875rem; /* 14px */
+    --jpd-space-4: 1rem;       /* 16px */
+    --jpd-space-5: 1.25rem;    /* 20px */
+
+    /* --- tipografia -------------------------------------------------------
+     * 9/10/11px vinham de valor arbitrário e emitiam SÓ font-size, herdando
+     * `line-height: 1.5` do Preflight. xs/sm/base carregavam line-height
+     * próprio. Por isso são dois grupos de token, não um. */
+    --jpd-font-size-micro: 9px;
+    --jpd-font-size-tiny: 10px;
+    --jpd-font-size-small: 11px;
+    --jpd-font-size-body: 0.75rem;   /* text-xs  */
+    --jpd-font-size-md: 0.875rem;    /* text-sm  */
+    --jpd-font-size-lg: 1rem;        /* text-base */
+    --jpd-line-height: 1.5;          /* html do Preflight */
+    --jpd-line-height-body: 1.33333; /* text-xs  */
+    --jpd-line-height-md: 1.42857;   /* text-sm  */
+    --jpd-line-height-lg: 1.5;       /* text-base */
+    --jpd-line-height-tight: 1.25;   /* leading-tight */
+    --jpd-tracking-wide: 0.025em;
+    /* Vinha do `html` do Preflight. `inherit` deixa o editor pegar a fonte do
+     * seu app; troque por uma pilha explícita se quiser fixar. */
+    --jpd-font-sans: inherit;
+    --jpd-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    /* --- raio -------------------------------------------------------------
+     * Não existe 2px. Em v4 `rounded-sm` == `rounded` == .25rem (em v3 era
+     * .125rem — modelo mental de v3 inventa um degrau que não está em uso). */
+    --jpd-radius-sm: 0.25rem;  /* rounded / rounded-sm */
+    --jpd-radius-md: 0.375rem; /* rounded-md */
+    --jpd-radius-lg: 0.5rem;   /* rounded-lg */
+    --jpd-radius-xl: 0.75rem;  /* rounded-xl */
+    --jpd-radius-full: 9999px;
+
+    /* --- sombra -----------------------------------------------------------
+     * As duas sombras de página DIVERGEM no 2.1.1 (0.1 no canvas, 0.15 no
+     * preview). Preservado de propósito: unificar mudaria pixel.
+     *
+     * ⚠ SE VOCÊ QUER "SEM SOMBRA", NÃO USE `none` NO `--jpd-shadow-sm`.
+     *
+     * Escreva `0 0 0 0 transparent`. Motivo: este token entra numa LISTA de
+     * sombra no foco de campo —
+     *
+     *     .jpd-input:focus { box-shadow: 0 0 0 2px var(--jpd-accent-ring),
+     *                                    var(--jpd-shadow-sm); }
+     *
+     * — e `none` dentro de uma lista é CSS INVÁLIDO. A declaração inteira
+     * cai, e você perde o ANEL DE FOCO junto com a sombra, sem erro nenhum
+     * no console. Descoberto retematizando o `examples/composed-layout`,
+     * que é o example brutalista e queria zero sombra.
+     *
+     * Os outros (`md`/`lg`/`2xl`/`page`/`page-preview`) aparecem sozinhos,
+     * então neles `none` é seguro — mas `0 0 0 0 transparent` funciona nos
+     * seis e não exige lembrar da distinção. */
+    --jpd-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --jpd-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --jpd-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --jpd-shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+    --jpd-shadow-page: 0 1px 3px rgb(0 0 0 / 0.1), 0 8px 24px rgb(15 23 42 / 0.08);
+    --jpd-shadow-page-preview: 0 1px 3px rgb(0 0 0 / 0.15), 0 8px 24px rgb(15 23 42 / 0.08);
+
+    /* --- camada ----------------------------------------------------------- */
+    --jpd-z-dropdown: 10;
+    --jpd-z-canvas-overlay: 20;
+    --jpd-z-modal: 1000;
+  }
+
+  /* Dark mode.
+   *
+   * `[data-jpd-theme="dark"]` é o hook documentado; `.dark` continua valendo
+   * porque é o que os consumidores de 2.x já punham no <html> (o
+   * `@custom-variant dark (&:where(.dark, .dark *))` de antes).
+   *
+   * NÃO é media query de propósito: uma biblioteca não deve virar um app
+   * light-only escuro só porque o SO está no escuro. Quem quiser seguir o SO:
+   *   matchMedia("(prefers-color-scheme: dark)")  ->  data-jpd-theme
+   *
+   * LIMITAÇÃO: <Modal> renderiza por portal em document.body, então uma ilha
+   * de dark escopada num wrapper NÃO pinta o modal. Ponha o atributo no
+   * <html> se usa Modal. */
+  [data-jpd-theme="dark"],
+  .dark {
+    color-scheme: dark;
+
+    --jpd-surface: oklch(27.8% 0.033 256.848);            /* dark:bg-gray-800 */
+    --jpd-surface-field: oklch(37.3% 0.034 259.733);      /* dark:bg-gray-700 */
+    --jpd-surface-sunken: oklch(21% 0.034 264.665);       /* dark:bg-gray-900 */
+    --jpd-surface-muted: oklch(37.3% 0.034 259.733);      /* dark:bg-gray-700 */
+    --jpd-surface-muted-2: oklch(37.3% 0.034 259.733);    /* dark:bg-gray-700 */
+    --jpd-surface-hover: oklch(37.3% 0.034 259.733);      /* dark:hover:bg-gray-700 */
+    --jpd-surface-hover-soft: oklch(37.3% 0.034 259.733); /* dark:hover:bg-gray-700 */
+    --jpd-surface-active: oklch(44.6% 0.03 256.802);      /* dark:hover:bg-gray-600 */
+
+    --jpd-border: oklch(37.3% 0.034 259.733);             /* dark:border-gray-700 */
+    --jpd-border-alt: oklch(44.6% 0.03 256.802);          /* dark:border-gray-600 */
+    --jpd-border-strong: oklch(44.6% 0.03 256.802);       /* dark:border-gray-600 */
+    --jpd-border-strong-2: oklch(55.1% 0.027 264.364);    /* dark:border-gray-500 */
+
+    --jpd-text-strong: oklch(96.7% 0.003 264.542);        /* dark:text-gray-100 */
+    --jpd-text: oklch(92.8% 0.006 264.531);               /* dark:text-gray-200 */
+    --jpd-text-field: oklch(96.7% 0.003 264.542);         /* dark:text-gray-100 */
+    --jpd-text-muted: oklch(87.2% 0.01 258.338);          /* dark:text-gray-300 */
+    --jpd-text-label: oklch(70.7% 0.022 261.325);         /* dark:text-gray-400 */
+    /* faint e disabled colapsam no MESMO gray-400 — ver o aviso nos tokens. */
+    --jpd-text-faint: oklch(70.7% 0.022 261.325);         /* dark:text-gray-400 */
+    --jpd-text-disabled: oklch(70.7% 0.022 261.325);      /* dark:text-gray-400 */
+    --jpd-text-disabled-2: oklch(55.1% 0.027 264.364);    /* dark:text-gray-500 */
+    --jpd-text-ghost: oklch(44.6% 0.03 256.802);          /* dark:text-gray-600 */
+    --jpd-text-placeholder: oklch(70.7% 0.022 261.325);   /* dark:placeholder:text-gray-400 */
+    --jpd-text-hover: oklch(92.8% 0.006 264.531);         /* dark:hover:text-gray-200 */
+    --jpd-text-hover-strong: oklch(96.7% 0.003 264.542);  /* dark:hover:text-gray-100 */
+
+    --jpd-accent: oklch(70.7% 0.165 254.624);             /* dark:text-blue-400 */
+    --jpd-accent-solid: oklch(50% 0.134 242.749);         /* dark:bg-sky-700 — fica em sky! */
+    --jpd-accent-solid-hover: oklch(58.8% 0.158 241.966); /* dark:hover:bg-sky-600 */
+    --jpd-accent-hover: oklch(70.7% 0.165 254.624);       /* dark:hover:text-blue-400 */
+    --jpd-accent-border: oklch(70.7% 0.165 254.624);      /* dark:border-blue-400 */
+    --jpd-accent-border-soft: oklch(70.7% 0.165 254.624); /* dark:border-blue-400 */
+    --jpd-accent-border-solid: oklch(70.7% 0.165 254.624);/* dark:border-blue-400 */
+    --jpd-accent-border-hover: oklch(70.7% 0.165 254.624);/* dark:hover:border-blue-400 */
+    --jpd-accent-soft: color-mix(in oklab, oklch(70.7% 0.165 254.624) 10%, transparent);      /* dark:bg-blue-400/10 */
+    --jpd-accent-soft-hover: color-mix(in oklab, oklch(70.7% 0.165 254.624) 10%, transparent);/* dark:hover:bg-blue-400/10 */
+    --jpd-accent-ring: color-mix(in oklab, oklch(70.7% 0.165 254.624) 20%, transparent);      /* dark:focus:ring-blue-400/20 */
+
+    --jpd-danger-text: oklch(70.4% 0.191 22.216);         /* dark:text-red-400 */
+    --jpd-danger-text-hover: oklch(70.4% 0.191 22.216);   /* dark:hover:text-red-400 */
+
+    --jpd-warn-text: oklch(82.8% 0.189 84.429);           /* dark:text-amber-400 */
+    --jpd-warn-text-2: oklch(82.8% 0.189 84.429);         /* dark:text-amber-400 */
+
+    --jpd-section-text: oklch(82.7% 0.119 306.383);       /* dark:text-purple-300 */
+    --jpd-section-text-strong: oklch(82.7% 0.119 306.383);/* dark:text-purple-300 */
+    --jpd-section-text-soft: oklch(71.4% 0.203 305.504);  /* dark:text-purple-400 */
+    --jpd-section-border: oklch(49.6% 0.265 301.924);     /* dark:border-purple-700 */
+    --jpd-section-border-hover: oklch(62.7% 0.265 303.9); /* dark:hover:border-purple-500 */
+    --jpd-section-soft: color-mix(in oklab, oklch(38.1% 0.176 304.987) 20%, transparent);   /* dark:bg-purple-900/20 */
+    --jpd-section-soft-2: color-mix(in oklab, oklch(38.1% 0.176 304.987) 30%, transparent); /* dark:bg-purple-900/30 */
+    --jpd-section-hover: color-mix(in oklab, oklch(38.1% 0.176 304.987) 40%, transparent);  /* dark:hover:bg-purple-900/40 */
+    --jpd-section-hover-2: color-mix(in oklab, oklch(38.1% 0.176 304.987) 40%, transparent);
+
+    --jpd-accent-soft-strong: color-mix(in oklab, oklch(37.9% 0.146 265.522) 30%, transparent); /* dark:bg-blue-900/30 */
+    --jpd-callout-sky: color-mix(in oklab, oklch(37.9% 0.146 265.522) 20%, transparent);        /* dark:bg-blue-900/20 */
+    --jpd-callout-sky-solid: color-mix(in oklab, oklch(37.9% 0.146 265.522) 20%, transparent);
+    --jpd-callout-sky-border: oklch(48.8% 0.243 264.376);       /* dark:border-blue-700 */
+    --jpd-callout-sky-border-solid: oklch(42.4% 0.199 265.638); /* dark:border-blue-800 */
+    --jpd-accent-text-hover: oklch(80.9% 0.105 251.813);        /* dark:hover:text-blue-300 */
+
+    /* A régua escurecia o fundo mas mantinha tick e número claros — dark
+     * quebrado no 2.1.1, porque eram atributo SVG hex, não classe. Agora
+     * acompanham. */
+    --jpd-ruler-bg: oklch(27.8% 0.033 256.848);           /* dark:bg-gray-800 */
+    --jpd-ruler-tick: oklch(55.1% 0.027 264.364);
+    --jpd-ruler-label: oklch(70.7% 0.022 261.325);
+  }
+
+  /* Ilha de LIGHT dentro de um app escuro. Vem depois pra vencer o bloco de
+   * cima quando os dois casam no mesmo elemento. */
+  [data-jpd-theme="light"] {
+    color-scheme: light;
+
+    --jpd-surface: #fff;
+    --jpd-surface-field: #fff;
+    --jpd-surface-sunken: oklch(96.8% 0.007 247.896);
+    --jpd-surface-muted: oklch(96.8% 0.007 247.896);
+    --jpd-surface-muted-2: oklch(98.4% 0.003 247.858);
+    --jpd-surface-hover: oklch(96.8% 0.007 247.896);
+    --jpd-surface-hover-soft: oklch(98.4% 0.003 247.858);
+    --jpd-surface-active: oklch(92.9% 0.013 255.508);
+
+    --jpd-border: oklch(92.9% 0.013 255.508);
+    --jpd-border-alt: oklch(92.9% 0.013 255.508);
+    --jpd-border-strong: oklch(86.9% 0.022 252.894);
+    --jpd-border-strong-2: oklch(86.9% 0.022 252.894);
+
+    --jpd-text-strong: oklch(27.9% 0.041 260.031);
+    --jpd-text: oklch(37.2% 0.044 257.287);
+    --jpd-text-field: oklch(37.2% 0.044 257.287);
+    --jpd-text-muted: oklch(44.6% 0.043 257.281);
+    --jpd-text-label: oklch(44.6% 0.043 257.281);
+    --jpd-text-faint: oklch(55.4% 0.046 257.417);
+    --jpd-text-disabled: oklch(70.4% 0.04 256.788);
+    --jpd-text-disabled-2: oklch(70.4% 0.04 256.788);
+    --jpd-text-ghost: oklch(86.9% 0.022 252.894);
+    --jpd-text-placeholder: oklch(70.4% 0.04 256.788);
+    --jpd-text-hover: oklch(44.6% 0.043 257.281);
+    --jpd-text-hover-strong: oklch(37.2% 0.044 257.287);
+
+    --jpd-accent: oklch(58.8% 0.158 241.966);
+    --jpd-accent-solid: oklch(58.8% 0.158 241.966);
+    --jpd-accent-solid-hover: oklch(50% 0.134 242.749);
+    --jpd-accent-hover: oklch(58.8% 0.158 241.966);
+    --jpd-accent-border: oklch(68.5% 0.169 237.323);
+    --jpd-accent-border-soft: oklch(74.6% 0.16 232.661);
+    --jpd-accent-border-solid: oklch(58.8% 0.158 241.966);
+    --jpd-accent-border-hover: oklch(74.6% 0.16 232.661);
+    --jpd-accent-soft: oklch(97.7% 0.013 236.62);
+    --jpd-accent-soft-hover: oklch(97.7% 0.013 236.62);
+    --jpd-accent-ring: oklch(95.1% 0.026 236.824);
+
+    --jpd-danger-text: oklch(57.7% 0.245 27.325);
+    --jpd-danger-text-hover: oklch(63.7% 0.237 25.331);
+
+    --jpd-warn-text: oklch(76.9% 0.188 70.08);
+    --jpd-warn-text-2: oklch(66.6% 0.179 58.318);
+
+    --jpd-section-text: oklch(49.6% 0.265 301.924);
+    --jpd-section-text-strong: oklch(43.8% 0.218 303.724);
+    --jpd-section-text-soft: oklch(55.8% 0.288 302.321);
+    --jpd-section-border: oklch(82.7% 0.119 306.383);
+    --jpd-section-border-hover: oklch(71.4% 0.203 305.504);
+    --jpd-section-soft: color-mix(in oklab, oklch(97.7% 0.014 308.299) 40%, transparent);
+    --jpd-section-soft-2: color-mix(in oklab, oklch(97.7% 0.014 308.299) 60%, transparent);
+    --jpd-section-hover: oklch(97.7% 0.014 308.299);
+    --jpd-section-hover-2: oklch(94.6% 0.033 307.174);
+
+    --jpd-accent-soft-strong: oklch(97.7% 0.013 236.62);
+    --jpd-callout-sky: color-mix(in oklab, oklch(97.7% 0.013 236.62) 40%, transparent);
+    --jpd-callout-sky-solid: color-mix(in oklab, oklch(97.7% 0.013 236.62) 60%, transparent);
+    --jpd-callout-sky-border: oklch(82.8% 0.111 230.318);
+    --jpd-callout-sky-border-solid: oklch(90.1% 0.058 230.902);
+    --jpd-accent-text-hover: oklch(50% 0.134 242.749);
+
+    --jpd-ruler-bg: oklch(98.4% 0.003 247.858);
+    --jpd-ruler-tick: oklch(70.4% 0.04 256.788);
+    --jpd-ruler-label: oklch(55.4% 0.046 257.417);
+  }
+
+  /* ==========================================================================
+   * 4. PRIMITIVAS DE LAYOUT
+   *
+   * Camada estreita de propósito: `grid grid-cols-2 gap-2` aparece 19 vezes,
+   * `flex flex-col gap-1` 17, `flex items-center gap-2` 8. Nomear esses
+   * poucos padrões mata ~120 literais de utilitária.
+   *
+   * REGRA PRA ISTO NÃO VIRAR TAILWIND DE NOVO: só três valores de gap
+   * (4/8/12px). Se um lugar precisar de um quarto, aquele elemento merece
+   * nome próprio em vez de mais um modificador.
+   * ========================================================================= */
+  .jpd-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-2);
+  }
+  .jpd-stack--tight {
+    gap: var(--jpd-space-1);
+  }
+  .jpd-stack--snug {
+    gap: var(--jpd-space-1-5);
+  }
+
+  .jpd-row {
+    display: flex;
+    align-items: center;
+    gap: var(--jpd-space-2);
+  }
+  .jpd-row--tight {
+    gap: var(--jpd-space-1);
+  }
+  .jpd-row--between {
+    justify-content: space-between;
+  }
+
+  .jpd-grid2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--jpd-space-2);
+  }
+
+  /* ==========================================================================
+   * 5. PAPÉIS DE TEXTO
+   *
+   * `text-[10px] text-slate-400 dark:text-gray-400` sozinho aparecia 15
+   * vezes. As três primeiras classes daqui cobrem ~50 literais.
+   *
+   * Os tamanhos 9/10/11px vinham de valor arbitrário e emitiam SÓ font-size,
+   * herdando line-height 1.5 do Preflight — por isso não levam line-height
+   * aqui, enquanto os papéis baseados em `text-xs` levam.
+   * ========================================================================= */
+  .jpd-hint {
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-text-disabled);
+  }
+  .jpd-hint--md {
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    color: var(--jpd-text-disabled);
+  }
+  .jpd-meta {
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-text-faint);
+  }
+  .jpd-error {
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-danger-text);
+  }
+  .jpd-grouplabel {
+    font-size: var(--jpd-font-size-tiny);
+    font-weight: 500;
+    color: var(--jpd-text-faint);
+  }
+  .jpd-sectionhead {
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--jpd-tracking-wide);
+    color: var(--jpd-text-faint);
+  }
+
+  /* ==========================================================================
+   * 6. BOTÃO
+   *
+   * `variant` e `size` eram dois mapas de string Tailwind (`variantCls`,
+   * `sizeCls`) dentro do componente. Agora são `data-variant`/`data-size`:
+   * o JSX escreve um atributo em vez de escolher uma classe, que é a regra
+   * geral desta migração.
+   * ========================================================================= */
+  .jpd-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--jpd-space-1-5);
+    border-radius: var(--jpd-radius-lg);
+    font-weight: 500;
+    transition-property: color, background-color, border-color;
+    transition-duration: 0.15s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .jpd-btn:focus {
+    outline-style: none;
+  }
+  /* O anel real do botão tem 3px: era `ring-2` + `ring-offset-1`, e o
+   * offset é um vão de 1px na cor `--jpd-ring-offset` POR DENTRO do anel.
+   * Era `#fff` fixo no Tailwind, inclusive no dark. */
+  .jpd-btn:focus-visible {
+    outline-style: none;
+    box-shadow:
+      0 0 0 1px var(--jpd-ring-offset),
+      0 0 0 3px var(--jpd-_btn-ring, var(--jpd-accent-ring-visible));
+  }
+  .jpd-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  .jpd-btn[data-size="sm"] {
+    padding: var(--jpd-space-1) var(--jpd-space-2-5);
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+  }
+  .jpd-btn[data-size="md"] {
+    padding: var(--jpd-space-2) var(--jpd-space-3-5);
+    font-size: var(--jpd-font-size-md);
+    line-height: var(--jpd-line-height-md);
+  }
+  .jpd-btn[data-size="icon"] {
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+    padding: 0;
+  }
+
+  .jpd-btn[data-variant="primary"] {
+    background-color: var(--jpd-accent-solid);
+    color: var(--jpd-text-on-accent);
+    box-shadow: var(--jpd-shadow-sm);
+  }
+  .jpd-btn[data-variant="danger"] {
+    background-color: var(--jpd-danger);
+    color: var(--jpd-text-on-accent);
+    box-shadow: var(--jpd-shadow-sm);
+    --jpd-_btn-ring: var(--jpd-danger-ring);
+  }
+  .jpd-btn[data-variant="outline"] {
+    border: 1px solid var(--jpd-accent-border-solid);
+    color: var(--jpd-accent);
+  }
+  .jpd-btn[data-variant="ghost"] {
+    color: var(--jpd-text-disabled);
+    --jpd-_btn-ring: var(--jpd-border-strong);
+  }
+  /* Pra usar sobre fundo escuro (header/toolbar), onde as outras variantes
+   * ficam sem contraste. */
+  .jpd-btn[data-variant="dark"] {
+    background-color: var(--jpd-zoombar-hover);
+    color: var(--jpd-text-on-accent);
+    --jpd-_btn-ring: color-mix(in oklab, #fff 30%, transparent);
+  }
+
+  /* Hover dentro de `@media (hover: hover)`: era assim que o Tailwind
+   * emitia, e sem o guard o estado de hover fica COLADO depois do toque em
+   * touch. Vale pra todo hover deste arquivo. */
+  @media (hover: hover) {
+    .jpd-btn[data-variant="primary"]:hover {
+      background-color: var(--jpd-accent-solid-hover);
+    }
+    .jpd-btn[data-variant="danger"]:hover {
+      background-color: var(--jpd-danger-hover);
+    }
+    .jpd-btn[data-variant="outline"]:hover {
+      background-color: var(--jpd-accent-soft-hover);
+    }
+    .jpd-btn[data-variant="ghost"]:hover {
+      background-color: var(--jpd-surface-hover);
+      color: var(--jpd-text-hover);
+    }
+    .jpd-btn[data-variant="dark"]:hover {
+      background-color: var(--jpd-zoombar-active);
+    }
+  }
+
+  /* Botão de ícone sem moldura (fechar modal). */
+  .jpd-iconbtn {
+    color: var(--jpd-text-disabled);
+    transition-property: color, background-color, border-color;
+    transition-duration: 0.15s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* Botão que parece link (limpar campo). */
+  .jpd-linkbtn {
+    align-self: flex-start;
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-text-disabled);
+  }
+  @media (hover: hover) {
+    .jpd-iconbtn:hover {
+      color: var(--jpd-text-hover-strong);
+    }
+    .jpd-linkbtn:hover {
+      color: var(--jpd-danger-text-hover);
+    }
+  }
+
+  /* ==========================================================================
+   * 7. CONTROLES DE FORMULÁRIO
+   *
+   * Input/Select/Textarea tinham TRÊS cópias da mesma string de classe
+   * (`controlCls` e dois arrays). Agora é uma regra só.
+   *
+   * NOME: o wrapper com rótulo é `.jpd-labeled`, não `.jpd-field` — este
+   * último é a caixa de campo do CANVAS (PageCanvas/Rnd). Duas coisas
+   * diferentes que a palavra "field" descreveria igual.
+   * ========================================================================= */
+  .jpd-input,
+  .jpd-select,
+  .jpd-textarea {
+    inline-size: 100%;
+    border: 1px solid var(--jpd-border-strong);
+    border-radius: var(--jpd-radius-lg);
+    background-color: var(--jpd-surface-field);
+    padding: var(--jpd-space-1-5) var(--jpd-space-2-5);
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    color: var(--jpd-text-field);
+    box-shadow: var(--jpd-shadow-sm);
+    transition-property: color, background-color, border-color;
+    transition-duration: 0.15s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .jpd-textarea {
+    resize: vertical;
+  }
+  /* `shadow-sm` e `focus:ring-2` dividiam UM box-shadow no Tailwind, então
+   * no foco os dois renderizam juntos. Escrito à mão tem de reproduzir a
+   * composição, senão a sombra desaparece ao focar. */
+  .jpd-input:focus,
+  .jpd-select:focus,
+  .jpd-textarea:focus {
+    outline-style: none;
+    border-color: var(--jpd-accent-border);
+    box-shadow:
+      0 0 0 2px var(--jpd-accent-ring),
+      var(--jpd-shadow-sm);
+  }
+  /* Cor do placeholder — aparência, então mora aqui e não no reset.css
+   * (que só carrega o `opacity: 1` do Preflight pro mesmo seletor). */
+  .jpd-input::placeholder,
+  .jpd-textarea::placeholder {
+    color: var(--jpd-text-placeholder);
+  }
+
+  .jpd-input[data-mono],
+  .jpd-textarea[data-mono] {
+    font-family: var(--jpd-font-mono);
+  }
+
+  .jpd-color-input {
+    inline-size: 100%;
+    block-size: 1.75rem;
+    cursor: pointer;
+    border: 1px solid var(--jpd-border-strong);
+    border-radius: var(--jpd-radius-lg);
+    background-color: var(--jpd-surface-field);
+    padding: var(--jpd-space-0-5);
+  }
+
+  .jpd-labeled {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-1);
+  }
+  .jpd-labeled__text {
+    font-size: var(--jpd-font-size-small);
+    font-weight: 500;
+    color: var(--jpd-text-label);
+  }
+
+  /* ==========================================================================
+   * 8. CARD / BADGE
+   * ========================================================================= */
+  .jpd-card {
+    border: 1px solid var(--jpd-border);
+    border-radius: var(--jpd-radius-xl);
+    background-color: var(--jpd-surface);
+    box-shadow: var(--jpd-shadow-sm);
+  }
+  .jpd-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--jpd-space-2);
+  }
+  .jpd-card__title {
+    font-size: var(--jpd-font-size-md);
+    line-height: var(--jpd-line-height-md);
+    font-weight: 600;
+    color: var(--jpd-text-strong);
+  }
+  .jpd-badge {
+    display: block;
+    inline-size: fit-content;
+    max-inline-size: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: var(--jpd-radius-md);
+    background-color: var(--jpd-surface-muted);
+    padding: var(--jpd-space-0-5) var(--jpd-space-1-5);
+    font-family: var(--jpd-font-mono);
+    font-size: var(--jpd-font-size-small);
+    color: var(--jpd-text-muted);
+  }
+
+  /* ==========================================================================
+   * 9. TAB PANEL (colapso animado)
+   *
+   * O truque é grid `1fr` -> `0fr`, que anima a altura sem saber o tamanho
+   * do conteúdo — coisa que `max-height` fixo não faz. Saiu de `style`
+   * inline pra cá: agora é `data-collapsed`, e o tema controla a duração.
+   *
+   * `min-height: 0` no wrapper é essencial: quem usa isto está sempre dentro
+   * de um `flex column`, e item de flex tem `min-height: auto`, então sem
+   * zerar ele nunca encolhe abaixo do próprio conteúdo — truque de grid ou
+   * não.
+   * ========================================================================= */
+  .jpd-tabpanel {
+    display: grid;
+    grid-template-rows: 1fr;
+    min-block-size: 0;
+    transition-property: grid-template-rows;
+    transition-duration: 0.2s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .jpd-tabpanel[data-collapsed] {
+    grid-template-rows: 0fr;
+  }
+  .jpd-tabpanel__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-2);
+    min-block-size: 0;
+    overflow: hidden;
+  }
+
+  /* ==========================================================================
+   * 10. MODAL
+   *
+   * As mesmas classes servem o <Modal> genérico e o PdfPreviewModal, que
+   * tinha três strings BYTE-IDÊNTICAS a ele. O painel do preview é o único
+   * diferente: altura FIXA em vez de máxima, porque o cálculo de zoom dele
+   * mede `clientHeight` do container.
+   * ========================================================================= */
+  .jpd-modal {
+    position: fixed;
+    inset: 0;
+    z-index: var(--jpd-z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--jpd-overlay);
+    padding: var(--jpd-space-4);
+  }
+  .jpd-modal__panel {
+    display: flex;
+    flex-direction: column;
+    max-block-size: 92vh;
+    inline-size: 92vw;
+    max-inline-size: var(--jpd-_modal-max, 48rem);
+    border-radius: var(--jpd-radius-xl);
+    background-color: var(--jpd-surface);
+    box-shadow: var(--jpd-shadow-2xl);
+  }
+  .jpd-modal__panel[data-size="sm"] {
+    --jpd-_modal-max: 28rem;
+  }
+  .jpd-modal__panel[data-size="md"] {
+    --jpd-_modal-max: 36rem;
+  }
+  .jpd-modal__panel[data-size="lg"] {
+    --jpd-_modal-max: 48rem;
+  }
+  .jpd-modal__panel[data-size="xl"] {
+    --jpd-_modal-max: 64rem;
+  }
+  .jpd-modal__panel[data-size="full"] {
+    --jpd-_modal-max: none;
+  }
+  /* Painel do preview de PDF: altura FIXA, não máxima. */
+  .jpd-modal__panel[data-fill] {
+    block-size: 92vh;
+    max-block-size: none;
+  }
+  .jpd-modal__header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--jpd-space-2);
+    border-block-end: 1px solid var(--jpd-border);
+    border-start-start-radius: var(--jpd-radius-xl);
+    border-start-end-radius: var(--jpd-radius-xl);
+    padding: var(--jpd-space-3) var(--jpd-space-5);
+  }
+  .jpd-modal__title {
+    font-size: var(--jpd-font-size-lg);
+    line-height: var(--jpd-line-height-lg);
+    font-weight: 600;
+    color: var(--jpd-text-strong);
+  }
+  .jpd-modal__body {
+    min-block-size: 0;
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--jpd-space-4) var(--jpd-space-5);
+  }
+  .jpd-modal__footer {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--jpd-space-2);
+    border-block-start: 1px solid var(--jpd-border);
+    border-end-start-radius: var(--jpd-radius-xl);
+    border-end-end-radius: var(--jpd-radius-xl);
+    padding: var(--jpd-space-3) var(--jpd-space-5);
+  }
+
+  /* ==========================================================================
+   * 11. BULK LOCKED / DISCLOSURE
+   * ========================================================================= */
+  .jpd-locked {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-2);
+    border: 1px dashed var(--jpd-border-strong);
+    border-radius: var(--jpd-radius-lg);
+    padding: var(--jpd-space-2);
+  }
+  .jpd-locked__hint {
+    display: flex;
+    align-items: center;
+    gap: var(--jpd-space-1);
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-text-disabled);
+  }
+  .jpd-locked__body {
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-2);
+    opacity: 0.5;
+  }
+
+  .jpd-disclosure {
+    border: 1px dashed var(--jpd-border-strong);
+    border-radius: var(--jpd-radius-lg);
+    padding: var(--jpd-space-2);
+  }
+  .jpd-disclosure__summary {
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--jpd-font-size-tiny);
+    font-weight: 500;
+    color: var(--jpd-text-faint);
+  }
+  .jpd-disclosure__body {
+    margin-block-start: var(--jpd-space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-1-5);
+  }
+
+  /* ==========================================================================
+   * 12. SELETOR DE PALETA
+   *
+   * `swatchSize`/`swatchGap`/`swatchShrink` eram três props cujo VALOR era
+   * classe Tailwind — invisíveis a qualquer busca por `className`. Viraram
+   * um `data-size` de dois valores, que é o que as duas chamadas reais
+   * usavam ("md" no gráfico, "sm" na tabela).
+   * ========================================================================= */
+  .jpd-palette {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-1);
+  }
+  /* `background-color` explícito, e não é enfeite: este é um `<button>` que
+   * TEM classe, então o reset por elemento (`:not([class])`) de propósito
+   * não o alcança, e ele não está na lista de classes do reset.css. Sem a
+   * declaração ele cai no `ButtonFace` do sistema — que com
+   * `color-scheme: dark` é cinza-escuro, e aí o rótulo dava 3.45:1 e a seta
+   * 1.25:1 (medido no examples/no-preview). */
+  .jpd-palette__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--jpd-space-2);
+    border: 1px solid var(--jpd-border-strong);
+    background-color: var(--jpd-surface-field);
+    border-radius: var(--jpd-radius-lg);
+    padding: var(--jpd-space-1-5) var(--jpd-space-2-5);
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    color: var(--jpd-text);
+  }
+  @media (hover: hover) {
+    .jpd-palette__trigger:hover {
+      border-color: var(--jpd-accent-border-hover);
+    }
+  }
+  .jpd-palette__current {
+    display: flex;
+    align-items: center;
+    gap: var(--jpd-space-2);
+  }
+  .jpd-palette__empty,
+  .jpd-palette__arrow {
+    color: var(--jpd-text-disabled-2);
+  }
+  .jpd-palette__menu {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-0-5);
+    border: 1px solid var(--jpd-border-alt);
+    border-radius: var(--jpd-radius-lg);
+    padding: var(--jpd-space-1);
+  }
+  .jpd-palette__menu[data-variant="grid"] {
+    gap: var(--jpd-space-2);
+    max-block-size: 14rem;
+    overflow-y: auto;
+    padding: var(--jpd-space-1-5);
+  }
+  .jpd-palette__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-1);
+  }
+  .jpd-palette__grouplabel {
+    font-size: var(--jpd-font-size-tiny);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: var(--jpd-tracking-wide);
+    color: var(--jpd-text-disabled-2);
+  }
+  .jpd-palette__options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--jpd-space-1);
+  }
+  .jpd-palette__option {
+    display: flex;
+    align-items: center;
+    gap: var(--jpd-space-2);
+    border-radius: var(--jpd-radius-md);
+    padding: var(--jpd-space-1-5) var(--jpd-space-2);
+    text-align: start;
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+  }
+  .jpd-palette__menu[data-variant="grid"] .jpd-palette__option {
+    gap: var(--jpd-space-1-5);
+    padding: var(--jpd-space-1) var(--jpd-space-1-5);
+    font-size: var(--jpd-font-size-small);
+  }
+  .jpd-palette__option[data-selected] {
+    background-color: var(--jpd-accent-soft);
+  }
+  @media (hover: hover) {
+    .jpd-palette__option:hover {
+      background-color: var(--jpd-accent-soft-hover);
+    }
+  }
+  .jpd-palette__optionlabel {
+    color: var(--jpd-text);
+  }
+
+  .jpd-swatches {
+    display: flex;
+    gap: var(--jpd-space-1);
+    --jpd-_swatch-size: 1rem;
+  }
+  /* "sm" era o caso da tabela: bolinha menor, gap menor, e sem
+   * `flex-shrink-0` — o encolhimento existia pra três bolinhas caberem numa
+   * célula de grid de 2 colunas. */
+  .jpd-swatches[data-size="sm"] {
+    gap: var(--jpd-space-0-5);
+    --jpd-_swatch-size: 0.875rem;
+  }
+  .jpd-swatch {
+    inline-size: var(--jpd-_swatch-size);
+    block-size: var(--jpd-_swatch-size);
+    flex-shrink: 0;
+    border-radius: var(--jpd-radius-full);
+    border: 1px solid var(--jpd-swatch-ring);
+  }
+  .jpd-swatches[data-size="sm"] .jpd-swatch {
+    flex: 0 1 auto;
+    min-inline-size: 0;
+  }
+
+  /* ==========================================================================
+   * 13. PREVIEW DE PDF
+   *
+   * O poço onde a folha renderizada rola. `align-items: center` sem
+   * `justify-content`: centraliza na horizontal e alinha ao topo na
+   * vertical — com várias páginas, rola pra baixo normal, sem cortar o topo
+   * da primeira.
+   * ========================================================================= */
+  .jpd-preview__well {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    border-end-start-radius: var(--jpd-radius-xl);
+    border-end-end-radius: var(--jpd-radius-xl);
+    background-color: var(--jpd-surface-sunken);
+    padding: var(--jpd-space-4);
+  }
+  .jpd-preview__count {
+    margin: 0;
+    margin-block-end: var(--jpd-space-2);
+    font-size: var(--jpd-font-size-small);
+    color: var(--jpd-text-faint);
+  }
+  /* Mensagem de erro do preview: mesmo papel de `.jpd-error`, um degrau
+   * maior de fonte. */
+  .jpd-error--md {
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+  }
+
+  /* Toolbar de "adicionar campo" — um site de classe, um nome. */
+  .jpd-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--jpd-space-2);
+  }
+
+  /* ==========================================================================
+   * 14. COMPARTILHADO ENTRE GRUPOS
+   *
+   * Estas classes foram emitidas por MAIS DE UM grupo da migração, cada um
+   * vendo só a sua fatia do código. Consolidadas aqui, porque duas
+   * definições do mesmo seletor em arquivos concatenados resolvem por ordem
+   * de fonte — ou seja, por acidente.
+   *
+   * Onde os grupos divergiram, a divergência era REAL (o código-fonte
+   * divergia), então virou modificador em vez de virar uma média que não
+   * reproduz nenhum dos dois.
+   * ========================================================================= */
+
+  /* --- callout: caixa de dica/aviso ------------------------------------
+   * Cinco instâncias reais no editor, e elas diferem em borda (sólida vs
+   * tracejada), padding (8 vs 10) e cor (roxo da seção, sky do vínculo,
+   * slate neutro). O `display`/`gap` NÃO entra aqui de propósito: o call
+   * site compõe `jpd-stack*`, que é onde os três gaps diferentes já moram. */
+  .jpd-callout {
+    border: 1px dashed var(--jpd-border-strong);
+    border-radius: var(--jpd-radius-lg);
+    padding: var(--jpd-space-2);
+  }
+  .jpd-callout--roomy {
+    padding: var(--jpd-space-2-5);
+  }
+  .jpd-callout--solid {
+    border-style: solid;
+  }
+  .jpd-callout[data-tone="purple"] {
+    border-color: var(--jpd-section-border);
+    background-color: var(--jpd-section-soft);
+  }
+  /* O roxo SÓLIDO (seletor de seção, na sidebar) tem alfa de fundo maior que
+   * o roxo tracejado (dica de fonte de dados). Um só não reproduz os dois. */
+  .jpd-callout--solid[data-tone="purple"] {
+    background-color: var(--jpd-section-soft-2);
+  }
+  .jpd-callout[data-tone="sky"] {
+    border-color: var(--jpd-callout-sky-border);
+    background-color: var(--jpd-callout-sky);
+  }
+  .jpd-callout--solid[data-tone="sky"] {
+    border-color: var(--jpd-callout-sky-border-solid);
+    background-color: var(--jpd-callout-sky-solid);
+    /* Este é o único callout com raio pequeno — era `rounded`, não
+     * `rounded-lg`, no original. */
+    border-radius: var(--jpd-radius-sm);
+  }
+  .jpd-callout[data-tone="slate"] {
+    border-color: var(--jpd-border-strong);
+  }
+
+  /* Três títulos de callout, três tamanhos, porque eram três no original.
+   * Modificador explícito em vez de seletor descendente por tom: mantém a
+   * especificidade rasa, então o CSS do consumidor continua ganhando. */
+  .jpd-callout__title {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--jpd-space-1);
+    font-weight: 500;
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-section-text);
+  }
+  .jpd-callout__title--strong {
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    color: var(--jpd-section-text-strong);
+  }
+  /* Linha clicável dentro da lista do callout (coluna disponível pra
+   * adicionar). Foi perdida no dedup e reposta — o guard de "classe usada e
+   * não estilizada" pegou. */
+  .jpd-callout__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--jpd-space-1);
+    border-radius: var(--jpd-radius-sm);
+    padding: var(--jpd-space-0-5) var(--jpd-space-1);
+    font-size: var(--jpd-font-size-small);
+  }
+  @media (hover: hover) {
+    .jpd-callout__item:hover {
+      background-color: var(--jpd-section-hover-2);
+    }
+  }
+
+  .jpd-callout__title--neutral {
+    font-size: var(--jpd-font-size-small);
+    color: var(--jpd-text-muted);
+  }
+
+  /* --- barra de abas ---------------------------------------------------
+   * Duas barras no editor: a do painel lateral (arrastável pra reordenar) e
+   * a do modal de fórmula (não arrastável). A base é a do modal; o que é
+   * afordância de ARRASTO fica atrás de `[draggable="true"]`.
+   *
+   * Isso não é purismo: pôr `cursor: grab` na base daria às abas do modal de
+   * fórmula um cursor de arraste que elas nunca tiveram, e `position:
+   * relative` criaria contexto de posicionamento onde não havia. */
+  .jpd-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--jpd-space-0-5);
+    border-block-end: 1px solid var(--jpd-border);
+  }
+  /* Faixa de abas que ROLA na horizontal, pra instância que não tem o menu
+   * "+" ao lado.
+   *
+   * O painel lateral resolve o transbordo com uma faixa interna
+   * (`.jpd-tabs__strip`), porque o `.jpd-tabs` dele também segura o
+   * `.jpd-tabs__more`, e pôr `overflow` no container cortaria o popover que
+   * abre dali. O modal de fórmula não tem esse menu, então rola direto.
+   *
+   * NÃO é cosmético: em pt-BR as duas abas do modal medem 225px numa coluna
+   * de 176px (medido: "Campos do item" 105 + "Caminhos de dado" 118), e com
+   * `overflow: visible` elas passavam por cima da coluna do editor. Em
+   * inglês ("Item fields"/"Data paths") cabe exato em 176 — ou seja, o bug
+   * só aparecia traduzido. */
+  .jpd-tabs--scroll {
+    min-inline-size: 0;
+    overflow-x: auto;
+    /* Barra escondida: numa faixa de ~30px de altura ela come metade do
+     * espaço. Roda de mouse e trackpad continuam rolando. */
+    scrollbar-width: none;
+  }
+  .jpd-tabs--scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .jpd-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: var(--jpd-space-1-5) var(--jpd-space-2);
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    font-weight: 500;
+    color: var(--jpd-text-faint);
+  }
+  .jpd-tab[draggable="true"] {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--jpd-space-0-5);
+    cursor: grab;
+  }
+  .jpd-tab[draggable="true"]:active {
+    cursor: grabbing;
+  }
+  /* `[data-active="true"]` e NÃO `[data-active]`: o Designer escreve o
+   * booleano cru porque um querySelector dele procura exatamente esse valor,
+   * e o React serializa `false` como a STRING "false" — que casaria
+   * `[data-active]` em toda aba. Os dois lados andam juntos. */
+  .jpd-tab[data-active="true"] {
+    border-block-end: 2px solid var(--jpd-accent-border);
+    color: var(--jpd-accent);
+  }
+  .jpd-tab[data-dragging] {
+    opacity: 0.4;
+  }
+  @media (hover: hover) {
+    .jpd-tab:not([data-active="true"]):hover {
+      color: var(--jpd-text);
+    }
+  }
+
+  /* --- popover: superfície flutuante ----------------------------------
+   * Duas no editor, e são diferentes de verdade: o menu "+" da barra de abas
+   * (ancorado à direita, itens empilhados) e a lista de sugestão do editor
+   * de expressão (ocupa a largura do campo, rola, é um <ul>). A base é só a
+   * superfície. */
+  .jpd-popover {
+    position: absolute;
+    inset-block-start: 100%;
+    z-index: var(--jpd-z-dropdown);
+    border: 1px solid var(--jpd-border-alt);
+    border-radius: var(--jpd-radius-lg);
+    background-color: var(--jpd-surface);
+  }
+  .jpd-popover--anchor-right {
+    inset-inline-end: 0;
+    margin-block-start: var(--jpd-space-1);
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-0-5);
+    padding: var(--jpd-space-1);
+    box-shadow: var(--jpd-shadow-md);
+  }
+  .jpd-popover--anchor-stretch {
+    inset-inline: 0;
+    max-block-size: 12rem;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: var(--jpd-space-1) 0;
+    box-shadow: var(--jpd-shadow-lg);
+  }
+
+  .jpd-menuitem {
+    white-space: nowrap;
+    border-radius: var(--jpd-radius-md);
+    padding: var(--jpd-space-1) var(--jpd-space-2);
+    text-align: left;
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    color: var(--jpd-text);
+  }
+  .jpd-menuitem--muted {
+    color: var(--jpd-text-faint);
+  }
+  .jpd-menuitem[data-active] {
+    background-color: var(--jpd-accent-soft-strong);
+  }
+  @media (hover: hover) {
+    .jpd-menuitem:hover {
+      background-color: var(--jpd-accent-soft-hover);
+    }
+    .jpd-menuitem--muted:hover {
+      background-color: var(--jpd-surface-hover);
+    }
+  }
+
+  /* --- chip mono -------------------------------------------------------
+   * Três no editor, mesma moldura e três comportamentos: arrastável da lista
+   * de fontes (hover roxo), arrastável da lista de colunas (sem hover), e
+   * clicável do editor de fórmula (hover accent). */
+  .jpd-chip {
+    border: 1px solid var(--jpd-border-strong);
+    border-radius: var(--jpd-radius-sm);
+    background-color: var(--jpd-surface-field);
+    padding: var(--jpd-space-0-5) var(--jpd-space-1-5);
+    font-family: var(--jpd-font-mono);
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-text-muted);
+  }
+  .jpd-chip--source {
+    cursor: grab;
+  }
+  .jpd-chip--source:active {
+    cursor: grabbing;
+  }
+  /* Chip de reordenar coluna: vira linha (leva alça + rótulo + botões),
+   * fundo levemente diferente, e NEUTRALIZA o hover roxo da base — a lista
+   * de colunas não tem afordância de "solte aqui". */
+  .jpd-chip--drag {
+    display: flex;
+    align-items: center;
+    gap: var(--jpd-space-1);
+    background-color: var(--jpd-surface-muted-2);
+    padding-block: var(--jpd-space-1);
+  }
+  .jpd-chip--drag[data-dragging] {
+    opacity: 0.4;
+  }
+  .jpd-chip__label {
+    flex: 1;
+  }
+  .jpd-chip__grip {
+    color: var(--jpd-text-disabled);
+  }
+  .jpd-chip--action {
+    background-color: var(--jpd-surface);
+    text-align: left;
+    transition-property: color, background-color, border-color;
+    transition-duration: 0.15s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @media (hover: hover) {
+    .jpd-chip--source:hover {
+      border-color: var(--jpd-section-border-hover);
+      background-color: var(--jpd-section-hover);
+    }
+    .jpd-chip--action:hover {
+      border-color: var(--jpd-accent-border-hover);
+      color: var(--jpd-accent-text-hover);
+    }
+    /* Depois do `--source:hover` de propósito: mesma especificidade, então a
+     * ordem é que desliga o hover roxo aqui. */
+    .jpd-chip--drag:hover {
+      border-color: var(--jpd-border-strong);
+      background-color: var(--jpd-surface-muted-2);
+    }
+  }
+
+  /* --- botão de ícone com acento (ƒx, "···") --------------------------- */
+  .jpd-iconbtn--accent[data-on] {
+    color: var(--jpd-accent);
+  }
+  .jpd-iconbtn--danger {
+    color: var(--jpd-text-disabled);
+  }
+  @media (hover: hover) {
+    .jpd-iconbtn--accent:hover {
+      color: var(--jpd-accent-hover);
+    }
+    .jpd-iconbtn--danger:hover {
+      color: var(--jpd-danger-text-hover);
+    }
+  }
+
+  /* --- ícone de aviso -------------------------------------------------- */
+  .jpd-warnicon {
+    flex-shrink: 0;
+    color: var(--jpd-warn-text);
+  }
+  /* 12px em vez dos 14 do ícone padrão — a barra de abas é apertada.
+   * Tamanho POR CLASSE funciona: em SVG2 `width`/`height` são geometry
+   * properties, então CSS vence o atributo (medido: atributo 14 mais classe
+   * de 10px renderiza 10px). */
+  .jpd-warnicon--sm {
+    inline-size: var(--jpd-space-3);
+    block-size: var(--jpd-space-3);
+  }
+
+
+  /* ===== grupo A (migração Fase 2) ===== */
+
+  /* ==========================================================================
+   * CASCA
+   * ========================================================================= */
+  .jpd-designer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-3);
+  }
+  .jpd-designer__main {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--jpd-space-4);
+  }
+  /* Raiz das peças que EMBRULHAM em vez de reproduzir a raiz de dentro —
+   * `DesignerInspector` e `DesignerBindingEditor`. As duas chamam
+   * componentes com mais de uma raiz possível (a lista, ou um `<p>` de
+   * estado vazio), então não há elemento estável pra receber o `className`
+   * do consumidor sem um nível a mais.
+   *
+   * `min-inline-size: 0` é a única declaração, e é a que importa: item de
+   * flex/grid tem `min-width: auto` por default e se RECUSA a encolher
+   * abaixo do conteúdo — o mesmo motivo de `.jpd-designer__canvas` abaixo.
+   * Sem isto a peça estoura um painel estreito em vez de rolar/quebrar.
+   *
+   * Nada de padding, cor ou display: o consumidor posiciona. */
+  .jpd-part {
+    min-inline-size: 0;
+  }
+
+  /* Caixa que ROLA (leva `data-scroll-root`). O canvas tem largura inline
+   * fixa (contentWidth * zoom), então não encolhe — `min-inline-size: 0`
+   * deixa ESTA caixa encolher abaixo do conteúdo dela e a rolagem fica aqui,
+   * em vez de empurrar o painel lateral fora da viewport. Ver o comentário
+   * no JSX e `fitTo` em PageCanvas.tsx. */
+  .jpd-designer__canvas {
+    min-inline-size: 0;
+    flex: 1 1 0%;
+    overflow-x: auto;
+  }
+  /* Convive com `.jpd-card` no mesmo elemento sem brigar: o <Card> traz
+   * borda, raio, fundo e sombra; largura, padding e a coluna flex são daqui.
+   * Nenhuma propriedade se repete, então a ordem de concatenação é
+   * indiferente aqui. */
+  .jpd-sidebar {
+    display: flex;
+    inline-size: 20rem;
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: var(--jpd-space-3);
+    padding: var(--jpd-space-3-5);
+  }
+  /* Corpo do editor de campo (aba Dados/Estilo/Filtro). Gap de 12px — não é
+   * `.jpd-stack`, que é 8. */
+  .jpd-sidebar__panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-3);
+  }
+  /* "N campos selecionados" / banner de edição em bloco. 11px vinha de valor
+   * arbitrário e emitia SÓ font-size — sem line-height aqui de propósito. */
+  .jpd-sidebar__banner {
+    margin: 0;
+    font-size: var(--jpd-font-size-small);
+    color: var(--jpd-accent);
+  }
+  /* Rodapé do painel "Campos": dica + toolbar de adicionar + callout. */
+  .jpd-sidebar__footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-2);
+    border-block-start: 1px solid var(--jpd-border);
+    padding-block-start: var(--jpd-space-3);
+  }
+
+  /* Faixa que rola na horizontal sem mostrar barra de rolagem.
+     Usada na barra de abas do painel lateral: com 6 abas em português ela passa
+     dos 320px do painel (medido: 335px de conteúdo em 290 de espaço, com o
+     "Inspetor" cortado). Rolar é a saída certa — a largura do painel não pode
+     depender da contagem de abas, porque Dados/Estilo/Filtro aparecem e
+     desaparecem conforme o tipo do campo selecionado, e o canvas pularia a cada
+     troca de seleção.
+
+     A barra é escondida porque numa faixa de 28px de altura ela come metade do
+     espaço; a aba ativa é trazida pra vista por código (ver Designer.tsx), e
+     roda de mouse/trackpad continua rolando. */
+  .jpd-tabs__strip {
+    display: flex;
+    min-inline-size: 0;
+    flex: 1 1 0%;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--jpd-space-0-5);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  /* `scrollbar-width` só vale no Firefox e no Chromium 121+. Sem o
+   * pseudo-elemento, Safari e Chromium antigo desenham a barra — e numa
+   * faixa de 28px ela come metade da altura, que é exatamente o que a
+   * medição acima diz pra evitar. O `.jpd-scroll-x` do style.css antigo
+   * tinha as duas regras; esta é a segunda. */
+  .jpd-tabs__strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Setas de rolagem (`data-dir`) e o "+" (sem `data-dir`). Só a cor, o raio
+   * e o hover são comuns — ver o porquê do display separado abaixo. */
+  .jpd-tabs__btn {
+    border-radius: var(--jpd-radius-sm);
+    color: var(--jpd-text-disabled-2);
+  }
+  /* Setas: NÃO declaram `display`. O <svg> dentro é filho INLINE de uma caixa
+   * de bloco, então há caixa de linha (e o vão de descendente que vinha com
+   * ela). Trocar pra `flex` aqui tiraria esse vão e mudaria a altura do
+   * botão — invisível no total (a linha é dimensionada pelas abas), mas é
+   * mudança sem motivo. O "+" abaixo era `flex` no original e continua. */
+  .jpd-tabs__btn[data-dir] {
+    flex-shrink: 0;
+    padding: var(--jpd-space-1);
+  }
+  /* Grupo do "+": ancora o popover (`position: relative`) e empurra pro fim
+   * da faixa. */
+  .jpd-tabs__more {
+    position: relative;
+    margin-inline-start: auto;
+    flex-shrink: 0;
+  }
+  /* Indicador de destino do arraste (fica ANTES da aba sob o cursor). */
+  .jpd-tab__dropmark {
+    position: absolute;
+    inset-block: var(--jpd-space-0-5);
+    inset-inline-start: calc(var(--jpd-space-0-5) * -1);
+    inline-size: var(--jpd-space-0-5);
+    border-radius: var(--jpd-radius-sm);
+    background-color: var(--jpd-accent-border);
+  }
+  /* "Esconder esta aba" — <span role="button">, só na aba ativa. */
+  .jpd-tab__pin {
+    margin-inline-end: calc(var(--jpd-space-1) * -1);
+    cursor: pointer;
+    border-radius: var(--jpd-radius-sm);
+    padding: var(--jpd-space-0-5);
+    color: currentcolor;
+    opacity: 0.6;
+  }
+  /* O <svg> aqui não leva classe (ver o relatório do grupo A: `width`/
+   * `height` de <svg> são geometry properties do SVG2, então CSS VENCE o
+   * atributo — o `h-2.5 w-2.5` de antes valia de verdade). Sem esta regra o
+   * "x" iria de 10px pro 14px do atributo. `--jpd-space-2-5` é 0.625rem, o
+   * valor exato de `w-2.5`; não existe escala de TAMANHO DE ÍCONE nos tokens
+   * (reportado). */
+  .jpd-tab__pin > svg {
+    inline-size: var(--jpd-space-2-5);
+    block-size: var(--jpd-space-2-5);
+  }
+  .jpd-menu__sep {
+    margin-block: var(--jpd-space-0-5);
+    border-block-start: 1px solid var(--jpd-border-alt);
+  }
+  /* Linha de botões do callout. Gap de 6px: não cabe em `.jpd-row--*`
+   * (8/4px), e `.jpd-row` ainda traria `align-items: center`. */
+  .jpd-callout__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--jpd-space-1-5);
+  }
+  /* "Nenhuma fonte de dados" — 10px de valor arbitrário, sem line-height. */
+  .jpd-callout__hint {
+    margin: 0;
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-section-text-soft);
+  }
+
+  /* ==========================================================================
+   * DIVERSOS
+   * ========================================================================= */
+  /* Poço da lista de campos: rola sozinha em vez de esticar o painel. */
+  .jpd-fieldlist__scroll {
+    max-block-size: 12rem;
+    overflow-y: auto;
+  }@media (hover: hover){
+    .jpd-tabs__btn:hover {
+      background-color: var(--jpd-surface-hover);
+      color: var(--jpd-text-hover);
+    }
+    .jpd-tab__pin:hover {
+      background-color: var(--jpd-surface-active);
+      opacity: 1;
+    }
+  }
+
+  /* Lista rolável de colunas da fonte (PropertyPanelTable.tsx:343). O gap de
+   * 2px é o QUARTO valor de gap do editor, e é justamente por isso que este
+   * elemento tem nome próprio em vez de mais um `jpd-stack--*`. */
+  .jpd-callout__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-0-5);
+    max-block-size: 8rem;
+    overflow-y: auto;
+  }
+  /* Linha de chips arrastáveis (PropertyPanelSection.tsx:24). Sem
+   * `align-items` de propósito: era `flex flex-wrap gap-1` puro, e o
+   * `stretch` default é o que iguala a altura dos chips de cada linha. */
+  .jpd-callout__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--jpd-space-1);
+  }
+
+  /* --------------------------------------------------------------------------
+   * B3. CHECKLINE — <label> com checkbox nativo
+   *
+   * Três sites BYTE-IDÊNTICOS em PropertyPanelTable.tsx (zebra, repetir
+   * cabeçalho, linha de totais).
+   *
+   * O estado marcado NÃO tem `data-*`: `<input type="checkbox">` já expõe
+   * `:checked`. Nada aqui reage a ele hoje — o controle é o nativo, sem
+   * `appearance` trocada — mas se um dia reagir, é por `:checked`. */
+  .jpd-checkline {
+    display: flex;
+    align-items: center;
+    gap: var(--jpd-space-2);
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    font-weight: 500;
+    color: var(--jpd-text-muted);
+  }
+  /* Reset local. O `*{margin:0}` do Preflight zerava a margem do checkbox; o
+   * UA dá `margin: 3px 3px 3px 4px`, então sem isto a linha ganha ~6px de
+   * folga horizontal e o texto desalinha. */
+  .jpd-checkline__box {
+    margin: 0;
+  }
+
+  /* --------------------------------------------------------------------------
+   * B4. SELETOR DE ÍCONE (PropertyPanelKpi.tsx, IconPicker)
+   * ------------------------------------------------------------------------ */
+  .jpd-iconpick {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--jpd-space-1);
+    max-block-size: 8rem;
+    overflow-y: auto;
+    border: 1px solid var(--jpd-border-alt);
+    border-radius: var(--jpd-radius-lg);
+    padding: var(--jpd-space-1-5);
+  }
+  /* Composto com `.jpd-hint` (10px + text-disabled); aqui só o que sobra:
+   * `col-span-6` -> `1 / -1`, que não depende da contagem de colunas. */
+  .jpd-iconpick__empty {
+    grid-column: 1 / -1;
+    padding-block: var(--jpd-space-2);
+    text-align: center;
+  }
+  /* Reset local de <button> — este é o único botão novo do grupo que não
+   * compõe com `.jpd-btn`/`.jpd-iconbtn`/`.jpd-linkbtn`, então carrega ele
+   * mesmo o que vinha do Preflight. `border: 1px solid` completo pelo mesmo
+   * motivo do callout. */
+  .jpd-iconpick__item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: inherit;
+    font-family: var(--jpd-font-sans);
+    letter-spacing: inherit;
+    margin: 0;
+    appearance: button;
+    cursor: pointer;
+    background-color: transparent;
+    border: 1px solid var(--jpd-border-alt);
+    border-radius: var(--jpd-radius-md);
+    padding: var(--jpd-space-1-5);
+    color: var(--jpd-text-muted);
+  }
+  .jpd-iconpick__item[data-selected] {
+    border-color: var(--jpd-accent-border);
+    background-color: var(--jpd-accent-soft);
+    color: var(--jpd-accent);
+  }
+  /* Depois de `[data-selected]` de propósito: no original o Tailwind também
+   * emitia a variante `hover:` depois da utilitária base, então passar o
+   * mouse num item já selecionado trocava a borda pro tom de hover. */
+  @media (hover: hover) {
+    .jpd-iconpick__item:hover {
+      border-color: var(--jpd-accent-border-hover);
+      background-color: var(--jpd-accent-soft-hover);
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+   * B5. CAIXA / SUBCARD / GRID DE CORES
+   * ------------------------------------------------------------------------ */
+  /* Quadrado 32x32 que mostra o ícone escolhido (PropertyPanelKpi.tsx:65). */
+  .jpd-box {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2rem;
+    block-size: 2rem;
+    border: 1px solid var(--jpd-border-strong);
+    border-radius: var(--jpd-radius-lg);
+    color: var(--jpd-text-muted);
+  }
+  /* O travessão de "nenhum ícone". 9px é o único uso de `--jpd-font-size-micro`
+   * do grupo, e não leva line-height (ver armadilha 5 do briefing). */
+  .jpd-box__empty {
+    font-size: var(--jpd-font-size-micro);
+    color: var(--jpd-text-disabled-2);
+  }
+
+  /* Cartão DENTRO do painel (DataTypeFields.tsx:37) — mesma superfície do
+   * `.jpd-card`, mas raio pequeno, borda `border-alt` e padding de 6px. */
+  .jpd-subcard {
+    border: 1px solid var(--jpd-border-alt);
+    border-radius: var(--jpd-radius-sm);
+    background-color: var(--jpd-surface);
+    padding: var(--jpd-space-1-5);
+  }
+
+  /* As 7 cores da paleta customizada do gráfico (PropertyPanelChart.tsx:62).
+   * Sete colunas fixas, uma por posição de CHART_PALETTE_SIZE. */
+  .jpd-colorgrid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--jpd-space-1);
+  }
+
+  /* --------------------------------------------------------------------------
+   * B6. MODIFICADORES DE `jpd-row`
+   *
+   * `--baseline` e `--grow` são ORTOGONAIS de propósito, e não um modificador
+   * só: dos seis sites envolvidos, três querem os dois, dois querem só o
+   * alinhamento (PropertyPanelText.tsx:73/83, onde crescer o ColorInput
+   * mudaria a largura do swatch) e um quer só o crescimento
+   * (PropertyPanelTable.tsx:530, cuja linha alinhava ao CENTRO porque o
+   * <Input> dela não tem rótulo). Ver relatório.
+   * ------------------------------------------------------------------------ */
+  /* Rótulo em cima, controle embaixo: alinhar pela BASE é o que põe o botão
+   * ƒx na mesma linha do controle, não na do rótulo. */
+  .jpd-row--baseline {
+    align-items: flex-end;
+  }
+  /* Substitui os quatro `className="flex-1"` que eram passados como PROP pro
+   * componente <Input> — uma classe compartilhada ali faria a linha do pai
+   * mandar layout pra dentro do componente. */
+  .jpd-row--grow > :first-child {
+    flex: 1;
+  }
+  .jpd-row--right {
+    justify-content: flex-end;
+  }
+
+  /* --------------------------------------------------------------------------
+   * B7. MODIFICADORES DE PAPEL DE TEXTO
+   *
+   * Estes precisam vir DEPOIS do bloco 5 do theme.css (mesma especificidade).
+   * ------------------------------------------------------------------------ */
+  /* Único site que tinha `mb-1` colado no rótulo de grupo: os dois miniblocos
+   * "Cabeçalho"/"Valor" do estilo de coluna (PropertyPanelTable.tsx:267/292).
+   * Sobrescreve o `margin: 0` do reset local de `.jpd-grouplabel`. */
+  .jpd-grouplabel--spaced {
+    margin-block-end: var(--jpd-space-1);
+  }
+  /* `jpd-meta` (10px, text-faint) em 11px e em 12px. O de 12px vem de
+   * `text-xs`, que carregava line-height própria; o de 11px vem de valor
+   * arbitrário, que emitia SÓ font-size. */
+  .jpd-meta--sm {
+    font-size: var(--jpd-font-size-small);
+  }
+  .jpd-meta--md {
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+  }
+  /* ATENÇÃO (ver relatório): o site original é `text-[11px] text-red-600` SEM
+   * variante `dark:` — ficava red-600 no escuro. `--jpd-danger-text` vai pra
+   * red-400 no dark, que é MAIS legível, mas não é pixel-idêntico. */
+  .jpd-error--sm {
+    font-size: var(--jpd-font-size-small);
+  }
+
+  /* Botão-link de hover NEUTRO. O `.jpd-linkbtn` do kit vai pro vermelho no
+   * hover porque o caso dele é "limpar campo"; estes dois só navegam
+   * (remover ícone / voltar pro estilo do card). */
+  .jpd-linkbtn--muted {
+    align-self: auto;
+    flex-shrink: 0;
+  }
+  .jpd-linkbtn--back {
+    font-size: var(--jpd-font-size-small);
+  }
+  @media (hover: hover) {
+.jpd-linkbtn--muted:hover,
+    .jpd-linkbtn--back:hover {
+      color: var(--jpd-text-hover);
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+   * B9. NOME DE COLUNA DA FONTE (PropertyPanelTable.tsx:351)
+   *
+   * Era `font-mono ${already ? ... : ...}` — cauda condicional, logo
+   * `data-*`. "already" = a coluna já está na tabela, então o nome fica
+   * fantasma em vez de desaparecer da lista.
+   * ------------------------------------------------------------------------ */
+  .jpd-colname {
+    font-family: var(--jpd-font-mono);
+    color: var(--jpd-text-muted);
+  }
+  .jpd-colname[data-added] {
+    color: var(--jpd-text-ghost);
+  }
+
+
+  /* ===== grupo C (migração Fase 2) ===== */
+
+/* GRUPO C da migração 3.0.0 — FormulaModal, BindingEditor, FilterTab,
+ * FormulaButton. Arquivo TEMPORÁRIO: o coordenador concatena este conteúdo
+ * DENTRO da `@layer json-pdf-designer` do src/css/theme.css.
+ *
+ * ORDEM IMPORTA: precisa entrar DEPOIS do bloco do kit (seção 6 do
+ * theme.css). Duas regras daqui sobrescrevem de propósito o `.jpd-iconbtn`
+ * (`.jpd-iconbtn--accent:hover` e `.jpd-fx { font-family }
+  /* `border-block-end` inteiro (largura + estilo + cor) de propósito: a
+   * armadilha nº 1 do briefing. */
+  @media (hover: hover) {
+/* O hover existia SÓ na string de inativo. */
+  }
+
+  /* ==========================================================================
+   * C.2 MODAL DE FÓRMULA
+   *
+   * `jpd-formula` é o ÚNICO ponto responsivo da biblioteca: uma coluna até
+   * 40rem de viewport, duas (barra de campos de 11rem + editor fluido) a
+   * partir daí. 40rem é exatamente o breakpoint `sm` do Tailwind, e a media
+   * query é de VIEWPORT (era `sm:`, não container query).
+   *
+   * O modal usa o tamanho default do <Modal> (`lg` = 48rem); com o padding do
+   * corpo (20px de cada lado) sobram 728px pro grid, que é a largura pra qual
+   * as duas colunas foram desenhadas.
+   * ========================================================================= */
+  .jpd-formula {
+    display: grid;
+    gap: var(--jpd-space-4);
+  }
+  @media (min-width: 40rem) {
+.jpd-formula {
+      grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+    }
+  }
+
+  /* Duas colunas com o MESMO conteúdo de regra (eram a mesma string). Nomes
+   * separados porque são papéis diferentes e só uma delas vai mudar quando
+   * mudar. */
+  .jpd-formula__sources,
+  .jpd-formula__editor {
+    display: flex;
+    min-inline-size: 0;
+    flex-direction: column;
+    gap: var(--jpd-space-2);
+  }
+
+  /* Lista de campos vinculáveis: rola dentro de si mesma, com folga à direita
+   * pra barra não colar no chip. */
+  .jpd-chiplist {
+    display: flex;
+    max-block-size: 18rem;
+    flex-direction: column;
+    gap: var(--jpd-space-1);
+    overflow-y: auto;
+    padding-inline-end: var(--jpd-space-1);
+  }
+
+  /* ==========================================================================
+   * C.3 AUTOCOMPLETE DO EDITOR DE FÓRMULA
+   * ========================================================================= */
+  /* Âncora do popover de sugestões (o `position: relative` é a função dela). */
+  .jpd-suggest {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-1);
+  }
+
+  /* Item de sugestão: nome em cima, descrição embaixo. */
+  .jpd-suggest__item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .jpd-suggest__name {
+    font-family: var(--jpd-font-mono);
+    font-size: var(--jpd-font-size-small);
+    color: var(--jpd-text-field);
+  }
+
+  /* ==========================================================================
+   * C.4 AVISO (âmbar)
+   *
+   * Irmão de `.jpd-error`: mesmo papel, um degrau abaixo na gravidade. Sem
+   * line-height, como todo papel de 10px.
+   * ========================================================================= */
+  .jpd-warn {
+    margin: 0;
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-warn-text-2);
+  }
+  /* FALTA TOKEN: `--jpd-font-serif`. O reset do kit fixa
+   * `font-family: var(--jpd-font-sans)` em `.jpd-iconbtn`, então o glifo
+   * precisa desfazer isso aqui. */
+  .jpd-fx {
+    font-family: var(--jpd-font-serif, ui-serif, Georgia, Cambria, "Times New Roman", Times, serif);
+    font-style: italic;
+  }
+  /* `--jpd-accent-border` é o par exato (sky-500 / blue-400); o nome fala de
+   * borda, o uso aqui é a cor do ícone. */
+  .jpd-callout__icon {
+    color: var(--jpd-accent-border);
+  }
+
+  /* ==========================================================================
+   * C.7 FILTRO (FilterTab)
+   * ========================================================================= */
+  .jpd-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-1);
+    border: 1px solid var(--jpd-border);
+    border-radius: var(--jpd-radius-md);
+    padding: var(--jpd-space-1-5);
+  }
+  /* "OU" entre grupos e "E" entre condições — mesmo papel, e o "E" mora
+   * dentro da fileira da condição, onde precisa de largura fixa pra alinhar
+   * com os campos de cima. */
+  .jpd-filter-group__joiner {
+    text-align: center;
+    font-size: var(--jpd-font-size-micro);
+    font-weight: 600;
+    color: var(--jpd-text-disabled);
+  }
+  .jpd-filter-group__joiner[data-joiner="and"] {
+    inline-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  /* Link "+ adicionar condição/grupo". NÃO é `.jpd-linkbtn`: aquele é o
+   * "limpar campo" (cinza, hover vermelho, sempre `align-self: flex-start`).
+   * Este é accent com sublinhado no hover, e a versão de dentro da fileira
+   * NÃO pode ter `align-self: flex-start` — subiria 4px em relação ao botão
+   * de 24px ao lado. */
+  .jpd-addlink {
+    display: flex;
+    align-items: center;
+    gap: var(--jpd-space-1);
+    font-size: var(--jpd-font-size-tiny);
+    color: var(--jpd-accent);
+  }
+  .jpd-addlink--start {
+    align-self: flex-start;
+  }
+  @media (hover: hover) {
+.jpd-addlink:hover {
+      text-decoration-line: underline;
+    }
+  }
+
+
+  /* ===== grupo D (migração Fase 2) ===== */
+
+  /* ==========================================================================
+   * GRUPO D — FieldList.tsx + TemplateInspector.tsx
+   *
+   * Regras soltas, pra serem concatenadas DENTRO da @layer
+   * `json-pdf-designer`, DEPOIS do corpo de theme.css (`.jpd-fieldrow--sub`
+   * sobrescreve `border-color` de `.jpd-fieldrow`, e nada aqui depende de
+   * vencer uma regra do kit).
+   *
+   * A LINHA É A MESMA NOS DOIS ARQUIVOS. `FieldList` desenhava a linha num
+   * <div> e o `TemplateInspector` num <button>; os estados eram
+   * byte-idênticos e a base só divergia no que é artefato de tag:
+   *   div:    `flex cursor-pointer items-center gap-1 ...`
+   *   button: `flex w-full items-center gap-1.5 ... text-left`
+   * `cursor-pointer` e `w-full`/`text-left` são o mesmo desenho escrito duas
+   * vezes (o <div> já é 100% de largura e alinhado à esquerda; o <button>
+   * precisava de utilitária pra chegar lá). Um nome só: `.jpd-fieldrow`.
+   * `gap` normalizado em 4px (era 4 em dois dos três sites).
+   * ========================================================================= */
+
+  /* Reset de <button>: no TemplateInspector a linha É um <button>, e sem o
+   * Preflight ele volta pro chrome do SO (buttonface de fundo, borda outset
+   * de 2px, Arial 13.33px). Mesmo bloco que theme.css aplica em .jpd-btn. */
+  .jpd-fieldrow {
+    font: inherit;
+    font-family: var(--jpd-font-sans);
+    letter-spacing: inherit;
+    color: inherit;
+    margin: 0;
+    display: flex;
+    inline-size: 100%;
+    align-items: center;
+    gap: var(--jpd-space-1);
+    /* `1px solid` inteiro, não só a largura — ver armadilha 1 do briefing. */
+    border: 1px solid var(--jpd-border);
+    border-radius: var(--jpd-radius-lg);
+    background-color: transparent;
+    padding: var(--jpd-space-1) var(--jpd-space-1-5);
+    text-align: left;
+    cursor: pointer;
+    transition-property: color, background-color, border-color;
+    transition-duration: 0.15s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* (0,2,0) — ganha do `border-color: transparent` de `--sub` sem depender
+   * de ordem, que é o que reproduz `focused ? border-sky-* : transparent`. */
+  .jpd-fieldrow[data-selected] {
+    border-color: var(--jpd-accent-border);
+    background-color: var(--jpd-accent-soft);
+  }
+  /* O hover era só do ramo NÃO selecionado (`hover:bg-slate-50` vinha na
+   * string do else). Sem o `:not()` o hover apagaria o fundo de seleção. */
+  @media (hover: hover) {
+    .jpd-fieldrow:not([data-selected]):hover {
+      background-color: var(--jpd-surface-hover-soft);
+    }
+  }
+
+  /* Sub-linha de KPI (ícone/título/valor/legenda). Só três deltas: sem borda
+   * quando não focada, 12px de fonte, e meia opacidade quando o
+   * sub-elemento NÃO existe no schema (era `${present ? "" : "opacity-50"}`,
+   * com o ramo VAZIO no lado verdadeiro — daí o atributo ser `data-absent`,
+   * escrito quando `!present`). */
+  .jpd-fieldrow--sub {
+    border-color: transparent;
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+  }
+  .jpd-fieldrow[data-absent] {
+    opacity: 0.5;
+  }
+
+  /* Célula flexível do FieldList: é ela que posiciona o ícone de aviso ao
+   * lado do bloco de texto. O TemplateInspector não tem esse nível (não tem
+   * ícone), por isso o `__name` abaixo é que carrega o `flex: 1` lá. */
+  .jpd-fieldrow__main {
+    display: flex;
+    min-inline-size: 0;
+    flex: 1;
+    align-items: center;
+    gap: var(--jpd-space-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+  }
+
+  /* Bloco de texto que trunca. `flex: 1` normalizado pros dois arquivos: no
+   * FieldList o original não tinha (`min-w-0 truncate`), mas ele é o último
+   * filho flex de `__main`, que já é `flex: 1`, e o texto é alinhado à
+   * esquerda — cresce sem mover um pixel. */
+  .jpd-fieldrow__name {
+    min-inline-size: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .jpd-fieldrow__name--sub {
+    color: var(--jpd-text-muted);
+  }
+
+  /* Coluna x/y e coluna z do TemplateInspector. Duas rampas de cinza
+   * diferentes de propósito: a posição é `slate-400/gray-500` e o z-index
+   * `slate-300/gray-600`, um degrau mais apagado em cada tema. */
+  .jpd-fieldrow__pos {
+    flex-shrink: 0;
+    white-space: nowrap;
+    color: var(--jpd-text-disabled-2);
+  }
+  .jpd-fieldrow__z {
+    flex-shrink: 0;
+    color: var(--jpd-text-ghost);
+  }
+
+  /* Renomear inline. NÃO é `.jpd-input`: este campo depende de `autoFocus` +
+   * commit no `onBlur`, e trocar por <Input> mudaria a semântica de
+   * foco/blur. Leva o mesmo reset de controle do kit (`font: inherit` etc.),
+   * porque sem Preflight um <input> nu volta pra Arial 13.33px.
+   *
+   * `padding` só no eixo inline de propósito: o original era `px-1`, sem
+   * `py-*`, então o 1px vertical do UA continuava valendo. Escrever
+   * `padding: 0 4px` mudaria a altura do campo.
+   *
+   * BURACO PREENCHIDO: o original tinha `border-sky-400` e NENHUM
+   * `dark:border-*` — no escuro a borda ficava sky-400 sobre gray-800.
+   * `--jpd-accent-border-soft` é o token dessa borda (sky-400 no claro,
+   * blue-400 no escuro), então o dark agora acompanha o resto do editor. */
+  .jpd-fieldrow__rename {
+    font: inherit;
+    font-family: var(--jpd-font-sans);
+    letter-spacing: inherit;
+    margin: 0;
+    inline-size: 6rem;
+    border: 1px solid var(--jpd-accent-border-soft);
+    border-radius: var(--jpd-radius-sm);
+    background-color: var(--jpd-surface);
+    padding-inline: var(--jpd-space-1);
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    font-weight: 500;
+    color: var(--jpd-text);
+  }
+
+  /* Nome do campo e sufixo apagado ao lado dele — os dois arquivos escreviam
+   * a mesma string. */
+  .jpd-rowname {
+    font-weight: 500;
+    color: var(--jpd-text);
+  }
+  .jpd-muted {
+    margin-inline-start: var(--jpd-space-1-5);
+    color: var(--jpd-text-disabled);
+  }
+
+  /* Sub-lista de KPI. Auto-contida (inclui `list-style`/`margin`/`padding`)
+   * em vez de somar com `.jpd-list`: as duas classes disputariam `margin` e
+   * `padding` com a MESMA especificidade, e aí o resultado dependeria da
+   * ordem de concatenação. */
+  .jpd-sublist {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-1);
+    margin: var(--jpd-space-1) 0 0 var(--jpd-space-3);
+    padding: 0 0 0 var(--jpd-space-2);
+    border-inline-start: 1px solid var(--jpd-border);
+  }
+
+  /* ==========================================================================
+   * TemplateInspector — casca
+   * ========================================================================= */
+
+  /* Raiz do inspetor: 12px de gap (o quarto valor, que `.jpd-stack` não tem
+   * de propósito) mais o `text-xs` que serve de base pra árvore toda —
+   * inclusive o line-height que os <h4> herdam. */
+  .jpd-inspector {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-3);
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+  }
+
+  /* Rótulo de zona (HEADER / BODY / FOOTER / margens). NÃO é
+   * `.jpd-sectionhead`: mesma família (10px vs 12px, 600, uppercase,
+   * tracking-wide), mas 10px vinha de valor arbitrário e emitia SÓ
+   * `font-size`, herdando o line-height do container — enquanto
+   * `.jpd-sectionhead` é `text-xs` e carrega line-height próprio (armadilha
+   * 5). Unificar mudaria a altura da linha. Some o `margin` do UA de <h4>,
+   * que o Preflight zerava. */
+  .jpd-eyebrow {
+    margin: 0 0 var(--jpd-space-1);
+    font-size: var(--jpd-font-size-tiny);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--jpd-tracking-wide);
+    color: var(--jpd-text-faint);
+  }
+  .jpd-eyebrow[data-zone="red"] {
+    color: var(--jpd-warn-text-2);
+  }
+
+
+  /* ===== grupo EF (migração Fase 2) ===== */
+
+  /* ==========================================================================
+   * CANVAS + CAIXAS DE CAMPO  (grupo E+F)
+   *
+   * PageCanvas.tsx · Ruler.tsx · FieldBox/{Chart,Table,Kpi,Section,Image,Text}Field.tsx
+   *
+   * REGRA DESTE BLOCO: aqui é uma FOLHA DE PAPEL. Nada tem variante dark de
+   * propósito, e o 2.1.1 não tinha nenhum `dark:` em PageCanvas.tsx nem em
+   * FieldBox/* (única exceção: o placeholder de imagem, abaixo). Os tokens
+   * `--jpd-canvas-*`, `--jpd-field-outline`, `--jpd-selection*` e
+   * `--jpd-locked` são justamente os que NÃO trocam no bloco dark do
+   * theme.css — é por isso que este arquivo usa eles em vez dos
+   * `--jpd-border`/`--jpd-text-*` genéricos, que trocariam.
+   *
+   * Onde o valor original não tem token de canvas correspondente, a regra
+   * usa `var(--jpd-token-proposto, var(--jpd-token-existente-mais-perto))`.
+   * A cadeia deixa a folha estilizada HOJE e vira exata no dia que o token
+   * entrar no theme.css, sem tocar neste arquivo. Os cinco pendentes estão
+   * listados no relatório da migração; cada um está marcado com
+   * `TOKEN PENDENTE` abaixo, com o valor Tailwind original.
+   *
+   * GEOMETRIA FÍSICA, NÃO LÓGICA: `left/right/top/bottom` e
+   * `border-top-left-radius` em vez dos equivalentes `inset-inline` /
+   * `border-start-start-radius`. A folha é medida em mm e o PDF gerado não
+   * espelha em RTL — a faixa de "margem esquerda" é a margem esquerda FÍSICA
+   * em qualquer idioma. (`inset-x-0`/`inset-y-0` do Tailwind v4 emitiam
+   * `inset-inline`/`inset-block`, mas com os dois lados em 0 o resultado é
+   * idêntico; onde só UM lado é fixado, físico é o que preserva o desenho.)
+   * ========================================================================= */
+
+  /* --- 1. CANVAS: moldura, zoom, folha -------------------------------------
+   * `.jpd-canvas` é o retângulo externo (dimensão já multiplicada pelo zoom,
+   * inline) e `.jpd-canvas__zoom` o que aplica o `scale()` — a escala em si é
+   * inline (vem do estado), a ORIGEM dela é fixa e mora aqui.
+   *
+   * `.jpd-canvas__row` é `display: flex` puro, e não o `.jpd-row` do kit, de
+   * propósito: `.jpd-row` traz `align-items: center` e `gap: 8px`, e o gap
+   * empurraria a folha 8px pra direita da régua vertical. Duas linhas usam
+   * esta classe (régua vertical + folha, e canto + régua horizontal). */
+  .jpd-canvas {
+    position: relative;
+  }
+  .jpd-canvas__zoom {
+    transform-origin: top left;
+  }
+  .jpd-canvas__row {
+    display: flex;
+  }
+
+  /* A folha. `position: relative` NÃO está aqui — continua inline no JSX,
+   * porque é o ancestral posicionado que os campos (react-rnd,
+   * position:absolute) exigem, e uma regra desta @layer perde de qualquer CSS
+   * do consumidor. Ver o comentário no PageCanvas.tsx.
+   *
+   * A sombra usa `--jpd-shadow-page` (0.1 de alpha na primeira camada). O
+   * PdfPreview usa `--jpd-shadow-page-preview` (0.15). A divergência é do
+   * 2.1.1 e está preservada de propósito — não unifique. */
+  /* A folha é SEMPRE papel branco (`--jpd-canvas-page: #fff` nos dois temas)
+   * — ela é a maquete do PDF, e o PDF não tem dark mode.
+   *
+   * Por isso ela declara `color` também: sem isso, todo texto de campo que
+   * não traz cor própria herda `--jpd-text` do TEMA, e no escuro isso é
+   * cinza-claro sobre branco. Medido no examples/no-preview: as células
+   * vazias `—` de uma tabela davam 1.54:1 — texto que existe e não se lê.
+   *
+   * Campo com `fontColor` no schema sobrescreve isto inline, como sempre. */
+  .jpd-page {
+    background-color: var(--jpd-canvas-page);
+    color: var(--jpd-canvas-ink);
+    box-shadow: var(--jpd-shadow-page);
+  }
+
+  /* Letterhead/modelo PNG atrás dos campos. */
+  .jpd-page__bg {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  /* Véu do modo isolado: escurece o CORPO da página pra sobrar só as faixas.
+   * As quatro arestas são calculadas em mm e ficam inline. */
+  .jpd-page__dim {
+    pointer-events: none;
+    position: absolute;
+    background-color: var(--jpd-canvas-dim);
+  }
+
+  /* Quadriculado. Os dois gradientes são literal fixo e vêm pra cá; o PASSO
+   * (`background-size`) é o único que fica inline, porque vem de gridSizeMm. */
+  .jpd-grid-overlay {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, var(--jpd-canvas-guide) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--jpd-canvas-guide) 1px, transparent 1px);
+  }
+
+  /* Caixa de seleção. Posição/tamanho vêm do mouse ao vivo e ficam inline.
+   * `border: 1px solid`, não `border-width: 1px`: sem o Preflight não existe
+   * mais `*{border:0 solid}` pra fornecer o estilo, e largura sem estilo
+   * computa borda NENHUMA. */
+  .jpd-marquee {
+    pointer-events: none;
+    position: absolute;
+    z-index: var(--jpd-z-canvas-overlay);
+    border: 1px solid var(--jpd-accent-border);
+    background-color: color-mix(in oklab, var(--jpd-accent-border) 10%, transparent);
+  }
+
+  /* --- 2. FAIXAS DE CABEÇALHO/RODAPÉ/MARGEM -------------------------------
+   * Quatro faixas que diferem SÓ na aresta que ocupam e no lado da borda
+   * tracejada. Uma classe + `data-band`; a espessura (mm→px) fica inline.
+   *
+   * `border: 0 dashed <cor>` na base e só a largura do lado certo por
+   * data-band: assim o estilo `dashed` já está declarado quando a largura
+   * chega, o que é exatamente a armadilha do `border-width` sem
+   * `border-style`. */
+  .jpd-band {
+    pointer-events: none;
+    position: absolute;
+    overflow: hidden;
+    border: 0 dashed var(--jpd-danger-border);
+    background-color: var(--jpd-danger-soft);
+  }
+  .jpd-band[data-band="header"] {
+    left: 0;
+    right: 0;
+    top: 0;
+    border-bottom-width: 1px;
+  }
+  .jpd-band[data-band="footer"] {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-top-width: 1px;
+  }
+  .jpd-band[data-band="left"] {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    border-right-width: 1px;
+  }
+  .jpd-band[data-band="right"] {
+    top: 0;
+    bottom: 0;
+    right: 0;
+    border-left-width: 1px;
+  }
+
+  /* Etiqueta da faixa. As duas horizontais eram byte-idênticas; as duas
+   * verticais só trocam o lado e giram 90°. `text-[9px]` era valor arbitrário
+   * e emitia SÓ font-size (herdando o line-height 1.5 do Preflight) — por
+   * isso não tem line-height aqui. */
+  .jpd-band__label {
+    position: absolute;
+    border-radius: var(--jpd-radius-sm);
+    background-color: var(--jpd-danger);
+    padding: var(--jpd-space-0-5) var(--jpd-space-1-5);
+    font-size: var(--jpd-font-size-micro);
+    font-weight: 500;
+    color: var(--jpd-text-on-accent);
+  }
+  .jpd-band__label[data-band="header"],
+  .jpd-band__label[data-band="footer"] {
+    left: var(--jpd-space-1);
+    top: var(--jpd-space-0-5);
+  }
+  .jpd-band__label[data-band="left"],
+  .jpd-band__label[data-band="right"] {
+    top: var(--jpd-space-1);
+    white-space: nowrap;
+    transform: rotate(90deg);
+  }
+  .jpd-band__label[data-band="left"] {
+    left: var(--jpd-space-0-5);
+    transform-origin: left top;
+  }
+  .jpd-band__label[data-band="right"] {
+    right: var(--jpd-space-0-5);
+    transform-origin: right top;
+  }
+
+  /* --- 3. CAIXA DE CAMPO (o <Rnd>) ----------------------------------------
+   * NOME: `.jpd-field` é ESTA caixa, a do canvas. O wrapper com rótulo dos
+   * formulários é `.jpd-labeled` (ver theme.css §7).
+   *
+   * Era um `style` inline com três hex fixos e uma escolha de borda em três
+   * vias. Agora: uma classe + quatro `data-*`.
+   *
+   * ORDEM IMPORTA: `[data-locked]` vem ANTES de `[data-selected]`. As duas
+   * regras têm a mesma especificidade (0,2,0), então quem vence num campo que
+   * está travado E selecionado é a última — e o original priorizava a
+   * seleção (`selected ? ... : isLocked ? ... : ...`).
+   *
+   * `box-sizing: border-box` não aparece aqui: o re-resizable já o força
+   * INLINE depois do nosso style. `cursor` também não: o react-rnd injeta
+   * `cursor: move`/`auto` inline, que ganha de qualquer classe — segue inline
+   * no JSX. `.jpd-field` está na lista do `:where()` de box-sizing do
+   * theme.css §2, o que faz os filhos herdarem border-box. */
+  .jpd-field {
+    border: 1px dashed var(--jpd-field-outline);
+    transition-property: box-shadow;
+    transition-duration: 0.15s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .jpd-field[data-locked] {
+    border-color: var(--jpd-locked);
+  }
+  .jpd-field[data-selected] {
+    border: 2px solid var(--jpd-selection);
+    box-shadow: 0 0 0 3px var(--jpd-selection-ring);
+  }
+  .jpd-field[data-wrongmode] {
+    opacity: 0.55;
+  }
+  /* `[data-editing]` não tem regra: o que ele controlava (cursor: text) tem de
+   * ficar inline pra vencer o cursor do react-rnd. Fica no DOM como gancho
+   * pra quem estiliza o editor sem importar este tema. */
+
+  /* --- 4. RÉGUA -----------------------------------------------------------
+   * O reset `display: block` / `vertical-align: middle` de `.jpd-ruler` mora
+   * no theme.css §3 (junto com os outros SVG) — o que falta é só a aparência.
+   *
+   * `stroke`/`fill` como PROPRIEDADE CSS, não atributo de apresentação: era
+   * `stroke="#94a3b8"`/`fill="#64748b"` cravado no SVG, sem contraparte dark,
+   * enquanto o fundo tinha `dark:bg-gray-800` — marca escura sobre fundo
+   * escuro. Atributo de apresentação perde de qualquer regra de autor, então
+   * a classe assume e os três tokens de régua (que TÊM valor dark no
+   * theme.css) passam a andar juntos. */
+  .jpd-ruler {
+    flex-shrink: 0;
+    user-select: none;
+    background-color: var(--jpd-ruler-bg);
+  }
+  .jpd-ruler__tick {
+    stroke: var(--jpd-ruler-tick);
+    stroke-width: 0.5;
+  }
+  .jpd-ruler__tick[data-major] {
+    stroke-width: 1;
+  }
+  .jpd-ruler__label {
+    fill: var(--jpd-ruler-label);
+  }
+  /* Quadradinho vazio no cruzamento das duas réguas — a largura é a espessura
+   * da régua e fica inline. */
+  .jpd-ruler__corner {
+    flex-shrink: 0;
+  }
+
+  /* --- 5. BARRA DE ZOOM ---------------------------------------------------
+   * Os cinco botões eram byte-idênticos e os dois divisores também. */
+  .jpd-zoombar {
+    pointer-events: auto;
+    position: sticky;
+    bottom: var(--jpd-space-4);
+    left: 0;
+    margin-block-start: var(--jpd-space-4);
+    display: flex;
+    inline-size: fit-content;
+    align-items: center;
+    gap: var(--jpd-space-1);
+    border-radius: var(--jpd-radius-full);
+    background-color: var(--jpd-zoombar-bg);
+    padding: var(--jpd-space-1-5) var(--jpd-space-2);
+    color: var(--jpd-text-on-accent);
+    box-shadow: var(--jpd-shadow-lg);
+    backdrop-filter: blur(8px);
+  }
+  .jpd-zoombar__btn {
+    /* Estes cinco são <button> e NÃO usam `.jpd-btn`, então o reset de
+     * controle do theme.css §3 não os alcança. Sem repetir o reset aqui eles
+     * voltam pro chrome do sistema operacional: fundo cinza e borda. E
+     * `border: 0 solid`, não `border: 0` — com `border: 0` o estilo vira
+     * `none` e um `border-width` do consumidor computa 0px. */
+    font: inherit;
+    font-family: var(--jpd-font-sans);
+    color: inherit;
+    margin: 0;
+    appearance: button;
+    background-color: transparent;
+    border: 0 solid;
+    cursor: pointer;
+
+    display: flex;
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--jpd-radius-full);
+  }
+  .jpd-zoombar__value {
+    inline-size: 2.5rem;
+    text-align: center;
+    font-size: var(--jpd-font-size-body);
+    line-height: var(--jpd-line-height-body);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .jpd-zoombar__sep {
+    margin-inline: var(--jpd-space-1);
+    inline-size: 1px;
+    block-size: 1rem;
+    background-color: var(--jpd-zoombar-active);
+  }
+  /* Hover dentro de `@media (hover: hover)` — sem o guard o estado fica
+   * colado depois do toque em touch. */
+  @media (hover: hover) {
+    .jpd-zoombar__btn:hover {
+      background-color: var(--jpd-zoombar-hover);
+    }
+  }
+
+  /* --- 6. CAMPO SEÇÃO ----------------------------------------------------
+   * ATENÇÃO: as duas classes daqui são lidas por JAVASCRIPT, não só por CSS.
+   * `.jpd-section__body` é testada com `classList.contains()` no hit-test de
+   * área vazia do PageCanvas, e `.jpd-section__handle` vai pro
+   * `dragHandleClassName` do react-rnd, que monta o seletor por conta
+   * própria. Renomear qualquer das duas exige mexer nos quatro sites
+   * (SectionField.tsx e PageCanvas.tsx) no mesmo commit — errar aqui quebra
+   * arrasto e seleção sem erro no console.
+   *
+   * `--jpd-section` (purple-600) é um dos poucos tokens de seção SEM valor
+   * dark, então a barra continua roxa igual no 2.1.1. */
+  .jpd-section__body {
+    position: relative;
+    inline-size: 100%;
+    block-size: 100%;
+    overflow: hidden;
+    border-radius: var(--jpd-radius-md);
+    /* TOKEN PENDENTE `--jpd-section-border-strong` = purple-400 sem dark
+     * (era `border-purple-400`). O fallback `--jpd-section-border-hover` tem
+     * o mesmo valor em light, mas vira purple-500 no dark. */
+    border: 2px dashed var(--jpd-section-border-strong, var(--jpd-section-border-hover));
+    /* TOKEN PENDENTE `--jpd-section-soft-3` = purple-50/50 (era
+     * `bg-purple-50/50`). Os existentes são /40 e /60 — nenhum é /50. */
+    background-color: var(--jpd-section-soft-3, var(--jpd-section-soft-2));
+  }
+  .jpd-section__handle {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    z-index: var(--jpd-z-dropdown);
+    display: flex;
+    block-size: 1rem;
+    align-items: center;
+    cursor: move;
+    border-top-left-radius: var(--jpd-radius-sm);
+    border-top-right-radius: var(--jpd-radius-sm);
+    background-color: var(--jpd-section);
+    padding-inline: var(--jpd-space-1-5);
+    font-size: var(--jpd-font-size-micro);
+    font-weight: 500;
+    color: var(--jpd-text-on-accent);
+  }
+  /* A altura de 1rem acima é replicada em mm por
+   * components/canvasGeometry.ts (SECTION_HEADER_HEIGHT_MM = pxToMm(16)) pro
+   * hit-test da caixa de seleção. Mudar uma exige mudar a outra. */
+
+  /* --- 7. CAMPO GRÁFICO --------------------------------------------------
+   * `__bars` (barras) e `__frame` (pizza/donut) são as duas molduras: mesma
+   * borda/fundo/raio, e daí em diante eixo, alinhamento e padding
+   * diferentes — por isso uma regra agrupada e não uma classe base com
+   * modificador. */
+  .jpd-chart__bars,
+  .jpd-chart__frame {
+    display: flex;
+    inline-size: 100%;
+    block-size: 100%;
+    border-radius: var(--jpd-radius-md);
+    /* TOKEN PENDENTE `--jpd-canvas-border` = slate-200 sem dark (era
+     * `border-slate-200`). O fallback `--jpd-border` é igual em light mas
+     * vira gray-700 no dark, e isto está desenhado sobre papel branco. */
+    border: 1px solid var(--jpd-canvas-border, var(--jpd-border));
+    background-color: var(--jpd-canvas-page);
+  }
+  .jpd-chart__bars {
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--jpd-space-1-5);
+    padding: var(--jpd-space-2);
+  }
+  .jpd-chart__frame {
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: var(--jpd-space-1-5);
+  }
+  /* Cada barra: a altura é fixa, a LARGURA (% do valor) e a cor da paleta
+   * ficam inline. */
+  .jpd-chart__bar {
+    block-size: 0.5rem;
+    border-radius: var(--jpd-radius-sm);
+  }
+  /* O reset `display: block` de SVG inline vinha do Preflight (é o que evita
+   * o vão de descendente embaixo do ícone) — o theme.css §3 dá isso pra
+   * `.jpd-icon`/`.jpd-micon`/`.jpd-ruler`/`.jpd-imagefield__img`, e este SVG
+   * precisa do mesmo. */
+  .jpd-chart__svg {
+    display: block;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  /* Legenda de exemplo. O reset de <ul> vem de `.jpd-list` (theme.css §3),
+   * aplicado junto no JSX; o tamanho de fonte é derivado do schema e fica
+   * inline. `leading-none` = line-height 1. */
+  .jpd-chart__legend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jpd-space-1);
+    line-height: 1;
+    /* TOKEN PENDENTE `--jpd-canvas-text` = slate-600 sem dark (era
+     * `text-slate-600`). O fallback `--jpd-text-muted` é igual em light e
+     * vira gray-300 no dark — texto claro sobre papel branco. */
+    color: var(--jpd-canvas-text, var(--jpd-text-muted));
+  }
+  /* Bolinha de cor da legenda; a cor vem da paleta e fica inline. */
+  .jpd-chart__dot {
+    inline-size: 0.375rem;
+    block-size: 0.375rem;
+    flex-shrink: 0;
+    border-radius: var(--jpd-radius-full);
+  }
+  /* Arranjo donut+legenda: quatro sites, dois pares idênticos, só muda o eixo
+   * (top/bottom vs left/right); a ORDEM dos filhos já vem do JSX. */
+  .jpd-chart__layout {
+    display: flex;
+    align-items: center;
+  }
+  .jpd-chart__layout[data-legend="top"],
+  .jpd-chart__layout[data-legend="bottom"] {
+    flex-direction: column;
+    gap: var(--jpd-space-1);
+  }
+  .jpd-chart__layout[data-legend="left"],
+  .jpd-chart__layout[data-legend="right"] {
+    gap: var(--jpd-space-2);
+  }
+
+  /* --- 8. CAMPO TABELA ---------------------------------------------------
+   * `.jpd-fieldtable` já existe no theme.css §3 com o reset de <table>
+   * (`text-indent`, `border-color: inherit`, `border-collapse`). O bloco
+   * abaixo só ACRESCENTA o dimensionamento — não redeclara o reset.
+   *
+   * `table-layout: fixed` trava a largura das colunas na divisão calculada
+   * (igual ao pdf/render/renderTable.ts na geração real). Sem ele, uma célula
+   * de rodapé com token comprido (ex: "{SUM(faturas.total)}") alarga a coluna
+   * inteira e a tabela estoura pra fora da grid do campo — e é o par do
+   * recorte por célula em `.jpd-table__cell`. */
+  .jpd-fieldtable {
+    inline-size: 100%;
+    block-size: 100%;
+    font-size: 10px;
+    table-layout: fixed;
+  }
+  /* O wrapper existe pra recortar os cantos arredondados da moldura inteira
+   * de uma vez; os raios vêm do schema em mm e ficam inline. */
+  .jpd-table__wrap {
+    inline-size: 100%;
+    block-size: 100%;
+    overflow: hidden;
+  }
+  /* Cabeçalho, corpo e rodapé compartilham borda, padding e recorte; o que
+   * diferencia é `position: relative` (só o cabeçalho, que ancora o handle de
+   * redimensionar coluna) e o peso da fonte (só o rodapé). Cor de fundo, cor
+   * de texto, tamanho de fonte, alinhamento e `border-color` vêm do TEMPLATE
+   * (por coluna) e continuam inline. */
+  .jpd-table__cell {
+    /* TOKEN PENDENTE (decisão): aqui está reusando `--jpd-field-outline`, que
+     * É exatamente slate-300 e não troca no dark — era `border-slate-300`. Se
+     * o coordenador preferir um nome próprio pra borda de célula, é só trocar
+     * esta linha. */
+    border: 1px solid var(--jpd-field-outline);
+    padding: var(--jpd-space-1) var(--jpd-space-1-5);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .jpd-table__cell[data-role="head"] {
+    position: relative;
+  }
+  .jpd-table__cell[data-role="foot"] {
+    font-weight: 500;
+  }
+  /* Zebrado embutido. TRÊS estados no JSX: sem zebra (nada), zebra com cor do
+   * template (style inline, que vence esta @layer) e zebra sem cor (só esta
+   * regra). Por isso `[data-banded]` e não uma classe escolhida no JSX.
+   *
+   * TOKEN PENDENTE `--jpd-canvas-band` = slate-50 sem dark (era
+   * `bg-slate-50`); o fallback `--jpd-surface-muted-2` vira gray-700 no dark. */
+  .jpd-table__row[data-banded] {
+    background-color: var(--jpd-canvas-band, var(--jpd-surface-muted-2));
+  }
+  /* Divisor entre duas colunas. O `translateX(50%)` é o que centra a área de
+   * pega em cima da borda — literal fixo, então mora aqui. */
+  .jpd-table__resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: var(--jpd-z-dropdown);
+    inline-size: 0.375rem;
+    block-size: 100%;
+    cursor: col-resize;
+    transform: translateX(50%);
+  }
+  @media (hover: hover) {
+.jpd-table__resizer:hover {
+      /* Era `hover:bg-sky-400/40`. `--jpd-accent-border-soft` é sky-400 em
+       * light (e blue-400 no dark — desvio aceito, é só o realce da pega). */
+      background-color: color-mix(in oklab, var(--jpd-accent-border-soft) 40%, transparent);
+    }
+  }
+  /* Célula em edição. O reset é o mesmo que o Preflight dava a todo <input> e
+   * que o theme.css §3 dá aos controles do kit — sem ele o input volta pro
+   * chrome do sistema e a fórmula crua aparece numa caixinha branca com borda
+   * dentro da célula. `border: 0 solid` (não `none`) pelo mesmo motivo dos
+   * botões. `text-align: inherit` era explícito só na célula de cabeçalho e
+   * está unificado aqui: `text-align` já herda pra dentro de <input> nos
+   * navegadores atuais, então era redundante lá e é inócuo nas outras. */
+  .jpd-cell-input {
+    inline-size: 100%;
+    border: 0 solid;
+    outline: none;
+    background-color: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+    padding: 0;
+  }
+  /* Camada de texto da célula no modo de edição: só a célula CLICADA vira
+   * input, as outras ficam texto limpo. `min-height: 1em` garante alvo de
+   * clique em célula vazia. */
+  .jpd-cell-text {
+    cursor: text;
+    min-block-size: 1em;
+  }
+
+  /* --- 9. CAMPO KPI ------------------------------------------------------
+   * `__box` é o sub-elemento posicionado (ícone/título/valor/legenda);
+   * `__part` são os três <span> de texto, que diferem só na tipografia.
+   * Posição (mm→px), largura máxima e tamanho de fonte (pt→px) são cálculo e
+   * ficam inline — têm de bater ponto a ponto com pdf/render/renderKpi.ts. */
+  .jpd-kpi {
+    position: relative;
+    inline-size: 100%;
+    block-size: 100%;
+    overflow: hidden;
+  }
+  .jpd-kpi__box {
+    position: absolute;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .jpd-kpi__box[data-draggable] {
+    cursor: move;
+  }
+  .jpd-kpi__box[data-focused] {
+    outline: 1px dashed currentColor;
+    outline-offset: 2px;
+  }
+  .jpd-kpi__part[data-part="title"] {
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: var(--jpd-tracking-wide);
+    opacity: 0.9;
+  }
+  .jpd-kpi__part[data-part="value"] {
+    font-weight: 700;
+    line-height: var(--jpd-line-height-tight);
+  }
+  .jpd-kpi__part[data-part="subtitle"] {
+    opacity: 0.8;
+  }
+
+  /* --- 10. CAMPO IMAGEM --------------------------------------------------
+   * `.jpd-imagefield__img` já existe no theme.css §3 com o reset
+   * `display: block` de <img>; abaixo só o dimensionamento.
+   *
+   * O placeholder é a ÚNICA coisa do FieldBox com variante dark no 2.1.1
+   * (`dark:border-gray-500 dark:text-gray-500`), e os dois tokens
+   * `-strong-2`/`-disabled-2` casam exatamente com esse par light/dark — é
+   * literalmente o site pra que eles foram criados. `text-[11px]` era valor
+   * arbitrário: só font-size, sem line-height. */
+  .jpd-imagefield__img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: contain;
+  }
+  .jpd-image-placeholder {
+    display: flex;
+    inline-size: 100%;
+    block-size: 100%;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--jpd-radius-md);
+    border: 1px dashed var(--jpd-border-strong-2);
+    font-size: var(--jpd-font-size-small);
+    color: var(--jpd-text-disabled-2);
+  }
+
+  /* --- 11. CAMPO TEXTO ---------------------------------------------------
+   * Duas formas do MESMO campo: `<textarea>` em edição, `<div>` fora dela. Os
+   * modificadores são literais fixos no JSX (um por ramo do `if`), o que é o
+   * caso em que `--modificador` é permitido em vez de `data-*`.
+   *
+   * Tamanho de fonte, cor, alinhamento, fundo e borda vêm do TEMPLATE e
+   * continuam inline — são dado, não tema. */
+  .jpd-textfield {
+    inline-size: 100%;
+    block-size: 100%;
+    box-sizing: border-box;
+    padding: 2px;
+    white-space: pre-wrap;
+  }
+  .jpd-textfield--editing {
+    /* Reset de <textarea> que vinha do Preflight: sem `font: inherit` o texto
+     * vira monoespaçada do UA, sem `background-color: transparent` o fundo do
+     * schema deixa de poder ser "nenhum", e sem `border: 0 solid` sobra a
+     * borda do sistema. Ver theme.css §3, mesmo reset dos controles do kit. */
+    font: inherit;
+    font-family: var(--jpd-font-sans);
+    color: inherit;
+    background-color: transparent;
+    resize: none;
+    border: 0 solid;
+    outline: none;
+  }
+  .jpd-textfield--static {
+    overflow: hidden;
+  }
+}

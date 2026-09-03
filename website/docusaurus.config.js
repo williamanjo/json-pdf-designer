@@ -19,8 +19,17 @@ const config = {
   organizationName: "williamanjo",
   projectName: "json-pdf-designer",
 
+  // `throw` de propósito: entrada de sidebar apontando pra doc deletado
+  // ABORTA o build em vez de gerar uma página quebrada em silêncio. Foi o
+  // que pegou a remoção do `tailwind-setup` na 3.0.0.
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
+  // Movido de `onBrokenMarkdownLinks` (deprecado, sai na v4) — o valor é o
+  // mesmo, só o lugar mudou. Sem isto, todo build imprime dois avisos.
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: "warn",
+    },
+  },
 
   i18n: {
     defaultLocale: "en",
@@ -83,7 +92,7 @@ const config = {
           {
             // Rota de verdade do Docusaurus (src/pages/playground/) —
             // "to" normal, com locale/baseUrl resolvidos automaticamente
-            // (igual qualquer outra página do site). Só os 3 exemplos
+            // (igual qualquer outra página do site). Só os 5 exemplos
             // linkados de dentro dela (bundles estáticos à parte) que
             // abrem em aba nova — ver src/pages/playground/index.js.
             to: "/playground",
@@ -114,12 +123,15 @@ const config = {
           },
           {
             title: "Playground",
-            // "html" cru pelo mesmo motivo do navbar acima. Esses 3 apontam
+            // "html" cru pelo mesmo motivo do navbar acima. Esses 5 apontam
             // direto pra um exemplo específico (não a landing page) — aba
             // nova de propósito, cada exemplo é um app pesado à parte.
             items: [
               {
                 html: '<a class="footer__link-item" href="/json-pdf-designer/playground/report-builder/" target="_blank" rel="noopener noreferrer">report-builder</a>',
+              },
+              {
+                html: '<a class="footer__link-item" href="/json-pdf-designer/playground/composed-layout/" target="_blank" rel="noopener noreferrer">composed-layout</a>',
               },
               {
                 html: '<a class="footer__link-item" href="/json-pdf-designer/playground/custom-ui/" target="_blank" rel="noopener noreferrer">custom-ui</a>',

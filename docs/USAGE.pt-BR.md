@@ -12,59 +12,86 @@ arquitetura internas, veja [ARCHITECTURE.pt-BR.md](./ARCHITECTURE.pt-BR.md).
 npm install json-pdf-designer
 ```
 
-Peer deps: `react` e `react-dom` (18 ou 19). Importe o CSS do pacote **uma
-vez**, no entrypoint do seu app (ele estiliza o próprio `<Designer>` —
-sem isso alguns elementos do editor ficam sem posição/cor certa, porque o
-Tailwind do seu app não escaneia o código desta lib):
+Peer deps: `react` e `react-dom` (18 ou 19). Importe o tema **uma vez**,
+no entrypoint do seu app — uma linha, e ela já puxa o reset de que
+precisa:
 
 ```ts
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 ```
 
-### Usando sua própria instalação do Tailwind
+### Estilo: o tema, o reset pelado, ou o seu CSS
 
-`dist/style.css` é uma folha de estilo pré-compilada e independente —
-funciona com qualquer versão do Tailwind (ou nenhuma) no seu app, porque
-é CSS puro já compilado, não classes de utilitário "cruas".
+A 3.0.0 tirou o Tailwind do pacote. `theme.css` e `reset.css` são CSS
+escrito à mão sobre classes `.jpd-*` e custom properties `--jpd-*`,
+copiados pro `dist/` como estão (`publicDir` no `tsup.config.ts`) e
+não-minificados de propósito: são contrato público, você lê pra aprender
+os nomes de classe e de token, e o seu bundler minifica.
 
-Se seu app já tem o próprio pipeline do Tailwind (v3 ou v4) e você
-prefere que ELE gere as classes do Designer também — pra seguir seu
-próprio tema/modo escuro em vez de carregar uma segunda folha de estilo
-separada — pule o `import "json-pdf-designer/style.css"` acima e aponte
-o scan de conteúdo do seu próprio Tailwind pro build do pacote:
+| Import | O que você leva |
+|---|---|
+| `json-pdf-designer/theme.css` | o reset **mais** a aparência pronta — 2.770 linhas |
+| `json-pdf-designer/reset.css` | só o reset, sem cor, tamanho nem layout — 236 linhas |
 
-**Tailwind v4** (config em CSS):
+O `theme.css` faz `@import` do `reset.css`, então importar os dois é
+redundante, não é erro. Pegue o `reset.css` sozinho quando você vai
+estilizar `.jpd-*` do zero e não quer a aparência: ele devolve os resets
+de elemento de que a marcação do editor depende, e nada mais. Quer pular
+até isso? Também é suportado — o exemplo `custom-ui` **não** importa CSS
+nenhum do pacote e veste o editor inteiro com a folha dele.
 
-```css
-@import "tailwindcss";
-@source "../node_modules/json-pdf-designer/dist/**/*.{js,cjs}";
-```
+Esses três modos não são hipótese: cada um dos cinco exemplos fica num
+ponto diferente do espectro, do "tema como ele vem" ao "CSS nenhum do
+pacote". Ver
+["O espectro de estilo nos cinco exemplos"](#o-espectro-de-estilo-nos-cinco-exemplos)
+pro mapa, e ["Estilo e tema"](#estilo-e-tema) pra convenção de nome de
+classe, a lista de tokens, dark mode e as regras de cascata.
 
-**Tailwind v3** (`tailwind.config.js`):
+> **Vindo do 2.x?** O `json-pdf-designer/style.css` não existe mais, e não
+> há alias — o import antigo agora falha em resolver
+> (`ERR_PACKAGE_PATH_NOT_EXPORTED`) em tempo de build. Isso é deliberado.
+> Um alias entregaria em silêncio uma folha *diferente* (sem Preflight,
+> com nomes de classe internos novos), e mudança visual silenciosa é pior
+> de depurar que erro de build que aponta pro changelog. Troque pela linha
+> do `theme.css` acima.
 
-```js
-module.exports = {
-  content: [
-    "./src/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/json-pdf-designer/dist/**/*.{js,cjs}",
-  ],
-  // ...
-};
-```
+> **A polaridade do reset INVERTEU, e esta é a nota pra ler se o seu app
+> não tem reset de CSS próprio.** Até a 2.1.1, o `dist/style.css` era
+> Tailwind v4 compilado e carregava o **Preflight** do Tailwind dentro
+> dele: um reset global que caía no seu app inteiro, quisesse você ou não
+> — então o risco que valia avisar era *duplicar* reset junto com o seu. A
+> 3.0.0 não envia **reset global nenhum**, então o risco é o oposto: nada
+> reseta a sua página, e o Designer herda o reset que o documento tiver —
+> ou a falta dele. A única regra com `*` é escopada às raízes do editor e
+> envolta em `:where()`, o que dá especificidade zero; qualquer regra sua
+> ganha dela.
+>
+> Dentro do editor isso não te custa nada: cada classe `.jpd-*` agora
+> carrega o reset de que o elemento dela dependia. O que você talvez
+> estivesse ganhando de graça *fora* do editor, e agora precisa devolver
+> por conta:
+>
+> | O que o Preflight fazia globalmente | Onde vive agora |
+> |---|---|
+> | `* { box-sizing: border-box }` | escopado às raízes do editor, especificidade zero |
+> | `margin`/`padding: 0` em heading, parágrafo, lista | nas classes `.jpd-*` que precisam |
+> | `list-style: none` em `ul`/`ol` | idem |
+> | `font`/`color`/`background` herdados por controle de formulário | idem |
+> | `svg { display: block }` | em `.jpd-icon`/`.jpd-micon`/`.jpd-ruler` (23 SVG inline) |
+> | `code { font-family: monospace }` | em `.jpd-code`, com a pilha inteira como fallback do `var()` |
+> | `table { border-collapse: collapse }` | em `.jpd-fieldtable` |
+> | `appearance: button` em `button`/`[type=button]` | em `.jpd-btn`/`.jpd-iconbtn` |
+>
+> Se você escrever esse reset à mão, vale soletrar uma armadilha, porque
+> quase todo mundo cai nela: **`border: 0` também põe
+> `border-style: none`**, e depois disso qualquer `border-width` que você
+> definir computa ZERO. Escreva `border: 0 solid`.
 
-`dist/index.js`/`dist/index.cjs` não são minificados, então os nomes de
-classe continuam intactos e o scanner de qualquer uma das duas versões
-consegue achar toda classe usada pelos componentes do Designer. Escolha
-um caminho ou outro — importar `style.css` **e** escanear o pacote com
-seu próprio Tailwind ao mesmo tempo só duplica as mesmas regras.
-
-> **Seu app está no Tailwind v3 e já tem o próprio Preflight (reset de
-> CSS)?** O `dist/style.css` já vem com o Preflight do Tailwind **v4**
-> embutido — importar os dois juntos aplica um reset de CSS duas vezes,
-> o que pode aparecer como pequenas diferenças de espaçamento/borda onde
-> os dois discordam. Escanear o pacote com o seu próprio Tailwind v3
-> (como acima) evita isso de vez: seu build nunca toca no nosso CSS,
-> então só o SEU Preflight roda — nada pra importar, nada pra colidir.
+Já tinha uma entrada de `@source`/`content` do Tailwind apontando pro
+`node_modules/json-pdf-designer/dist/**`? **Apague.** Não há mais
+utilitária nenhuma no `dist/` pra um scanner achar, então aquela entrada
+agora não produz nada — e não produz em silêncio, que é o pior tipo de
+config velha.
 
 ### Uso só no servidor (sem precisar de React)
 
@@ -106,7 +133,7 @@ react não bastava sozinho.
 ```tsx
 import { useState } from "react";
 import { Designer, generatePdf, downloadPdf, type Template, type Binding } from "json-pdf-designer";
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 
 const initialTemplate: Template = {
   page: { width: 210, height: 297 }, // A4 em mm
@@ -718,7 +745,8 @@ própria UI de editor):
 
 ```ts
 import { expressionError, templateExpressionErrors, expressionErrors } from "json-pdf-designer";
-// também disponíveis em "json-pdf-designer/server"
+// as três também saem de "json-pdf-designer/server"; os helpers só-de-UI que ficam ao
+// lado do expressionErrors (fieldWarning, filterIncomplete) não
 
 expressionError("total > 1000");         // null — válida
 expressionError("total >");              // "Expressão incompleta (posição 8 em …)"
@@ -806,14 +834,14 @@ As peças são exportadas pra quem monta UI própria: `suggestAt`,
 
 Se você não quer (ou não pode) montar a própria casca visual em volta do
 `<Designer>`, o pacote também exporta os componentes prontos que ele usa
-por dentro (`Button`, `Card`, `Input`, ícones etc — Tailwind, mesmo
+por dentro (`Button`, `Card`, `Input`, `Checkbox`, ícones etc — mesmo
 estilo do painel de propriedades) e um `PdfPreviewModal` completo (esse
 vem do entry `/preview`, porque usa pdf.js):
 
 ```tsx
-import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select } from "json-pdf-designer";
+import { Button, Card, CardHeader, CardTitle, Badge, Input, ColorInput, Textarea, Select, Checkbox } from "json-pdf-designer";
 import { PdfPreviewModal } from "json-pdf-designer/preview";
-import "json-pdf-designer/style.css";
+import "json-pdf-designer/theme.css";
 
 <Card>
   <CardHeader>
@@ -827,6 +855,611 @@ import "json-pdf-designer/style.css";
 Nada disso é obrigatório — o exemplo `custom-ui` (ver "Exemplos" abaixo)
 monta a casca inteira com CSS próprio, sem importar nenhum desses
 componentes, pra provar que o `<Designer>` funciona igual dos dois jeitos.
+
+Todos aceitam `className` (merge com a nossa, a sua vem depois), `style`
+(o seu ganha) e o resto das props do elemento nativo. Os que renderizam
+mais de um elemento expõem os de dentro por `parts`, endereçados por
+**papel**. A regra vale ser dita uma vez, porque é ela que decide onde
+cai o que você passa: **`className`/`style`/`...rest` vão pro elemento
+que dá NOME ao componente; todo outro elemento que ele renderiza é
+endereçado por `parts`.** Então `Input.className` continua no `<input>`
+(igual ao 2.x) e o `<label>` wrapper dele é `parts.root`;
+`Modal.className` é o painel e o fundo escurecido é `parts.overlay`. O
+`parts` aceita só `className`/`style` — sem handler, sem ref — com atalho
+de string (`parts={{ label: "minha-classe" }}`) e forma de objeto quando
+você também precisa de `style`.
+
+Três mudanças da 3.0.0 pra saber antes de atualizar:
+
+- Eles **repassam `ref`** agora, então não são mais funções simples:
+  `Button.name` deixa de ser `"Button"` e `Button(props)` chamado direto
+  para de funcionar. É `forwardRef` e não a prop `ref` do React 19 porque
+  React 18 continua peer suportado.
+- Os **20 ícones são a exceção** — continuam funções simples, sem ref — e
+  as props deles alargaram de `{ className }` pra `IconProps`, que é
+  `SVGAttributes`. De propósito *não* `SVGProps`: esse estende
+  `ClassAttributes` e aceitaria um `ref` que não vai a lugar nenhum, ou
+  seja, o tipo mentiria.
+- O **`maxWidthClass` do `Modal` virou `size`** —
+  `"sm" | "md" | "lg" | "xl" | "full"`, default `"lg"` = 48rem, exatamente
+  o que o antigo `max-w-3xl` dava. Uma string de classe Tailwind não tinha
+  o que fazer na API pública de um pacote que não envia mais Tailwind.
+  Largura arbitrária agora é `style={{ maxWidth: 900 }}`, que chega no
+  painel.
+
+Agora públicos, todos antes internos: `Checkbox` (fecha uma lacuna real —
+o editor tinha três `<input type="checkbox">` crus), `PalettePicker`,
+`PaletteSwatches`, `MaterialIcon`, `CollapsibleSection` e
+`ClearFieldButton`. O `BulkLocked` fica interno de propósito: ele
+significa "travado porque você selecionou vários campos do mesmo tipo",
+que é um *modo* do `<Designer>` — fora daquele contexto não quer dizer
+nada.
+
+## Compondo o editor
+
+O `<Designer>` é um **preset**. Desde a 3.0.0 é só isso: três providers e
+duas peças num layout de duas colunas, 101 linhas onde eram 986. As sete
+props originais dele estão idênticas, e `gridSizeMm`, `expandOnSelect`,
+`className`, `style` e `components` são adições opcionais. Se a casca de
+duas colunas é o que você quer, nada aqui é obrigatório — continue usando
+o preset.
+
+Se você quer decidir onde cada parte fica, monte o provider de estado na
+mão e posicione as peças:
+
+```tsx
+import { DesignerProvider, DesignerCanvas, DesignerFieldList, DesignerPropertyPanel, DesignerToolbar } from "json-pdf-designer";
+
+<DesignerProvider template={template} onChangeTemplate={setTemplate} bindings={bindings} onChangeBindings={setBindings}>
+  <DesignerToolbar className="minha-toolbar" hint={false} />
+  <div className="meu-grid">
+    <DesignerFieldList />
+    <DesignerCanvas />
+    <DesignerPropertyPanel section="dados" />
+  </div>
+</DesignerProvider>
+```
+
+### `<DesignerProvider>`
+
+Guarda todo o estado do editor. Toda peça abaixo precisa de um por cima —
+e só dele: o `I18nProvider` é opcional (o default do contexto é inglês) e
+o `UiComponentsProvider` também (o default são os nossos primitivos).
+
+| Prop | Tipo | Observação |
+|---|---|---|
+| `template` | `Template` | obrigatória |
+| `onChangeTemplate` | `Dispatch<SetStateAction<Template>>` | aceita o `setState` do React direto — a forma funcional é usada por dentro, então dois campos adicionados em sequência rápida não se sobrescrevem por closure velha |
+| `bindings` | `Binding[]` | obrigatória |
+| `onChangeBindings` | `Dispatch<SetStateAction<Binding[]>>` | idem |
+| `onCanvasDrop` | `(e: DragEvent<HTMLDivElement>) => void` | passthrough pro container do canvas, pra soltar campos externos (um explorador de JSON) direto na página |
+| `dataSources` | `DataSourceOption[]` | arrays conhecidos do JSON de exemplo — vira o dropdown "Fonte de dados" no vínculo de tabela. Sem isso, path digitado livre |
+| `gridSizeMm` | `number` | passo da grade em mm, default 5 |
+| `expandOnSelect` | `boolean` | clicar num campo reabre a sidebar colapsada, default `true` |
+| `children` | `ReactNode` | obrigatória |
+
+### As dez peças posicionáveis
+
+Toda peça aceita `className` (merge com a nossa, a sua depois), `style`
+(o seu ganha) e `whenTab`. Várias aceitam `parts` (elementos de dentro,
+por papel) e uma flag ou outra:
+
+| Peça | Além de `className`/`style`/`whenTab` |
+|---|---|
+| `DesignerCanvas` | — |
+| `DesignerTabBar` | `parts.strip` — a faixa que *rola* (só as abas; as setas e o "+" ficam fora dela) |
+| `DesignerFieldList` | `heading` (default `true`), `parts.heading`, `parts.scroll` — a caixa que rola, que é onde mora a altura máxima |
+| `DesignerToolbar` | `hint` (default `true`) — a dica "selecione um campo…" acima dos botões |
+| `DesignerPropertyPanel` | `section` (`"dados"` \| `"estilo"`, default `"dados"`), `position` (default: ligado só quando `section="dados"`), `header` (default `true`), `parts.banner` |
+| `DesignerFilterPanel` | `header` (default `true`), `parts.banner` |
+| `DesignerBindingEditor` | — |
+| `DesignerInspector` | — |
+| `DesignerSidebar` | `parts.tabBar`, `parts.panel` — e **sem `whenTab`** |
+
+O `DesignerSidebar` é a peça de conveniência: ela compõe as sete peças de
+conteúdo com o mesmo gate por aba do preset, ou seja, é a coluna direita
+inteira do `<Designer>` num elemento só.
+
+### `whenTab` é opt-in, e isso é o ponto
+
+Sem `whenTab`, a peça renderiza **sempre**. Com `whenTab="pagina"` (ou um
+array de chaves) ela só aparece naquelas abas — que é exatamente como o
+`DesignerSidebar` e o `<Designer>` reproduzem o comportamento de hoje. As
+chaves são `"campos" | "dados" | "estilo" | "filtro" | "pagina" | "inspetor"`.
+
+O default importa mais do que parece. Se o gate fosse o default,
+`DesignerPropertyPanel` e `DesignerPageSettings` lado a lado no seu layout
+apagariam um dos dois, porque só uma aba pode estar ativa por vez. Seriam
+peças que PARECEM decompostas mas só funcionam dentro de uma sidebar com
+abas — o que anula a feature inteira.
+
+O `section` do `DesignerPropertyPanel` segue a mesma lógica: é **prop**,
+não leitura da aba ativa. Duas instâncias com `section` diferente
+renderizam juntas, e é assim que você tem "Dados" e "Estilo" como dois
+cartões em vez de duas abas. Se ele lesse a aba, a segunda instância
+desapareceria.
+
+### Os dez hooks
+
+Cinco acessores devolvem o value do contexto cru; cinco seletores
+*derivam* de um. Só funcionam dentro de um `<DesignerProvider>` — fora,
+eles lançam com mensagem nomeando o provider em vez de devolver `null`,
+porque peça sem estado não tem comportamento de fallback nenhum: ela
+simplesmente não renderizaria, e você ficaria olhando um buraco na tela
+sem pista de por quê.
+
+```ts
+// acessores
+useDesignerData()            // { template, bindings }
+useDesignerActions()         // todo mutador (addSchema, updateSchema, moveGroup, handleChangeBinding, …)
+useDesignerSelection()       // selectedId, selectedIds, handleSelect, handleSelectMany, …
+useDesignerUi()              // sidebarTab, sidebarCollapsed, tabOrder, isolateBands, backgroundUploadError, …
+useDesignerConfig()          // dataSources, onCanvasDrop, gridSizeMm, expandOnSelect
+
+// seletores
+useDesignerSelectedSchema()  // { selected, selectedBinding } — o último campo clicado e o vínculo dele
+useDesignerFieldListSchemas()// Schema[] — o que a lista deve mostrar (espelha o canvas)
+useDesignerBulkEdit()        // { selectedSchemas, bulkEditActive }
+useDesignerTabWarnings()     // { dadosWarning, filtroWarning }
+useDesignerFilterColumns()   // string[] — colunas disponíveis pro painel de filtro
+```
+
+**Leia só o que você usa.** Os cinco contextos são divididos por
+*frequência de mudança*, não por assunto: `data` muda a cada edição (o
+mais quente), `selection` a cada clique no canvas, `ui` a cada troca de
+aba ou colapso, `config` quando as props do provider mudam (quase nunca)
+— e `actions` **nunca troca de identidade** pela vida do provider. Esse
+último é o load-bearing da divisão: é o que permite uma peça memoizada
+consumir um mutador sem re-renderizar toda vez que o template muda. Um
+contexto só re-renderizaria toda peça a cada tecla digitada num campo de
+texto.
+
+Os derivados são seletores em vez de entradas de contexto pelo mesmo
+motivo: se `selected`/`bulkEditActive`/`fieldListSchemas` morassem no
+contexto de dados, o value dele trocaria de identidade sempre que
+QUALQUER um deles mudasse, e toda peça que lê dados re-renderizaria por
+causa de um derivado que ela nem toca.
+
+### O que não é peça, e por quê
+
+Não foi tudo decomposto, e cada omissão é decisão, não lacuna:
+
+- **`FieldBox/*` e os `PropertyPanel{Text,Table,…}` por tipo** são
+  despachados por `schema.type`. Um `<DesignerTextPanel/>` avulso não tem
+  resposta pra "qual schema?" que não seja "o selecionado" — e aí é um
+  `DesignerPropertyPanel` pior.
+- **O colapso do `TabPanel`** (duplo clique na aba ativa) mora só no
+  `DesignerSidebar`. O truque de grid `1fr`→`0fr` exige pai flex column
+  com `min-block-size: 0`, que peça avulsa não garante: ela animaria
+  errado em silêncio em vez de degradar.
+- **Os atalhos Delete / Ctrl+C / Ctrl+V** são registrados exatamente uma
+  vez, pelo provider. Numa peça, quem não renderiza o canvas perderia os
+  atalhos em silêncio; em duas, todo paste dispararia dobrado.
+
+### Quem é dono de quê no canvas
+
+O `DesignerCanvas` é dono da **geometria da folha** — mm→px, `transform:
+scale(zoom)`, `transformOrigin` — e isso não é negociável: o `react-rnd`
+recebe `scale={zoom}` e calcula o delta de arrasto *contra* esse
+transform, então sobrescrevê-lo faz o campo fugir do cursor.
+
+Você é dono do **viewport que ROLA**, e é isso que o `className`/`style`
+desta peça atingem: a caixa de fora, não a folha. Você também é dono da
+largura da sidebar — ela é o `inline-size: 20rem` do `.jpd-sidebar` no
+`theme.css`, uma regra de folha de estilo que você sobrescreve, não um
+valor cravado na peça. Largura de painel é decisão de layout, e layout é
+seu.
+
+O zoom continua estado interno do `<PageCanvas>` e nunca subiu pro
+contexto, de propósito: arrastar o slider re-renderizaria toda peça se o
+valor morasse no provider.
+
+### Um exemplo completo
+
+O `examples/composed-layout` (porta 5177) é o layout impossível com o
+preset: toolbar de largura total em cima, lista de campos à esquerda,
+canvas no meio, e uma coluna à direita com **cinco painéis empilhados**
+que dentro do `<Designer>` seriam cinco abas diferentes. Nenhuma peça
+recebe `whenTab`, então são oito peças no DOM ao mesmo tempo e não existe
+`.jpd-tabs` em lugar nenhum.
+
+```tsx
+import { useState } from "react";
+import {
+  DesignerBindingEditor, DesignerCanvas, DesignerFieldList, DesignerInspector,
+  DesignerPageSettings, DesignerPropertyPanel, DesignerProvider, DesignerToolbar,
+  downloadPdf, generatePdf, type Binding, type Template,
+} from "json-pdf-designer";
+import "json-pdf-designer/theme.css";
+
+export default function App() {
+  const [template, setTemplate] = useState<Template>(initialTemplate);
+  const [bindings, setBindings] = useState<Binding[]>(initialBindings);
+
+  return (
+    <DesignerProvider
+      template={template}
+      onChangeTemplate={setTemplate}
+      bindings={bindings}
+      onChangeBindings={setBindings}
+      dataSources={dataSources}
+      // Não existe sidebar pra reabrir, então o provider não deve tentar.
+      expandOnSelect={false}
+    >
+      <div className="app">
+        {/* Largura total, o que o preset nunca faz (lá a toolbar vive no
+            pé da sidebar). `hint={false}` porque "selecione um campo na
+            lista" não tem referente aqui: a lista está na outra coluna. */}
+        <DesignerToolbar className="app-toolbar" hint={false} />
+
+        <div className="app-body">
+          <aside className="app-left">
+            <h2 className="app-h2">Campos</h2>
+            {/* `heading={false}`: o título já está acima, em CSS próprio.
+                `parts.scroll` sobrescreve a altura máxima da lista — dentro
+                do <Designer> ela é curta porque divide a sidebar com a
+                toolbar; aqui a coluna é só dela. */}
+            <DesignerFieldList heading={false} parts={{ scroll: "app-list-scroll" }} />
+          </aside>
+
+          {/* O canvas é dono da geometria da folha; ESTA caixa é o viewport
+              que rola, e ela é nossa. */}
+          <DesignerCanvas className="app-canvas" />
+
+          <aside className="app-right">
+            {/* As duas metades do painel de propriedades, LADO A LADO — é
+                pra isso que a prop `section` existe. Dentro do <Designer>
+                são as abas "Dados" e "Estilo". */}
+            <section className="app-card">
+              <h2 className="app-h2">Dados do campo</h2>
+              <DesignerPropertyPanel section="dados" />
+            </section>
+            <section className="app-card">
+              <h2 className="app-h2">Estilo do campo</h2>
+              {/* `header={false}` pra não repetir o nome do campo, que o
+                  cartão de cima já mostra. */}
+              <DesignerPropertyPanel section="estilo" header={false} />
+            </section>
+            <section className="app-card">
+              <h2 className="app-h2">Vínculo com o JSON</h2>
+              <DesignerBindingEditor />
+            </section>
+            <section className="app-card">
+              <h2 className="app-h2">Página</h2>
+              <DesignerPageSettings />
+            </section>
+            <section className="app-card">
+              <h2 className="app-h2">Inspetor</h2>
+              <DesignerInspector />
+            </section>
+          </aside>
+        </div>
+      </div>
+    </DesignerProvider>
+  );
+}
+```
+
+O `examples/report-builder` também foi migrado pras peças, e lá o layout é
+**idêntico** ao do preset — o que faz dele a comparação útil, porque o que
+a migração comprou não é layout. É o `<SelectedFieldBar>`: a casca do
+*próprio* app lendo a seleção do editor por hook, o que era impossível na
+2.x (o comentário antigo no `App.tsx` dele dizia exatamente isso — o
+`<Designer>` era dono da seleção e não havia prop pra dirigi-la de fora).
+"Remover" na barra do próprio app leva o template de 3 campos pra 2, e o
+Ctrl+Z do próprio app desfaz (2→3): o mutador do pacote passa pelo
+`setState` do consumidor, então o undo/redo dele vê.
+
+## Trocando os primitivos
+
+Todo botão, input, select e modal que o editor renderiza **por dentro**
+resolve por um registry só, então você pode pôr os componentes do seu
+design system lá dentro — não só em volta do editor:
+
+```tsx
+import { UiComponentsProvider, defaultUiComponents, type ButtonProps, type UiComponentsOverride } from "json-pdf-designer";
+import { Button as MuiButton } from "@mui/material";
+
+// Constante de MÓDULO — ver o aviso abaixo.
+const MEU_KIT = {
+  Button: ({ variant = "primary", size = "sm", label, ...rest }: ButtonProps) => <MuiButton {...rest} />,
+} satisfies UiComponentsOverride;
+
+<UiComponentsProvider components={MEU_KIT}>
+  <Designer template={t} onChangeTemplate={setT} bindings={b} onChangeBindings={setB} />
+</UiComponentsProvider>
+```
+
+`<Designer components={MEU_KIT}>` é açúcar pra exatamente esse provider. O
+`useUiComponents()` é como uma peça sua resolve o mesmo registry, e o
+`defaultUiComponents` guarda os nossos.
+
+### Os doze slots
+
+`Button`, `Input`, `ColorInput`, `Select`, `Textarea`, `Checkbox`,
+`Modal`, `Card`, `CardHeader`, `CardTitle`, `Badge`, `TabPanel`.
+
+O conjunto é **fechado** de propósito: cada chave é contrato público e
+permanente. A substituição é parcial — o que você não passa continua sendo
+o nosso — e o merge é chave a chave contra o provider *pai*, então dá pra
+definir o vocabulário do app na raiz e sobrescrever só o `Modal` num
+canto.
+
+`components={{ Button: MuiButton }}` **não** type-checka direto (o
+`variant` do MUI conflita com o nosso), e nenhum truque resolve. A meta é
+um adapter de ~5 linhas tipado nas duas pontas — que é por que todo
+`*Props` é exportado, toda prop não-DOM é opcional, e o exemplo acima usa
+`satisfies UiComponentsOverride` em vez de anotação de tipo.
+
+### `undefined` significa HERDA, não "volta ao default"
+
+Chave com `undefined` é **podada**: `{ Modal: cond ? Fancy : undefined }`
+significa "herda do provider pai", não "usa o do pacote". Pra voltar ao
+nosso explicitamente, nomeie:
+`{ Modal: defaultUiComponents.Modal }`.
+
+### A pegadinha: o seu adapter recebe as props como o *chamador* escreveu
+
+Os defaults moram dentro dos *nossos* componentes. O `<Button>`
+desestrutura `{ variant = "primary", size = "sm" }` na assinatura dele,
+então um call site que escreve só `<Button>ok</Button>` entrega
+`variant: undefined` pro seu adapter — não `"primary"`. Medido: dos seis
+botões da Toolbar, **cinco** chegam sem `variant` nenhum.
+
+Um adapter que traduz os nossos valores pros do seu design system precisa,
+portanto, dos próprios defaults. Os do editor, pra copiar: `Button`
+`variant="primary"` `size="sm"`; `Modal` `size="lg"`; `TabPanel.collapsed`
+é obrigatório e sem default. Todo o resto das props não-DOM é opcional e
+sem default — ausente significa "não mostra" (`label`, `parts`, `mono`).
+
+Dois pontos do contrato que mordem na prática:
+
+- **`label` é a prop que mais importa.** Um slot que descarta `label`
+  remove o nome acessível de ~16 controles. O `TextField` do MUI tem um
+  `label` compatível; o `Input` do Chakra não tem.
+- **`Textarea` é o único slot em que ignorar a `ref` quebra algo**: o
+  modal de fórmula passa uma ref pra reposicionar o caret depois que você
+  aceita uma sugestão. O tipo de todo slot aceita `ref`; uma função
+  componente simples sua continua atribuível (aceitar *menos* props é
+  permitido), ela só ignora a ref — que é o "pode ignorar" documentado em
+  todos os outros.
+
+### Identidade instável é a aresta mais afiada
+
+> Objeto inline cria um **tipo de componente novo a cada render**, e o
+> React desmonta e remonta o que trocou de identidade. O sintoma é *o
+> input perde o foco a cada tecla*, que ninguém liga de volta ao registry.
+> Hoiste o mapa pra constante de módulo, ou memoize. Fora de produção o
+> provider loga um aviso UMA vez, nomeando os slots cuja identidade mudou.
+
+É também por isso que o registry é contexto próprio, separado do estado do
+editor: valor de slot é *tipo de componente*, então se o mapa morasse no
+contexto de estado, cada mudança de estado reconstruiria o value, as
+identidades trocariam, e todo primitivo slotado remontaria. Com contexto
+próprio e a prop `components` memoizada, isso é estruturalmente
+impossível.
+
+Daí sai um invariante: **nenhum primitivo slotável chama
+`useUiComponents`.** Senão o adapter mais óbvio que existe — embrulhar o
+*nosso* componente pra ajustar algo —
+
+```tsx
+{ Button: (p) => <Button {...p} className={cx("meu", p.className)} /> }
+```
+
+recursionaria pra sempre. Só o chrome e os compostos leem o registry, e
+uma varredura de fonte em `test/uiSlots.test.tsx` mantém isso.
+
+### Não slotável
+
+- **`PageCanvas`/`Ruler`/`FieldBox`** — eles são a maquete do PDF. O
+  padding de um primitivo estranho quebra o WYSIWYG.
+- **A barra de abas** — a 2.1.1 foi gasta encaixando seis abas em 290px;
+  o `min-width` de um Button slotado desfaz isso.
+- **O input de rename da lista de campos** — depende de `autoFocus` mais
+  commit no `onBlur`.
+- **O input de arquivo escondido, o glifo "ƒx", os ícones.**
+
+O `PdfPreviewModal` **não** herda primitivos de um `<Designer>` em outro
+lugar da página: ele vive no entry `/preview` e resolve do
+`UiComponentsProvider` mais próximo.
+
+## Estilo e tema
+
+A marcação do editor é superfície estável e documentada: classes `.jpd-*`
+pra estrutura, atributos `data-*` pra estado, custom properties `--jpd-*`
+pra valor. As três são contrato — é isso que faz estilizar do zero ser
+modo suportado em vez de gambiarra.
+
+### O espectro de estilo nos cinco exemplos
+
+Cada app de exemplo em `examples/` fica num ponto diferente do espectro,
+e nenhum repete o ponto de outro — juntos eles exercitam os dois exports
+de CSS mais o modo que não importa nenhum:
+
+| Exemplo | CSS do pacote que importa | O que prova |
+|---|---|---|
+| `report-builder` | `theme.css` | o caminho pronto: o tema como ele vem, zero customização |
+| `composed-layout` | `theme.css` | **retema só por token** — o tema inteiro entra e não se reescreve uma regra |
+| `no-preview` | `theme.css` | **dark mode**, com toggle; a única coisa no repo que exercita dark, e o default dele é escuro |
+| `headless-designer` | **só** `reset.css` | o export sem aparência; é o único exemplo que usa |
+| `custom-ui` | nenhum | 192 seletores `.jpd-*` escritos do zero no `index.css` dele |
+
+A tabela tem guard: o `test/docsFreshness.test.ts` lê as linhas de
+`import "json-pdf-designer/*.css"` de verdade em cada exemplo e falha se
+uma delas mudar sem esta tabela mudar junto. Nada mais avisaria — o
+exemplo compila e roda de qualquer jeito, e só a prosa ficaria errada.
+
+**Retema por token é o ponto mais barato do espectro.** O
+`composed-layout` importa o `theme.css` inteiro e não escreve regra
+`.jpd-*` nenhuma; o `index.css` dele só troca valores de token no `:root`
+dele:
+
+```css
+:root {
+  --jpd-accent: oklch(54.1% 0.245 292.717);              /* violet-600, era sky-600 */
+  --jpd-accent-solid: oklch(54.1% 0.245 292.717);
+  --jpd-accent-solid-hover: oklch(49.1% 0.27 292.581);   /* violet-700 */
+  --jpd-radius-md: 3px;
+  --jpd-radius-lg: 4px;                                  /* o default é 0.5rem */
+}
+```
+
+Medido no navegador depois: o `.jpd-btn[data-variant="primary"]` computa
+`background-color: oklch(0.541 0.245 292.717)` e `border-radius: 4px`,
+contra sky-600 e 8px do tema de fábrica. Todo botão, aba, input, callout
+e faixa do canvas andou junto, e não se escreveu um seletor. Funciona
+porque o `theme.css` declara os tokens dele no `:root`, e uma declaração
+no `:root` do *seu* CSS — fora de qualquer `@layer` — ganha de uma em
+layer. É também a razão de os tokens **não** serem escopados em
+`.jpd-designer`: o `<Modal>` renderiza por `createPortal(document.body)`,
+e token escopado deixaria todo modal portalizado sem tema (mesma causa
+raiz da limitação de ilha de dark escopada, em
+["Dark mode"](#dark-mode)).
+
+**Dark mode é um atributo dirigindo duas camadas.** O `no-preview` é a
+única coisa no repo que exercita dark, e o default dele é escuro: um
+atributo `data-jpd-theme` no `<html>`, alternado pelo header e persistido
+em `localStorage`. O `theme.css` redefine os tokens `--jpd-*` sob
+`[data-jpd-theme="dark"]`, e o exemplo declara as variáveis `--app-*`
+dele na mesma chave, então a casca do app segue o editor sem um segundo
+mecanismo. Medido no toggle: 6 de 6 propriedades amostradas trocam
+juntas — background do `body`, `.app-sidebar` e `.panel-title` na casca,
+`.jpd-sidebar` e `.jpd-ruler__tick` dentro do editor.
+
+**O reset puro não traz aparência, e um token é lido inline.** O
+`headless-designer` é o único exemplo que fica só no `reset.css`, e ele
+pode porque nunca renderiza o `<Designer>`: ele monta o canvas próprio e
+do pacote pega só o `<PdfPreview>`, cuja superfície de estilo inteira são
+quatro nomes — `.jpd-error`, `.jpd-error--md`, `.jpd-preview__count` e o
+token `--jpd-shadow-page-preview`. Escrever essa aparência à mão são umas
+cinco regras. Medido lá: chegaram 54 regras do pacote (o reset, e nada
+mais), e `--jpd-accent`/`--jpd-surface` computam **string vazia** — são
+tokens de aparência, e só o `theme.css` declara. Do `<PdfPreview>`, o
+`reset.css` cobre exatamente uma coisa: o `margin: 0` do `.jpd-error`.
+Cor e tamanho são do consumidor.
+
+> **A pegadinha do modo só-reset, e ela falha calada.** O `PdfPreview`
+> põe a sombra da página **inline**, e não por classe:
+>
+> ```ts
+> canvas.style.boxShadow = "var(--jpd-shadow-page-preview)";
+> ```
+>
+> O `reset.css` não declara token de aparência, então se *você* não
+> declarar esse, o `var()` fica inválido, a declaração inteira é
+> descartada, e o preview aparece sem sombra e sem nada no console. O
+> `headless-designer` declara a dele — computa
+> `rgb(15, 23, 42) 0px 2px 0px 0px, rgb(15, 23, 42) 0px 0px 0px 1px`, a
+> sombra dele e não a difusa do tema — e um teste garante que continue
+> lá. Este é o único ponto em que um componente lê token direto em vez de
+> deixar uma regra ler, então é o único token que o modo sem aparência
+> não pode ignorar. Se você pega o `reset.css` sozinho e usa o
+> `<PdfPreview>`, declare o `--jpd-shadow-page-preview`.
+
+### Nomes de classe e atributos de estado
+
+A convenção é `jpd-block__element--modifier`, um nível de elemento:
+**194 seletores `.jpd-*` distintos sobre 80 blocos**, contados no
+`theme.css` + `reset.css`. Estado **nunca** é classe — é atributo
+`data-*`. A regra que produziu essa divisão: se o JSX teria de
+*concatenar* ou *escolher* uma string de classe, é `data-*`.
+
+```css
+.jpd-btn[data-variant="ghost"] { … }
+.jpd-field[data-selected] { … }
+.jpd-tab[data-active="true"] { … }
+.jpd-fieldrow[data-absent] { … }
+.jpd-band[data-band="header"] { … }
+```
+
+### Tokens
+
+**125 custom properties, 122 delas públicas.** As maiores famílias, por
+contagem: `--jpd-accent-*` (14), `--jpd-text-*` (13), `--jpd-section-*`
+(12), `--jpd-space-*` (10), `--jpd-font-*` (9), `--jpd-surface-*` (8),
+`--jpd-danger-*` (7), `--jpd-canvas-*` (6), `--jpd-shadow-*` (6),
+`--jpd-line-*` (5), `--jpd-radius-*` (5), `--jpd-border-*` (4),
+`--jpd-callout-*` (4), `--jpd-ruler-*` (3), `--jpd-z-*` (3). Sobrescrever
+uma delas é a forma pretendida de temar:
+
+```css
+:root {
+  --jpd-accent: #7c3aed;
+  --jpd-surface: #fdfdfd;
+  --jpd-radius-md: 2px;
+}
+```
+
+O `theme.css` É a lista — ele é não-minificado justamente pra você ler os
+nomes de lá em vez de chutar. As **três** restantes são knobs internos de
+um componente cada (`--jpd-_btn-ring`, `--jpd-_modal-max`,
+`--jpd-_swatch-size`); o underscore no começo é o que mantém a lista
+pública legível. Espaçamento é em `rem`, não px, então escala com o root
+font-size do usuário.
+
+### A `@layer`, e a consequência dela
+
+Tudo no `theme.css` e no `reset.css` mora dentro de
+`@layer json-pdf-designer`. CSS sem layer ganha de CSS com layer
+independente de especificidade, então **toda regra que você escreve ganha
+da nossa por default** — inclusive uma classe que você passa por
+`className`. É esse o motivo inteiro de aceitar `className` querer dizer
+algo: sem a layer, o nosso `.jpd-input` venceria o `p-4` que você passou.
+
+As duas folhas também declaram `@layer json-pdf-designer, utilities;`
+antes de qualquer regra, então a nossa layer fica com a prioridade mais
+baixa não importa qual folha você importe primeiro. (Medido, antes dessa
+linha existir: um `bg-sky-600` do app de exemplo computava
+`rgba(0,0,0,0)` porque o nosso reset vencia.) Usa uma layer com outro
+nome? Declare a ordem própria antes de importar — a regra vale igual:
+
+```css
+@layer json-pdf-designer, minhas-utilitarias;
+```
+
+O efeito colateral vale ser nomeado: um **seletor de elemento solto**
+também ganha, e alcança o chrome do editor. Um `button { padding: 1rem }`
+solto no seu app vai cair nos botões do editor. Isso **não é novidade da
+3.0.0** — o `dist/style.css` do 2.x era output do Tailwind v4, que também
+emite `@layer utilities`, então seletor solto já vencia lá. O conselho é o
+mesmo que sempre foi: escope por classe, e mire `.jpd-*` de propósito
+quando você *quiser* redefinir o editor.
+
+Pra vencer o `theme.css` de propósito: carregue o seu CSS depois dele, ou
+use `style`. O que não decide mais nada é a **ordem dos tokens dentro do
+atributo `class`** — aquilo era propriedade do Tailwind, e o Tailwind
+saiu.
+
+### Dark mode
+
+Dois hooks, e os dois pintam igual (verificado no navegador):
+
+```html
+<html data-jpd-theme="dark">   <!-- o hook documentado -->
+<html class="dark">            <!-- alias, mantido porque os consumidores do 2.x já põem -->
+```
+
+`[data-jpd-theme="light"]` força claro. Qualquer um dos dois vale em
+qualquer ancestral, não só no `<html>`.
+
+**Não há media query**, de propósito: biblioteca não deve virar um app
+light-only escuro porque o SO está escuro. Se você quer seguir o SO, leia
+e escreva o atributo por conta:
+
+```ts
+const mq = matchMedia("(prefers-color-scheme: dark)");
+const aplicar = () => document.documentElement.setAttribute("data-jpd-theme", mq.matches ? "dark" : "light");
+aplicar();
+mq.addEventListener("change", aplicar);
+```
+
+**Uma limitação pra saber.** Uma ilha de dark *escopada* — o atributo num
+container em vez do `<html>` — não alcança modal portalizado: o `<Modal>`
+renderiza por `createPortal(document.body)`, então no DOM ele está fora do
+seu container. Os tokens moram no `:root` justamente por isso. Se você
+precisa de ilha escopada *e* modal escuro, ponha o atributo no `<html>`
+(ou no `document.body`).
 
 ## Versionamento de template (`Template.version`)
 
@@ -904,16 +1537,90 @@ porque uma linha tinha um `\n`.
 
 **Falha alto (e por quê):**
 
-| Situação | Erro | Por que não degradar |
+Cada uma destas é uma **classe tipada** com um `code` literal, exportada dos
+dois entries (`json-pdf-designer` e `json-pdf-designer/server`). A coluna
+abaixo é o que você casa — nunca `error.message`, que é uma string de
+diagnóstico em inglês e pode ser reescrita numa release de patch.
+
+| Situação | Classe (`code`) | `blame` | Por que não degradar |
+|---|---|---|---|
+| Caractere sem glifo na fonte **padrão** (emoji/CJK sem `fontBytes`) | `UnsupportedGlyphError` (`unsupportedGlyph`) | `data` | Ele *tem* glifo numa fonte completa — descartá-lo removeria conteúdo, em silêncio, de um documento que alguém assina. Passe `fontBytes`, ou tire o caractere do dado |
+| Tamanho de página inválido (`NaN`, 0, negativo) | `InvalidPageSizeError` (`invalidPageSize`) | `template` | Estrutural: não há default sensato pra adivinhar |
+| Imagem corrompida num campo | `ImageUnreadableError` (`imageUnreadable`) | `template` | Quem montou escolheu aquele arquivo; descartar calado esconde o erro |
+| Imagem corrompida como fundo da página | `BackgroundImageUnreadableError` (`backgroundImageUnreadable`) | `template` | Idem, e papel timbrado faltando não é óbvio no resultado |
+| Formato de imagem que não é PNG nem JPEG | `UnsupportedImageFormatError` (`unsupportedImageFormat`) | `template` | Reenvie pelo editor, que converte |
+| Uma imagem acima de 15MB (decodificada) | `ImageTooLargeError` (`imageTooLarge`) | `template` | Protege quem está gerando — template pode vir de fonte não confiável |
+| Mais de 200 imagens **distintas** num documento | `TooManyImagesError` (`tooManyImages`) | `template` | Idem. Imagens idênticas são deduplicadas por conteúdo antes, então isso conta as de verdade |
+| Upload acima de 20MB, ou que o navegador não consegue ler | `ImageUploadTooLargeError` / `ImageUploadUnreadableError` | `data` | Pego no upload, antes de poder chegar num template |
+| Documento acima de `maxPages` (default `DEFAULT_MAX_PAGES`, 5000) | `PageLimitError` (`pageLimit`) | `data` | Relatório truncado que parece completo é pior que relatório nenhum. Filtre o dado, divida em vários PDFs, ou aumente o `maxPages` |
+| Uma passada de paginação que não consome nada | `PaginationStalledError` (`paginationStalled`) | `package` | Bug de aritmética do pacote — girar até um contador estourar escondia isso |
+| `.woff2` passado onde o runtime não consegue descomprimir | `Woff2SupportMissingError` / `FontDecompressFailedError` / `FontDecompressTimeoutError` | `config` | Problema de ambiente, não de template |
+| `Template` que não é objeto, ou `version` que não é número | `TemplateNotAnObjectError` / `TemplateVersionInvalidError` | `template` | Não há de onde migrar |
+| `Template.version` mais novo que este build | `TemplateVersionTooNewError` (`templateVersionTooNew`) | `template` | Formato mais novo pode carregar campo que este build ignoraria calado |
+| Falta um passo de migração entre duas versões | `TemplateMigrationMissingError` (`templateMigrationMissing`) | `package` | Lacuna nossa, não sua |
+| `fontBytes` inválido (`Unknown font format`) | **não é nosso** — quem lança é o pdf-lib | — | Erro de quem chamou, não do template nem do dado. Veja o caso `null` abaixo |
+
+### Como tratar
+
+Três linhas, e a ordem importa:
+
+```ts
+import { describePdfError, dictFor, PageLimitError } from "json-pdf-designer/server";
+
+try {
+  const bytes = await generatePdf(template, data, bindings, { fontBytes });
+} catch (err) {
+  // 1. Um caso específico que você quer tratar à parte — por classe, não por mensagem.
+  if (err instanceof PageLimitError) return dividirETentarDeNovo(err.maxPages);
+
+  // 2. Todo o resto: uma chamada transforma o erro em texto que uma pessoa lê.
+  const problem = describePdfError(err, dictFor("pt-BR"));
+  //    → { code, blame, title, action?, field?, detail } | null
+}
+```
+
+O `describePdfError` é exaustivo, então não existe ramo "não reconheci este"
+dentro dele. Ele devolve **`null`** pra erro que não é do pacote — a linha do
+`Unknown font format` acima é exatamente esse caso — em vez de inventar um
+título pra uma falha que ele não entende. Guarde a sua cópia pros seus erros, e
+caia num genérico só quando as duas coisas vierem vazias.
+
+Se você quer o estreitamento sem a cópia — log, métrica, um status HTTP e nada
+mostrado pra ninguém — o `isPdfError(err)` estreita `unknown` pra
+`AnyPdfError`, o que já te dá `code` e `blame` sem dicionário nenhum
+envolvido.
+
+> **Nunca guarde o texto descrito em estado**
+>
+> `title` e `action` saem no idioma do `dict` que você passou. Guarde os dois, e
+> eles congelam naquele idioma — então quem troca o idioma da interface vê aquele
+> pedaço da tela ficar atrás, sem nada falhar e sem nada no log. **Guarde o erro
+> cru e descreva na renderização.**
+>
+> ```diff
+> - catch (err) { setErro(describePdfError(err, dictFor(locale))); }
+> + catch (err) { setCaixaDeErro({ err }); }
+> + // …e no corpo do render, pra rederivar a cada troca de idioma:
+> + const problem = caixaDeErro && describePdfError(caixaDeErro.err, dictFor(locale));
+> ```
+>
+> A caixa (`{ err }`) não é enfeite: `null` não distingue "sem erro" de "um erro
+> que é null", e `setErro(err)` com um erro que por acaso seja função seria lido
+> pelo React como updater.
+
+#### Num servidor
+
+O `blame` existe pra esta decisão não precisar ser tomada duas vezes:
+
+| `blame` | O que significa | Status razoável |
 |---|---|---|
-| Caractere sem glifo na fonte **padrão** (emoji/CJK sem `fontBytes`) | `Campo "x": o caractere "🎉" (U+1F389) não existe na fonte usada …` | Ele *tem* glifo numa fonte completa — descartar removeria conteúdo em silêncio de um documento assinado. Passe `fontBytes`, ou tire do dado |
-| Tamanho de página inválido (`NaN`, 0, negativo) | `Página "x": tamanho inválido …` | Estrutural: não há default sensato pra adivinhar |
-| Imagem corrompida, num campo ou como fundo de página | `Campo "x": não deu pra ler essa imagem …` | Quem montou escolheu aquele arquivo; descartar em silêncio esconde o erro |
-| Imagem acima de 15MB, ou mais de 200 imagens distintas | `… maior que o limite de 15MB …` | Protege quem gera (um template pode vir de fonte não confiável) |
-| Documento acima de `maxPages` (default 5000) | `O documento passou de 5000 páginas ao paginar "x" …` | Relatório truncado que parece completo é pior que relatório nenhum. Filtre o dado, divida em vários PDFs, ou suba o `maxPages` |
-| Passada de paginação que não consome nada | `Paginação travada em "x" …` | Bug de aritmética do pacote — girar até um contador esgotar escondia isso |
-| `fontBytes` inválido | `Unknown font format` | Erro de quem chama, não do template nem do dado |
-| `Template.version` mais nova que este build | `Template na versão N, mas este build só entende até a M` | Formato mais novo pode trazer campos que este build ignoraria em silêncio |
+| `data` | O payload não consegue produzir este documento | `400`, ou `413` no caso do `pageLimit` |
+| `template` | O template salvo está errado | `422` |
+| `config` | Falta algo no ambiente (uma fonte, um codec) | `500`, e acorde alguém |
+| `package` | Bug nosso | `500`, e por favor abra um issue |
+
+Nada acima precisa de React: as classes, o `isPdfError`, o `describePdfError` e
+o `dictFor` saem todos do `json-pdf-designer/server`.
 
 **Uma ressalva sobre o erro de glifo.** Ele só dispara com a fonte **padrão**
 (Helvetica/WinAnsi). Com uma fonte embutida via `fontBytes`, um caractere que a
@@ -931,18 +1638,48 @@ está disponível sem React em `json-pdf-designer/server` — veja "Uso só
 no servidor" acima.
 
 ```ts
-// Componente
+// Componente — o preset (ver "Compondo o editor" acima)
 Designer                                   // canvas React completo (toolbar + lista + réguas + zoom + faixas)
+type DesignerProps
+
+// Composição — monte o seu próprio layout de editor (ver "Compondo o editor")
+DesignerProvider                           // guarda todo o estado; toda peça abaixo precisa dele por cima
+type DesignerProviderProps
+
+// As dez peças posicionáveis. Cada uma aceita className/style/whenTab; várias aceitam parts/flags
+DesignerCanvas, DesignerTabBar, DesignerFieldList, DesignerToolbar, DesignerPageSettings,
+DesignerPropertyPanel, DesignerFilterPanel, DesignerBindingEditor, DesignerInspector,
+DesignerSidebar                            // conveniência: as sete de conteúdo + o gate de aba do preset
+type DesignerCanvasProps, ... (um por peça), type TabGate
+
+// Os dez hooks — acessores (value do contexto cru) e seletores (derivados)
+useDesignerData, useDesignerActions, useDesignerSelection, useDesignerUi, useDesignerConfig
+useDesignerSelectedSchema, useDesignerFieldListSchemas, useDesignerBulkEdit,
+useDesignerTabWarnings, useDesignerFilterColumns
+type DesignerDataValue, DesignerActionsValue, DesignerSelectionValue,
+     DesignerUiValue, DesignerConfigValue
+
+// Registry de primitivos — troque os componentes que o editor usa POR DENTRO
+UiComponentsProvider                       // <Designer components={...}> é açúcar pra isto
+useUiComponents()                          // como uma peça sua resolve o registry
+defaultUiComponents                        // os nossos — nomeie uma chave pra voltar a ele explicitamente
+type UiComponents, type UiComponentsOverride, type UiComponentsProviderProps
 
 // Idioma da UI (ver "Idioma da UI" acima)
 I18nProvider, useT, useLocale, withInlineCode
 type Locale, type Dict
 
 // UI pronta (opcional — ver "Componentes de UI prontos" acima)
-Button, Card, CardHeader, CardTitle, Badge, TabPanel, Modal, Input, ColorInput, Textarea, Select
+// Os 12 primeiros são também os slots do registry.
+Button, Input, ColorInput, Select, Textarea, Checkbox, Modal, Card, CardHeader, CardTitle,
+Badge, TabPanel
+PalettePicker, PaletteSwatches, MaterialIcon, CollapsibleSection, ClearFieldButton
 IconPlus, IconX, IconTrash, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
 IconArrowsVertical, IconDots, IconUpload, IconLock, IconLockOpen, IconBringToFront,
-IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle
+IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle,
+IconChevronLeft, IconChevronRight
+// Todo *Props também é exportado (um adapter de ~5 linhas precisa nomeá-los), mais os
+// tipos da API de estilo: IconProps, PartStyle, ClassValue, LabeledParts
 
 // Geração
 generatePdf(template, data, bindings, { fontBytes?, maxPages? }) => Promise<Uint8Array>
@@ -988,12 +1725,28 @@ orientationOf(page), applyOrientation(page, orientation), matchPreset(page)
 migrateTemplate(input) => Template          // normaliza template vindo de banco/arquivo/API
 CURRENT_TEMPLATE_VERSION                    // versão de formato que este build escreve
 
-// Erros de geração, como classes (também em json-pdf-designer/server) — ver "Modos de falha"
-PageLimitError                              // documento acima do maxPages
+// Erros de geração, como classes (todas também em json-pdf-designer/server) — ver "Modos de falha"
+PdfGenerationError                          // base abstrata; ninguém lança ela direto
+PageLimitError, PaginationStalledError      // paginação: páginas demais / passada que não consumiu nada
+InvalidPageSizeError                        // width/height não são dois números finitos > 0
 UnsupportedGlyphError                       // caractere sem glifo na fonte
-ExpressionError                             // base dos dois abaixo
-ExpressionSyntaxError, ExpressionDepthError
+Woff2SupportMissingError, FontDecompressFailedError, FontDecompressTimeoutError
+ImageUploadTooLargeError, ImageUploadUnreadableError // recusados no upload
+ImageTooLargeError, TooManyImagesError, UnsupportedImageFormatError
+ImageUnreadableError, BackgroundImageUnreadableError
+TemplateNotAnObjectError, TemplateVersionInvalidError, TemplateVersionTooNewError
+TemplateMigrationMissingError               // lacuna nossa entre duas versões
+isPdfError(err) => err is AnyPdfError       // estreita unknown; te dá code + blame
+PDF_ERROR_CODES                             // os 18 códigos, como tupla const
+type PdfErrorCode, PdfErrorBlame, AnyPdfError
 DEFAULT_MAX_PAGES                           // 5000
+
+// Transformar um erro capturado em texto que alguém lê (também em json-pdf-designer/server)
+describePdfError(err, dict) => PdfProblem | null // null quando o erro não é nosso
+type PdfProblem                             // { code, blame, title, action?, field?, detail }
+type PdfProblemCode                         // PdfErrorCode | "expression" — 19 membros
+ExpressionError                             // base dos dois abaixo; hierarquia própria
+ExpressionSyntaxError, ExpressionDepthError
 
 // Validação de expressão (também em json-pdf-designer/server) — ver "Visibilidade condicional"
 expressionError(source) => string | null    // uma expressão: o erro de sintaxe, ou null
@@ -1099,12 +1852,21 @@ src/
                           da dependência peer opcional `wawoff2`, carregada sob demanda,
                           não instalada por padrão)
     pdfWorker.ts       -> configuração do worker do pdf.js (compartilhada)
-    backgroundImage.ts -> converte upload (PDF ou imagem) num PNG de fundo
+    backgroundImage.ts -> converte um PNG/JPEG enviado no PNG de fundo da página (só imagem —
+                          ver a fronteira de entry point no ARCHITECTURE.pt-BR.md)
     thirdParty.d.ts    -> tipos ambient pra wawoff2/tiny-inflate (sem @types próprio)
+  css/                 -> CSS escrito à mão, copiado como está pro dist/ pelo publicDir do tsup
+    theme.css          -> o reset (via @import) + a aparência pronta, tudo em @layer json-pdf-designer
+    reset.css          -> o subconjunto sem aparência: o que o editor herdava do Preflight do Tailwind
   designer/
-    Designer.tsx       -> orquestrador do canvas React — seleção, clipboard, barra de abas, toda mutação de Template/Binding[]
-    useTabBar.ts, useSelection.ts, useClipboardAndDelete.ts -> os hooks que compõem o Designer.tsx
-    helpers.ts         -> helpers puros de posição de spawn/dedupe de nome/busca de fonte de dados usados pelo Designer.tsx
+    Designer.tsx       -> o PRESET: três providers + duas peças num layout de duas colunas (101 linhas)
+    context/           -> DesignerProvider.tsx + os cinco contextos (contexts.ts), os hooks (hooks.ts)
+                          e as derivações puras que os seletores chamam (derived.ts)
+    parts/             -> as dez peças posicionáveis, um arquivo cada, + useTabGate.ts (o gate opt-in de aba)
+    actions.ts         -> todo mutador de Template/Binding[], cada um lendo do `prev` do updater
+                          (é o que mantém a identidade do contexto de actions estável)
+    useTabBar.ts, useSelection.ts, useClipboardAndDelete.ts -> os hooks que compõem o provider
+    helpers.ts         -> helpers puros de posição de spawn/dedupe de nome/busca de fonte de dados
   components/
     PageCanvas.tsx     -> folha A4, réguas, zoom (zoom-aware drag/resize), grade, faixas vermelhas,
                           caixa de seleção, drag/resize/edição inline
@@ -1122,33 +1884,55 @@ src/
     Ruler.tsx          -> régua em mm (SVG)
     PdfPreview.tsx     -> preview do PDF gerado via pdf.js
     PdfPreviewModal.tsx-> modal completo em volta do PdfPreview (exportado, ver acima)
-    ui/                -> Button, Input, Card, Select, Textarea, TabPanel, PalettePicker, CollapsibleSection,
-                          ClearFieldButton, ícones — exportados (ver acima), usados por dentro do próprio Designer
+    ui/                -> Button, Input, Card, Select, Textarea, Checkbox, Modal, TabPanel, PalettePicker,
+                          CollapsibleSection, ClearFieldButton, ícones — exportados (ver acima), usados por dentro
+      registry.ts      -> os 12 slots + defaultUiComponents; UiComponentsProvider.tsx / useUiComponents.ts
+      cx.ts            -> merge de classe (dedupe de token exato, undefined quando vazio) + mergeStyle
   index.ts             -> exports públicos do pacote (nunca alcança o pdfjs-dist)
   preview.ts           -> entry "/preview": o ÚNICO grafo que pode importar pdfjs-dist
 examples/
-  report-builder/      -> app completo (fontes JSON, explorador de campos) usando a UI pronta do pacote
-  custom-ui/           -> mesma ideia, casca 100% própria (CSS na mão, sem nenhum componente do pacote)
+  report-builder/      -> app completo (fontes JSON, explorador de campos) usando a UI pronta do pacote,
+                          migrado pras peças — mesmo layout do preset, mais o <SelectedFieldBar> dele
+  composed-layout/     -> o mesmo editor num layout que o preset não faz: 8 peças no DOM ao mesmo tempo,
+                          sem barra de abas (a prova de que whenTab é opt-in)
+  custom-ui/           -> mesma ideia, casca 100% própria (CSS na mão, sem nenhum componente do pacote,
+                          e sem CSS nenhum do pacote)
   headless-designer/   -> canvas feito à mão sobre json-pdf-designer/server, sem <Designer>/UI nenhuma do pacote
   no-preview/          -> gera + baixa sem preview e sem pdfjs-dist instalado (o gate do peer opcional)
 ```
 
 ## Exemplos
 
-Quatro apps de exemplo em `examples/`, cada um com seu próprio README:
+Cinco apps de exemplo em `examples/`, cada um com seu próprio README:
+
+Cada um também fica no seu próprio ponto do espectro de estilo — ver
+["O espectro de estilo nos cinco exemplos"](#o-espectro-de-estilo-nos-cinco-exemplos).
 
 - **[report-builder](../examples/report-builder)** — designer completo (fontes de
   dados JSON, explorador de campos, 6 templates prontos) usando os
-  componentes de UI do pacote (`Button`/`Card`/`Input`/`PdfPreviewModal`).
+  componentes de UI do pacote (`Button`/`Card`/`Input`, mais o
+  `PdfPreviewModal` do entry separado `/preview`),
+  montado a partir das peças com o layout do próprio preset, mais um
+  `<SelectedFieldBar>` na casca do app que lê a seleção do editor por hook.
+  Estilo: `theme.css` sem tocar em nada.
+- **[composed-layout](../examples/composed-layout)** — o mesmo editor num
+  layout que o preset não produz: toolbar de largura total, lista à
+  esquerda, canvas no meio, e cinco painéis empilhados à direita que
+  dentro do `<Designer>` seriam cinco abas. Oito peças no DOM ao mesmo
+  tempo, sem barra de abas. Estilo: `theme.css` retematizado só por token
+  `--jpd-*`.
 - **[custom-ui](../examples/custom-ui)** — versão enxuta (1 template fixo),
-  casca inteira em CSS próprio, zero componente de UI do pacote — prova
-  que o `<Designer>` funciona sem nenhum design system alheio.
+  casca inteira em CSS próprio, zero componente de UI do pacote e **sem
+  CSS nenhum do pacote** — prova que tanto o `<Designer>` quanto o
+  `theme.css` são opcionais. Estilo: 192 seletores `.jpd-*` do zero.
 - **[headless-designer](../examples/headless-designer)** — sem `<Designer>`
   nenhum: canvas de arrastar/redimensionar montado à mão sobre
   `generatePdf` + tipos de `json-pdf-designer/server`, mais o `PdfPreview`.
+  Estilo: `reset.css` sozinho — o único exemplo no export sem aparência.
 - **[no-preview](../examples/no-preview)** — gera e baixa o PDF sem tela de
   preview e sem o `pdfjs-dist` instalado; o app que prova que o entry
-  principal nunca precisa do peer opcional.
+  principal nunca precisa do peer opcional. Estilo: `theme.css` em **dark
+  mode**, com toggle — o único app aqui que exercita dark.
 
 Cada um roda independente (`npm install && npm run dev` dentro da pasta) —
 não são workspaces do pacote, só apontam pra ele via `"json-pdf-designer":
@@ -1157,7 +1941,7 @@ não são workspaces do pacote, só apontam pra ele via `"json-pdf-designer":
 ## Build
 
 ```bash
-npm run build       # tsup (JS+d.ts) + tailwindcss (dist/style.css)
+npm run build       # tsup (JS + d.ts; src/css/*.css copiados via publicDir)
 npm run dev          # tsup --watch
 npm run typecheck
 ```

@@ -68,7 +68,7 @@ describe("generatePdf — torture tests (pipeline inteiro, casos extremos)", () 
     // A mensagem agora é nossa (UnsupportedGlyphError), não o "WinAnsi cannot
     // encode …" cru do pdf-lib, que não dizia QUAL campo nem o que fazer.
     await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(UnsupportedGlyphError);
-    await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(/Campo "texto_emoji"/);
+    await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(/Field "texto_emoji"/);
     await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(/U\+1F389|fontBytes/);
   });
 

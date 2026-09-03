@@ -1,17 +1,100 @@
-import { useEffect, type ReactNode } from "react";
+import { forwardRef, useEffect, type HTMLAttributes, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { cx, readPart, type PartStyle } from "./cx";
 import { IconX } from "./icons";
+import { useT } from "../../i18n";
 
-type Props = {
+export type ModalProps = Omit<HTMLAttributes<HTMLDivElement>, "title" | "children"> & {
   title: string;
   onClose: () => void;
   // Rodapé opcional (botões de ação). Fica fixo embaixo, fora da área que
   // rola — em janela baixa, "Salvar" não pode ficar inalcançável.
   footer?: ReactNode;
-  // Largura máxima do painel. Default cobre um formulário de duas colunas.
-  maxWidthClass?: string;
+  /**
+   * Largura máxima do painel. `"lg"` (48rem) é o default e é exatamente o que
+   * o antigo `maxWidthClass="max-w-3xl"` dava.
+   *
+   * BREAKING em 3.0.0: substitui `maxWidthClass`, que era uma string de
+   * classe TAILWIND na API pública de um pacote que não envia mais Tailwind.
+   * Largura arbitrária agora é `style={{ maxWidth: 900 }}`, que chega no
+   * painel porque `className`/`style` vão pro elemento que dá nome ao
+   * componente — e o nome aqui é o PAINEL, não o fundo escurecido.
+   */
+  size?: "sm" | "md" | "lg" | "xl" | "full";
+  parts?: {
+    overlay?: PartStyle;
+    header?: PartStyle;
+    title?: PartStyle;
+    body?: PartStyle;
+    footer?: PartStyle;
+  };
   children: ReactNode;
 };
+
+type ShellProps = ModalProps & { closeLabel: string };
+
+// Só a MARCAÇÃO do modal, sem portal e sem Escape.
+//
+// Existe separado por testabilidade, não por gosto: sob
+// `renderToStaticMarkup` não há `document`, então o `Modal` inteiro devolve
+// `null` e nenhuma asserção sobre o markup dele seria possível. O modal é o
+// componente com mais `parts` do kit (overlay/header/title/body/footer), e
+// era o único cuja superfície de `parts` ficaria sem teste.
+export const ModalShell = forwardRef<HTMLDivElement, ShellProps>(function ModalShell(
+  { title, onClose, footer, size = "lg", className, style, parts, closeLabel, children, ...rest },
+  ref
+) {
+  const overlay = readPart(parts?.overlay);
+  const header = readPart(parts?.header);
+  const titlePart = readPart(parts?.title);
+  const body = readPart(parts?.body);
+  const footerPart = readPart(parts?.footer);
+
+  return (
+    <div
+      className={cx("jpd-modal", overlay.className)}
+      style={overlay.style}
+      onClick={onClose}
+      // Nada aqui dentro é arrastável. O portal já tira o modal de dentro do
+      // elemento `draggable`, mas evento de React sobe pela árvore de REACT,
+      // não pela do DOM — então o handler do chip ainda receberia um
+      // dragstart daqui. Este preventDefault fecha essa porta.
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
+    >
+      <div
+        ref={ref}
+        {...rest}
+        data-size={size}
+        className={cx("jpd-modal__panel", className)}
+        style={style}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={cx("jpd-modal__header", header.className)} style={header.style}>
+          <h3 className={cx("jpd-modal__title", titlePart.className)} style={titlePart.style}>
+            {title}
+          </h3>
+          {/* `aria-label` era o TÍTULO DO DIÁLOGO, então leitor de tela
+              anunciava "Editor de fórmula" como nome do botão que fecha o
+              editor de fórmula. Agora tem nome próprio, traduzido. */}
+          <button type="button" onClick={onClose} className="jpd-iconbtn" aria-label={closeLabel}>
+            <IconX />
+          </button>
+        </div>
+
+        <div className={cx("jpd-modal__body", body.className)} style={body.style}>
+          {children}
+        </div>
+
+        {footer && (
+          <div className={cx("jpd-modal__footer", footerPart.className)} style={footerPart.style}>
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
 // Casca de modal: fundo escurecido, clique fora fecha, Escape fecha,
 // cabeçalho com título e "×".
@@ -27,10 +110,17 @@ type Props = {
 // arrasto em vez de seleção. O portal também imuniza contra `overflow:hidden`
 // e `transform` de ancestral, que quebram `position: fixed`.
 //
+// CUIDADO COM TEMA: por render em portal no body, uma ilha de
+// `data-jpd-theme` escopada num wrapper NÃO alcança este modal. Pra tema
+// escuro valer aqui, o atributo tem de estar no <html>.
+//
 // O PdfPreviewModal NÃO usa esta casca de propósito: a dele carrega o
-// cálculo de zoom que ajusta a folha à janela, e trocar por esta genérica
-// seria churn sem ganho nenhum.
-export function Modal({ title, onClose, footer, maxWidthClass = "max-w-3xl", children }: Props) {
+// cálculo de zoom que ajusta a folha à janela. Mas usa as MESMAS classes
+// `jpd-modal*` — três strings dele eram byte-idênticas às daqui.
+export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(props, ref) {
+  const t = useT();
+  const { onClose } = props;
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -43,42 +133,6 @@ export function Modal({ title, onClose, footer, maxWidthClass = "max-w-3xl", chi
   // sentido em HTML estático.
   if (typeof document === "undefined") return null;
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 p-4"
-      onClick={onClose}
-      // Nada aqui dentro é arrastável. O portal já tira o modal de dentro do
-      // elemento `draggable`, mas evento de React sobe pela árvore de REACT,
-      // não pela do DOM — então o handler do chip ainda receberia um
-      // dragstart daqui. Este preventDefault fecha essa porta.
-      draggable={false}
-      onDragStart={(e) => e.preventDefault()}
-    >
-      <div
-        className={`flex max-h-[92vh] w-[92vw] ${maxWidthClass} flex-col rounded-xl bg-white shadow-2xl dark:bg-gray-800`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex flex-shrink-0 items-center justify-between rounded-t-xl border-b border-slate-200 px-5 py-3 dark:border-gray-700">
-          <h3 className="text-base font-semibold text-slate-800 dark:text-gray-100">{title}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-slate-400 transition-colors hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-100"
-            aria-label={title}
-          >
-            <IconX />
-          </button>
-        </div>
+  return createPortal(<ModalShell ref={ref} {...props} closeLabel={t.modal.close} />, document.body);
+});
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-
-        {footer && (
-          <div className="flex flex-shrink-0 items-center justify-end gap-2 rounded-b-xl border-t border-slate-200 px-5 py-3 dark:border-gray-700">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>,
-    document.body
-  );
-}

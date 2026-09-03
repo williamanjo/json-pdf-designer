@@ -12,8 +12,40 @@ O preview do PDF mora num terceiro entry point,
 `json-pdf-designer/preview` — listado no fim desta página.
 
 ```ts
-// Componente
+// O componente preset
 Designer                                   // canvas React completo (toolbar + lista + réguas + zoom + faixas)
+type DesignerProps
+
+// Composição — monte o seu próprio layout de editor (ver "Compondo o Designer")
+DesignerProvider                           // guarda todo o estado; toda peça abaixo precisa dele por cima
+type DesignerProviderProps
+
+// As 10 peças posicionáveis. A DesignerSidebar é conveniência: compõe as sete
+// peças de conteúdo com o gate de aba que o <Designer> usa.
+DesignerCanvas, DesignerTabBar, DesignerFieldList, DesignerToolbar, DesignerPageSettings,
+DesignerPropertyPanel, DesignerFilterPanel, DesignerBindingEditor, DesignerInspector, DesignerSidebar
+type DesignerCanvasProps, DesignerTabBarProps, DesignerFieldListProps, DesignerToolbarProps,
+     DesignerPageSettingsProps, DesignerPropertyPanelProps, DesignerFilterPanelProps,
+     DesignerBindingEditorProps, DesignerInspectorProps, DesignerSidebarProps
+type TabGate                               // whenTab: uma chave de aba, um array delas, ou undefined (= sempre renderiza)
+
+// Os 10 hooks. Cinco acessores (o value do contexto cru) e cinco seletores
+// (derivados, pra cada peça pagar só pelo que ela lê). Fora de um
+// <DesignerProvider> eles LANÇAM, nomeando o provider — nunca devolvem null calados.
+useDesignerData, useDesignerActions, useDesignerSelection, useDesignerUi, useDesignerConfig
+useDesignerSelectedSchema, useDesignerFieldListSchemas, useDesignerBulkEdit,
+useDesignerTabWarnings, useDesignerFilterColumns
+type DesignerDataValue, DesignerActionsValue, DesignerSelectionValue,
+     DesignerUiValue, DesignerConfigValue
+
+// Registry de primitivos — troque os componentes que o editor renderiza POR
+// DENTRO (ver "Customizando os componentes"). 12 slots: Button, Input,
+// ColorInput, Select, Textarea, Checkbox, Modal, Card, CardHeader, CardTitle,
+// Badge, TabPanel.
+UiComponentsProvider                       // <Designer components={...}> é açúcar pra isto
+useUiComponents()                          // como uma peça sua resolve o conjunto atual
+defaultUiComponents                        // os nossos — `{ Modal: defaultUiComponents.Modal }` pra voltar
+type UiComponents, type UiComponentsOverride, type UiComponentsProviderProps
 
 // Idioma da UI (ver "Idioma da UI")
 I18nProvider, useT, useLocale, withInlineCode
@@ -21,9 +53,19 @@ type Locale, type Dict
 
 // UI pronta (opcional — ver "Componentes de UI prontos")
 Button, Card, CardHeader, CardTitle, Badge, TabPanel, Modal, Input, ColorInput, Textarea, Select
+Checkbox, PalettePicker, PaletteSwatches, MaterialIcon, CollapsibleSection, ClearFieldButton
+type BadgeProps, ButtonProps, CardProps, CardTitleProps, CheckboxProps, ClearFieldButtonProps,
+     CollapsibleSectionProps, ColorInputProps, InputProps, MaterialIconProps, ModalProps,
+     PaletteGroup, PaletteGroupItem, PalettePickerProps, PaletteSwatchesProps, SelectProps,
+     TabPanelProps, TextareaProps
+type ClassValue, LabeledParts, PartStyle    // a API de estilo: a entrada do cx, e todo valor de `parts`
+
+// Os 20 ícones — funções simples (sem ref), props são IconProps = SVGAttributes
 IconPlus, IconX, IconTrash, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
-IconArrowsVertical, IconDots, IconUpload, IconLock, IconLockOpen, IconBringToFront,
-IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle
+IconArrowsVertical, IconChevronLeft, IconChevronRight, IconDots, IconUpload, IconLock,
+IconLockOpen, IconBringToFront, IconSendToBack, IconRefresh, IconDownload, IconFolderUp,
+IconAlertTriangle
+type IconProps
 
 // Geração (também em json-pdf-designer/server, exceto downloadPdf)
 generatePdf(template, data, bindings, { fontBytes?, maxPages? }) => Promise<Uint8Array>
@@ -70,12 +112,28 @@ orientationOf(page), applyOrientation(page, orientation), matchPreset(page)
 migrateTemplate(input) => Template         // normaliza template vindo de banco/arquivo/API
 CURRENT_TEMPLATE_VERSION                   // versão de formato que este build escreve
 
-// Erros de geração, como classes (também em json-pdf-designer/server) — ver Modos de falha
-PageLimitError                             // documento acima do maxPages
+// Erros de geração, como classes (todas também em json-pdf-designer/server) — ver Modos de falha
+PdfGenerationError                         // base abstrata; ninguém lança ela direto
+PageLimitError, PaginationStalledError     // paginação: páginas demais / passada que não consumiu nada
+InvalidPageSizeError                       // width/height não são dois números finitos > 0
 UnsupportedGlyphError                      // caractere sem glifo na fonte
-ExpressionError                            // base dos dois abaixo
-ExpressionSyntaxError, ExpressionDepthError
+Woff2SupportMissingError, FontDecompressFailedError, FontDecompressTimeoutError
+ImageUploadTooLargeError, ImageUploadUnreadableError            // recusados no upload
+ImageTooLargeError, TooManyImagesError, UnsupportedImageFormatError
+ImageUnreadableError, BackgroundImageUnreadableError
+TemplateNotAnObjectError, TemplateVersionInvalidError, TemplateVersionTooNewError
+TemplateMigrationMissingError              // lacuna nossa entre duas versões
+isPdfError(err) => err is AnyPdfError      // estreita unknown; te dá code + blame
+PDF_ERROR_CODES                            // os 18 códigos, como tupla const
+type PdfErrorCode, PdfErrorBlame, AnyPdfError
 DEFAULT_MAX_PAGES                          // 5000
+
+// Transformar um erro capturado em texto que alguém lê (também em json-pdf-designer/server)
+describePdfError(err, dict) => PdfProblem | null   // null quando o erro não é nosso
+type PdfProblem                            // { code, blame, title, action?, field?, detail }
+type PdfProblemCode                        // PdfErrorCode | "expression" — 19 membros
+ExpressionError                            // base dos dois abaixo; hierarquia própria
+ExpressionSyntaxError, ExpressionDepthError
 
 // Validação de expressão (também em json-pdf-designer/server) — ver Visibilidade condicional
 expressionError(source) => string | null   // uma expressão: o erro de sintaxe, ou null

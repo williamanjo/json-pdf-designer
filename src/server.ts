@@ -70,11 +70,46 @@ export {
 // downloadPdf fica de fora (usa document/Blob — só faz sentido no browser).
 export { generatePdf, type GeneratePdfOptions } from "./pdf/generate";
 export { migrateTemplate, CURRENT_TEMPLATE_VERSION } from "./template/migrate";
-// Erros de geração, como classes — pra quem chama poder distinguir sem casar
-// mensagem: um backend responde 413 pra PageLimitError e 400 pra
-// UnsupportedGlyphError, por exemplo. Ver docs: "Modos de falha".
-export { PageLimitError, DEFAULT_MAX_PAGES } from "./pdf/layout/layoutDocument";
-export { UnsupportedGlyphError } from "./pdf/textSafety";
+// Erros de geração: `error.message` é INGLÊS (diagnóstico de desenvolvedor —
+// log, stack, Sentry), toda falha é uma CLASSE com dados estruturados e um
+// `code` de string literal, e `describePdfError(err, dictFor(locale))` dá o
+// texto de usuário final localizado. Ver o comentário longo em src/index.ts e
+// docs: "Modos de falha".
+//
+// Tudo daqui é o MESMO módulo do entry principal — `src/errors.ts` importa só
+// o tipo `Dict` e a hierarquia de expressão, nada de React nem de pdf-lib, que
+// é o que deixa o localizador sair no build /server.
+export {
+  describePdfError,
+  isPdfError,
+  PdfGenerationError,
+  PDF_ERROR_CODES,
+  PageLimitError,
+  UnsupportedGlyphError,
+  PaginationStalledError,
+  InvalidPageSizeError,
+  Woff2SupportMissingError,
+  FontDecompressFailedError,
+  FontDecompressTimeoutError,
+  ImageUploadTooLargeError,
+  ImageUploadUnreadableError,
+  ImageTooLargeError,
+  TooManyImagesError,
+  UnsupportedImageFormatError,
+  ImageUnreadableError,
+  BackgroundImageUnreadableError,
+  TemplateNotAnObjectError,
+  TemplateVersionInvalidError,
+  TemplateVersionTooNewError,
+  TemplateMigrationMissingError,
+  type AnyPdfError,
+  type ImageUploadFailureReason,
+  type PdfErrorBlame,
+  type PdfErrorCode,
+  type PdfProblem,
+  type PdfProblemCode,
+} from "./errors";
+export { DEFAULT_MAX_PAGES } from "./pdf/layout/layoutDocument";
 export { ExpressionError, ExpressionSyntaxError, ExpressionDepthError } from "./expressions/errors";
 
 
