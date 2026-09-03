@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import type { KpiElementKey, PageSize, Schema, SectionColumnDragPayload } from "../types";
+import { clampZoom, ZOOM_FIT_INSET_PX, ZOOM_STEP } from "./zoomScale";
 import { findSectionAt, schemasInRect } from "./canvasGeometry";
 import { SECTION_COLUMN_MIME } from "../schemaFactory";
 import { GRID_SIZE_MM, mmToPx, pxToMm, snapToGrid } from "../units";
@@ -54,12 +55,21 @@ type Props = {
   // ver KpiField.tsx/Designer.tsx. Só tem efeito nos campos type "kpi".
   selectedKpiElement?: KpiElementKey | null;
   onSelectKpiElement?: (el: KpiElementKey) => void;
+  // ZOOM CONTROLADO, opcional. Omitido, o componente segue dono do próprio
+  // zoom (estado interno) — que é o que o caminho headless usa, e é o
+  // comportamento de sempre.
+  //
+  // Passado, o valor vem de fora e toda mudança sai por `onChangeZoom`. É
+  // assim que o `<DesignerCanvas>` liga o zoom ao contexto do provider sem
+  // que este componente saiba que existe um provider.
+  zoom?: number;
+  onChangeZoom?: (zoom: number) => void;
+  // Esconde a barra flutuante de zoom, pra quem desenha a própria em outro
+  // lugar da tela. O zoom continua funcionando — só o controle padrão sai.
+  hideZoombar?: boolean;
 };
 
 const RULER_THICKNESS = 16;
-const ZOOM_MIN = 0.25;
-const ZOOM_MAX = 3;
-const ZOOM_STEP = 0.1;
 
 // A "folha" — tamanho real em mm convertido pra px, com sombra de papel.
 // Cada campo é um <Rnd> (react-rnd) livre pra arrastar/redimensionar.
@@ -86,10 +96,37 @@ export function PageCanvas({
   gridSizeMm = GRID_SIZE_MM,
   selectedKpiElement = null,
   onSelectKpiElement,
+  zoom: zoomProp,
+  onChangeZoom,
+  hideZoombar = false,
 }: Props) {
   const t = useT();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
+
+  // Controlado ou não, decidido pela PRESENÇA da prop — o padrão React de
+  // sempre. O estado interno continua existindo nos dois casos porque
+  // trocar de um pro outro no meio da vida do componente não é um caso que
+  // valha suportar: `zoomProp` definido manda, e ponto.
+  const [zoomInterno, setZoomInterno] = useState(1);
+  const controlado = zoomProp !== undefined;
+  const zoom = controlado ? clampZoom(zoomProp) : zoomInterno;
+
+  // Aceita valor OU updater, igual `setState`, porque os botões daqui usam a
+  // forma de updater (`z => z - STEP`) e ela não pode depender de uma
+  // closure velha do `zoom`.
+  const setZoom = useCallback(
+    (proximo: number | ((anterior: number) => number)) => {
+      if (controlado) {
+        // No modo controlado o dono do valor é quem chamou; resolvemos o
+        // updater contra o valor ATUAL da prop e avisamos.
+        const resolvido = typeof proximo === "function" ? proximo(clampZoom(zoomProp)) : proximo;
+        onChangeZoom?.(clampZoom(resolvido));
+        return;
+      }
+      setZoomInterno((anterior) => clampZoom(typeof proximo === "function" ? proximo(anterior) : proximo));
+    },
+    [controlado, zoomProp, onChangeZoom]
+  );
   const bands = { headerHeight, footerHeight, marginLeft, marginRight };
   const gridPx = gridSizeMm > 0 ? mmToPx(gridSizeMm) : 0;
 
@@ -204,15 +241,11 @@ export function PageCanvas({
     onCanvasDrop?.(e);
   }
 
-  function clampZoom(z: number) {
-    return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
-  }
-
   function fitTo(dimension: "width" | "height", origin: HTMLElement | null) {
     const viewport = origin?.closest<HTMLElement>('[data-scroll-root], [class*="overflow-auto"], [class*="overflow-y-auto"]');
     const pageSizePx = dimension === "width" ? mmToPx(page.width) : mmToPx(page.height);
     const available = dimension === "width" ? (viewport?.clientWidth ?? window.innerWidth) : (viewport?.clientHeight ?? window.innerHeight);
-    setZoom(clampZoom((available - RULER_THICKNESS - 32) / pageSizePx));
+    setZoom(clampZoom((available - ZOOM_FIT_INSET_PX) / pageSizePx));
   }
 
   const contentWidth = RULER_THICKNESS + mmToPx(page.width);
@@ -488,6 +521,7 @@ export function PageCanvas({
         </div>
       </div>
 
+      {!hideZoombar && (
       <div className="jpd-zoombar" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
@@ -534,6 +568,7 @@ export function PageCanvas({
           <IconDots />
         </button>
       </div>
+      )}
     </div>
   );
 }

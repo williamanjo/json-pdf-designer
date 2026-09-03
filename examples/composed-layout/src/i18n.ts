@@ -45,6 +45,11 @@ const pt = {
   carregarProjeto: "Carregar projeto",
   gerando: "Gerando…",
   gerarPdf: "Gerar PDF",
+  zoomMenos: "Diminuir zoom",
+  zoomMais: "Aumentar zoom",
+  zoomNivel: "Nível de zoom",
+  zoomLargura: "Largura",
+  zoomAltura: "Altura",
 
   // ---- composição em cima do dicionário do PACOTE ------------------------
   // O substantivo entra pronto de `dictFor(locale)` (é aba do <Designer>);
@@ -170,6 +175,11 @@ const en: typeof pt = {
   carregarProjeto: "Load project",
   gerando: "Generating…",
   gerarPdf: "Generate PDF",
+  zoomMenos: "Zoom out",
+  zoomMais: "Zoom in",
+  zoomNivel: "Zoom level",
+  zoomLargura: "Width",
+  zoomAltura: "Height",
 
   // ---- composição em cima do dicionário do PACOTE ------------------------
   // `toLowerCase()` porque o substantivo chega capitalizado do pacote

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { DesignerZoomProvider } from "./zoom";
 import type { Dispatch, DragEvent, ReactNode, SetStateAction } from "react";
 import type { Binding, DataSourceOption, Template } from "../../types";
 import { useT } from "../../i18n";
@@ -178,7 +179,13 @@ export function DesignerProvider({
       <DesignerActionsContext.Provider value={actions}>
         <DesignerDataContext.Provider value={dataValue}>
           <DesignerSelectionContext.Provider value={selection}>
-            <DesignerUiContext.Provider value={uiValue}>{children}</DesignerUiContext.Provider>
+            <DesignerUiContext.Provider value={uiValue}>
+              {/* Zoom por ÚLTIMO, dentro do contexto de dados: ele lê
+                  `template.page` pra calcular o "ajustar largura/altura", e
+                  é o contexto mais interno de propósito — quem não chama
+                  `useDesignerZoom()` não re-renderiza quando o zoom muda. */}
+              <DesignerZoomProvider>{children}</DesignerZoomProvider>
+            </DesignerUiContext.Provider>
           </DesignerSelectionContext.Provider>
         </DesignerDataContext.Provider>
       </DesignerActionsContext.Provider>

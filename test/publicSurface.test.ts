@@ -240,6 +240,37 @@ describe("superfície pública — os hooks de estado", () => {
     ];
     const faltando = esperados.filter((h) => typeof (api as Record<string, unknown>)[h] !== "function");
     expect(faltando, `hook de estado não exportado:\n  ${faltando.join("\n  ")}`).toEqual([]);
+
+    // A OUTRA DIREÇÃO, que faltava. Este caso só afirmava que os dez
+    // existiam, então um hook NOVO entrava na API pública sem ninguém
+    // declarar — foi exatamente o que aconteceu com `useDesignerZoom`: ele
+    // atravessou a suíte inteira verde. O inventário de componentes acima não
+    // pega hook porque filtra por PascalCase.
+    const todosOsHooks = Object.keys(api)
+      .filter((n) => n.startsWith("useDesigner"))
+      .sort();
+    const naoDeclarados = todosOsHooks.filter((h) => !esperados.includes(h) && h !== "useDesignerZoom");
+    expect(
+      naoDeclarados,
+      `hook novo não declarado — tirar depois é breaking change:\n  ${naoDeclarados.join("\n  ")}`
+    ).toEqual([]);
+  });
+
+  it("useDesignerZoom sai, com os limites que uma barra própria precisa", () => {
+    // O zoom tem contexto próprio e hook próprio (ver
+    // designer/context/zoomContext.ts). Sem os limites exportados, quem
+    // desenha a própria barra chuta 0.25/3/0.1 e o canvas depois recusa o
+    // valor — duas fontes da mesma verdade.
+    const a = api as Record<string, unknown>;
+    expect(typeof a.useDesignerZoom, "useDesignerZoom não exportado").toBe("function");
+    expect(typeof a.clampZoom, "clampZoom não exportado").toBe("function");
+    expect(a.ZOOM_MIN, "ZOOM_MIN não exportado").toBe(0.25);
+    expect(a.ZOOM_MAX, "ZOOM_MAX não exportado").toBe(3);
+    expect(a.ZOOM_STEP, "ZOOM_STEP não exportado").toBe(0.1);
+    // E o clamp é o MESMO que o canvas aplica, senão a barra do consumidor
+    // mostra um número que a folha não está usando.
+    expect((a.clampZoom as (n: number) => number)(99)).toBe(3);
+    expect((a.clampZoom as (n: number) => number)(-1)).toBe(0.25);
   });
 });
 
@@ -302,5 +333,108 @@ describe("superfície pública — o contrato dos erros", () => {
       localizados,
       `estes arquivos passaram a localizar a mensagem lançada — o desenho é classe + describePdfError: ${localizados.join(", ")}`
     ).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// O RESTO DA SUPERFÍCIE — tudo que NÃO é componente.
+//
+// O inventário de componentes acima filtra por PascalCase, então hook
+// (camelCase), helper (camelCase) e constante (SCREAMING_CASE) ficavam TODOS
+// de fora: 104 exports de runtime sem guard nenhum numa suíte que afirmava
+// cobrir a superfície "nas duas direções".
+//
+// Foi assim que `useDesignerZoom`, `clampZoom` e os três `ZOOM_*` entraram
+// na API pública com os 1040 testes verdes. O buraco é pior que o caso: a
+// promessa de "export novo é intencional" valia pra um terço da superfície.
+//
+// Manter esta lista dá trabalho de propósito. Adicionar export público é
+// decisão, não efeito colateral — tirar depois é breaking change.
+// ---------------------------------------------------------------------------
+
+describe("superfície pública — inventário do que não é componente", () => {
+  const CLASSES_DE_ERRO = [
+    "BackgroundImageUnreadableError", "ExpressionDepthError", "ExpressionError",
+    "ExpressionSyntaxError", "FontDecompressFailedError", "FontDecompressTimeoutError",
+    "ImageTooLargeError", "ImageUnreadableError", "ImageUploadTooLargeError",
+    "ImageUploadUnreadableError", "InvalidPageSizeError", "PageLimitError",
+    "PaginationStalledError", "PdfGenerationError", "TemplateMigrationMissingError",
+    "TemplateNotAnObjectError", "TemplateVersionInvalidError", "TemplateVersionTooNewError",
+    "TooManyImagesError", "UnsupportedGlyphError", "UnsupportedImageFormatError",
+    "Woff2SupportMissingError",
+  ];
+
+  const CONSTANTES = [
+    "ALL_SUGGESTIONS", "CHART_COLORS", "CHART_OTHER_COLOR", "CHART_PALETTES",
+    "CHART_PALETTE_LABELS", "CHART_PALETTE_NAMES", "CHART_PALETTE_SIZE",
+    "CURRENT_TEMPLATE_VERSION", "CUSTOM_FIELD_FUNCTIONS", "DEFAULT_MAX_PAGES",
+    "MATERIAL_ICON_GRID", "MATERIAL_ICON_LABELS", "MATERIAL_ICON_NAMES",
+    "MATERIAL_ICON_PATHS", "PAGE_SIZE_PRESETS", "PDF_ERROR_CODES",
+    // Limites do zoom — exportados pra uma barra própria não divergir do canvas.
+    "ZOOM_MAX", "ZOOM_MIN", "ZOOM_STEP",
+  ];
+
+  const FUNCOES = [
+    // erros
+    "describePdfError", "isPdfError",
+    // expressões
+    "applySuggestion", "braceError", "expressionError", "expressionErrors",
+    "insertAtCaret", "suggestAt", "suspiciousOperator", "templateExpressionErrors",
+    "templateSuspiciousOperators", "tokenAtCaret", "wordAtCaret",
+    // dados e vínculos
+    "buildInputs", "describeBinding", "describeBindingShort", "fieldWarning",
+    "filterIncomplete", "resolveToken", "rowsFromArrayBinding",
+    // gráfico e KPI
+    "aggregateChartItems", "makeChartSchema", "makeKpiSchema", "resolveChartColors",
+    "resolveChartItems", "resolveChartPalette", "resolveKpiValue",
+    // geometria, zonas e página
+    "applyOrientation", "clampToZone", "classifyZone", "isRedZone", "matchPreset",
+    "mmToPt", "mmToPx", "orientationOf", "pxToMm", "clampZoom",
+    // tabela e seção
+    "columnKey", "columnLabel", "makeSectionColumnPair",
+    // PDF e template
+    "downloadPdf", "generatePdf", "migrateTemplate", "normalizeFontBytes", "renderTemplate",
+    // i18n e ícones
+    "dictFor", "materialIconLabels", "useLocale", "useT", "withInlineCode",
+    // slots
+    "defaultUiComponents", "useUiComponents",
+    // hooks de estado (o caso dedicado acima cobre o conteúdo da lista)
+    "useDesignerActions", "useDesignerBulkEdit", "useDesignerConfig", "useDesignerData",
+    "useDesignerFieldListSchemas", "useDesignerFilterColumns", "useDesignerSelectedSchema",
+    "useDesignerSelection", "useDesignerTabWarnings", "useDesignerUi", "useDesignerZoom",
+  ];
+
+  // Mesmo filtro do inventário de componentes, invertido.
+  const naoComponentes = Object.entries(api)
+    .filter(([nome, v]) => {
+      if (typeof v === "object" && v !== null && "$$typeof" in (v as object)) return false;
+      if (typeof v === "function" && /^[A-Z]/.test(nome) && !/Error$/.test(nome)) return false;
+      return true;
+    })
+    .map(([nome]) => nome)
+    .sort();
+
+  const declarados = [...CLASSES_DE_ERRO, ...CONSTANTES, ...FUNCOES].sort();
+
+  it("controle: a varredura acha a superfície de verdade", () => {
+    // Anti-vacuidade: se o filtro parar de casar, as duas comparações abaixo
+    // ficam entre listas vazias e passam.
+    expect(naoComponentes.length, "a varredura não achou export nenhum").toBeGreaterThan(90);
+  });
+
+  it("nenhum export novo entrou sem ser declarado", () => {
+    const aMais = naoComponentes.filter((n) => !declarados.includes(n));
+    expect(aMais, `export NOVO não declarado — tirar depois é breaking change:\n  ${aMais.join("\n  ")}`).toEqual([]);
+  });
+
+  it("nenhum export declarado desapareceu", () => {
+    const aMenos = declarados.filter((n) => !naoComponentes.includes(n));
+    expect(aMenos, `export que DESAPARECEU — isto é breaking change:\n  ${aMenos.join("\n  ")}`).toEqual([]);
+  });
+
+  it("nenhum nome duplicado na declaração", () => {
+    const vistos = new Set<string>();
+    const repetidos = declarados.filter((n) => (vistos.has(n) ? true : (vistos.add(n), false)));
+    expect(repetidos, `nome declarado duas vezes:\n  ${repetidos.join("\n  ")}`).toEqual([]);
   });
 });

@@ -212,6 +212,80 @@ This one is not negotiable, and getting it wrong is subtle:
   `.jpd-designer__main` in `theme.css`, not in the part — panel width is
   a layout decision, and layout is yours.
 
+## Zoom, and drawing your own bar
+
+`useDesignerZoom()` is the eleventh hook, and it is the one that makes the
+canvas fully composable. Before 3.1.0 the zoom was internal `useState` in
+`PageCanvas`, so a hand-built layout could not read it, could not drive it,
+and could not move the bar: the default `.jpd-zoombar` is
+`position: sticky` **inside** `.jpd-designer__canvas`, so CSS could shuffle
+it around that box's corners and nothing more.
+
+```tsx
+import { clampZoom, useDesignerZoom, DesignerCanvas } from "json-pdf-designer";
+
+function MyZoomBar() {
+  const { zoom, min, max, setZoom, zoomIn, zoomOut, reset, fitWidth, fitHeight } = useDesignerZoom();
+  return (
+    <div className="my-bar">
+      <button onClick={zoomOut} disabled={zoom <= min}>−</button>
+      {/* step="any" on purpose - see the note below */}
+      <input type="range" min={min} max={max} step="any" value={zoom}
+             onChange={(e) => setZoom(clampZoom(Number(e.target.value)))} />
+      <button onClick={zoomIn} disabled={zoom >= max}>+</button>
+      <span>{Math.round(zoom * 100)}%</span>
+      <button onClick={fitWidth}>Fit width</button>
+      <button onClick={reset}>100%</button>
+    </div>
+  );
+}
+
+// Anywhere in the tree, inside the provider - it does not have to be near the canvas.
+<MyZoomBar />
+<DesignerCanvas hideZoombar />
+```
+
+`hideZoombar` removes the default control and nothing else: the sheet, the
+rulers and the zoom itself all keep working.
+
+| | |
+| --- | --- |
+| `zoom` | the factor. 1 = 100%, always inside `[min, max]` |
+| `min` `max` `step` | `0.25`, `3`, `0.1` - the same numbers the default bar uses |
+| `setZoom(next)` | value or updater, like `setState`. Always clamped |
+| `zoomIn()` `zoomOut()` | one `step` |
+| `reset()` | back to 100% |
+| `fitWidth()` `fitHeight()` | fit to the scrolling viewport |
+| `viewportRef` | the scrolling element, filled in by the mounted `DesignerCanvas` |
+
+Three things worth knowing before you build one:
+
+- **`fitWidth()` measures the canvas's own viewport**, not the window. The
+  mounted `DesignerCanvas` registers itself in `viewportRef`, which is why
+  the call works from a button that is nowhere near the canvas. With no
+  canvas mounted it does nothing, deliberately - the old code fell back to
+  `window.innerWidth` and that is how "fit width" once produced 113% with
+  338px of page off-screen.
+- **Use `step="any"` on a range input, not `step={step}`.** With
+  `min={0.25}` and `step={0.1}` the browser snaps to the grid
+  0.25 / 0.35 / … / 1.05, so asking for 1 gives you 105% and the slider can
+  never land on exactly 100%. `step` is the increment for the +/− buttons;
+  the scale itself is continuous.
+- **`clampZoom` is exported** so your control and the canvas agree on the
+  limits. It also turns `NaN` into 1 - which matters, because
+  `Number("")` from an emptied input would otherwise reach
+  `transform: scale(NaN)` and make the sheet vanish with nothing in the
+  console.
+
+The reason this is a separate context, and not part of the five: zoom
+changes on every frame of a slider drag. Living in a context of its own
+means only the components that call `useDesignerZoom()` re-render - your bar
+and the canvas. The field list, the inspector and the property panels stay
+put.
+
+`examples/composed-layout` does exactly this: its bar sits next to the page
+tabs, outside the canvas, with `<DesignerCanvas hideZoombar />`.
+
 ## What composition buys you
 
 `examples/report-builder` was migrated to the parts and its layout is

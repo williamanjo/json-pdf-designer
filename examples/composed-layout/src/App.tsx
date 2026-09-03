@@ -29,6 +29,7 @@ import DataSourcePanel, { type JsonSource } from "./components/DataSourcePanel";
 import FieldTree from "./components/FieldTree";
 import GenerationErrorBanner from "./components/GenerationErrorBanner";
 import PageTabs from "./components/PageTabs";
+import ZoomBar from "./components/ZoomBar";
 import ProblemsPanel from "./components/ProblemsPanel";
 import { EXAMPLES } from "./data/templates";
 import { t } from "./i18n";
@@ -371,9 +372,14 @@ export default function App() {
                 onRemove={handleRemovePage}
                 locale={locale}
               />
+              {/* A BARRA DE ZOOM DESTE APP, fora do canvas — o caso que a
+                  3.1.0 destravou. `hideZoombar` esconde a do pacote, que é
+                  `position: sticky` dentro do canvas e por isso não tinha
+                  como sair de lá por CSS. Ver components/ZoomBar.tsx. */}
+              <ZoomBar locale={locale} />
               {/* O canvas é dono da geometria da folha; ESTA caixa é o
                   viewport que rola, e ela é nossa. */}
-              <DesignerCanvas className="app-canvas" />
+              <DesignerCanvas className="app-canvas" hideZoombar />
             </div>
 
             <aside className="app-right">

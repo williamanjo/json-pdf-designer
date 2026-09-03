@@ -1083,3 +1083,71 @@ body {
   color: var(--app-ink-faint);
   font-size: 10px;
 }
+
+/* A BARRA DE ZOOM DESTE APP.
+ *
+ * Ela existe pra provar uma coisa que até a 3.1.0 não dava: a barra do pacote
+ * (`.jpd-zoombar`) é `position: sticky` DENTRO do `.jpd-designer__canvas`, e
+ * CSS só conseguia movê-la pelos cantos daquela caixa. Aqui ela é um irmão do
+ * canvas, na coluna central, encostada nas abas de página — outro container
+ * React, alimentado pelo mesmo estado via `useDesignerZoom()`.
+ *
+ * Estilo deliberadamente NOSSO, não uma cópia do `.jpd-zoombar`: o assunto
+ * deste example é o consumidor ser dono da aparência. */
+.app-zoombar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  /* Não encolhe junto com o canvas: a barra é chrome, não conteúdo. */
+  flex: 0 0 auto;
+}
+
+.app-zoombar__btn {
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 9px;
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.app-zoombar__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .app-zoombar__btn:not(:disabled):hover {
+    border-color: var(--app-accent);
+    color: var(--app-accent);
+  }
+}
+
+/* Largura fixa e tabular: sem isso o "100%" ficava mais largo que o "25%" e a
+ * barra inteira dançava a cada passo do slider. */
+.app-zoombar__valor {
+  min-inline-size: 44px;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.app-zoombar__slider {
+  inline-size: 120px;
+  accent-color: var(--app-accent);
+}
+
+.app-zoombar__sep {
+  inline-size: 1px;
+  block-size: 18px;
+  background: var(--app-line);
+  margin-inline: 2px;
+}

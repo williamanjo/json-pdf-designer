@@ -218,6 +218,78 @@ Esta divisão não é negociável, e errar nela é sutil:
   `.jpd-designer__main` do `theme.css`, não na peça — largura de painel é
   decisão de layout, e layout é do consumidor.
 
+## Zoom, e desenhar a própria barra
+
+O `useDesignerZoom()` é o décimo primeiro hook, e é o que deixa o canvas
+composável de verdade. Antes da 3.1.0 o zoom era `useState` interno do
+`PageCanvas`, então um layout montado à mão não conseguia ler o valor, nem
+dirigi-lo, nem mover a barra: a `.jpd-zoombar` padrão é `position: sticky`
+**dentro** do `.jpd-designer__canvas`, então CSS a movia pelos cantos daquela
+caixa e nada além.
+
+```tsx
+import { clampZoom, useDesignerZoom, DesignerCanvas } from "json-pdf-designer";
+
+function MinhaBarraDeZoom() {
+  const { zoom, min, max, setZoom, zoomIn, zoomOut, reset, fitWidth, fitHeight } = useDesignerZoom();
+  return (
+    <div className="minha-barra">
+      <button onClick={zoomOut} disabled={zoom <= min}>−</button>
+      {/* step="any" de propósito — ver a nota abaixo */}
+      <input type="range" min={min} max={max} step="any" value={zoom}
+             onChange={(e) => setZoom(clampZoom(Number(e.target.value)))} />
+      <button onClick={zoomIn} disabled={zoom >= max}>+</button>
+      <span>{Math.round(zoom * 100)}%</span>
+      <button onClick={fitWidth}>Ajustar largura</button>
+      <button onClick={reset}>100%</button>
+    </div>
+  );
+}
+
+// Em qualquer lugar da árvore, dentro do provider — não precisa ser perto do canvas.
+<MinhaBarraDeZoom />
+<DesignerCanvas hideZoombar />
+```
+
+O `hideZoombar` tira o controle padrão e nada mais: a folha, as réguas e o
+zoom em si continuam funcionando.
+
+| | |
+| --- | --- |
+| `zoom` | o fator. 1 = 100%, sempre dentro de `[min, max]` |
+| `min` `max` `step` | `0.25`, `3`, `0.1` — os mesmos números da barra padrão |
+| `setZoom(proximo)` | valor ou updater, igual `setState`. Sempre clampado |
+| `zoomIn()` `zoomOut()` | um `step` |
+| `reset()` | volta pra 100% |
+| `fitWidth()` `fitHeight()` | ajusta ao viewport que rola |
+| `viewportRef` | o elemento que rola, preenchido pelo `DesignerCanvas` montado |
+
+Três coisas que vale saber antes de montar a sua:
+
+- **O `fitWidth()` mede o viewport DO CANVAS**, não a janela. O
+  `DesignerCanvas` montado se registra no `viewportRef`, e é por isso que a
+  chamada funciona a partir de um botão que não está perto do canvas. Sem
+  canvas montado ele não faz nada, de propósito — o código antigo caía em
+  `window.innerWidth`, e foi assim que "ajustar largura" já deu 113% com
+  338px de página fora da tela.
+- **Use `step="any"` num input range, não `step={step}`.** Com `min={0.25}`
+  e `step={0.1}` o navegador prende na grade 0,25 / 0,35 / … / 1,05, então
+  pedir 1 devolve 105% e o slider nunca encosta em 100% exato. O `step` é o
+  incremento dos botões +/−; a escala em si é contínua.
+- **O `clampZoom` é exportado** pra o seu controle e o canvas concordarem nos
+  limites. Ele também transforma `NaN` em 1 — o que importa, porque
+  `Number("")` de um campo esvaziado chegaria em `transform: scale(NaN)` e a
+  folha desapareceria sem nada no console.
+
+Por que isto é um contexto separado, e não parte dos cinco: o zoom muda a
+cada frame de um arraste de slider. Ter contexto próprio significa que só os
+componentes que chamam `useDesignerZoom()` re-renderizam — a sua barra e o
+canvas. A lista de campos, o inspetor e os painéis de propriedade ficam
+parados.
+
+O `examples/composed-layout` faz exatamente isso: a barra dele fica ao lado
+das abas de página, fora do canvas, com `<DesignerCanvas hideZoombar />`.
+
 ## O que a composição compra
 
 O `examples/report-builder` foi migrado pras peças e o layout dele ficou

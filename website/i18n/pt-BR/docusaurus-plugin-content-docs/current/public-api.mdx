@@ -135,6 +135,12 @@ type PdfProblemCode                        // PdfErrorCode | "expression" — 19
 ExpressionError                            // base dos dois abaixo; hierarquia própria
 ExpressionSyntaxError, ExpressionDepthError
 
+// Zoom do canvas — contexto PRÓPRIO, então só quem lê re-renderiza
+useDesignerZoom()                          // { zoom, min, max, step, setZoom, zoomIn, zoomOut, reset, fitWidth, fitHeight, viewportRef }
+clampZoom(n), ZOOM_MIN, ZOOM_MAX, ZOOM_STEP // os limites que o canvas usa; clampZoom transforma NaN em 1
+type DesignerZoomValue
+// <DesignerCanvas hideZoombar /> tira a barra padrão — ver Compondo o Designer
+
 // Validação de expressão (também em json-pdf-designer/server) — ver Visibilidade condicional
 expressionError(source) => string | null   // uma expressão: o erro de sintaxe, ou null
 templateExpressionErrors(template)         // todo {...} ruim de um template, com a mensagem

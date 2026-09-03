@@ -5,6 +5,84 @@
 Todas as mudanças relevantes deste pacote ficam documentadas aqui.
 Formato inspirado, sem seguir à risca, em
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
+## 3.1.0 (2026-09-03)
+
+### Adicionado
+
+- **`useDesignerZoom()`** — o zoom do canvas passa a ser legível e gravável
+  de fora do canvas. Relatado contra a 3.0.1: montando o editor com
+  `DesignerProvider` + peças soltas, não havia como ler o zoom atual, nem
+  disparar zoom/fit/reset de uma barra própria, nem mover a barra de zoom
+  pra fora do canvas — a `.jpd-zoombar` padrão é `position: sticky`
+  **dentro** do `.jpd-designer__canvas`, então CSS só a movia pelos cantos
+  daquela caixa. A única alternativa era reimplementar zoom do zero, com uma
+  segunda cópia do valor pra dessincronizar da folha que o canvas realmente
+  renderiza.
+
+  ```tsx
+  const { zoom, min, max, setZoom, zoomIn, zoomOut, reset, fitWidth, fitHeight } = useDesignerZoom();
+  ```
+
+  Mais o `viewportRef` (o elemento que rola, preenchido pelo
+  `DesignerCanvas` montado), o tipo `DesignerZoomValue`, e `clampZoom` /
+  `ZOOM_MIN` / `ZOOM_MAX` / `ZOOM_STEP` pra um controle montado à mão não
+  discordar do canvas sobre os limites.
+
+- **`<DesignerCanvas hideZoombar />`** — tira o controle padrão e nada mais.
+  A folha, as réguas e o zoom em si continuam funcionando.
+
+- **`<PageCanvas zoom onChangeZoom hideZoombar />`** — o componente agora é
+  controlado-ou-não no zoom, decidido pela presença da prop. Omitida, ele
+  segue dono do próprio zoom exatamente como antes, que é o que o caminho
+  headless usa.
+
+  - **Por que contexto separado, e não um dos cinco.** A decisão original de
+    manter o zoom interno tinha argumento de verdade: arrastar um slider
+    re-renderizaria toda peça se o valor morasse no provider. Ela estava
+    certa sobre o problema e errada sobre a solução — o que cascateia é o
+    valor morar num contexto que todas as peças leem. O zoom ganhou contexto
+    próprio, então só quem chama `useDesignerZoom()` re-renderiza: a sua
+    barra e o canvas. A lista de campos, o inspetor e os painéis de
+    propriedade ficam parados. É o mesmo argumento que já dera contexto
+    próprio ao registry de primitivos.
+  - **`fitWidth()`/`fitHeight()` medem o viewport DO CANVAS**, não a janela,
+    e é por isso que funcionam a partir de um botão que não está perto dele:
+    o `DesignerCanvas` montado se registra no `viewportRef`. Sem canvas
+    montado eles não fazem nada, de propósito — o fallback antigo era
+    `window.innerWidth`, e foi assim que "ajustar largura" já deu 113% com
+    338px de página fora da tela.
+  - **Montando um slider:** use `step="any"`, não `step={step}`. Com
+    `min={0.25}` e `step={0.1}` um input range prende na grade
+    0,25 / 0,35 / … / 1,05, então pedir 1 dá 105% e o slider nunca encosta
+    em 100% exato. O `ZOOM_STEP` é o incremento dos botões +/−; a escala é
+    contínua.
+  - O `examples/composed-layout` agora demonstra isso: a barra dele fica ao
+    lado das abas de página, fora do canvas, com
+    `<DesignerCanvas hideZoombar />` — slider de verdade, porcentagem ao
+    vivo, e botões de ajustar/resetar.
+
+### Corrigido
+
+- **`clampZoom(NaN)` devolvia `NaN`**, e isso chegava em
+  `transform: scale(NaN)` — a folha desaparecia sem nada no console e sem
+  nada no DOM parecendo errado. `Math.max(0.25, NaN)` é `NaN`, e o `NaN`
+  sobrevive ao `Math.min` seguinte. Agora devolve 1 (100%), porque `NaN`
+  significa "não há valor" e 100% é a resposta menos surpreendente;
+  `Infinity` continua clampando pro máximo, já que ali existe valor.
+  Alcançável de dois jeitos: `fitWidth()` sobre uma página cujo `width` é
+  `NaN`, e uma barra própria passando `Number("")` de um campo esvaziado.
+- A guarda do `fitWidth()` usava `paginaPx <= 0`, e `NaN <= 0` é `false`,
+  então um tamanho de página `NaN` atravessava a checagem e ia pra divisão.
+  Agora testa `Number.isFinite`.
+- **O `test/publicSurface.test.ts` guardava um terço da superfície.** O
+  inventário dele filtrava por PascalCase, então todo hook (camelCase),
+  helper (camelCase) e constante (SCREAMING_CASE) ficava sem checagem — 104
+  exports de runtime sem guard nenhum, numa suíte que afirmava cobrir a API
+  pública "nas duas direções". `useDesignerZoom`, `clampZoom` e os três
+  `ZOOM_*` entraram na API pública com a suíte inteira verde, e foi assim
+  que o buraco apareceu. Os 104 estão declarados agora, e o caso dos hooks
+  checa as duas direções.
+
 ## 3.0.0 (2026-09-02)
 
 Tira o Tailwind do pacote e quebra o `<Designer>` em peças que você mesmo

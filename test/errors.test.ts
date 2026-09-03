@@ -451,12 +451,18 @@ describe("as mensagens LANÇADAS estão em inglês", () => {
     expect(ofensoras, `mensagem de erro com acento — o \`message\` do pacote é inglês:\n  ${ofensoras.join("\n  ")}`).toEqual([]);
   });
 
-  it("só um arquivo fora de errors.ts ainda constrói `new Error(...)`, e em inglês", () => {
-    // A exceção DECLARADA: o erro de "faltou o <DesignerProvider>" é erro de
-    // COMPOSIÇÃO React, lido por quem escreve o código. Ele não passa por
-    // describePdfError (não há nada pra o usuário final fazer), então não
-    // ganhou classe — mas continua em inglês, pela mesma razão das outras.
-    const PERMITIDOS = ["designer/context/hooks.ts"];
+  it("só os hooks de contexto constroem `new Error(...)` fora de errors.ts, e em inglês", () => {
+    // As exceções DECLARADAS, e as duas são a MESMA exceção: "faltou o
+    // <DesignerProvider> acima de você" é erro de COMPOSIÇÃO React, lido por
+    // quem escreve o código. Não passa por describePdfError (não há nada pra
+    // o usuário final fazer), então não ganhou classe — mas continua em
+    // inglês, pela mesma razão das outras.
+    //
+    // `useDesignerZoom` mora em arquivo próprio (e não junto dos outros
+    // hooks) porque o zoom tem contexto próprio, e porque a regra
+    // `react(only-export-components)` do oxlint obriga o split — ver
+    // designer/context/zoomContext.ts.
+    const PERMITIDOS = ["designer/context/hooks.ts", "designer/context/useDesignerZoom.ts"];
 
     const comErrorSolto = sourceFiles()
       .filter((f) => relativeToSrc(f) !== "errors.ts")

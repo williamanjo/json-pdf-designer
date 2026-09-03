@@ -234,6 +234,22 @@ export {
   useDesignerSelectedSchema,
   useDesignerTabWarnings,
 } from "./designer/context/hooks";
+
+// O ZOOM tem contexto PRÓPRIO, e o hook mora em arquivo separado por isso.
+//
+// Ele existe porque montar o editor com peças soltas não dava acesso ao zoom
+// de jeito nenhum: o valor era `useState` interno do `<PageCanvas>`, e a
+// `.jpd-zoombar` é `position: sticky` DENTRO do canvas — então CSS só
+// conseguia movê-la dentro daquela caixa, nunca pra outro container React.
+//
+// Contexto separado é o que deixa isso sair sem custo: quem NÃO chama
+// `useDesignerZoom()` não re-renderiza quando o zoom muda. Combine com
+// `<DesignerCanvas hideZoombar />` pra desenhar a sua própria barra.
+export { useDesignerZoom } from "./designer/context/useDesignerZoom";
+export type { DesignerZoomValue } from "./designer/context/zoomContext";
+// Os limites que o canvas usa, pra uma barra própria não deixar passar valor
+// que o canvas depois recusa. `clampZoom` é o mesmo que o `setZoom` aplica.
+export { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "./components/zoomScale";
 export type {
   DesignerActionsValue,
   DesignerConfigValue,
