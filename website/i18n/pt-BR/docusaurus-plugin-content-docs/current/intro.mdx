@@ -5,10 +5,29 @@ description: O que é o json-pdf-designer e por onde seguir.
 
 # json-pdf-designer
 
-Um editor visual de relatórios em PDF pra React — um canvas de arrastar/
-redimensionar (`<Designer>`) mais um motor de vínculo de dados JSON, e um
-gerador de PDF (`generatePdf`) que roda igual no navegador e num backend
-Node. Enxuto, pronto pra i18n, e feito pra ser modificado.
+**Desenhe um relatório PDF no navegador e gere ele em qualquer lugar.**
+
+Um editor visual de relatórios pra React — um canvas de arrastar/
+redimensionar (`<Designer>`) sobre um motor de vínculo de dados JSON, mais
+um gerador de PDF (`generatePdf`) que é JavaScript puro: sem DOM, sem
+`canvas`, sem navegador headless. O template que você desenha é um objeto
+JSON serializável, então o mesmo caminho de código renderiza ele no
+navegador, numa API Node ou num worker de fila — não existe uma segunda
+implementação pra divergir.
+
+## Em resumo
+
+| | |
+| --- | --- |
+| **Tamanho da instalação** | 3 dependências de runtime (`pdf-lib`, `fontkit`, `tiny-inflate`). Os 5 peers são **opcionais** — um backend que só gera não instala nenhum deles |
+| **Requisitos** | Node ≥ 18 · React 18 ou 19 (só pro editor) · TypeScript opcional, tipos incluídos |
+| **Formatos de módulo** | ESM **e** CJS, com `.d.ts` em todos os entry points |
+| **Entry points** | `json-pdf-designer` · `/server` (sem React) · `/preview` · `/theme.css` · `/reset.css` |
+| **Tipos de campo** | texto, tabela, imagem, seção (faixa repetida), gráfico, cartão de KPI |
+| **Expressões** | 11 funções, parseadas pra AST — sem `eval`, sem `new Function` |
+| **Composição** | 10 peças posicionáveis do editor · 10 hooks de estado · 12 primitivos de UI substituíveis |
+| **Estilo** | 190 classes `.jpd-*` estáveis, 123 tokens `--jpd-*`, CSS escrito à mão, sem build do seu lado |
+| **Idiomas da interface** | Inglês e português, trocados por uma prop `locale` |
 
 ## O que você ganha
 
@@ -19,6 +38,32 @@ Node. Enxuto, pronto pra i18n, e feito pra ser modificado.
 | Tipos de campo | Texto, tabela, imagem, **seção** repetida (mestre-detalhe), **gráfico** (pizza/barra), cartão **indicador** (KPI). |
 | Vínculo de dados | Templates `{token}`/`{FUNÇÃO(...)}` contra JSON real — `SUM`, `COUNT`, `AVG`, `DATE`, `CURRENCY`, `NUMBER`, aritmética, e mais. |
 | Idioma da UI | Uma prop `locale` no `<Designer>` (inglês ou português) — só afeta a casca do editor, nunca o conteúdo do relatório gerado. |
+
+## Feito pra ser dependência
+
+Concreto, e conferível no repositório:
+
+- **1030 testes em 72 arquivos**, com peso onde está o risco: 19 arquivos
+  cobrem só geração de PDF e paginação, mais 7 no parser de expressão, 8
+  no kit de UI, 6 nas fronteiras de estado do editor, 5 em tabelas, 4 em
+  vínculo de dados.
+- **O CI testa o artefato publicado, não a fonte.** Ele roda `npm pack`,
+  instala o tarball num diretório limpo e afirma que sai PDF de verdade —
+  *e* que uma falha volta como classe tipada com texto localizado. É isso
+  que pega `exports` errado, arquivo fora do `files`, ou um import que
+  arrasta React em silêncio pro build `/server`.
+- **Peer opcional é verificado, não só declarado.** O mesmo passo de CI
+  falha se `pdfjs-dist`, `react-rnd`, `react` ou `react-dom` aparecerem
+  numa instalação só de backend.
+- **Toda falha é uma classe tipada** com `code` e `blame`
+  (`data`/`template`/`config`/`package`), e o `describePdfError`
+  transforma uma delas em texto que uma pessoa lê, em qualquer dos dois
+  idiomas. Um backend escolhe o status HTTP sem casar mensagem — ver
+  [Modos de falha](./failure-modes).
+- **Semver honesto.** As quebras da 3.0.0 estão enumeradas com diff de
+  migração no [changelog](./changelog), e o caminho removido da folha de
+  estilo falha em tempo de build de propósito, em vez de resolver pra algo
+  sutilmente diferente.
 
 ## Por onde começar
 

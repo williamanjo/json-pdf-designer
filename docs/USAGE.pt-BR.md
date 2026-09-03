@@ -4,7 +4,26 @@
 
 Guia completo de instalação, uso e API do `json-pdf-designer`. Pra visão
 geral do projeto, veja o [README](../README.pt-BR.md); pra decisões de
-arquitetura internas, veja [ARCHITECTURE.pt-BR.md](./ARCHITECTURE.pt-BR.md).
+arquitetura internas, veja
+[ARCHITECTURE.pt-BR.md](./ARCHITECTURE.pt-BR.md).
+
+**As três coisas que vale saber antes de qualquer outra**, porque elas
+moldam todas as outras páginas:
+
+1. **Um template é um objeto JSON serializável.** `Template` +
+   `Binding[]` não têm classe nem função escondida dentro, então eles vão
+   pra um banco ou por uma API como estão. O formato é versionado
+   (`Template.version` + `migrateTemplate`), então um template já guardado
+   em algum lugar continua abrindo depois que o pacote evolui.
+2. **O `generatePdf` é JavaScript puro.** Sem DOM, sem `canvas`, sem
+   navegador headless — o entry point `json-pdf-designer/server` é um
+   build dele sem React. Ou seja, o template que você desenha no navegador
+   gera pelo mesmo caminho de código numa API Node ou num worker de fila,
+   sem uma segunda implementação pra manter em sincronia.
+3. **Problema de dado degrada; problema estrutural falha alto**, e toda
+   falha alta é uma classe tipada carregando um `code` e um `blame`, em
+   vez de uma mensagem que você tem que casar. Veja
+   [O que pode e o que não pode derrubar uma geração](#o-que-pode-e-o-que-não-pode-derrubar-uma-geração).
 
 ## Instalação
 

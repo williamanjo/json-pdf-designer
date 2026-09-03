@@ -4,7 +4,7 @@ import { themes as prismThemes } from "prism-react-renderer";
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "json-pdf-designer",
-  tagline: "Visual PDF report editor for React — drag/resize canvas + JSON data binding",
+  tagline: "Design PDF reports in the browser. Generate them anywhere.",
   favicon: "img/favicon.ico",
 
   future: {

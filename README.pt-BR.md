@@ -3,45 +3,114 @@
 [![npm version](https://img.shields.io/npm/v/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
 [![npm downloads](https://img.shields.io/npm/dm/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
 [![CI](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml/badge.svg)](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/badge/docs-website-blue)](https://williamanjo.github.io/json-pdf-designer/pt-BR/)
+[![tipos](https://img.shields.io/badge/tipos-inclu%C3%ADdos-blue)](https://github.com/williamanjo/json-pdf-designer)
+[![ESM + CJS](https://img.shields.io/badge/module-ESM%20%2B%20CJS-blue)](#em-resumo)
+[![Docs](https://img.shields.io/badge/docs-website-blue)](https://williamanjo.github.io/json-pdf-designer/)
+[![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
 
 **Português** | [English](README.md)
 
-Editor visual de relatórios em PDF para React — canvas de arrastar/
-redimensionar campos, vínculo de campos a um JSON de dados, seção repetida
-(data band/mestre-detalhe), gráficos, cartões de
-indicador (KPI), paginação de verdade, cabeçalho/rodapé repetidos e fundo
-tipo letterhead. Um componente React só seu: sem plugin system, sem
-propPanel declarativo, sem dependência de UI de terceiros — mudar
-qualquer coisa é editar o arquivo.
+**Desenhe um relatório PDF no navegador e gere ele em qualquer lugar.**
 
-A geração do PDF (`generatePdf`) é **JS puro** ([pdf-lib](https://github.com/Hopding/pdf-lib))
-— o mesmo template desenhado no navegador pode ser gerado tanto no
-cliente quanto num backend Node, sem headless browser.
+Editor visual de relatórios para React — canvas com arrastar/redimensionar,
+campos vinculados a uma fonte de dados JSON, seções repetidas (faixa de
+dados / master-detail), tabelas com colunas calculadas e totais, gráficos,
+cartões de KPI, paginação de verdade, cabeçalho/rodapé repetidos e fundo
+de papel timbrado.
+
+O template que você desenha é **um objeto JSON serializável**, e a função
+que o renderiza (`generatePdf`) é JavaScript puro sobre
+[pdf-lib](https://github.com/Hopding/pdf-lib) — sem DOM, sem `canvas`, sem
+navegador headless. Ou seja: o template desenhado na tela renderiza pelo
+mesmo caminho de código no navegador, numa API Node ou num worker de fila
+— não existe uma segunda implementação pra divergir.
+
+```
+ ┌─ navegador ───────────┐     ┌─ seu armazenamento ─┐     ┌─ Node / worker ───────┐
+ │ <Designer/>           │     │ { template,         │     │ generatePdf(...)      │
+ │       ↓               │ ──▶ │   bindings }        │ ──▶ │       ↓               │
+ │ Template + Binding[]  │     │ (JSON puro)         │     │ Uint8Array → S3/email │
+ └───────────────────────┘     └─────────────────────┘     └───────────────────────┘
+```
+
+## Em resumo
+
+| | |
+| --- | --- |
+| **Tamanho da instalação** | 3 dependências de runtime (`pdf-lib`, `fontkit`, `tiny-inflate`). Os 5 peers são **opcionais** — um backend que só gera não instala nenhum deles |
+| **Requisitos** | Node ≥ 18 · React 18 ou 19 (só pro editor) · TypeScript opcional, tipos incluídos |
+| **Formatos de módulo** | ESM **e** CJS, com `.d.ts` em todos os entry points |
+| **Entry points** | `json-pdf-designer` (editor + geração) · `/server` (geração, sem React) · `/preview` (PDF na tela, mantém o `pdfjs-dist` fora de quem nunca faz preview) · `/theme.css` · `/reset.css` |
+| **Tipos de campo** | texto, tabela, imagem, seção (faixa repetida), gráfico, cartão de KPI |
+| **Expressões** | 11 funções, parseadas pra AST — sem `eval`, sem `new Function` |
+| **Composição** | 10 peças posicionáveis do editor · 10 hooks de estado · 12 primitivos de UI substituíveis |
+| **Estilo** | 190 classes `.jpd-*` estáveis, 123 tokens `--jpd-*`, CSS escrito à mão, sem build do seu lado |
 
 ## Por que este pacote
 
-- **Você é dono do código.** Sem sistema de plugins, sem schema
-  declarativo de propriedades — o componente `<Designer>` e o resto do
-  código-fonte ficam dentro do seu `node_modules`, prontos pra ler e
-  editar se precisar de algo que o pacote não previu.
-- **Um template = um JSON.** `Template` + `Binding[]` são objetos planos
-  serializáveis — salva no banco, versiona, manda por API, sem nenhuma
-  classe ou função escondida no meio. O formato do template em si é
-  versionado (`Template.version` + `migrateTemplate`), então template que
-  já está num banco continua carregando depois que o pacote andar.
-- **Mesma função gera no navegador e no servidor.** `generatePdf` não usa
-  DOM nem `canvas` do navegador — só `pdf-lib`/`fontkit`. Dá pra desenhar
-  o template numa tela com `<Designer>` e gerar o PDF de verdade num
-  backend Node a partir do JSON salvo (ver [Uso em backend](#uso-em-backend-sem-ui) abaixo).
-- **Problema de dado degrada; problema estrutural falha alto.** Caminho
-  que não existe no JSON renderiza vazio, e expressão quebrada esvazia
-  *aquele campo* — uma vírgula esquecida não pode custar um relatório de
-  200 páginas. Mas documento que passaria do teto de páginas estoura em
-  vez de te entregar um PDF truncado com cara de completo, e caractere sem
-  glifo na fonte é erro, não um vão silencioso. A tabela inteira do que
-  degrada e do que falha está em
+- **Um template = um JSON, e ele continua abrindo.** `Template` +
+  `Binding[]` são objetos serializáveis simples — guarde num banco,
+  versione, mande por API, sem classe nem função escondida no meio. O
+  formato em si é versionado (`Template.version` + `migrateTemplate`),
+  então um template que já está no banco de um cliente continua abrindo
+  depois que o pacote evolui.
+- **Uma função, dois runtimes.** O `generatePdf` nunca toca no DOM nem no
+  `canvas` do navegador — só `pdf-lib`/`fontkit`. Desenhe na tela com o
+  `<Designer>` e gere o PDF de verdade a partir do JSON salvo num backend
+  Node (ver [Uso no backend](#uso-em-backend-sem-ui)) sem duplicar uma
+  linha de lógica de desenho.
+- **Componível até o primitivo.** O `<Designer>` é um preset sobre 10
+  peças que você posiciona, 10 hooks que leem o mesmo estado e 12
+  primitivos internos de UI que você pode trocar pelos do seu design
+  system. O CSS do editor é contrato publicado, não detalhe de
+  implementação — retematizar é redeclarar tokens.
+- **Problema de dado degrada; problema estrutural falha alto.** Um
+  caminho que não existe no JSON renderiza vazio, e uma expressão
+  quebrada esvazia *aquele campo* — uma vírgula fora de lugar não custa
+  um relatório de 200 páginas. Mas um documento que passaria do teto de
+  páginas lança em vez de te entregar um PDF truncado com cara de
+  completo, e um caractere sem glifo na fonte é erro, não lacuna
+  silenciosa. Toda falha é uma classe tipada com `code` e `blame`, então
+  um backend escolhe o status HTTP sem casar mensagem. A tabela completa
+  do que degrada e do que falha está em
   [O que pode e o que não pode derrubar uma geração](docs/USAGE.pt-BR.md#o-que-pode-e-o-que-não-pode-derrubar-uma-geração).
+- **O código está ali.** Sem sistema de plugin pra aprender e sem schema
+  declarativo de propriedades pra brigar — o `<Designer>` e tudo abaixo
+  dele chega legível no seu `node_modules`, então a saída de emergência
+  pra qualquer coisa que o pacote não previu é ler o arquivo.
+
+## Feito pra ser dependência
+
+Concreto, e conferível neste repositório:
+
+- **1030 testes em 72 arquivos**, com peso onde está o risco: 19 arquivos
+  cobrem só geração de PDF e paginação, mais 7 no parser de expressão, 8
+  no kit de UI, 6 nas fronteiras de estado do editor, 5 em tabelas, 4 em
+  vínculo de dados.
+- **O CI testa o artefato publicado, não a fonte.** Ele roda `npm pack`,
+  instala o tarball num diretório limpo e afirma que sai PDF de verdade —
+  *e* que uma falha volta como classe tipada com texto localizado. É isso
+  que pega `exports` errado, arquivo fora do `files`, ou um import que
+  arrasta React em silêncio pro build `/server`.
+- **Peer opcional é verificado, não só declarado.** O mesmo passo de CI
+  falha se `pdfjs-dist`, `react-rnd`, `react` ou `react-dom` aparecerem
+  numa instalação só de backend.
+- **Formato de template versionado com a cadeia de migração já
+  montada.** O `Template.version` mais o `migrateTemplate` normalizam
+  qualquer coisa que venha de banco ou de arquivo, e uma versão nova de
+  formato que chegue sem o passo de migração lança
+  `TemplateMigrationMissingError` em vez de deformar o template em
+  silêncio. Só existiu uma versão de formato até agora, então a cadeia
+  está vazia de propósito — o ponto é a costura existir e estar testada
+  antes de ser necessária.
+- **Semver honesto.** A 3.0.0 tirou o Tailwind do pacote e renomeou toda
+  classe interna; as quebras estão enumeradas com diff de migração no
+  [CHANGELOG](CHANGELOG.pt-BR.md), e o caminho antigo da folha de estilo
+  falha em tempo de build de propósito, em vez de resolver pra algo
+  sutilmente diferente.
+- **Cinco aplicações de exemplo** que também servem de teste de
+  regressão — inclusive uma instalada *sem* o peer opcional de preview e
+  uma que estiliza o editor inteiro do zero, sem nenhum CSS do pacote.
 
 ## Interface em inglês ou português
 
@@ -317,7 +386,7 @@ considerações de segurança — em **[docs/BACKEND_INTEGRATION.pt-BR.md](docs/
   **sem pipeline de Tailwind em ponta nenhuma** — nem no app, nem no
   pacote.
 
-Todos eles menos o `composed-layout` rodam ao vivo no navegador em
+Todos os cinco rodam ao vivo no navegador em
 **[o playground](https://williamanjo.github.io/json-pdf-designer/playground/)**
 — sem precisar instalar nada localmente.
 
@@ -350,14 +419,33 @@ componentes visuais do `<Designer>` são próprios e exportados junto, e os
 12 primitivos que ele usa por dentro (`Button`, `Input`, `Modal`, …) dão
 pra trocar pelos seus via `<Designer components={...}>`.
 
-## Licença
+## Contribuindo
 
-[MIT](LICENSE)
+Pull requests são bem-vindos. O gate que uma mudança tem que passar é o
+mesmo que o CI roda, e dá pra rodar tudo local:
 
-## Contribuidores
+```bash
+npm run typecheck && npm run lint && npm test && npm run build
+```
+
+O `prepublishOnly` encadeia exatamente esses quatro, então nada chega ao
+npm sem eles. Duas convenções que vale conhecer antes de abrir um PR:
+
+- **Correção de bug vem com o teste que teria pegado ele.** Várias
+  suítes aqui são varreduras de fonte guardando invariantes que não
+  produzem erro nenhum quando quebram — uma classe sem estilo, um token
+  de dark mode faltando, uma string traduzida guardada em estado. Se
+  você adicionar uma, mute o código pra provar que o guard realmente
+  falha.
+- **Só número medido.** Os números na doc e no CHANGELOG existem pra
+  serem reproduzíveis; se você mudar um comportamento que algum número
+  descreve, meça de novo em vez de ajustar a prosa.
 
 | | Nome | Papel |
 | --- | --- | --- |
-| <img src="https://avatars.githubusercontent.com/u/69880957?v=4" width="40" height="40"> | [@williamanjo](https://github.com/williamanjo) | Autor original |
+| <img src="https://avatars.githubusercontent.com/u/69880957?v=4" width="40" height="40"> | [@williamanjo](https://github.com/williamanjo) | Autor e mantenedor |
 
-Contribuições via pull request são bem-vindas.
+## Licença
+
+[MIT](LICENSE) — livre para uso comercial, sem exigência de atribuição
+no que você gera.

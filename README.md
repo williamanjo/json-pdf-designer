@@ -3,46 +3,113 @@
 [![npm version](https://img.shields.io/npm/v/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
 [![npm downloads](https://img.shields.io/npm/dm/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
 [![CI](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml/badge.svg)](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml)
+[![types](https://img.shields.io/badge/types-included-blue)](https://github.com/williamanjo/json-pdf-designer)
+[![ESM + CJS](https://img.shields.io/badge/module-ESM%20%2B%20CJS-blue)](#at-a-glance)
 [![Docs](https://img.shields.io/badge/docs-website-blue)](https://williamanjo.github.io/json-pdf-designer/)
+[![license MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 **English** | [Português](README.pt-BR.md)
 
-Visual PDF report editor for React — drag/resize canvas, bind fields to a
-JSON data source, repeated sections (data band/master-detail), charts,
-KPI cards, real pagination, repeating header/footer, and letterhead-style
-backgrounds. A React component that's entirely yours: no plugin system,
-no declarative propPanel, no third-party UI dependency — changing
-anything is just editing the file.
+**Design a PDF report in the browser, generate it anywhere.**
 
-PDF generation (`generatePdf`) is **plain JS** ([pdf-lib](https://github.com/Hopding/pdf-lib))
-— the same template designed in the browser can be generated on the
-client or on a Node backend, no headless browser required.
+A visual report editor for React — drag/resize canvas, fields bound to a
+JSON data source, repeated sections (data band / master-detail), tables
+with calculated columns and totals, charts, KPI cards, real pagination,
+repeating header/footer, and letterhead backgrounds.
+
+The template you design is **one serializable JSON object**, and the
+function that renders it (`generatePdf`) is plain JavaScript over
+[pdf-lib](https://github.com/Hopding/pdf-lib) — no DOM, no `canvas`, no
+headless browser. So the template drawn on screen renders through the
+same code path in the browser, in a Node API, or in a queue worker —
+there is no second implementation to drift.
+
+```
+ ┌─ browser ─────────────┐     ┌─ your storage ──────┐     ┌─ Node / worker ───────┐
+ │ <Designer/>           │     │ { template,         │     │ generatePdf(...)      │
+ │       ↓               │ ──▶ │   bindings }        │ ──▶ │       ↓               │
+ │ Template + Binding[]  │     │ (plain JSON)        │     │ Uint8Array → S3/email │
+ └───────────────────────┘     └─────────────────────┘     └───────────────────────┘
+```
+
+## At a glance
+
+| | |
+| --- | --- |
+| **Install size** | 3 runtime dependencies (`pdf-lib`, `fontkit`, `tiny-inflate`). All 5 peers are **optional** — a backend that only generates installs none of them |
+| **Requirements** | Node ≥ 18 · React 18 or 19 (only for the editor) · TypeScript optional, types shipped |
+| **Module formats** | ESM **and** CJS, with `.d.ts` for every entry point |
+| **Entry points** | `json-pdf-designer` (editor + generation) · `/server` (generation, React-free) · `/preview` (on-screen PDF, keeps `pdfjs-dist` out of installs that never preview) · `/theme.css` · `/reset.css` |
+| **Field types** | text, table, image, section (repeating band), chart, KPI card |
+| **Expressions** | 11 functions, parsed to an AST — no `eval`, no `new Function` |
+| **Composition** | 10 placeable editor pieces · 10 state hooks · 12 swappable UI primitives |
+| **Styling** | 190 stable `.jpd-*` classes, 123 `--jpd-*` tokens, hand-written CSS, no build step on your side |
 
 ## Why this package
 
-- **You own the code.** No plugin system, no declarative property
-  schema — the `<Designer>` component and the rest of the source sit
-  right inside your `node_modules`, ready to read and edit if you need
-  something the package didn't anticipate.
-- **One template = one JSON.** `Template` + `Binding[]` are plain,
-  serializable objects — save them to a database, version them, send
-  them over an API, no hidden class or function in between. The
-  template's own format is versioned (`Template.version` +
-  `migrateTemplate`), so a template already sitting in a database keeps
-  loading after the package moves on.
-- **The same function generates on the browser and the server.**
-  `generatePdf` doesn't touch the DOM or the browser `canvas` — just
-  `pdf-lib`/`fontkit`. Design the template on screen with `<Designer>`
-  and generate the real PDF on a Node backend from the saved JSON (see
-  [Backend usage](#backend-usage-no-ui) below).
+- **One template = one JSON, and it keeps loading.** `Template` +
+  `Binding[]` are plain serializable objects — store them in a database,
+  version them, send them over an API, with no hidden class or function
+  in between. The format itself is versioned (`Template.version` +
+  `migrateTemplate`), so a template already sitting in a customer's
+  database still opens after the package moves on.
+- **One function, both runtimes.** `generatePdf` never touches the DOM
+  or the browser `canvas` — just `pdf-lib`/`fontkit`. Design on screen
+  with `<Designer>`, then generate the real PDF from the saved JSON in a
+  Node backend (see [Backend usage](#backend-usage-no-ui)) without
+  duplicating a single line of drawing logic.
+- **Composable down to the primitive.** `<Designer>` is a preset over 10
+  pieces you can place yourself, 10 hooks that read the same state, and
+  12 internal UI primitives you can replace with your own design
+  system's. The editor's CSS is a published contract, not an
+  implementation detail — retheming it is redeclaring tokens.
 - **A data problem degrades; a structural problem fails loudly.** A path
   that isn't in the JSON renders empty, and a broken expression empties
   *that field* — one stray comma can't cost you a 200-page report. But a
   document that would blow past the page cap throws instead of handing
   you a truncated PDF that looks complete, and a character with no glyph
-  in the font is an error rather than a silent gap. The full table of
-  what degrades and what fails is in
+  in the font is an error rather than a silent gap. Every failure is a
+  typed class with a `code` and a `blame`, so a backend can pick a status
+  code without matching a message. The full table of what degrades and
+  what fails is in
   [What can and cannot fail a generation](docs/USAGE.md#what-can-and-cannot-fail-a-generation).
+- **The source is right there.** No plugin system to learn and no
+  declarative property schema to fight — `<Designer>` and everything
+  under it ships readable in your `node_modules`, so the escape hatch for
+  anything the package didn't anticipate is reading the file.
+
+## Built to be depended on
+
+Concrete, and checkable in this repo:
+
+- **1030 tests across 72 files**, weighted where the risk is: 19 files
+  cover PDF generation and pagination alone, plus 7 on the expression
+  parser, 8 on the UI kit, 6 on the editor's state boundaries, 5 on
+  tables, 4 on data binding.
+- **CI tests the published artifact, not the source.** It runs
+  `npm pack`, installs the tarball into a clean directory, and asserts
+  that a PDF really comes out — *and* that a failure comes back as a
+  typed class with localized copy. That is what catches a broken
+  `exports` map, a file missing from `files`, or an import that quietly
+  drags React into the `/server` build.
+- **Optional peers are enforced, not just declared.** The same CI step
+  fails if `pdfjs-dist`, `react-rnd`, `react` or `react-dom` ever appear
+  in a backend-only install.
+- **A versioned template format with the migration chain already
+  wired.** `Template.version` plus `migrateTemplate` normalize anything
+  coming from a database or a file, and a format bump that arrives
+  without its migration step throws `TemplateMigrationMissingError`
+  instead of silently mangling a template. There has only been one
+  format version so far, so the chain is empty on purpose — the point is
+  that the seam exists and is tested before it is needed.
+- **Honest semver.** 3.0.0 removed Tailwind from the package and renamed
+  every internal class; the breaking changes are enumerated with
+  migration diffs in the [CHANGELOG](CHANGELOG.md), and the old
+  stylesheet path fails at build time on purpose rather than resolving to
+  something subtly different.
+- **Five example apps** that double as regression tests — including one
+  installed *without* the optional preview peer, and one that styles the
+  entire editor from scratch with no package CSS at all.
 
 ## English or Portuguese UI
 
@@ -317,7 +384,7 @@ considerations — in **[docs/BACKEND_INTEGRATION.md](docs/BACKEND_INTEGRATION.m
   for the theme with **no Tailwind pipeline anywhere** — not in the app,
   not in the package.
 
-Every one of them except `composed-layout` runs live in the browser at
+All five run live in the browser at
 **[the playground](https://williamanjo.github.io/json-pdf-designer/playground/)**
 — no local setup needed.
 
@@ -350,14 +417,32 @@ components are its own and exported alongside it, and the 12 primitives
 it uses internally (`Button`, `Input`, `Modal`, …) can be swapped for
 yours through `<Designer components={...}>`.
 
-## License
+## Contributing
 
-[MIT](LICENSE)
+Pull requests are welcome. The gate a change has to pass is the same one
+CI runs, and you can run all of it locally:
 
-## Contributors
+```bash
+npm run typecheck && npm run lint && npm test && npm run build
+```
+
+`prepublishOnly` chains exactly those four, so nothing reaches npm
+without them. Two conventions worth knowing before you open a PR:
+
+- **A bug fix comes with the test that would have caught it.** Several
+  suites here are source scanners guarding invariants that produce no
+  error when broken — an unstyled class, a missing dark-mode token, a
+  translated string held in state. If you add one, mutate the code to
+  prove the guard actually fails.
+- **Measured claims only.** Numbers in the docs and CHANGELOG are meant
+  to be reproducible; if you change behavior a number describes,
+  re-measure it rather than adjusting the prose.
 
 | | Name | Role |
 | --- | --- | --- |
-| <img src="https://avatars.githubusercontent.com/u/69880957?v=4" width="40" height="40"> | [@williamanjo](https://github.com/williamanjo) | Original author |
+| <img src="https://avatars.githubusercontent.com/u/69880957?v=4" width="40" height="40"> | [@williamanjo](https://github.com/williamanjo) | Author and maintainer |
 
-Contributions via pull request are welcome.
+## License
+
+[MIT](LICENSE) — free for commercial use, no attribution required in
+your output.

@@ -2,5 +2,29 @@
   "version.label": {
     "message": "Atual",
     "description": "The label for version current"
+  },
+  "sidebar.docsSidebar.category.Getting started": {
+    "message": "Primeiros passos",
+    "description": "The label for category Getting started in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Building a report": {
+    "message": "Montando um relatório",
+    "description": "The label for category Building a report in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.The editor": {
+    "message": "O editor",
+    "description": "The label for category The editor in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Reference": {
+    "message": "Referência",
+    "description": "The label for category Reference in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Integrating": {
+    "message": "Integrando",
+    "description": "The label for category Integrating in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Releases": {
+    "message": "Versões",
+    "description": "The label for category Releases in sidebar docsSidebar"
   }
 }

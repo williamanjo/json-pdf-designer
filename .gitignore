@@ -41,3 +41,6 @@ lerna-debug.log*
 *.sln
 *.sw?
 Thumbs.db
+
+# Raiz de preview local do site (espelha o layout do deploy 
+site-preview-root/

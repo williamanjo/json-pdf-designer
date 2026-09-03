@@ -1,6 +1,7 @@
 import { readFileSync } from "./support/read";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 // Guards da DOCUMENTAÇÃO.
@@ -28,14 +29,96 @@ function paginas(dir: string): string[] {
     .sort();
 }
 
+// O sidebar virou ANINHADO (1 doc + 6 categorias), e a leitura por regex que
+// existia aqui não sobrevive a isso por dois motivos independentes:
+//
+//   - `[([\s\S]*?)]` é non-greedy, então parava no PRIMEIRO `]` — que agora
+//     é o fechamento do `items:` da primeira categoria, não o do sidebar;
+//   - toda string entre aspas virava "id de doc", então os rótulos
+//     ("Getting started", "category", "Reference") seriam acusados de página
+//     inexistente.
+//
+// Ler o arquivo de verdade elimina as duas classes de erro de uma vez, e é o
+// mesmo objeto que o Docusaurus consome — não uma aproximação dele.
+function ehCategoria(n: unknown): n is { type: "category"; label: string; items: unknown[] } {
+  return typeof n === "object" && n !== null && (n as { type?: string }).type === "category";
+}
+
+function coletaIds(nos: unknown[], fora: string[]): void {
+  for (const n of nos) {
+    if (typeof n === "string") fora.push(n);
+    else if (ehCategoria(n)) coletaIds(n.items, fora);
+    else if (typeof n === "object" && n !== null && "id" in n) {
+      fora.push(String((n as { id: unknown }).id));
+    }
+  }
+}
+
+function coletaRotulos(nos: unknown[], fora: string[]): void {
+  for (const n of nos) {
+    if (ehCategoria(n)) {
+      fora.push(n.label);
+      coletaRotulos(n.items, fora);
+    }
+  }
+}
+
+// `sidebars.js` é ESM com `export default`; vitest importa direto.
+const sidebarModulo = (await import(pathToFileURL(join(RAIZ, "website", "sidebars.js")).href)) as {
+  default: { docsSidebar: unknown[] };
+};
+const SIDEBAR = sidebarModulo.default.docsSidebar;
+
 function idsDoSidebar(): string[] {
-  const bruto = readFileSync(join(RAIZ, "website", "sidebars.js"), "utf8");
-  const bloco = bruto.match(/docsSidebar:\s*\[([\s\S]*?)\]/)?.[1] ?? "";
-  return [...bloco.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const out: string[] = [];
+  coletaIds(SIDEBAR, out);
+  return out;
+}
+
+function rotulosDeCategoria(): string[] {
+  const out: string[] = [];
+  coletaRotulos(SIDEBAR, out);
+  return out;
 }
 
 describe("website — o sidebar e as páginas concordam", () => {
   const ids = idsDoSidebar();
+
+  it("nenhum id aparece em duas categorias", () => {
+    // Página em dois lugares do sidebar não é erro pro Docusaurus: ele
+    // simplesmente desenha ela duas vezes, e a navegação anterior/próxima
+    // fica ambígua.
+    const vistos = new Set<string>();
+    const repetidos = ids.filter((id) => (vistos.has(id) ? true : (vistos.add(id), false)));
+    expect(repetidos, `id repetido no sidebar:\n  ${repetidos.join("\n  ")}`).toEqual([]);
+  });
+
+  it("todo rótulo de categoria tem tradução pt-BR", () => {
+    // Categoria sem entrada no current.json aparece EM INGLÊS no site
+    // pt-BR, sem erro, sem aviso — só metade da coluna traduzida.
+    const traducoes = JSON.parse(
+      readFileSync(join(RAIZ, "website/i18n/pt-BR/docusaurus-plugin-content-docs/current.json"), "utf8")
+    ) as Record<string, { message?: string }>;
+    const faltando = rotulosDeCategoria().filter(
+      (rotulo) => !traducoes[`sidebar.docsSidebar.category.${rotulo}`]?.message
+    );
+    expect(faltando, `categoria sem tradução em current.json:\n  ${faltando.join("\n  ")}`).toEqual([]);
+  });
+
+  it("nenhuma tradução de categoria ficou órfã", () => {
+    // Anti-vacuidade do caso acima: renomear a categoria e esquecer a chave
+    // antiga deixa uma tradução que nunca é usada, e o caso de cima passa.
+    const traducoes = JSON.parse(
+      readFileSync(join(RAIZ, "website/i18n/pt-BR/docusaurus-plugin-content-docs/current.json"), "utf8")
+    ) as Record<string, unknown>;
+    const rotulos = new Set(rotulosDeCategoria());
+    const orfas = Object.keys(traducoes)
+      .filter((k) => k.startsWith("sidebar.docsSidebar.category."))
+      .map((k) => k.replace("sidebar.docsSidebar.category.", ""))
+      .filter((r) => !rotulos.has(r));
+    expect(orfas, `tradução de categoria que não existe mais:\n  ${orfas.join("\n  ")}`).toEqual([]);
+  });
+
   const en = paginas(DOCS_EN);
 
   it("toda entrada do sidebar tem página em inglês", () => {
@@ -439,5 +522,80 @@ describe("examples — o espectro de estilo está intacto", () => {
     // Se ele passar a reescrever regra `.jpd-*`, deixa de demonstrar
     // "retema sem tocar em CSS" e vira um custom-ui pior.
     expect(/^\s*\.jpd-[a-z-]+\s*\{/m.test(css), "regra `.jpd-*` aqui descaracteriza o example — use token").toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// OS LINKS DO PLAYGROUND, que ninguém valida.
+//
+// Cada example vira um bundle estático separado, copiado pra
+// `playground/<slug>/` só no passo de deploy. Consequência: esses links NÃO
+// existem no build local, e o `onBrokenLinks: "throw"` do Docusaurus não
+// alcança nenhum deles — os do footer são `html:` cru, e os da página do
+// playground são `<a href>` normal fora do grafo de rotas.
+//
+// Então o mesmo slug está escrito à mão em TRÊS lugares, e nada os liga:
+//
+//   1. `website/src/pages/playground/index.js`  — os cartões
+//   2. `website/docusaurus.config.js`           — o footer, em TODAS as páginas
+//   3. `.github/workflows/pages.yml`            — quem copia o bundle
+//
+// Renomear um example, ou adicionar um, quebra 52 páginas × 5 links em
+// silêncio: o link continua lá, o destino nunca é montado, e o build passa.
+// Medido rastreando o build: 2128 links internos, e esses 5 eram os únicos
+// alvos que não existiam.
+// ---------------------------------------------------------------------------
+
+describe("website — os links do playground apontam pra examples que existem", () => {
+  const noDisco = readdirSync(join(RAIZ, "examples"), { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .sort();
+
+  const daPagina = [
+    ...readFileSync(join(RAIZ, "website/src/pages/playground/index.js"), "utf8").matchAll(
+      /slug:\s*["']([a-z0-9-]+)["']/g
+    ),
+  ]
+    .map((m) => m[1])
+    .sort();
+
+  const doFooter = [
+    ...readFileSync(join(RAIZ, "website/docusaurus.config.js"), "utf8").matchAll(
+      /\/json-pdf-designer\/playground\/([a-z0-9-]+)\//g
+    ),
+  ]
+    .map((m) => m[1])
+    .sort();
+
+  const doDeploy = [
+    ...readFileSync(join(RAIZ, ".github/workflows/pages.yml"), "utf8").matchAll(
+      /site-dist\/playground\/([a-z0-9-]+)/g
+    ),
+  ]
+    .map((m) => m[1])
+    .sort();
+
+  it("controle: as três listas foram realmente encontradas", () => {
+    // Sem isto, um regex que deixa de casar faz os três casos abaixo
+    // compararem listas vazias entre si e passarem.
+    expect(daPagina.length, "nenhum slug lido da página do playground").toBe(noDisco.length);
+    expect(doFooter.length, "nenhum slug lido do footer").toBe(noDisco.length);
+    expect(doDeploy.length, "nenhum slug lido do pages.yml").toBe(noDisco.length);
+  });
+
+  it("os cartões do playground cobrem exatamente os examples do disco", () => {
+    expect(daPagina).toEqual(noDisco);
+  });
+
+  it("o footer aponta exatamente pros examples do disco", () => {
+    // Este é o pior dos três: o footer é renderizado em toda página do site.
+    expect(doFooter).toEqual(noDisco);
+  });
+
+  it("o deploy monta exatamente os destinos que os links usam", () => {
+    // Se o pages.yml não copiar um slug que os links citam, o link vira 404
+    // em produção — e nada no build local acusa.
+    expect(doDeploy).toEqual(noDisco);
   });
 });
