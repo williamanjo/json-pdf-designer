@@ -157,7 +157,7 @@ describe("website — o sidebar e as páginas concordam", () => {
 function arquivosDeProsa(): Array<{ rel: string; texto: string }> {
   const alvos: string[] = [
     "README.md",
-    "README.pt-BR.md",
+    "README_pt-BR.md",
     "CHANGELOG.md",
     "CHANGELOG.pt-BR.md",
     ...readdirSync(join(RAIZ, "docs"))
@@ -325,7 +325,7 @@ describe("docs — a lista de examples bate com o disco", () => {
 //
 // A primeira versão disto usava `[^\w\s-]`, e `\w` em JS não cobre acento:
 // ela comia o `ç` e o `ã` e acusava de âncora morta dois links CORRETOS do
-// README.pt-BR.md (`#...derrubar-uma-geração`, `#uso-só-no-servidor-...`).
+// README_pt-BR.md (`#...derrubar-uma-geração`, `#uso-só-no-servidor-...`).
 // Era bug do teste. `\p{L}\p{N}` com a flag `u` resolve.
 function ancoraDe(heading: string): string {
   return heading
@@ -346,7 +346,7 @@ describe("docs — link com âncora aponta pra heading que existe", () => {
   // `onBrokenLinks: "throw"`, que é um guard melhor que este).
   const fontes = [
     "README.md",
-    "README.pt-BR.md",
+    "README_pt-BR.md",
     ...readdirSync(join(RAIZ, "docs"))
       .filter((f) => f.endsWith(".md"))
       .map((f) => `docs/${f}`),
@@ -597,5 +597,68 @@ describe("website — os links do playground apontam pra examples que existem", 
     // Se o pages.yml não copiar um slug que os links citam, o link vira 404
     // em produção — e nada no build local acusa.
     expect(doDeploy).toEqual(noDisco);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UM SÓ ARQUIVO NA RAIZ PODE CASAR `README.*`.
+//
+// Isto não é estilo: é o que decide qual README a npmjs.com mostra, e a
+// 3.0.0 foi publicada com o README EM PORTUGUÊS por causa disso.
+//
+// `npm publish` resolve o readme em @npmcli/package-json/lib/normalize.js:
+//
+//     const mdre = /\.m?a?r?k?d?o?w?n?$/i
+//     const files = await glob("{README,README.*}", { cwd, nocase: true })
+//     for (const file of files) {
+//       if (file.match(mdre)) { readmeFile = file; break }   // o PRIMEIRO vence
+//
+// Com `README.md` e `README.pt-BR.md` na raiz, os dois casam o glob e os dois
+// casam `mdre` (todas as letras de "markdown" são opcionais, então qualquer
+// coisa terminando em `.md` passa). Quem vence é a ORDEM DO GLOB, que não é
+// garantida — o publish anexou o pt-BR, e o registry ficou com 22 097 chars
+// começando em "**Português** | [English](README.md)".
+//
+// Nada avisa: `npm pack` inclui os dois arquivos, o tarball está correto, o
+// build passa. Só a página do npm fica no idioma errado.
+//
+// A correção foi renomear pra `README_pt-BR.md` — underscore não casa
+// `README.*`, que exige o ponto literal. Este teste guarda a invariante em
+// vez do nome, então qualquer `README.<algo>.md` futuro falha aqui.
+// ---------------------------------------------------------------------------
+
+describe("npm — só um arquivo da raiz pode ser lido como README", () => {
+  // Mesma regra do glob do npm: `README` exato, ou `README.` + qualquer coisa.
+  // `nocase: true` lá, então comparo em minúsculas.
+  const candidatos = readdirSync(RAIZ, { withFileTypes: true })
+    .filter((d) => d.isFile())
+    .map((d) => d.name)
+    .filter((n) => {
+      const baixo = n.toLowerCase();
+      return baixo === "readme" || baixo.startsWith("readme.");
+    })
+    .sort();
+
+  it("existe exatamente um candidato, e é o README.md em inglês", () => {
+    expect(
+      candidatos,
+      "mais de um arquivo da raiz casa `README.*` — o npm escolhe pela ordem do " +
+        "glob, que não é garantida, e pode publicar o errado. Use um separador " +
+        "que não seja ponto (ex.: README_pt-BR.md):\n  " +
+        candidatos.join("\n  ")
+    ).toEqual(["README.md"]);
+  });
+
+  it("a tradução continua existindo, com um nome que o npm ignora", () => {
+    // Anti-vacuidade: "só um candidato" também passaria se a tradução tivesse
+    // sido apagada em vez de renomeada.
+    expect(existsSync(join(RAIZ, "README_pt-BR.md")), "README_pt-BR.md não existe").toBe(true);
+  });
+
+  it("os dois READMEs se apontam", () => {
+    const en = readFileSync(join(RAIZ, "README.md"), "utf8");
+    const pt = readFileSync(join(RAIZ, "README_pt-BR.md"), "utf8");
+    expect(en, "README.md não linka a tradução").toContain("README_pt-BR.md");
+    expect(pt, "README_pt-BR.md não linka o inglês").toContain("README.md");
   });
 });

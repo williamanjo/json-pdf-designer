@@ -68,7 +68,8 @@
     "./reset.css": "./dist/reset.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "README_pt-BR.md"
   ],
   "engines": {
     "node": ">=18"

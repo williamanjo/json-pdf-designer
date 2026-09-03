@@ -8,7 +8,7 @@
 [![Docs](https://img.shields.io/badge/docs-website-blue)](https://williamanjo.github.io/json-pdf-designer/)
 [![license MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**English** | [Português](README.pt-BR.md)
+**English** | [Português](README_pt-BR.md)
 
 **Design a PDF report in the browser, generate it anywhere.**
 

@@ -3,7 +3,7 @@
 # Documentação
 
 Guia completo de instalação, uso e API do `json-pdf-designer`. Pra visão
-geral do projeto, veja o [README](../README.pt-BR.md); pra decisões de
+geral do projeto, veja o [README](../README_pt-BR.md); pra decisões de
 arquitetura internas, veja
 [ARCHITECTURE.pt-BR.md](./ARCHITECTURE.pt-BR.md).
 
