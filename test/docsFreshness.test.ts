@@ -662,3 +662,76 @@ describe("npm — só um arquivo da raiz pode ser lido como README", () => {
     expect(pt, "README_pt-BR.md não linka o inglês").toContain("README.md");
   });
 });
+
+// ---------------------------------------------------------------------------
+// O robots.txt TEM QUE LISTAR UM SITEMAP POR IDIOMA.
+//
+// O plugin de sitemap do Docusaurus gera um arquivo POR LOCALE, na raiz de
+// cada build: `/sitemap.xml` pro `en` e `/pt-BR/sitemap.xml` pro pt-BR. Não
+// existe sitemap índice amarrando os dois — `/sitemap-index.xml` responde
+// 404 no site publicado.
+//
+// Enquanto o robots.txt listava só o primeiro, as 25 URLs em português eram
+// indescobríveis por sitemap. Verificado no ar: os dois arquivos respondem
+// 200 e têm 25 `<loc>` cada; só um estava anunciado.
+//
+// Nada avisa. O build passa, o sitemap existe, o robots.txt é válido — e
+// metade do site fica fora do que foi submetido. Um idioma novo em
+// `locales` reintroduz o problema exatamente do mesmo jeito, e é isso que
+// este teste impede.
+// ---------------------------------------------------------------------------
+
+describe("website — o robots.txt anuncia o sitemap de cada idioma", () => {
+  const config = readFileSync(join(RAIZ, "website/docusaurus.config.js"), "utf8");
+  const robots = readFileSync(join(RAIZ, "website/static/robots.txt"), "utf8");
+
+  const locales = (() => {
+    const m = /locales:\s*\[([^\]]*)\]/.exec(config);
+    return m ? [...m[1].matchAll(/["']([^"']+)["']/g)].map((x) => x[1]) : [];
+  })();
+  const defaultLocale = (/defaultLocale:\s*["']([^"']+)["']/.exec(config) ?? [])[1];
+  const url = (/^\s*url:\s*["']([^"']+)["']/m.exec(config) ?? [])[1];
+  const baseUrl = (/^\s*baseUrl:\s*["']([^"']+)["']/m.exec(config) ?? [])[1];
+
+  const anunciados = [...robots.matchAll(/^Sitemap:\s*(\S+)$/gm)].map((m) => m[1]);
+
+  it("controle: a config foi lida de verdade", () => {
+    // Anti-vacuidade: se qualquer regex parar de casar, as comparações
+    // abaixo ficam entre listas vazias e passam.
+    expect(locales.length, "não li `locales` da config").toBeGreaterThan(1);
+    expect(defaultLocale, "não li `defaultLocale`").toBeTruthy();
+    expect(url, "não li `url`").toBeTruthy();
+    expect(baseUrl, "não li `baseUrl`").toBeTruthy();
+    expect(anunciados.length, "nenhuma linha `Sitemap:` no robots.txt").toBeGreaterThan(0);
+  });
+
+  it("existe uma linha Sitemap: por locale, com a URL que o build gera", () => {
+    // O locale default fica na raiz; os outros ganham prefixo de pasta. É
+    // exatamente o layout que o build produz.
+    const esperados = locales
+      .map((l) => `${url}${baseUrl}${l === defaultLocale ? "" : `${l}/`}sitemap.xml`)
+      .sort();
+    const faltando = esperados.filter((e) => !anunciados.includes(e));
+    expect(
+      faltando,
+      `sitemap gerado que o robots.txt não anuncia — as URLs desse idioma ficam ` +
+        `indescobríveis:\n  ${faltando.join("\n  ")}`
+    ).toEqual([]);
+  });
+
+  it("nenhum Sitemap: anunciado que o build não gera", () => {
+    const esperados = locales.map(
+      (l) => `${url}${baseUrl}${l === defaultLocale ? "" : `${l}/`}sitemap.xml`
+    );
+    const sobrando = anunciados.filter((a) => !esperados.includes(a));
+    expect(sobrando, `robots.txt anuncia sitemap que não existe:\n  ${sobrando.join("\n  ")}`).toEqual([]);
+  });
+
+  it("o robots.txt não bloqueia o crawl", () => {
+    // Barato, e é o primeiro suspeito quando "o Google não indexa": um
+    // `Disallow: /` deixaria todo o resto irrelevante.
+    expect(/^Allow:\s*\/$/m.test(robots), "falta `Allow: /`").toBe(true);
+    const disallows = [...robots.matchAll(/^Disallow:\s*(\S*)$/gm)].map((m) => m[1]);
+    expect(disallows.filter((d) => d === "/"), "robots.txt tem `Disallow: /`").toEqual([]);
+  });
+});

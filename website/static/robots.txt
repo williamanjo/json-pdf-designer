@@ -1,4 +1,19 @@
 User-agent: *
 Allow: /
 
+# DOIS sitemaps, um por idioma — e isso não é redundância.
+#
+# O plugin de sitemap do Docusaurus gera um arquivo POR LOCALE, na raiz de
+# cada build: /sitemap.xml (en, 25 URLs) e /pt-BR/sitemap.xml (pt-BR, as
+# mesmas 25 traduzidas). Não existe sitemap índice amarrando os dois —
+# /sitemap-index.xml responde 404.
+#
+# Enquanto só o primeiro estava listado aqui, as 25 URLs em português eram
+# indescobríveis por sitemap. As páginas em inglês declaram
+# `hreflang="pt-BR"` no <head>, então o Google podia chegar nelas por ali,
+# mas isso é um sinal mais fraco que estar num sitemap submetido.
+#
+# robots.txt aceita várias linhas `Sitemap:`, e elas são independentes da
+# seção `User-agent` — por isso ficam no fim, sem indentação.
 Sitemap: https://williamanjo.github.io/json-pdf-designer/sitemap.xml
+Sitemap: https://williamanjo.github.io/json-pdf-designer/pt-BR/sitemap.xml
