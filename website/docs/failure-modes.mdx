@@ -36,7 +36,7 @@ string and may be reworded in a patch release.
 | Situation | Class (`code`) | `blame` | Why not degrade |
 |---|---|---|---|
 | Character with no glyph in the **standard** font (emoji/CJK without `fontBytes`) | `UnsupportedGlyphError` (`unsupportedGlyph`) | `data` | It *does* have a glyph in a complete font — dropping it would silently remove content from a signed document. Pass `fontBytes`, or take it out of the data |
-| Invalid page size (`NaN`, 0, negative) | `InvalidPageSizeError` (`invalidPageSize`) | `template` | Structural: there is no sensible default to guess |
+| Page size missing, not an object, or not two finite numbers > 0 | `InvalidPageSizeError` (`invalidPageSize`) | `template` | Structural: there is no sensible default to guess. Checked for every page before anything is rendered, so a bad page 7 does not wait for six good ones |
 | Corrupt image in a field | `ImageUnreadableError` (`imageUnreadable`) | `template` | The author picked that file; silently dropping it hides the mistake |
 | Corrupt image as the page background | `BackgroundImageUnreadableError` (`backgroundImageUnreadable`) | `template` | Same, and a missing letterhead is not obvious from the output |
 | Image format that is not PNG or JPEG | `UnsupportedImageFormatError` (`unsupportedImageFormat`) | `template` | Re-upload through the editor, which converts |

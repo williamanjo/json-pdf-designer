@@ -99,6 +99,91 @@ describe("as classes de erro chegam pelo caminho real, com os dados estruturados
     expect(typed.height).toBe(297);
   });
 
+  // O caso que o guard NÃO pegava, e o motivo de ele ter mudado de lugar.
+  //
+  // `assertFinitePageSize` vivia dentro do `renderLayoutPage`, que roda DEPOIS
+  // do `layoutDocument`. E o layout lê o tamanho direto (`bodyLayout.ts` faz
+  // `pageDef.page.height - footerHeight`), então template sem `page` estourava
+  // `TypeError: Cannot read properties of undefined (reading 'height')` lá
+  // dentro, antes de o guard existir na pilha.
+  //
+  // O que fazia isso valer uma correção não era a mensagem feia: um TypeError
+  // não é erro NOSSO, então `describePdfError` devolve `null` e o consumidor
+  // classifica a falha como `blame: "package"` — "não é culpa sua, reporte" —
+  // quando o problema era o template dele. É exatamente a confusão que a
+  // superfície de erro tipada existe pra acabar, e por isso o último caso
+  // deste bloco checa o consumidor, e não só a classe.
+  it("`page` AUSENTE → InvalidPageSizeError, não um TypeError do layout", async () => {
+    // Template sem `page` nenhum: JSON editado à mão, arquivo salvo por outra
+    // ferramenta, formato que a migração não cobriu.
+    const err = await rejection(generatePdf({ schemas: [text("x")] } as unknown as Template, {}, []));
+    expect(err).toBeInstanceOf(InvalidPageSizeError);
+    expect((err as Error).constructor.name).not.toBe("TypeError");
+    const typed = err as InvalidPageSizeError;
+    expect(typed.blame).toBe("template");
+    // Ausente vira NaN nos campos do erro — é o que a mensagem precisa dizer.
+    expect(Number.isNaN(typed.width)).toBe(true);
+    expect(Number.isNaN(typed.height)).toBe(true);
+  });
+
+  it("`page` que não é objeto → InvalidPageSizeError", async () => {
+    const err = await rejection(
+      generatePdf({ page: "A4", schemas: [text("x")] } as unknown as Template, {}, [])
+    );
+    expect(err).toBeInstanceOf(InvalidPageSizeError);
+  });
+
+  it("uma string numérica continua sendo recusada", async () => {
+    // Guarda contra um "conserto" que coagisse a entrada: `Number("210")` é
+    // 210 e passaria, e aí o valor seguiria como STRING pro resto da
+    // geração. A coerção existe só pra preencher os campos do erro.
+    const err = await rejection(
+      generatePdf({ page: { width: "210", height: 297 }, schemas: [text("x")] } as unknown as Template, {}, [])
+    );
+    expect(err).toBeInstanceOf(InvalidPageSizeError);
+  });
+
+  it("página torta no meio de `pages` falha ANTES de renderizar as boas", async () => {
+    // Este teste prova ORDEM, e o jeito de provar ordem é dar à página 1 uma
+    // falha PRÓPRIA e ver qual das duas sai.
+    //
+    // Página 1 tem um emoji, que sem `fontBytes` dá UnsupportedGlyphError no
+    // RENDER. Página 2 tem tamanho inválido. Com a validação antecipada, o
+    // tamanho é conferido antes de qualquer render, então sai
+    // InvalidPageSizeError. Sem ela, a página 1 renderiza primeiro e sai o
+    // erro de glifo — a pessoa conserta o emoji, roda de novo, e só então
+    // descobre a página 2.
+    //
+    // Sem este par de falhas concorrentes o teste passava com e sem o fix,
+    // o que o tornava decoração.
+    const err = await rejection(
+      generatePdf(
+        {
+          page: { width: 210, height: 297 },
+          schemas: [],
+          pages: [
+            { id: "com-emoji", page: { width: 210, height: 297 }, schemas: [text("festa 🎉")] },
+            { id: "torta", page: { width: 210, height: 0 }, schemas: [text("b")] },
+          ],
+        } as unknown as Template,
+        {},
+        []
+      )
+    );
+    expect(err).toBeInstanceOf(InvalidPageSizeError);
+    expect((err as InvalidPageSizeError).pageId).toBe("torta");
+  });
+
+  it("o consumidor recebe blame `template`, e não um genérico de bug do pacote", async () => {
+    const err = await rejection(generatePdf({ schemas: [text("x")] } as unknown as Template, {}, []));
+    const problem = describePdfError(err, dictFor("pt-BR"));
+    // O ponto inteiro: NÃO é `null`. Com o TypeError cru, era.
+    expect(problem).not.toBeNull();
+    expect(problem?.code).toBe("invalidPageSize");
+    expect(problem?.blame).toBe("template");
+    expect(problem?.title).toBeTruthy();
+  });
+
   it("PNG de fundo ilegível → BackgroundImageUnreadableError (e não a STRING crua do pako)", async () => {
     const t: Template = { page: A4, backgroundImage: "data:image/png;base64,AAAA", schemas: [text("x")] };
     const err = await rejection(generatePdf(t, {}, []));

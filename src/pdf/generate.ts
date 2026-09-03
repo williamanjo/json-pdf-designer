@@ -13,6 +13,7 @@ import { resolveTextValue } from "./resolvers";
 import { mmToPt } from "../units";
 import { normalizeFontBytes } from "./fontUtils";
 import { layoutDocument, type LayoutPage, type Placement } from "./layout/layoutDocument";
+import { normalizePageDefs } from "./layout/pageLayout";
 import { migrateTemplate } from "../template/migrate";
 import { evaluateConditionLenient } from "../expressions/resolve";
 import { BackgroundImageUnreadableError, InvalidPageSizeError } from "../errors";
@@ -38,10 +39,31 @@ function pageData(data: unknown, pageNumber: number, pageCount: number): unknown
   return { ...base, pageNumber, pageCount };
 }
 
-function assertFinitePageSize(pageDef: { id: string; page: { width: number; height: number } }): void {
-  const { width, height } = pageDef.page;
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    throw new InvalidPageSizeError(pageDef.id, width, height);
+// Tipo do parâmetro FROUXO de propósito (`page?`, `unknown` nos campos), e
+// isso é o ponto: `migrateTemplate` recebe `unknown` — template vem de banco,
+// de arquivo, de API, editado à mão. O `TemplatePage` diz que `page` existe e
+// que os lados são `number`, mas em runtime pode não ser nada disso. Tipar
+// estreito aqui faria o TypeScript considerar as checagens redundantes e
+// convidaria alguém a apagá-las.
+function assertFinitePageSize(pageDef: { id: string; page?: { width?: unknown; height?: unknown } }): void {
+  // `?? {}` porque `page` pode simplesmente NÃO EXISTIR. Antes isto era
+  // `const { width, height } = pageDef.page`, então ESTA função — que é o
+  // guard — estourava um TypeError cru sobre a entrada que ela existe pra
+  // recusar.
+  const { width, height } = pageDef.page ?? {};
+  if (
+    typeof width !== "number" ||
+    typeof height !== "number" ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    // `Number(...)` só pra preencher os campos do erro: ausente e "banana"
+    // viram NaN, que é o que a mensagem precisa dizer ("esperado dois números
+    // finitos maiores que zero"). A DECISÃO acima não coage nada — string
+    // "210" continua sendo recusada, como era antes.
+    throw new InvalidPageSizeError(pageDef.id, Number(width), Number(height));
   }
 }
 
@@ -216,6 +238,30 @@ export async function generatePdf(
   // arquivo ou do <Designer> em memória. Um template já na versão corrente
   // atravessa sem custo (nenhuma migração é aplicada).
   const template = migrateTemplate(rawTemplate);
+
+  // TAMANHO DE PÁGINA É VALIDADO AQUI, antes do layout — e não só no render.
+  //
+  // O guard morava dentro do `renderLayoutPage`, que roda DEPOIS do
+  // `layoutDocument`. E o layout lê o tamanho direto (`bodyLayout.ts` faz
+  // `pageDef.page.height - footerHeight`), então um template cujo `page` não
+  // existe estourava `TypeError: Cannot read properties of undefined
+  // (reading 'height')` dentro do layout, antes de o guard ter chance.
+  //
+  // O efeito colateral era pior que a mensagem feia: `describePdfError`
+  // devolve `null` pra um TypeError, porque ele não é um erro nosso. Então o
+  // consumidor classificava como `blame: "package"` — "não é culpa sua,
+  // reporte" — uma falha que era do TEMPLATE dele. Exatamente a confusão que
+  // a superfície de erro tipada existe pra acabar.
+  //
+  // Validar TODAS as páginas de uma vez, e não sob demanda, também é de
+  // propósito: quem carrega um arquivo quer saber que a página 7 está torta
+  // antes de esperar a geração das seis primeiras.
+  // Sobre `normalizePageDefs` e não `template.pages`: `pages` é OPCIONAL —
+  // ausente ou vazio, os campos planos do template viram a página implícita
+  // (ver layout/pageLayout.ts). Validar o array cru pularia justamente o
+  // template de página única, que é o caso mais comum, e é o mesmo conjunto
+  // de páginas que o layout vai percorrer daqui a três linhas.
+  for (const pageDef of normalizePageDefs(template)) assertFinitePageSize(pageDef);
   const doc = await PDFDocument.create();
   let font: PDFFont;
   if (options.fontBytes) {

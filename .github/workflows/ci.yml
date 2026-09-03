@@ -29,7 +29,7 @@ jobs:
           npm pack
           mkdir -p /tmp/pack-consumer
           cp json-pdf-designer-*.tgz /tmp/pack-consumer/pkg.tgz
-          cp test/pack-consumer/package.json test/pack-consumer/generate-check.mjs /tmp/pack-consumer/
+          cp test/pack-consumer/package.json test/pack-consumer/generate-check.mjs test/pack-consumer/errors-check.mjs /tmp/pack-consumer/
           cd /tmp/pack-consumer
           npm install ./pkg.tgz
           # Este install é o cenário "backend": só o pacote, nada de app.
@@ -72,6 +72,13 @@ jobs:
             exit 1
           fi
           node generate-check.mjs
+          # A superfície de ERRO, no pacote instalado. O generate-check prova
+          # que o PDF sai; este prova que a falha sai classificada — classe
+          # com `code`, `blame`, e `describePdfError` localizando nos dois
+          # idiomas, tudo sem React no processo. É contrato público da 3.0.0 e
+          # nada verificava contra o tarball; foi escrevendo este check que
+          # apareceu o `page` ausente estourando TypeError no layout.
+          node errors-check.mjs
 
   # OS EXAMPLES SÃO PARTE DO GATE, e até agora não eram.
   #

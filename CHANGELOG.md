@@ -451,6 +451,25 @@ redefine the editor.
   the migration — the old `.jpd-scroll-x` had both rules and only one came
   across. `scrollbar-width` alone covers neither Safari nor Chromium < 121,
   and in a 28px-tall strip the bar eats half the height.
+- **A template with no page size crashed in layout instead of failing as a
+  template problem.** `assertFinitePageSize` lived inside the render pass,
+  which runs *after* `layoutDocument` - and the layout reads the size
+  directly (`pageDef.page.height - footerHeight`). So a template whose
+  `page` was missing entirely - hand-edited JSON, a file from another tool,
+  a shape the migration does not cover - threw
+  `TypeError: Cannot read properties of undefined (reading 'height')` from
+  inside the layout, before the guard was ever on the stack. The guard was
+  crashing on exactly the input it exists to reject.
+  - The ugly message was not the real cost. A `TypeError` is not one of
+    ours, so `describePdfError` returns `null` for it, and a consumer
+    classifies the failure as `blame: "package"` - "not your fault, report
+    it" - when the problem was their template. That is the confusion the
+    typed error surface exists to end.
+  - Every page's size is now checked up front, before layout, over the
+    NORMALIZED page list (`pages` is optional; when absent the flat fields
+    are the implicit page, which is the most common template of all).
+    Checking all of them at once also means someone loading a file learns
+    that page 7 is wrong without waiting for six good pages to render.
 - **Text on the page had no colour of its own, so in dark mode it was
   unreadable.** `.jpd-page` is the mock-up of the PDF, and the sheet is
   always white paper — the PDF has no dark mode. But it only set

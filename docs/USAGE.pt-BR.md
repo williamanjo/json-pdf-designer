@@ -1545,7 +1545,7 @@ diagnóstico em inglês e pode ser reescrita numa release de patch.
 | Situação | Classe (`code`) | `blame` | Por que não degradar |
 |---|---|---|---|
 | Caractere sem glifo na fonte **padrão** (emoji/CJK sem `fontBytes`) | `UnsupportedGlyphError` (`unsupportedGlyph`) | `data` | Ele *tem* glifo numa fonte completa — descartá-lo removeria conteúdo, em silêncio, de um documento que alguém assina. Passe `fontBytes`, ou tire o caractere do dado |
-| Tamanho de página inválido (`NaN`, 0, negativo) | `InvalidPageSizeError` (`invalidPageSize`) | `template` | Estrutural: não há default sensato pra adivinhar |
+| Tamanho de página ausente, que não é objeto, ou que não são dois números finitos > 0 | `InvalidPageSizeError` (`invalidPageSize`) | `template` | Estrutural: não há default sensato pra adivinhar. Conferido em TODAS as páginas antes de renderizar qualquer uma, então uma página 7 torta não espera seis boas |
 | Imagem corrompida num campo | `ImageUnreadableError` (`imageUnreadable`) | `template` | Quem montou escolheu aquele arquivo; descartar calado esconde o erro |
 | Imagem corrompida como fundo da página | `BackgroundImageUnreadableError` (`backgroundImageUnreadable`) | `template` | Idem, e papel timbrado faltando não é óbvio no resultado |
 | Formato de imagem que não é PNG nem JPEG | `UnsupportedImageFormatError` (`unsupportedImageFormat`) | `template` | Reenvie pelo editor, que converte |
