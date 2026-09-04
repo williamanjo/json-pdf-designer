@@ -1,4 +1,4 @@
-import type { Dict } from "./i18n/en";
+import type { Dict } from "./i18n/locales/en";
 import { ExpressionError } from "./expressions/errors";
 
 // TODA falha que este pacote lança de propósito, como CLASSE, num arquivo só.
@@ -14,7 +14,7 @@ import { ExpressionError } from "./expressions/errors";
 //
 // 2. O texto de USUÁRIO FINAL é localizado, e sai daqui por `describePdfError`
 //    (no fim do arquivo) — que recebe o erro e um `Dict` e devolve
-//    título + ação no idioma pedido. Ver a seção `errors` de `i18n/en.ts`.
+//    título + ação no idioma pedido. Ver a seção `errors` de `i18n/locales/en.ts`.
 //
 // POR QUE UM ARQUIVO SÓ, e não a classe junto do `throw`:
 //

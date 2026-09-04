@@ -1,5 +1,5 @@
-import { en, type Dict } from "../i18n/en";
-import { tokenize } from "./tokenize";
+import { en, type Dict } from "../i18n/locales/en";
+import { tokenize } from "./engine/tokenize";
 
 // Operador com espaço de um lado só — o buraco que a regra lexical deste
 // formato deixa aberto.

@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { generatePdf } from "../src/pdf/generate";
 import { normalizeFontBytes } from "../src/pdf/fontUtils";
 import { fileToBackgroundImage } from "../src/pdf/backgroundImage";
-import { migrateTemplate } from "../src/template/migrate";
+import { migrateTemplate } from "../src/template";
 import { dictFor } from "../src/i18n/dictionaries";
-import { en } from "../src/i18n/en";
-import { ptBR } from "../src/i18n/pt-BR";
+import { en } from "../src/i18n/locales/en";
+import { ptBR } from "../src/i18n/locales/pt-BR";
 import { ExpressionSyntaxError } from "../src/expressions/errors";
-import { parse } from "../src/expressions/parse";
+import { parse } from "../src/expressions/engine/parse";
 import {
   BackgroundImageUnreadableError,
   FontDecompressFailedError,

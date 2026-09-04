@@ -1,5 +1,5 @@
-import { en } from "../i18n/en";
-import type { Dict } from "../i18n/en";
+import { en } from "../i18n/locales/en";
+import type { Dict } from "../i18n/locales/en";
 
 // Erros de expressão de template.
 //
@@ -37,6 +37,11 @@ export type ExpressionErrorCode =
   | "unexpectedToken"
   | "trailingContent"
   | "unclosedQuote"
+  // Path entre brackets (3.2.0): `[a` sem fechar, `[]`, e `[a b]` sem quotes.
+  // O último é recusa deliberada de ambiguidade — ver o topo de tokenize.ts.
+  | "unclosedBracket"
+  | "emptySegment"
+  | "spaceInSegment"
   | "tooDeep";
 
 export abstract class ExpressionError extends Error {

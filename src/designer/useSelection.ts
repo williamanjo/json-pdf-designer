@@ -5,7 +5,7 @@ import type { KpiElementKey } from "../types";
 // pra um hook próprio. Fica num arquivo .ts (não .tsx) porque só exporta
 // hook, nunca componente — um .tsx só pode exportar componente (regra
 // oxlint react(only-export-components), quebra o Fast Refresh senão),
-// mesmo motivo de src/bindingBuilders.ts e src/canvasGeometry.ts.
+// mesmo motivo de src/bindings/builders.ts e src/canvas/geometry.ts.
 
 export type UseSelectionParams = {
   // Chamado quando o usuário SELECIONA algo (clique ou caixa de seleção) —

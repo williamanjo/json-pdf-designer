@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parse } from "../../src/expressions/parse";
+import { parse } from "../../src/expressions/engine/parse";
 import { expressionError } from "../../src/expressions/resolve";
 import {
   aggregateChartItems,
@@ -16,8 +16,8 @@ import {
   resolveToken,
   rowsFromArrayBinding,
 } from "../../src/bindings/bindings";
-import { en } from "../../src/i18n/en";
-import { CHART_OTHER_COLOR } from "../../src/chart/colors";
+import { en } from "../../src/i18n/locales/en";
+import { CHART_OTHER_COLOR } from "../../src/fields/chart/colors";
 import type { Binding } from "../../src/types";
 
 describe("resolveToken — funções", () => {

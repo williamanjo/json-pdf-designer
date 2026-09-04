@@ -1,5 +1,5 @@
 import type { Binding, Schema, Template } from "../types";
-import { classifyZone, isRedZone, type Zone } from "../zones";
+import { classifyZone, isRedZone, type Zone } from "../page/zones";
 import { describeBindingShort } from "../bindings/bindings";
 import { useT } from "../i18n";
 
@@ -12,7 +12,7 @@ type Props = {
 
 // Ordem de exibição das zonas — cabeçalho/margens primeiro (fixo em toda
 // página), corpo no meio, rodapé por último. Mesma classificação de
-// src/zones.ts usada pelo canvas/generate.ts, sem reimplementar nada aqui.
+// src/page/zones.ts usada pelo canvas/generate.ts, sem reimplementar nada aqui.
 const ZONE_ORDER: Zone[] = ["header", "marginLeft", "marginRight", "body", "footer"];
 
 // Árvore somente-leitura da página atual, agrupada por zona (Header/Body/

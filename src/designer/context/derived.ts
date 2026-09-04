@@ -1,5 +1,5 @@
 import { filterIncomplete } from "../../fieldWarnings";
-import { classifyZone, isRedZone } from "../../zones";
+import { classifyZone, isRedZone } from "../../page/zones";
 import type { Binding, Schema, Template } from "../../types";
 import { FILTERABLE_TYPES } from "../useTabBar";
 

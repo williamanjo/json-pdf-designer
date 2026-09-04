@@ -1,6 +1,6 @@
 import type { Binding, ChartFilterCondition, ChartFilterGroup, TableColumn } from "../types";
-import { CHART_COLORS, CHART_OTHER_COLOR } from "../chart/colors";
-import { en } from "../i18n/en";
+import { CHART_COLORS, CHART_OTHER_COLOR } from "../fields/chart/colors";
+import { en } from "../i18n/locales/en";
 import type { Dict } from "../i18n";
 import { renderTemplateLenient, resolveTokenLenient } from "../expressions/resolve";
 import { asRecord, compareValues, getCaseInsensitive, stringifyOrEmpty } from "../expressions/dataAccess";
@@ -110,7 +110,7 @@ export const CUSTOM_FIELD_FUNCTIONS = [
 // em expressions/resolve.ts e fieldWarnings.ts.
 //
 // O parâmetro `depth` é aceito e ignorado — a profundidade agora é controlada
-// dentro do parser (MAX_EXPRESSION_DEPTH em expressions/parse.ts), onde ela
+// dentro do parser (MAX_EXPRESSION_DEPTH em expressions/engine/parse.ts), onde ela
 // mede aninhamento de verdade em vez de mascarar recursão infinita como no
 // motor anterior. Mantido na assinatura para não quebrar quem chama com 3
 // argumentos.

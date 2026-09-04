@@ -1,6 +1,6 @@
 import type { Binding, Schema } from "./types";
 import type { Dict } from "./i18n";
-import { en } from "./i18n/en";
+import { en } from "./i18n/locales/en";
 import { bindingExpressionErrors, schemaExpressionErrors, type SchemaExpressionError } from "./expressions/schemaExpressions";
 
 // Aviso de configuração incompleta — usado no ícone de alerta da lista de

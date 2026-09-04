@@ -10,11 +10,11 @@ import { drawTableSlice } from "./render/renderTable";
 import { assertImageWithinSizeLimit } from "./render/renderImage";
 import { drawFieldOfType, type DrawFieldContext } from "./render";
 import { resolveTextValue } from "./resolvers";
-import { mmToPt } from "../units";
+import { mmToPt } from "../page/units";
 import { normalizeFontBytes } from "./fontUtils";
 import { layoutDocument, type LayoutPage, type Placement } from "./layout/layoutDocument";
 import { normalizePageDefs } from "./layout/pageLayout";
-import { migrateTemplate } from "../template/migrate";
+import { migrateTemplate } from "../template";
 import { evaluateConditionLenient } from "../expressions/resolve";
 import { BackgroundImageUnreadableError, InvalidPageSizeError } from "../errors";
 

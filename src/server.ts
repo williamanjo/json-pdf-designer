@@ -58,7 +58,7 @@ export {
   resolveChartColors,
   type ChartPaletteName,
   type ChartPresetName,
-} from "./chart/colors";
+} from "./fields/chart/colors";
 export {
   MATERIAL_ICON_GRID,
   MATERIAL_ICON_PATHS,
@@ -69,7 +69,17 @@ export {
 } from "./materialIcons";
 // downloadPdf fica de fora (usa document/Blob — só faz sentido no browser).
 export { generatePdf, type GeneratePdfOptions } from "./pdf/generate";
-export { migrateTemplate, CURRENT_TEMPLATE_VERSION } from "./template/migrate";
+export { migrateTemplate, CURRENT_TEMPLATE_VERSION } from "./template";
+
+// COLUNA DE TABELA, sem React envolvido.
+//
+// `tokenFor` é a única regra de "como uma chave vira token", e
+// `normalizeTableColumns` converte coluna de chave crua em `{label, formula}`
+// num template+bindings já salvos. Saem daqui, e não só do entry principal,
+// porque normalizar acervo é trabalho de backend/script tanto quanto de
+// editor — e nenhuma das duas toca em React.
+export { segmentFor, tokenFor } from "./fields/table/columnFormula";
+export { normalizeTableColumns } from "./fields/table/normalizeColumns";
 // Erros de geração: `error.message` é INGLÊS (diagnóstico de desenvolvedor —
 // log, stack, Sentry), toda falha é uma CLASSE com dados estruturados e um
 // `code` de string literal, e `describePdfError(err, dictFor(locale))` dá o
@@ -128,7 +138,7 @@ export { dictFor } from "./i18n/dictionaries";
 export type { SchemaExpressionError } from "./expressions/schemaExpressions";
 export { makeChartSchema, makeKpiSchema, makeSectionColumnPair } from "./schemaFactory";
 export type { Locale, Dict } from "./i18n";
-export { mmToPx, pxToMm, mmToPt } from "./units";
-export { PAGE_SIZE_PRESETS, orientationOf, applyOrientation, matchPreset, type Orientation } from "./pageSizes";
-export { classifyZone, isRedZone, clampToZone, type Zone, type Bands } from "./zones";
+export { mmToPx, pxToMm, mmToPt } from "./page/units";
+export { PAGE_SIZE_PRESETS, orientationOf, applyOrientation, matchPreset, type Orientation } from "./page/sizes";
+export { classifyZone, isRedZone, clampToZone, type Zone, type Bands } from "./page/zones";
 export { normalizeFontBytes } from "./pdf/fontUtils";

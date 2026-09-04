@@ -4,13 +4,13 @@ import type { Dict } from "../i18n";
 import { uid } from "../schemaFactory";
 import type { Binding, Schema, Template } from "../types";
 import { uniqueSchemaName } from "./helpers";
-import { GRID_SIZE_MM, snapToGrid } from "../units";
+import { GRID_SIZE_MM, snapToGrid } from "../page/units";
 
 // Delete/copiar/colar do canvas — extraído de DesignerInner (Designer.tsx)
 // pra um hook próprio. Fica num arquivo .ts (não .tsx) porque só exporta
 // hook, nunca componente — um .tsx só pode exportar componente (regra
 // oxlint react(only-export-components), quebra o Fast Refresh senão),
-// mesmo motivo de src/bindingBuilders.ts e src/canvasGeometry.ts.
+// mesmo motivo de src/bindings/builders.ts e src/canvas/geometry.ts.
 
 // Onde um campo colado nasce: um passo de grade abaixo/à direita do
 // original, travado dentro da página.

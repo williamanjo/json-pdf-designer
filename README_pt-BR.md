@@ -83,9 +83,9 @@ mesmo caminho de código no navegador, numa API Node ou num worker de fila
 
 Concreto, e conferível neste repositório:
 
-- **1030 testes em 72 arquivos**, com peso onde está o risco: 19 arquivos
-  cobrem só geração de PDF e paginação, mais 7 no parser de expressão, 8
-  no kit de UI, 6 nas fronteiras de estado do editor, 5 em tabelas, 4 em
+- **1115 testes em 75 arquivos**, com peso onde está o risco: 19 arquivos
+  cobrem só geração de PDF e paginação, mais 8 no parser de expressão, 8
+  no kit de UI, 7 nas fronteiras de estado do editor, 6 em tabelas, 4 em
   vínculo de dados.
 - **O CI testa o artefato publicado, não a fonte.** Ele roda `npm pack`,
   instala o tarball num diretório limpo e afirma que sai PDF de verdade —

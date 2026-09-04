@@ -7,7 +7,7 @@
 // drawSectionInstance pra desenhar de verdade.
 import type { PDFFont, PDFPage } from "pdf-lib";
 import type { Binding, Schema, SectionSchema, TemplatePage } from "../../types";
-import { mmToPt } from "../../units";
+import { mmToPt } from "../../page/units";
 import { drawTableSlice } from "./renderTable";
 // Medição da seção mora em layout/sectionLayout.ts (matemática pura, precisa
 // rodar antes de desenhar); aqui ficou só o desenho. Reexportadas porque há

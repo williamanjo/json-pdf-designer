@@ -1,4 +1,4 @@
-import { mmToPx } from "../units";
+import { mmToPx } from "../page/units";
 
 type Props = {
   lengthMm: number;

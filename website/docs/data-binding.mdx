@@ -24,6 +24,45 @@ Each field points at the real JSON via a `Binding`:
   into a single number for a KPI card, overriding its free-text `value`
   — see [KPI cards](./kpi-cards).
 
+## Writing a path
+
+A path can be written bare or delimited, and the difference matters for exactly
+one reason: a **bare** path splits on `.`, so a JSON key whose name *contains*
+a dot has no bare form.
+
+| Written | Resolves to |
+| --- | --- |
+| `{id}` | the key `id` |
+| `{cliente.nome}` | walks `cliente` → `nome` |
+| `{[id]}` | the key `id` — the delimited form of the same thing |
+| `{[cliente].[nome]}` | walks `cliente` → `nome` |
+| `{[cliente.nome]}` | the **literal** key `"cliente.nome"`; a dot inside the brackets does not separate |
+| `{["token name"]}` | the key `"token name"` |
+| `{[total] + 1}` | arithmetic — the operator is outside the brackets |
+| `{CURRENCY([total], "R$", 2)}` | a delimited path as a function argument |
+
+Two rules are worth stating outright:
+
+- **A segment with a space has to be quoted** — `["my key"]`, not `[my key]`.
+  In this format an operator is only an operator with whitespace on both sides,
+  so `[a + b]` would be ambiguous between the key `"a + b"` and arithmetic
+  inside the brackets. It is refused rather than guessed.
+- **Quotes are `"` or `'`, whichever the content allows.** There is no escape
+  character; a key containing `"` is written between `'`. `tokenFor` picks for
+  you.
+
+The bare form is not deprecated and never will be — `{cliente.nome}`,
+`{my-key}` and `{my key}` are the paths they always were. Use the delimited
+form when the key needs it, or all the time for uniformity: the editor writes
+it everywhere and shows the short form in the canvas cell, so `{[id]}` is what
+is stored and `{id}` is what you read.
+
+:::warning[One key changed meaning in 3.2.0]
+`{[a]}` used to be the key *literally named* `[a]`, because the lexer absorbed
+the brackets into the identifier. It is now the path `a`. If you have a JSON
+key with a bracket in its name, write `{["[a]"]}`.
+:::
+
 ## Template functions
 
 Inside `{...}` (text, calculated column, footer cell — anywhere):

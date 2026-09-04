@@ -333,7 +333,19 @@ describe("handleChangeBinding", () => {
 
     const table = state.template.schemas[0] as TableSchema;
     expect(table.head).toEqual(["a", "b", "c"]);
-    expect(table.content).toEqual([["{a}", "{b}", "{c}"]]);
+    // Forma BRACKETADA: a chave pode ter ponto, espaço, parêntese ou quote, e
+    // a forma nua daria um path errado ou erro de sintaxe. É a mesma regra
+    // (`tokenFor`) que a tabela nova e a normalização usam.
+    expect(table.content).toEqual([["{[a]}", "{[b]}", "{[c]}"]]);
+    // E nenhuma coluna de chave crua sobrevive a este caminho: o rótulo e a
+    // referência viram campos separados, então renomear um não mexe no outro.
+    expect(state.bindings[0]).toMatchObject({
+      columns: [
+        { label: "a", formula: "{[a]}" },
+        { label: "b", formula: "{[b]}" },
+        { label: "c", formula: "{[c]}" },
+      ],
+    });
   });
 
   it("vínculo array JÁ EXISTENTE sendo editado não mexe em head", () => {

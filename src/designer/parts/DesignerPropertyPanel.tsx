@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { PropertyPanel } from "../../components/PropertyPanel";
-import { PositionFields, VisibleWhenField } from "../../components/PropertyPanelFields";
+import { PositionFields, VisibleWhenField } from "../../components/PropertyPanel/PropertyPanelFields";
 import { cx, type PartStyle } from "../../components/ui/cx";
 import { fieldSourcesFor, findTableDataSource } from "../helpers";
 import {
@@ -70,6 +70,7 @@ function DesignerPropertyPanelBody({
     updateSchemas,
     handleChangeBinding,
     setTableHead,
+    renameTableColumn,
     addTableColumn,
     removeTableColumn,
     reorderTableColumn,
@@ -108,6 +109,7 @@ function DesignerPropertyPanelBody({
         tableDataSource={findTableDataSource(selected, template.schemas, bindings, dataSources)}
         fieldSources={fieldSourcesFor(selected, template.schemas, bindings, dataSources)}
         onSetHeadList={setTableHead}
+        onRenameTableColumn={renameTableColumn}
         onAddTableColumn={addTableColumn}
         onRemoveTableColumn={removeTableColumn}
         onReorderTableColumn={reorderTableColumn}

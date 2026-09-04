@@ -1,5 +1,5 @@
-import { en, type Dict } from "./en";
-import { ptBR } from "./pt-BR";
+import { en, type Dict } from "./locales/en";
+import { ptBR } from "./locales/pt-BR";
 import type { Locale } from "./types";
 
 // Mapa locale -> dicionário. Em arquivo próprio (não em context.tsx) porque é

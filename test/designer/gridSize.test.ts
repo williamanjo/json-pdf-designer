@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeSpawnPosition } from "../../src/designer/helpers";
 import { pastePosition } from "../../src/designer/useClipboardAndDelete";
 import { nextFreeY } from "../../src/schemaFactory";
-import { GRID_SIZE_MM } from "../../src/units";
+import { GRID_SIZE_MM } from "../../src/page/units";
 import type { Schema, Template } from "../../src/types";
 
 // `gridSizeMm` era honrado por UM caminho só (o arrasto/redimensionamento do

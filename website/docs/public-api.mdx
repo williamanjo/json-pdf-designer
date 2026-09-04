@@ -77,6 +77,12 @@ renderTemplate(template, data)             // resolves a free "{token}" template
 resolveToken(token, data)                  // resolves a single token/function
 rowsFromArrayBinding(list, columns)        // array of objects -> table rows
 columnLabel(col), columnKey(col)
+// Coluna de tabela: token sempre, rótulo separado da referência
+tokenFor(key) => string                    // "id" -> "{[id]}"; a regra única
+segmentFor(key) => string                  // o segmento sozinho: "[id]"
+columnFormulaFor(content, columns, i)      // a MESMA precedência que o PDF usa
+makeBoundTable(nextY, path, columns, t?)   // { schema, binding } já com token
+normalizeTableColumns(template, bindings)  // chave crua -> {label, formula}; idempotente
 describeBinding(b, t?), describeBindingShort(b, t?)  // t: Dict, for UI display — defaults to English
 CUSTOM_FIELD_FUNCTIONS                     // the list of available functions (for a custom UI)
 resolveChartItems(binding, data)           // "chart" binding -> raw [{label, value}]

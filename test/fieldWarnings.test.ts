@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fieldWarning, filterIncomplete } from "../src/fieldWarnings";
-import { en } from "../src/i18n/en";
+import { en } from "../src/i18n/locales/en";
 import type { Binding, ChartSchema, SectionSchema, TextSchema } from "../src/types";
 
 function makeSection(overrides: Partial<SectionSchema> = {}): SectionSchema {

@@ -1,7 +1,7 @@
-import { en, type Dict } from "../i18n/en";
+import { en, type Dict } from "../i18n/locales/en";
 import { ExpressionError } from "./errors";
-import { evaluate, evaluateToString, isTruthy } from "./evaluate";
-import { parse } from "./parse";
+import { evaluate, evaluateToString, isTruthy } from "./engine/evaluate";
+import { parse } from "./engine/parse";
 
 // Camada tolerante em cima do parser estrito.
 //

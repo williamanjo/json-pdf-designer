@@ -9,38 +9,71 @@ description: A árvore de código-fonte, pasta por pasta.
 src/
   types/
     schema.ts          -> Template/TemplatePage/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
-    binding.ts         -> TableColumn, Binding (chart/kpi: path/labelColumn|valueColumn/filters/aggregation)
-    dataSource.ts      -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
-  units.ts             -> conversões mm <-> px <-> pt + grade (GRID_SIZE_MM, snapToGrid)
-  zones.ts             -> classifica campo em header/footer/margem/corpo + trava de arrasto
-  chart/
-    colors.ts          -> paletas categóricas fixas do gráfico + rótulos
-    format.ts          -> default de tamanho de fonte da legenda do gráfico, compartilhado preview + PDF
-  materialIcons.ts     -> paths dos ícones Material Symbols + rótulos de busca EN/PT-BR (seletor do KPI)
-  kpiFormat.ts         -> defaults de tamanho de fonte/raio de borda/formato de número do KPI + formatação
+    binding.ts          -> TableColumn, Binding (inclui "chart": path/labelColumn/valueColumn/filters)
+    dataSource.ts       -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
+  page/                -> a folha em si: tamanho, conversão, e em que faixa um campo cai
+    units.ts           -> conversões mm <-> px <-> pt + grade (GRID_SIZE_MM, snapToGrid)
+    sizes.ts           -> presets de tamanho de página + orientação (retrato/paisagem)
+    zones.ts           -> classifica campo em header/footer/margem/corpo + trava de arrasto
+  template.ts          -> migrateTemplate: a cadeia de versão, um degrau por versão de formato
+  errors.ts            -> toda classe de erro + describePdfError, o localizador na borda (sem React)
+  errorUtils.ts        -> normaliza qualquer valor lançado numa mensagem de erro segura pra mostrar
   fieldWarnings.ts     -> mensagens de aviso "sem vínculo"/"filtro incompleto" (lista de campos, ícones de aba)
-  pageSizes.ts         -> presets de tamanho de página + orientação (retrato/paisagem)
-  schemaFactory.ts     -> cria schema novo (texto/tabela/imagem/seção/gráfico/indicador) + próximo Y livre
-  table/
-    columns.ts         -> mantém head/content/footer/columnStyles de uma tabela sincronizados com o vínculo array
-    layout.ts          -> resolveColumnWidthsMm, compartilhado por render/renderTable.ts e o preview do canvas
+  materialIcons.ts     -> paths dos ícones Material Symbols + rótulos de busca EN/PT-BR (seletor do KPI)
+  numberFormat.ts      -> formatação de número pt-BR, compartilhada pelo cartão de KPI e pelos formatadores CURRENCY/NUMBER
+  schemaFactory.ts     -> cria schema novo (texto/tabela/imagem/seção/gráfico/kpi) + próximo Y livre
+  drag.ts              -> o contrato de arrastar-e-soltar: payload externo de campo + mime interno da coluna de seção
+  fields/              -> uma pasta por tipo de campo, guardando a lógica pura que aquele tipo tem
+    table/
+      columns.ts       -> mantém head/content/footer/columnStyles de uma tabela sincronizados com o vínculo array
+      colors.ts        -> presets de cor estilo Excel (grupos Claro/Médio/Escuro) pra cabeçalho/corpo/zebra
+      layout.ts        -> resolveColumnWidthsMm — fonte única compartilhada pelo canvas e por render/renderTable.ts
+      columnFormula.ts -> tokenFor (a regra única de chave -> token) + columnFormulaFor (a precedência do resolver)
+                          + parse/monta a fórmula de uma coluna calculada (CURRENCY/NUMBER/DATE/raw)
+      normalizeColumns.ts -> converte coluna de chave crua em {label, formula} num template salvo + vínculos
+      columnResize.ts  -> a matemática do arrasto de redimensionar coluna (cresce um lado, encolhe+trava o outro)
+    kpi/
+      card.ts          -> defaults do cartão de KPI, raio de canto, e posição/trava por elemento
+      format.ts        -> formatação do valor do KPI
+    chart/
+      colors.ts        -> paletas categóricas fixas do gráfico + rótulos
+      format.ts        -> formatação de número/rótulo do gráfico
+      pieGeometry.ts   -> caminho da fatia de pizza/rosca + ponto do rótulo, compartilhado pelo canvas e render/renderChart.ts
+  canvas/              -> a matemática pura do canvas, em .ts porque não exportam componente nenhum
+    geometry.ts        -> matemática de hit-test de seção + seleção por caixa do PageCanvas.tsx (pura, testável)
+    dragGesture.ts     -> encanamento compartilhado de mousedown -> window mousemove/mouseup (arrasto do KPI, redimensionar coluna)
+    zoomScale.ts       -> os limites/passo de zoom e o clampZoom, compartilhados pelo canvas e pelo contexto de zoom
   i18n/
-    en.ts, pt-BR.ts    -> texto da própria UI do Designer, um arquivo por idioma (en é o canônico)
-    context.tsx, hooks.ts -> I18nProvider, useT, useLocale
+    locales/
+      en.ts, pt-BR.ts  -> texto da própria UI do Designer, um arquivo por idioma (en é o canônico, e o
+                          `Dict` é literalmente `typeof en`)
+    dictionaries.ts    -> o mapa locale -> Dict + dictFor(locale) — sem React, pra o /server poder importar
+    context.tsx, contextValue.ts, hooks.ts -> I18nProvider, useT, useLocale (três arquivos porque um .tsx
+                          só pode exportar componente — ver o comentário no contextValue.ts)
+    withInlineCode.tsx -> transforma os trechos `` `código` `` de uma string traduzida em <code> de verdade
   bindings/
     bindings.ts        -> resolve vínculos (scalar/array/keyvalue/template/section/chart/kpi)
-                          + resolveChartItems/aggregateChartItems/resolveKpiValue
+                          + resolveChartItems/aggregateChartItems (vínculo "chart")
+    builders.ts        -> os builders puros de vínculo por tipo de schema usados pelo BindingEditor.tsx, testáveis sem React
     columnParsing.ts   -> parse do texto livre "col, Rótulo={FUNÇÃO(...)}" da tabela
-  expressions/         -> o motor de {token}/{FUNÇÃO(...)}: parse -> AST -> evaluate
-    tokenize.ts        -> caracteres -> tokens (operador só vale cercado de espaço)
-    parse.ts           -> tokens -> AST, com precedência de operador e agrupamento de verdade
-    evaluate.ts        -> AST + dado -> valor (sem eval/new Function)
-    functions.ts       -> o registry de SUM/COUNT/AVG/CONCAT/DATE/CURRENCY/NUMBER/IF
+    splitDelimited.ts  -> separa por um delimitador respeitando aspas/parênteses (usado pelos dois acima)
+  expressions/         -> o motor de {token}/{FUNÇÃO(...)}, e os sete módulos que o resto do pacote chama
+    engine/            -> o pipeline em si — nada fora de expressions/ importa estes cinco
+      tokenize.ts      -> caracteres -> tokens (operador só vale cercado de espaço)
+      parse.ts         -> tokens -> AST, com precedência de operador e agrupamento de verdade
+      evaluate.ts      -> AST + dado -> valor (sem eval/new Function)
+      functions.ts     -> o registry de SUM/COUNT/AVG/CONCAT/DATE/CURRENCY/NUMBER/IF
+      formatters.ts    -> formatação de DATE/CURRENCY (UTC-safe, número pt-BR)
+    resolve.ts         -> renderTemplate + expressionError: a porta de entrada que todo o resto usa
+    templateText.ts    -> o que o editor precisa saber do template de texto de um campo ("FAT-{[fatura]}")
+    schemaExpressions.ts -> junta os erros de expressão e os operadores suspeitos de um Template inteiro
+    suggest.ts         -> autocomplete do editor ƒx (só função e operador-palavra, nunca nome de campo)
+    suspicious.ts      -> operador com espaço de um lado só — o ponto cego da regra lexical
+    errors.ts          -> ExpressionError/SyntaxError/DepthError + a tabela de código -> mensagem
     dataAccess.ts      -> busca de path + comparação de valor, compartilhados com os filtros de vínculo
-    formatters.ts      -> formatação de DATE/CURRENCY (UTC-safe, número pt-BR)
   pdf/
-    generate.ts        -> orquestrador fino: pergunta pro layout/ onde tudo cai e desenha —
-                          sem decisão de paginação própria
+    generate.ts        -> orquestrador fino: deriva o layout do corpo, dry-run de {pageCount}, e desenha —
+                          pergunta pro layout/ onde tudo cai e desenha — sem decisão de paginação própria
     layout/            -> matemática pura, sem pdf-lib
       layoutDocument.ts-> A travessia de paginação: Template+dado -> LayoutDocument (páginas de Placements)
       layoutTypes.ts   -> tipos BodyItem/FlowBounds
@@ -56,35 +89,57 @@ src/
       renderText.ts, renderImage.ts -> os dois tipos de campo mais simples (renderImage.ts também guarda
                           os limites de segurança de tamanho/contagem de imagem)
     pagination.ts      -> divide o conteúdo do corpo entre páginas contra as faixas de cabeçalho/rodapé/margem
-    textSafety.ts      -> sanitiza caractere de controle + erro de glifo com nome do campo
     tableMetrics.ts    -> altura de linha de tabela + linhas por fatia (sem pdf-lib, compartilhado com layout/)
+    svgShapes.ts       -> roundedRectPath (raio uniforme ou por canto), compartilhado por render/renderTable.ts/render/renderKpi.ts
+    textSafety.ts      -> sanitiza caractere de controle + erro de glifo com nome do campo (ver "Modos de falha")
+    textLayout.ts      -> matemática de deslocamento alignX/alignY + truncateToWidth, compartilhado por render/renderTable.ts/render/renderText.ts
     resolvers.ts, color.ts -> pequenos helpers compartilhados por layout/ e render/
     fontUtils.ts       -> WOFF/WOFF2 -> TTF/OTF de verdade (zlib puro pro v1; v2 precisa
                           da dependência peer opcional `wawoff2`, carregada sob demanda,
                           não instalada por padrão)
-    pdfWorker.ts       -> configuração do worker do pdf.js (só navegador, só no /preview)
-    backgroundImage.ts -> converte upload (PDF ou imagem) num PNG de fundo
+    pdfWorker.ts       -> configuração do worker do pdf.js (compartilhada)
+    backgroundImage.ts -> converte um PNG/JPEG enviado no PNG de fundo da página (só imagem —
+                          ver a fronteira de entry point no ARCHITECTURE.pt-BR.md)
+    thirdParty.d.ts    -> tipos ambient pra wawoff2/tiny-inflate (sem @types próprio)
+  css/                 -> CSS escrito à mão, copiado como está pro dist/ pelo publicDir do tsup
+    theme.css          -> o reset (via @import) + a aparência pronta, tudo em @layer json-pdf-designer
+    reset.css          -> o subconjunto sem aparência: o que o editor herdava do Preflight do Tailwind
   designer/
-    Designer.tsx       -> orquestrador do canvas React — seleção, clipboard, barra de abas, toda mutação de Template/Binding[]
-    useTabBar.ts, useSelection.ts, useClipboardAndDelete.ts, helpers.ts -> hooks/helpers puros extraídos
+    Designer.tsx       -> o PRESET: três providers + duas peças num layout de duas colunas (101 linhas)
+    context/           -> DesignerProvider.tsx + os cinco contextos (contexts.ts), os hooks (hooks.ts),
+                          as derivações puras que os seletores chamam (derived.ts), e o contexto de zoom
+                          (zoom.tsx/zoomContext.ts/useDesignerZoom.ts)
+    parts/             -> as dez peças posicionáveis, um arquivo cada, + useTabGate.ts (o gate opt-in de aba)
+    actions.ts         -> todo mutador de Template/Binding[], cada um lendo do `prev` do updater
+                          (é o que mantém a identidade do contexto de actions estável)
+    useTabBar.ts, useSelection.ts, useClipboardAndDelete.ts -> os hooks que compõem o provider
+    helpers.ts         -> helpers puros de posição de spawn/dedupe de nome/busca de fonte de dados
   components/
     PageCanvas.tsx     -> folha A4, réguas, zoom (zoom-aware drag/resize), grade, faixas vermelhas,
                           caixa de seleção, drag/resize/edição inline
-    FieldBox/          -> renderiza texto/tabela/imagem/seção/gráfico/indicador no canvas (um arquivo por tipo)
+    FieldBox/          -> renderiza texto/tabela/imagem/seção/gráfico/kpi no canvas (um arquivo por tipo)
     FieldList.tsx      -> lista lateral de campos (selecionar/travar/remover, enviar-pra-trás/trazer-pra-frente)
     TemplateInspector.tsx -> árvore somente-leitura dos campos da página atual, agrupada por zona (header/corpo/rodapé)
-    Toolbar.tsx        -> botões "+ texto/tabela/imagem/seção/gráfico/indicador"
-    PropertyPanel.tsx  -> dispatcher fino pra um PropertyPanel<Tipo>.tsx por tipo de schema
-    PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,
-    PropertyPanelChart.tsx, PropertyPanelKpi.tsx, PropertyPanelFields.tsx -> conteúdo Dados/Estilo por tipo
-    BindingEditor.tsx  -> UI do vínculo genérico (scalar/template/array/keyvalue/section/chart/kpi + colunas calculadas)
+    Toolbar.tsx        -> botões "+ texto/tabela/imagem/seção/gráfico/kpi"
+    PropertyPanel/
+      index.tsx        -> dispatcher fino pra um PropertyPanel<Tipo>.tsx por tipo de schema
+      PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,
+      PropertyPanelChart.tsx, PropertyPanelKpi.tsx, PropertyPanelFields.tsx -> conteúdo Dados/Estilo por tipo
+    formula/           -> o editor de expressão ƒx, o único lugar onde uma fórmula é digitada
+      FormulaModal.tsx -> o modal: autocomplete, preview ao vivo contra a linha de amostra, erro na tela
+      FormulaButton.tsx -> o botão ƒx que abre ele, com o estado ativo de "esta coluna tem fórmula"
+      DataTypeFields.tsx -> os seletores de campo dentro do modal, um por tipo de dado
+    BindingEditor.tsx  -> UI do vínculo genérico (scalar/template/array/keyvalue/section/chart + colunas calculadas)
     Ruler.tsx          -> régua em mm (SVG)
     PdfPreview.tsx     -> preview do PDF gerado via pdf.js
-    PdfPreviewModal.tsx-> modal completo em volta do PdfPreview (exportado)
-    ui/                -> Button, Input, Card, Select, Textarea, TabPanel, ícones — exportados,
-                          usados por dentro do próprio Designer (PropertyPanel/Toolbar/BindingEditor)
-  index.ts             -> exports públicos do pacote (React + geração)
-  server.ts            -> o subconjunto sem React de index.ts, pro json-pdf-designer/server
+    PdfPreviewModal.tsx-> modal completo em volta do PdfPreview (exportado, ver acima)
+    ui/                -> Button, Input, Card, Select, Textarea, Checkbox, Modal, TabPanel, PalettePicker,
+                          CollapsibleSection, ClearFieldButton, ícones — exportados (ver acima), usados por dentro
+      registry.ts      -> os 12 slots + defaultUiComponents; UiComponentsProvider.tsx / useUiComponents.ts
+      cx.ts            -> merge de classe (dedupe de token exato, undefined quando vazio) + mergeStyle
+  index.ts             -> exports públicos do pacote (nunca alcança o pdfjs-dist)
+  server.ts            -> entry "/server": a metade sem React (generatePdf, migrateTemplate, os erros)
+  preview.ts           -> entry "/preview": o ÚNICO grafo que pode importar pdfjs-dist
 examples/                 (cada um num ponto diferente do espectro de estilo)
   report-builder/      -> app completo (fontes JSON, explorador de campos) usando a UI pronta do pacote
                           -- theme.css como ele vem, sem customização

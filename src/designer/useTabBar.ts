@@ -7,7 +7,7 @@ import type { Schema } from "../types";
 // próprio. Fica num arquivo .ts (não .tsx) porque só exporta hook/tipos/
 // função pura, nunca componente — um .tsx só pode exportar componente
 // (regra oxlint react(only-export-components), quebra o Fast Refresh
-// senão), mesmo motivo de src/bindingBuilders.ts e src/canvasGeometry.ts.
+// senão), mesmo motivo de src/bindings/builders.ts e src/canvas/geometry.ts.
 
 // Tipo do campo selecionado tem aba "Estilo" própria? Texto/tabela/
 // gráfico/KPI têm conteúdo visual pra separar de "Dados" — imagem (só um

@@ -42,7 +42,7 @@ props, so the headless-by-props path keeps working. Underneath the parts:
   field actually looks like to **`FieldBox/`** (one small component per
   `schema.type`).
 - **The side panel** — `FieldList.tsx`, `Toolbar.tsx`, and, once a field
-  is selected, `PropertyPanel.tsx` — a thin dispatcher to one
+  is selected, `PropertyPanel/index.tsx` — a thin dispatcher to one
   `PropertyPanel<Type>.tsx` per schema type, each split into a "Data"
   and a "Style" tab. `BindingEditor.tsx` (the generic path/array/
   section/chart/kpi binding editor) and `PropertyPanelFields.tsx`
@@ -51,7 +51,26 @@ props, so the headless-by-props path keeps working. Underneath the parts:
 Selection, editing, and binding all live in the same React tree — no
 module bridge, no imperative API between the canvas and the panel.
 
-## Bindings and templates (`src/bindings/`, `src/table/columns.ts`)
+## Bindings and templates (`src/bindings/`, `src/fields/table/columns.ts`)
+
+Two of them are worth calling out, because they are the same operation from
+opposite ends. `reindexTableForNewHead` rewrites the whole header list and
+re-derives every slot by matching each new name against the *old* head; a
+renamed name is by definition absent from the old head, so that slot falls
+through to a blank. `renameColumnInTable` is the narrow one: it changes
+`head[index]` and nothing else, which is what makes a rename keep the
+column's token, style and width.
+
+`table/columnFormula.ts` owns two things the rest of the package must not
+duplicate: `tokenFor(key)`, the single rule for turning a JSON key into a
+token, and `columnFormulaFor`, which reproduces the resolver's own precedence
+(a design cell containing `{` beats the binding) so the editor cannot show
+something different from what the PDF will use.
+
+`table/normalizeColumns.ts` converts raw-key columns into `{label, formula}`
+in a saved template plus its bindings. It is not a `migrateTemplate` step and
+cannot be: the column's key lives in the **bindings**, which are not part of
+`Template`.
 
 `bindings.ts` is pure logic over strings/plain objects, with no
 third-party dependency:
@@ -75,7 +94,7 @@ third-party dependency:
 - `describeBinding`/`describeBindingShort` — short human-readable
   summaries used only in the editor UI.
 
-`table/columns.ts` holds the pure functions that keep a `TableSchema`'s
+`fields/table/columns.ts` holds the pure functions that keep a `TableSchema`'s
 `head`/`content`/`footer`/`columnStyles` in sync with its `Binding`
 (array) when a column is added/removed/reordered/reformatted from the
 panel.
@@ -178,10 +197,10 @@ below).
   - `renderSection.ts` — repeats the group of member fields once per item
     of the bound array, growing/paginating with the rest of the body.
   - `renderChart.ts` — pie/donut/bar, legend placement (font size
-    configurable), color palette (`src/chart/colors.ts`).
+    configurable), color palette (`src/fields/chart/colors.ts`).
   - `renderKpi.ts` — the colored card + Material Symbols icon path
     (`src/materialIcons.ts`), configurable font sizes/icon size/corner
-    radius (defaults in `src/kpiFormat.ts`).
+    radius (defaults in `src/fields/kpi/card.ts`).
   - `renderText.ts`/`renderImage.ts` — the two simplest field types;
     `renderImage.ts` also owns the image size/count safety limits
     (`MAX_IMAGE_BYTES`/`MAX_DISTINCT_IMAGES`).
@@ -229,7 +248,7 @@ in the first place.
 Supporting modules (still directly under `src/pdf/`, used by both
 `layout/` and `render/`): `pagination.ts` (splitting the body across
 pages against `headerHeight`/`footerHeight`/`marginLeft`/`marginRight` —
-see `src/zones.ts` for how the editor classifies a field into
+see `src/page/zones.ts` for how the editor classifies a field into
 header/footer/margin/body by position alone), `fontUtils.ts` (embedding
 a custom TTF via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts`
 (turning an uploaded PNG/JPEG into the page's background PNG — it

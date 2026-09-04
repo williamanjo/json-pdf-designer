@@ -1,12 +1,12 @@
 import type { Binding, DataSourceColumnType, DataSourceOption, Schema, SectionSchema, Template } from "../types";
-import { snapToGrid } from "../units";
+import { snapToGrid } from "../page/units";
 
 // Funções puras extraídas de Designer.tsx — só dependem dos parâmetros
 // recebidos, nunca de estado React fechado por closure. Ficam num módulo
 // .ts (não .tsx) por dois motivos: dão pra testar direto, sem montar
 // componente nenhum, e um .tsx só pode exportar componente (senão quebra
 // o Fast Refresh, ver regra oxlint react(only-export-components)) — mesmo
-// padrão de src/bindingBuilders.ts e src/canvasGeometry.ts.
+// padrão de src/bindings/builders.ts e src/canvas/geometry.ts.
 
 // Enquanto isolado (Designer isolateBands), campo novo nasce dentro da
 // primeira faixa vermelha disponível (header > footer > margem esquerda >

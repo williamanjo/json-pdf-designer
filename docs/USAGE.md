@@ -416,6 +416,15 @@ whole value row (every data row), the whole footer
 nothing set, it falls back to the usual blue/white/9pt — old templates
 don't change appearance.
 
+**Renaming a column**: double-click its chip in the "Current table columns"
+list. Only the title changes — the token, the per-column style and the width
+all stay, because the data reference lives in the column's formula, not in its
+label. The old "Columns (header, comma)" field is gone; it replaced the whole
+header list on every keystroke, which is what used to make a rename
+indistinguishable from deleting one column and inserting another. The
+`setTableHead` action and the `onSetHeadList` prop are still exported, so a
+consumer rendering `PropertyPanelTable` directly does not break.
+
 The "Current table columns" list in the panel lets you **drag to
 reorder** (shifts `head`/`content`/`footer`/`columnStyles` together, by
 index) and has a "+" button to add a column from a known data source
@@ -811,6 +820,44 @@ const bytes = await generatePdf(template, data, bindings); // same call as alway
   its own `<Designer>`, while the JSON data sources stay shared/global
   across all tabs.
 
+## Writing a path
+
+A path can be written bare or delimited, and the difference matters for exactly
+one reason: a **bare** path splits on `.`, so a JSON key whose name *contains*
+a dot has no bare form at all.
+
+| Written | Resolves to |
+| --- | --- |
+| `{id}` | the key `id` |
+| `{cliente.nome}` | walks `cliente` → `nome` |
+| `{[id]}` | the key `id` — the delimited form of the same thing |
+| `{[cliente].[nome]}` | walks `cliente` → `nome` |
+| `{[cliente.nome]}` | the **literal** key `"cliente.nome"`; a dot inside the brackets does not separate |
+| `{["token name"]}` | the key `"token name"` |
+| `{[total] + 1}` | arithmetic — the operator is outside the brackets |
+| `{CURRENCY([total], "R$", 2)}` | a delimited path as a function argument |
+
+Two rules worth stating outright:
+
+- **A segment with a space has to be quoted** — `["my key"]`, not `[my key]`.
+  In this format an operator is only an operator with whitespace on both sides,
+  so `[a + b]` would be ambiguous between the key `"a + b"` and arithmetic
+  inside the brackets. It is refused rather than guessed, with the error code
+  `spaceInSegment`.
+- **Quotes are `"` or `'`, whichever the content allows.** There is no escape
+  character, so a key containing `"` is written between `'`. `tokenFor(key)`
+  picks for you, and is the single rule the whole package uses.
+
+The bare form is not deprecated: `{cliente.nome}`, `{my-key}` and `{my key}`
+are the paths they always were. The editor writes the delimited form
+everywhere and shows the short one in the canvas cell, so `{[id]}` is what gets
+stored and `{id}` is what you read.
+
+> **One key changed meaning in 3.2.0.** `{[a]}` used to be the key *literally
+> named* `[a]`, because the lexer absorbed the brackets into the identifier. It
+> is now the path `a`. A JSON key with a bracket in its name is written
+> `{["[a]"]}`.
+
 ## Writing an expression: the `ƒx` editor
 
 `<Designer>` has a `ƒx` button next to every field that accepts an expression:
@@ -1006,7 +1053,7 @@ render, and you'd be staring at a hole in the screen with no clue why.
 ```ts
 // accessors
 useDesignerData()            // { template, bindings }
-useDesignerActions()         // every mutator (addSchema, updateSchema, moveGroup, handleChangeBinding, …)
+useDesignerActions()         // every mutator (addSchema, updateSchema, moveGroup, renameTableColumn, handleChangeBinding, …)
 useDesignerSelection()       // selectedId, selectedIds, handleSelect, handleSelectMany, …
 useDesignerUi()              // sidebarTab, sidebarCollapsed, tabOrder, isolateBands, backgroundUploadError, …
 useDesignerConfig()          // dataSources, onCanvasDrop, gridSizeMm, expandOnSelect
@@ -1521,7 +1568,7 @@ unmigrated template — you do not have to remember. Call it yourself when you
 load a template **to edit**, so the editor also works on the current format
 (see `parseProjectFile` in `examples/report-builder/src/lib/projectFile.ts`).
 
-Migrations live in one chain in `src/template/migrate.ts`, one step per
+Migrations live in one chain in `src/template.ts`, one step per
 version, never as `if (version === 1) … if (version === 2) …` spread across
 callers. The chain is empty today because there is one format — it exists
 *now* because introducing it after templates are already in production
@@ -1708,6 +1755,12 @@ renderTemplate(template, data)             // resolves a free "{token}" template
 resolveToken(token, data)                  // resolves a single token/function
 rowsFromArrayBinding(list, columns)        // array of objects -> table rows
 columnLabel(col), columnKey(col)
+// Table column: always a token, label kept separate from the reference
+tokenFor(key) => string                     // "id" -> "{[id]}"; the single rule
+segmentFor(key) => string                   // just the segment: "[id]"
+columnFormulaFor(content, columns, i)       // the SAME precedence the PDF uses
+makeBoundTable(nextY, path, columns, t?)    // { schema, binding }, tokens filled in
+normalizeTableColumns(template, bindings)   // raw key -> {label, formula}; idempotent
 describeBinding(b, t?), describeBindingShort(b, t?)  // t: Dict, for UI display — defaults to English
 CUSTOM_FIELD_FUNCTIONS                     // the list of available functions (for a custom UI)
 resolveChartItems(binding, data)           // "chart" binding -> raw [{label, value}]
@@ -1804,28 +1857,45 @@ src/
     schema.ts          -> Template/TemplatePage/Schema (text/table/image/section/chart/kpi) + TableColumnStyle
     binding.ts          -> TableColumn, Binding (includes "chart": path/labelColumn/valueColumn/filters)
     dataSource.ts       -> DataSourceOption/DataSourceColumnType, SectionColumnDragPayload
-  units.ts             -> mm <-> px <-> pt conversions + grid (GRID_SIZE_MM, snapToGrid)
-  zones.ts             -> classifies a field into header/footer/margin/body + drag lock
-  materialIcons.ts     -> Material Symbols icon paths + EN/PT-BR search labels (KPI icon picker)
-  fieldWarnings.ts     -> "missing binding"/"incomplete filter" warning messages (Fields list, tab icons)
-  pageSizes.ts         -> page size presets + orientation (portrait/landscape)
-  numberFormat.ts      -> pt-BR number formatting, shared by the KPI card and bindings.ts's CURRENCY/NUMBER
-  schemaFactory.ts     -> creates a new schema (text/table/image/section/chart/kpi) + next free Y
-  kpiFormat.ts         -> KPI value formatting + per-element (icon/title/value/caption) position/lock helpers
+  page/                -> the sheet itself: how big it is, how it converts, and which band a field lands in
+    units.ts           -> mm <-> px <-> pt conversions + grid (GRID_SIZE_MM, snapToGrid)
+    sizes.ts           -> page size presets + orientation (portrait/landscape)
+    zones.ts           -> classifies a field into header/footer/margin/body + drag lock
+  template.ts          -> migrateTemplate: the version chain, one step per format version
+  errors.ts            -> every error class + describePdfError, the localizer at the edge (no React)
   errorUtils.ts        -> normalizes any thrown value into a display-safe error message
-  table/
-    columns.ts         -> keeps a table's head/content/footer/columnStyles in sync with its array binding
-    colors.ts          -> Excel-style header/body/band color presets (Light/Medium/Dark groups)
-    layout.ts          -> resolveColumnWidthsMm — one source of truth shared by the canvas and render/renderTable.ts
-    columnFormula.ts   -> parses/builds a calculated column's formula (CURRENCY/NUMBER/DATE/raw)
-    columnResize.ts    -> the column-resize drag math (grow one side, shrink+clamp the other)
-  chart/
-    colors.ts          -> the chart's fixed categorical palettes + labels
-    format.ts          -> chart number/label formatting
-    pieGeometry.ts     -> pie/donut slice path + label point math, shared by the canvas and render/renderChart.ts
+  fieldWarnings.ts     -> "missing binding"/"incomplete filter" warning messages (Fields list, tab icons)
+  materialIcons.ts     -> Material Symbols icon paths + EN/PT-BR search labels (KPI icon picker)
+  numberFormat.ts      -> pt-BR number formatting, shared by the KPI card and the CURRENCY/NUMBER formatters
+  schemaFactory.ts     -> creates a new schema (text/table/image/section/chart/kpi) + next free Y
+  drag.ts              -> the drag-and-drop contract: the external field payload + the internal section-column mime
+  fields/              -> one folder per field type, holding the pure logic that type owns
+    table/
+      columns.ts       -> keeps a table's head/content/footer/columnStyles in sync with its array binding
+      colors.ts        -> Excel-style header/body/band color presets (Light/Medium/Dark groups)
+      layout.ts        -> resolveColumnWidthsMm — one source of truth shared by the canvas and render/renderTable.ts
+      columnFormula.ts -> tokenFor (the single key -> token rule) + columnFormulaFor (the resolver's precedence)
+                          + parses/builds a calculated column's formula (CURRENCY/NUMBER/DATE/raw)
+      normalizeColumns.ts -> converts raw-key columns into {label, formula} in a saved template + its bindings
+      columnResize.ts  -> the column-resize drag math (grow one side, shrink+clamp the other)
+    kpi/
+      card.ts          -> KPI card defaults, corner radius, and per-element (icon/title/value/caption) position/lock
+      format.ts        -> KPI value formatting
+    chart/
+      colors.ts        -> the chart's fixed categorical palettes + labels
+      format.ts        -> chart number/label formatting
+      pieGeometry.ts   -> pie/donut slice path + label point math, shared by the canvas and render/renderChart.ts
+  canvas/              -> the canvas's pure math, in .ts files because they export no component
+    geometry.ts        -> PageCanvas.tsx's section hit-test + marquee-selection math (pure, testable)
+    dragGesture.ts     -> shared mousedown -> window mousemove/mouseup drag-loop wiring (KPI drag, column resize)
+    zoomScale.ts       -> the zoom limits/step and clampZoom, shared by the canvas and the zoom context
   i18n/
-    en.ts, pt-BR.ts     -> the Designer's own UI text, one file per language (en is canonical)
-    context.tsx, hooks.ts -> I18nProvider, useT, useLocale
+    locales/
+      en.ts, pt-BR.ts  -> the Designer's own UI text, one file per language (en is canonical, and `Dict`
+                          is literally `typeof en`)
+    dictionaries.ts    -> the locale -> Dict map + dictFor(locale) — React-free, so /server can import it
+    context.tsx, contextValue.ts, hooks.ts -> I18nProvider, useT, useLocale (three files because a .tsx
+                          may only export components — see the comment in contextValue.ts)
     withInlineCode.tsx -> renders a translated string's `` `code` `` spans as real <code>
   bindings/
     bindings.ts        -> resolves bindings (scalar/array/keyvalue/template/section/chart/kpi)
@@ -1833,13 +1903,20 @@ src/
     builders.ts        -> pure per-schema-type binding builders used by BindingEditor.tsx, testable without React
     columnParsing.ts   -> parses the table's free-text "col, Label={FUNCTION(...)}" input
     splitDelimited.ts  -> splits on a delimiter while respecting quotes/parens (used by the two above)
-  expressions/         -> the {token}/{FUNCTION(...)} engine: parse -> AST -> evaluate
-    tokenize.ts        -> chars -> tokens (an operator only counts when surrounded by whitespace)
-    parse.ts           -> tokens -> AST, with operator precedence and real grouping
-    evaluate.ts        -> AST + data -> value (no eval/new Function)
-    functions.ts       -> the SUM/COUNT/AVG/CONCAT/DATE/CURRENCY/NUMBER/IF registry
+  expressions/         -> the {token}/{FUNCTION(...)} engine, and the seven modules the rest of the package calls
+    engine/            -> the pipeline itself — nothing outside expressions/ imports these five
+      tokenize.ts      -> chars -> tokens (an operator only counts when surrounded by whitespace)
+      parse.ts         -> tokens -> AST, with operator precedence and real grouping
+      evaluate.ts      -> AST + data -> value (no eval/new Function)
+      functions.ts     -> the SUM/COUNT/AVG/CONCAT/DATE/CURRENCY/NUMBER/IF registry
+      formatters.ts    -> DATE/CURRENCY formatting (UTC-safe, pt-BR numbers)
+    resolve.ts         -> renderTemplate + expressionError: the entry point everything else uses
+    templateText.ts    -> what the editor needs to know about a field's text template ("FAT-{[fatura]}")
+    schemaExpressions.ts -> collects a whole Template's expression errors and suspicious operators
+    suggest.ts         -> the ƒx editor's autocomplete (functions and word operators only, never field names)
+    suspicious.ts      -> an operator with whitespace on one side only — the lexical rule's blind spot
+    errors.ts          -> ExpressionError/SyntaxError/DepthError + the code -> message table
     dataAccess.ts      -> path lookup + value comparison, shared with the binding filters
-    formatters.ts      -> DATE/CURRENCY formatting (UTC-safe, pt-BR numbers)
   pdf/
     generate.ts        -> thin orchestrator: asks layout/ where everything goes, then draws it —
                           no pagination decision of its own
@@ -1874,8 +1951,9 @@ src/
     reset.css          -> the appearance-free subset: what the editor used to inherit from Tailwind's Preflight
   designer/
     Designer.tsx       -> the PRESET: three providers + two parts in a two-column layout (101 lines)
-    context/           -> DesignerProvider.tsx + the five contexts (contexts.ts), the hooks (hooks.ts)
-                          and the pure derivations the selectors call (derived.ts)
+    context/           -> DesignerProvider.tsx + the five contexts (contexts.ts), the hooks (hooks.ts),
+                          the pure derivations the selectors call (derived.ts), and the zoom context
+                          (zoom.tsx/zoomContext.ts/useDesignerZoom.ts)
     parts/             -> the ten placeable parts, one file each, + useTabGate.ts (the opt-in tab gate)
     actions.ts         -> every Template/Binding[] mutator, each reading from the updater's `prev`
                           (which is what keeps the actions context identity-stable)
@@ -1884,16 +1962,18 @@ src/
   components/
     PageCanvas.tsx     -> the A4 sheet, rulers, zoom (zoom-aware drag/resize), grid, red bands,
                           marquee selection, drag/resize/inline editing
-    canvasGeometry.ts  -> PageCanvas.tsx's section hit-test + marquee-selection math (pure, testable)
-    dragField.ts       -> reads a dropped field-tree chip's payload (drag-and-drop from the JSON explorer)
-    dragGesture.ts     -> shared mousedown -> window mousemove/mouseup drag-loop wiring (KPI drag, column resize)
     FieldBox/          -> renders text/table/image/section/chart/kpi on the canvas (one file per type)
     FieldList.tsx      -> the side field list (select/lock/remove, send-to-back/bring-to-front)
     TemplateInspector.tsx -> read-only tree of the current page's fields, grouped by header/body/footer zone
     Toolbar.tsx        -> the "+ text/table/image/section/chart/kpi" buttons
-    PropertyPanel.tsx  -> thin dispatcher to one PropertyPanel<Type>.tsx per schema type
-    PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,
-    PropertyPanelChart.tsx, PropertyPanelKpi.tsx, PropertyPanelFields.tsx -> per-type Data/Style content
+    PropertyPanel/
+      index.tsx        -> thin dispatcher to one PropertyPanel<Type>.tsx per schema type
+      PropertyPanelText.tsx, PropertyPanelTable.tsx, PropertyPanelImage.tsx, PropertyPanelSection.tsx,
+      PropertyPanelChart.tsx, PropertyPanelKpi.tsx, PropertyPanelFields.tsx -> per-type Data/Style content
+    formula/           -> the ƒx expression editor, the one place a formula is typed
+      FormulaModal.tsx -> the modal: autocomplete, live preview against the sample row, error surfacing
+      FormulaButton.tsx -> the ƒx button that opens it, with its "this column has a formula" active state
+      DataTypeFields.tsx -> the field pickers inside the modal, one per data type
     BindingEditor.tsx  -> the generic binding UI (scalar/template/array/keyvalue/section/chart + calculated columns)
     Ruler.tsx          -> the mm ruler (SVG)
     PdfPreview.tsx     -> preview of the generated PDF via pdf.js
@@ -1903,6 +1983,7 @@ src/
       registry.ts      -> the 12 slots + defaultUiComponents; UiComponentsProvider.tsx / useUiComponents.ts
       cx.ts            -> class merge (dedupes exact tokens, returns undefined when empty) + mergeStyle
   index.ts             -> the package's public exports (never reaches pdfjs-dist)
+  server.ts            -> the "/server" entry: the React-free half (generatePdf, migrateTemplate, the errors)
   preview.ts           -> the "/preview" entry: the ONLY graph allowed to import pdfjs-dist
 examples/
   report-builder/      -> a full app (JSON data sources, field explorer) using the package's ready-made UI,

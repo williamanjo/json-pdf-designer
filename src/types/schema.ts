@@ -251,7 +251,7 @@ export type KpiElementOffset = { x: number; y: number };
 // precisar de um Binding à parte (ver generate.ts). Cada um dos 4
 // sub-elementos é opcional (ausente = removido, não desenha) e pode ter
 // posição própria (offset) e trava própria (locked) — ausente em ambos
-// cai no layout fixo de sempre, travado (ver kpiFormat.ts/render/renderKpi.ts/
+// cai no layout fixo de sempre, travado (ver kpi/card.ts/render/renderKpi.ts/
 // KpiField.tsx), retrocompatível com todo template salvo antes disso.
 export type KpiSchema = BaseSchema & {
   type: "kpi";
@@ -262,7 +262,7 @@ export type KpiSchema = BaseSchema & {
   backgroundColor: string;
   textColor: string;
   // Tamanho de fonte (pt) de cada texto do cartão — opcional; ausente cai
-  // no default (ver DEFAULT_KPI_*_FONT_SIZE em kpiFormat.ts), então schemas
+  // no default (ver DEFAULT_KPI_*_FONT_SIZE em kpi/card.ts), então schemas
   // antigos continuam com a mesma aparência de sempre.
   titleFontSize?: number;
   valueFontSize?: number;
@@ -270,17 +270,17 @@ export type KpiSchema = BaseSchema & {
   // Tamanho do ícone (pt) — mesmo motivo do fontSize acima.
   iconSize?: number;
   // Arredondamento dos cantos do cartão, em % (0 = reto, 100 = "pílula",
-  // ver kpiBorderRadius em kpiFormat.ts) — opcional, ausente cai no default
+  // ver kpiBorderRadius em kpi/card.ts) — opcional, ausente cai no default
   // (schemas antigos continuam com a mesma aparência de sempre).
   borderRadius?: number;
   // Formata `value` como número pt-BR (2 casas) quando ele resolve pra um
   // número puro — "none"/ausente (default) mantém o texto como está,
   // "plain" = "10000,00", "grouped" = "10.000,00" (ver formatKpiValue em
-  // kpiFormat.ts). Texto com prefixo/sufixo passa direto, sem tocar.
+  // kpi/card.ts). Texto com prefixo/sufixo passa direto, sem tocar.
   numberFormat?: "none" | "plain" | "grouped";
   // Posição própria de cada sub-elemento (mm, relativo ao cartão) —
   // ausente = posição padrão calculada (ver defaultKpiElementPositions em
-  // kpiFormat.ts).
+  // kpi/card.ts).
   iconOffset?: KpiElementOffset;
   titleOffset?: KpiElementOffset;
   valueOffset?: KpiElementOffset;
@@ -313,7 +313,7 @@ export type TemplatePage = {
   schemas: Schema[];
 };
 
-// Versão do FORMATO do documento — ver src/template/migrate.ts. União de um
+// Versão do FORMATO do documento — ver src/template.ts. União de um
 // só membro de propósito: quando existir a versão 2, trocar por `1 | 2` faz o
 // compilador apontar todo lugar que precisa decidir entre as duas, em vez de
 // aceitar `number` em silêncio.

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import type { ChartSchema } from "../../types";
-import { resolveChartColors } from "../../chart/colors";
-import { pieSlicePath, pointOnCircle } from "../../chart/pieGeometry";
-import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../../chart/format";
+import { resolveChartColors } from "../../fields/chart/colors";
+import { pieSlicePath, pointOnCircle } from "../../fields/chart/pieGeometry";
+import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../../fields/chart/format";
 
 // Preview em miniatura (ícone fixo, não em escala real do PDF, ver
 // PiePreview) — escala o tamanho de fonte da legenda PROPORCIONALMENTE ao

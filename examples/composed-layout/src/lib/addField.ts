@@ -1,4 +1,8 @@
-import { classifyZone, makeSectionColumnPair } from "json-pdf-designer";
+import {
+  classifyZone,
+  makeSectionColumnPair,
+  tokenFor,
+} from "json-pdf-designer";
 import type { Binding, Schema, SectionSchema, TableSchema, Template, TextSchema } from "json-pdf-designer";
 import type { FieldNode } from "./jsonExplorer";
 import { sanitizeName } from "./jsonExplorer";
@@ -93,11 +97,26 @@ export function addFieldToCanvas(field: FieldNode, ctx: Ctx) {
         width: 180,
         height: 30,
         head: columns,
-        content: [columns.map((c) => c.toUpperCase())],
+        // `tokenFor` do pacote, e NÃO o nome em caixa alta que estava aqui.
+        //
+        // `content[0][i]` é a fórmula da coluna, e é o que o gerador de PDF
+        // usa antes de qualquer outra coisa. Um placeholder SEM chaves
+        // ("DESCRICAO") não conta como template, então a tabela nascia sem
+        // token: o `ƒx` de cada coluna abria vazio, e renomear o título
+        // perdia a referência. Com o token, a referência mora na fórmula e
+        // não depende do rótulo.
+        content: [columns.map((c) => tokenFor(c))],
       };
       return { ...prev, schemas: [...prev.schemas, schema] };
     });
-    ctx.setBindings((prev) => [...prev, { schemaName, type: "array", path: field.path, columns }]);
+    ctx.setBindings((prev) => [...prev, {
+          schemaName,
+          type: "array",
+          path: field.path,
+          // Sem coluna de chave crua: o rótulo e a referência viram campos
+          // separados, então renomear um não mexe no outro.
+          columns: columns.map((c) => ({ label: c, formula: tokenFor(c) })),
+        }]);
     return;
   }
 

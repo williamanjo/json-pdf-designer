@@ -1,20 +1,9 @@
 import type { KpiElementKey, KpiSchema } from "../../types";
 import { MaterialIcon } from "../ui/MaterialIcon";
-import {
-  DEFAULT_KPI_BORDER_RADIUS_PERCENT,
-  DEFAULT_KPI_ICON_SIZE,
-  DEFAULT_KPI_SUBTITLE_FONT_SIZE,
-  DEFAULT_KPI_TITLE_FONT_SIZE,
-  DEFAULT_KPI_VALUE_FONT_SIZE,
-  defaultKpiElementPositions,
-  formatKpiValue,
-  kpiBorderRadius,
-  kpiElementLocked,
-  kpiElementOffset,
-  kpiElementOffsetPatch,
-} from "../../kpiFormat";
-import { mmToPx, ptToMm, ptToPx, pxToMm } from "../../units";
-import { startDragGesture } from "../dragGesture";
+import { DEFAULT_KPI_BORDER_RADIUS_PERCENT, DEFAULT_KPI_ICON_SIZE, DEFAULT_KPI_SUBTITLE_FONT_SIZE, DEFAULT_KPI_TITLE_FONT_SIZE, DEFAULT_KPI_VALUE_FONT_SIZE, defaultKpiElementPositions, kpiBorderRadius, kpiElementLocked, kpiElementOffset, kpiElementOffsetPatch } from "../../fields/kpi/card";
+import { formatKpiValue } from "../../fields/kpi/format";
+import { mmToPx, ptToMm, ptToPx, pxToMm } from "../../page/units";
+import { startDragGesture } from "../../canvas/dragGesture";
 
 type Props = {
   schema: KpiSchema;
@@ -35,7 +24,7 @@ type Props = {
 
 // Um sub-elemento (ícone/título/valor/legenda) — posição absoluta (mm→px)
 // em vez de flex, pra bater ponto a ponto com render/renderKpi.ts (que usa a MESMA
-// posição padrão, ver kpiFormat.ts). onMouseDown sempre foca o elemento
+// posição padrão, ver kpi/card.ts). onMouseDown sempre foca o elemento
 // (onSelectElement); só inicia arrasto de verdade quando o card já tá
 // selecionado E o elemento está destravado (cadeado na aba Campos) —
 // nada de duplo clique/modo de edição, e sem <Rnd> aninhado: só

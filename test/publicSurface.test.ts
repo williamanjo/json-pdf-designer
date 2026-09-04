@@ -1,4 +1,5 @@
 import { readFileSync } from "./support/read";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import * as api from "../src/index";
@@ -327,7 +328,12 @@ describe("superfície pública — o contrato dos erros", () => {
     // dicionário pelo pipeline de render (`drawImageField` está três camadas
     // abaixo de `generatePdf`; `migrateTemplate` roda antes das opções). Um
     // `throw new Error(t.algo)` significaria que alguém threadou.
-    const alvos = ["errors.ts", "pdf/generate.ts", "pdf/backgroundImage.ts", "pdf/render/renderImage.ts", "pdf/fontUtils.ts", "template/migrate.ts", "pdf/layout/layoutDocument.ts"];
+    const alvos = ["errors.ts", "pdf/generate.ts", "pdf/backgroundImage.ts", "pdf/render/renderImage.ts", "pdf/fontUtils.ts", "template.ts", "pdf/layout/layoutDocument.ts"];
+    // Alvo que mudou de caminho estourava um ENOENT cru de dentro do helper de
+    // leitura — mensagem que não diz que o problema é a LISTA, não o código.
+    // Foi o que aconteceu quando `template/migrate.ts` virou `template.ts`.
+    const sumidos = alvos.filter((rel) => !existsSync(join(__dirname, "..", "src", rel)));
+    expect(sumidos, `alvo deste guard mudou de caminho — atualize a lista: ${sumidos.join(", ")}`).toEqual([]);
     const localizados = alvos.filter((rel) => /(?:throw new|super)\(\s*(?:t|dict)/.test(readFileSync(join(__dirname, "..", "src", rel), "utf8")));
     expect(
       localizados,
@@ -392,6 +398,8 @@ describe("superfície pública — inventário do que não é componente", () =>
     "mmToPt", "mmToPx", "orientationOf", "pxToMm", "clampZoom",
     // tabela e seção
     "columnKey", "columnLabel", "makeSectionColumnPair",
+    // coluna de tabela: token sempre, rótulo separado da referência
+    "columnFormulaFor", "segmentFor", "tokenFor", "makeBoundTable", "normalizeTableColumns",
     // PDF e template
     "downloadPdf", "generatePdf", "migrateTemplate", "normalizeFontBytes", "renderTemplate",
     // i18n e ícones

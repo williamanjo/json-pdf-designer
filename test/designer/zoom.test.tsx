@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "../../src/components/zoomScale";
+import { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "../../src/canvas/zoomScale";
 import { PageCanvas } from "../../src/components/PageCanvas";
 import type { Template } from "../../src/types";
 

@@ -1,5 +1,5 @@
 import type { Schema, TextSchema } from "../../types";
-import { mmToPx } from "../../units";
+import { mmToPx } from "../../page/units";
 
 type Props = {
   schema: TextSchema;

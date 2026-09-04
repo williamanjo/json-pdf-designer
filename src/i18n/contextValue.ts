@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { en } from "./en";
+import { en } from "./locales/en";
 import type { Locale } from "./types";
 
 // Default = inglês — quem usa um componente exportado direto (PdfPreview,

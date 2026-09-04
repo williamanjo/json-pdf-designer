@@ -11,7 +11,7 @@ responsabilidade, não por ordem de import.
 export type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
 
 export type Template = {
-  version?: TemplateVersion; // versão do formato — ausente = 1, ver src/template/migrate.ts
+  version?: TemplateVersion; // versão do formato — ausente = 1, ver src/template.ts
   page: PageSize; // { width, height } em mm
   headerHeight?: number; // faixas estáticas (mm) repetidas em toda página gerada
   footerHeight?: number;
@@ -38,7 +38,7 @@ arquivo é a fonte da verdade, não este doc).
 
 Unidade de medida: **mm** em todo o modelo de dados (fácil de raciocinar
 — folha A4 é 210×297mm). Convertido pra **px** só pra renderizar no canvas
-do editor (`src/units.ts`, `mmToPx`/`pxToMm`) e pra **pt** na hora de
+do editor (`src/page/units.ts`, `mmToPx`/`pxToMm`) e pra **pt** na hora de
 desenhar o PDF de verdade via pdf-lib (`mmToPt`).
 
 ## Editor (`src/designer/` + `src/components/`)
@@ -66,7 +66,7 @@ consumidor, "Compondo o editor" no [USAGE.pt-BR.md](./USAGE.pt-BR.md).
 - **O painel lateral** (`parts/DesignerSidebar.tsx`, que compõe as sete
   peças de conteúdo com o gate por aba) — `FieldList.tsx` (lista de
   campos, clique seleciona), `Toolbar.tsx` (botões de adicionar campo) e,
-  com um campo selecionado, `PropertyPanel.tsx` — um dispatcher fino pra
+  com um campo selecionado, `PropertyPanel/index.tsx` — um dispatcher fino pra
   um `PropertyPanel<Tipo>.tsx` por tipo de schema, cada um dividido em
   aba "Dados" e "Estilo". `BindingEditor.tsx` (o editor de vínculo
   genérico de path/array/seção/gráfico) e `PropertyPanelFields.tsx`
@@ -232,7 +232,7 @@ ref. O `cx` (em `components/ui/cx.ts`) faz merge de classe com dedupe de
 token exato e devolve `undefined` quando vazio; o `mergeStyle` deixa o
 `style` do consumidor ganhar.
 
-## Vínculos e templates (`src/bindings/`, `src/table/columns.ts`)
+## Vínculos e templates (`src/bindings/`, `src/fields/table/columns.ts`)
 
 `bindings.ts` é lógica pura sobre strings/objetos simples, sem
 dependência de terceiros:
@@ -256,10 +256,31 @@ dependência de terceiros:
   na UI do editor (aceitam um `Dict` opcional pro `locale` ativo, default
   inglês).
 
-`table/columns.ts` guarda as funções puras que mantêm `head`/`content`/
+`fields/table/columns.ts` guarda as funções puras que mantêm `head`/`content`/
 `footer`/`columnStyles` de uma `TableSchema` sincronizados com o
 `Binding` dela (array) quando uma coluna é adicionada/removida/
 reordenada/reformatada pelo painel.
+
+Duas delas valem menção, porque são a mesma operação por pontas opostas. O
+`reindexTableForNewHead` reescreve a lista de cabeçalho inteira e re-deriva
+todo slot casando cada nome novo contra o head *antigo* — ele serve uma edição
+em bloco, e um nome renomeado, por definição, não está no head antigo, então
+aquele slot cai num branco. O `renameColumnInTable` é o estreito: muda
+`head[index]` e nada mais, que é o que faz um rename preservar o token, o
+estilo e a largura da coluna. Não existe mais controle de edição em bloco no
+painel; o `setTableHead` continua exportado pro consumidor.
+
+O `table/columnFormula.ts` é dono de duas coisas que o resto do pacote não
+pode duplicar: `tokenFor(key)` — a regra única de como uma chave de JSON vira
+token, inclusive quando um segmento precisa de aspas — e o `columnFormulaFor`,
+que reproduz a precedência do próprio resolver (célula de design com `{` vence
+o vínculo). O painel lê pelo segundo pra o editor não conseguir mostrar coisa
+diferente do que o PDF vai usar.
+
+O `table/normalizeColumns.ts` converte coluna de chave crua em
+`{label, formula}` num template salvo mais os vínculos dele. Não é um passo do
+`migrateTemplate` e não pode ser: a chave da coluna vive nos **bindings**, que
+não fazem parte do `Template`.
 
 ### Degradar ou falhar: onde está a linha
 
@@ -298,6 +319,15 @@ versão da mesma tabela voltada pra quem usa — mantenha as duas em sincronia.
 busca de path, a comparação de valor e a formatação de DATE/CURRENCY — moram
 aqui, e não em `bindings.ts`, porque o `bindings.ts` importa o motor, então o
 motor não pode importar de volta.
+
+O nó `path` da AST carrega `segments: string[]`, e não uma string com pontos —
+e isso é load-bearing, não escolha de estilo: `{[a.b]}` é UM segmento que
+contém ponto, e uma string com pontos não consegue distinguir isso de caminhar
+`a` → `b`. Distinguir os dois é a razão inteira de a forma bracketada existir,
+então a AST tem de preservar. Por isso o `dataAccess.ts` expõe o
+`getCaseInsensitiveSegments` pro motor, e o `getCaseInsensitive` antigo (por
+string) fica como wrapper pra meia dúzia de chamadores fora do motor (KPI,
+gráfico, filtros) que guardam caminho como texto.
 
 Três decisões que vale conhecer antes de mexer:
 
@@ -360,7 +390,7 @@ abaixo).
     item do array vinculado, crescendo/paginando junto com o resto do
     corpo.
   - `renderChart.ts` — pizza/rosca ou barra, posição da legenda, paleta
-    de cores (`src/chart/colors.ts`).
+    de cores (`src/fields/chart/colors.ts`).
   - `renderKpi.ts` — o cartão colorido + o path do ícone Material Symbols
     (`src/materialIcons.ts`).
   - `renderText.ts`/`renderImage.ts` — os dois tipos de campo mais
@@ -413,7 +443,7 @@ necessário.
 Módulos de apoio (continuam direto sob `src/pdf/`, usados tanto por
 `layout/` quanto por `render/`): `pagination.ts` (divide o corpo entre
 páginas contra `headerHeight`/`footerHeight`/`marginLeft`/`marginRight`,
-ver `src/zones.ts` pra como o editor classifica um campo em cabeçalho/
+ver `src/page/zones.ts` pra como o editor classifica um campo em cabeçalho/
 rodapé/margem/corpo só pela posição), `fontUtils.ts` (embute uma fonte
 TTF própria via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts`
 (transforma um PNG/JPEG enviado no PNG de fundo da página — só imagem,

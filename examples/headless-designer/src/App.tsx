@@ -10,7 +10,13 @@ import type {
   TemplatePage,
   TextSchema,
 } from "json-pdf-designer/server";
-import { CURRENT_TEMPLATE_VERSION, DEFAULT_MAX_PAGES, dictFor, generatePdf } from "json-pdf-designer/server";
+import {
+  CURRENT_TEMPLATE_VERSION,
+  DEFAULT_MAX_PAGES,
+  dictFor,
+  generatePdf,
+  tokenFor,
+} from "json-pdf-designer/server";
 // PdfPreview (canvas do pdf.js) mora no entry "/preview" — peer opcional
 // pdfjs-dist, instalado por este example porque ele usa o preview. É o
 // ÚNICO componente React que este example pega do pacote.
@@ -94,7 +100,10 @@ function newTableField(name: string, x: number, y: number, head: string[]): Tabl
     width: 180,
     height: 30,
     head,
-    content: [head.map((h) => h.toUpperCase())],
+    // `tokenFor` do pacote: `content[0][i]` é a fórmula da coluna, e um
+    // placeholder sem chaves não conta como template — a tabela nascia sem
+    // token e o editor de fórmula abria vazio.
+    content: [head.map((h) => tokenFor(h))],
   };
 }
 
@@ -306,7 +315,7 @@ export default function App() {
         return;
       }
       if (target?.type === "table") {
-        patchField(target.id, { head: columns, content: [columns.map((c) => c.toUpperCase())] });
+        patchField(target.id, { head: columns, content: [columns.map((c) => tokenFor(c))] });
         replaceBinding(target.name, { schemaName: target.name, type: "array", path: node.path, columns });
         setSelectedId(target.id);
         return;

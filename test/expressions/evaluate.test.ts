@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { evaluate, evaluateToString, isTruthy } from "../../src/expressions/evaluate";
-import { FUNCTION_NAMES } from "../../src/expressions/functions";
-import { parse } from "../../src/expressions/parse";
+import { evaluate, evaluateToString, isTruthy } from "../../src/expressions/engine/evaluate";
+import { FUNCTION_NAMES } from "../../src/expressions/engine/functions";
+import { parse } from "../../src/expressions/engine/parse";
 import { CUSTOM_FIELD_FUNCTIONS } from "../../src/bindings/bindings";
 
 const data = {

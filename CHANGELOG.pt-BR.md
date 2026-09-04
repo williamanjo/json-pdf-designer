@@ -5,6 +5,230 @@
 Todas as mudanças relevantes deste pacote ficam documentadas aqui.
 Formato inspirado, sem seguir à risca, em
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
+## 3.2.0 (2026-09-04)
+
+Coluna de tabela passou a ter identidade própria. Renomear o título muda o
+título e nada mais, o editor `ƒx` sempre abre com o token que está realmente
+em uso, e toda chave de JSON ganhou uma forma que dá pra escrever como
+caminho — inclusive as que não tinham nenhuma.
+
+### Adicionado
+
+- **Caminho entre brackets — `{[token]}`.** A leitura permissiva que este
+  formato sempre teve (um operador só é operador com espaço dos **dois**
+  lados, então `{my-key}` e `{my key}` são caminhos) cobria quase toda chave
+  de JSON, mas não todas: chave com **ponto literal**, ou com
+  `(`/`)`/`,`/`"`, ou com operador cercado de espaço dentro do nome, não tinha
+  forma nenhuma. A forma delimitada dá nome a elas:
+
+  | Escrito | Resolve |
+  |---|---|
+  | `{[id]}` | a chave `id` |
+  | `{[cliente].[nome]}` | caminha `cliente` → `nome` |
+  | `{[cliente.nome]}` | a chave **literal** `"cliente.nome"` — ponto *dentro* do bracket não separa |
+  | `{["token name"]}` | a chave `"token name"` — segmento com espaço precisa de aspas |
+  | `{[total] + 1}` | conta; o operador está *fora* do bracket |
+  | `{CURRENCY([total], "R$", 2)}` | caminho bracketado como argumento de função |
+
+  Segmento com espaço **tem** que vir entre aspas (`"` ou `'`, a que o
+  conteúdo permitir), e isso é recusa deliberada, não inconveniência:
+  `[a + b]` é ambíguo entre a chave `"a + b"` e uma conta dentro do bracket, e
+  escolher um em silêncio é pior que dizer não. `emptySegment`,
+  `unclosedBracket` e `spaceInSegment` são os três códigos de erro de
+  expressão novos.
+
+  O nó `path` da AST passou a carregar `segments: string[]` em vez de
+  `path: string`. Não é cosmético: uma string com pontos não consegue
+  representar `[a.b]` (um segmento que contém ponto), que é exatamente a
+  ambiguidade que os brackets existem pra resolver.
+
+- **Renomear coluna com duplo clique** na lista "Colunas atuais da tabela", e
+  a ação `renameTableColumn(index, label)` por trás. Ela muda `head[index]` e,
+  numa coluna calculada, o `label` do vínculo — e não toca em mais nada.
+
+- **`tokenFor(key)`** — a regra única de como uma chave vira token, usada pela
+  tabela recém-vinculada, pela normalização e pelos chips do `ƒx`, então as
+  três não têm como discordar. Mais `segmentFor` pro segmento sozinho.
+
+- **`columnFormulaFor(content, columns, index)`** — a mesma precedência que o
+  PDF usa, exportada pra quem desenha o próprio painel.
+
+- **`makeBoundTable(nextY, path, columns)`** — tabela já vinculada a um
+  caminho de array, com o token de cada coluna preenchido. Isto estava fora do
+  pacote, e os cinco examples deste repo o reimplementavam — errado do mesmo
+  jeito (ver Corrigido).
+
+- **`normalizeTableColumns(template, bindings)`** — converte coluna de chave
+  crua em `{label, formula}` em dado já salvo. Idempotente, e exportada
+  também de `json-pdf-designer/server`, porque normalizar acervo é trabalho de
+  script tanto quanto de editor. Ela **não** é chamada automaticamente:
+  reescrever o template do consumidor na montagem seria efeito colateral
+  invisível.
+
+### Mudou
+
+- **`{[a]}` significava a chave literalmente chamada `[a]`** (o lexer não
+  tratava bracket, então ele era absorvido pelo identificador) e agora
+  significa o caminho `a`. Chave de JSON com bracket no nome se escreve
+  `{["[a]"]}`. O resto está intacto: `{cliente.nome}`, `{my-key}` e
+  `{my key}` continuam os caminhos que sempre foram.
+
+  ```diff
+  - {[a]}        // a chave chamada "[a]"
+  + {["[a]"]}    // a mesma chave, depois da 3.2.0
+  ```
+
+- **O campo "Colunas (cabeçalho, vírgula)" saiu do painel de tabela.** Ele era
+  a causa do bug de renomear, não uma baixa da correção: substituía o `head`
+  inteiro a cada tecla. A ação `setTableHead` e a prop `onSetHeadList`
+  **continuam exportadas** — consumidor que renderiza `PropertyPanelTable`
+  direto não quebra; o painel só não tem mais um controle que reescreva a
+  lista.
+
+- **A célula do canvas esconde os brackets.** `{[id]}` é o que fica gravado e
+  `{id}` é o que é desenhado — o `displayCell` já fazia isso com
+  `{CURRENCY(x, "R$", 2)}`. Numa tabela de 68 colunas, 68 pares de brackets é
+  ruído, e a forma gravada continua explícita.
+
+### Corrigido
+
+- **O editor `ƒx` de uma coluna de tabela abria vazio.** O painel o semeava a
+  partir de `binding.columns[i]`, e só quando aquela entrada era objeto,
+  enquanto o PDF lê `content[0][i]` primeiro. Então numa tabela vinculada por
+  fonte de dados — cujo `columns[i]` é string crua e cujo `content[0][i]`
+  guarda o token — o editor lia o depósito de *fallback* e o PDF o
+  *principal*. O token estava lá, funcionava, e a interface nunca o mostrava.
+  O destaque do botão `ƒx` vinha da mesma leitura errada, então ele também não
+  acendia. Os dois agora passam por `columnFormulaFor`, que é a precedência do
+  próprio resolver.
+
+- **Renomear o título de uma coluna perdia a referência de dado.** Não existia
+  operação de renomear. O único jeito de mudar um título era o campo separado
+  por vírgula, que chamava `setTableHead` com a lista inteira a cada tecla; e
+  aquilo re-deriva todo slot casando cada nome novo contra o head *antigo* —
+  um nome renomeado, por definição, não está no head antigo. Então a coluna
+  caía no fallback e perdia `content[0][i]` (o token, que é o que decide o
+  PDF), `columnStyles[i]` e `columnWidths[i]`, enquanto `binding.columns[i]`
+  era sobrescrito com o **título novo virando chave de JSON**. Renomear era
+  indistinguível de "apaga a coluna X, insere a coluna Y".
+
+  Verificado no `report-builder`: depois do rename, `binding.columns[2]`
+  continua `fare_amount`, a célula de design continua `100.00`, e o Ctrl+Z do
+  próprio app desfaz o rename — ou seja ele passa pelo `setState` do
+  consumidor como toda outra mutação.
+
+- **Tabela arrastada da árvore de campos nascia sem token.** Montar tabela
+  vinculada nunca esteve no pacote (`onCanvasDrop` é passthrough cru), então
+  cada example fazia à mão e escrevia
+  `content: [columns.map((c) => c.toUpperCase())]` — um placeholder sem chaves
+  (`"DESCRICAO"`), que o resolver de propósito não trata como template. É por
+  isso que a tabela *arrastada* tinha o `ƒx` vazio e a vinculada pelo painel
+  não. Os cinco examples passam por `tokenFor` agora, e o `makeBoundTable` põe
+  a coisa inteira no pacote.
+
+- **O `handleChangeBinding` escrevia a forma sem brackets.** Vincular uma
+  tabela pelo painel emitia `` `{${c}}` ``, que está errado pra qualquer chave
+  com ponto, espaço ou parêntese. Ele usa `tokenFor` agora, e as colunas que
+  escreve são `{label, formula}` em vez de chave crua.
+
+### Interno — layout de arquivo
+
+Nenhum nome público mudou: o `publicSurface.test.ts` mantém um inventário
+explícito de todo export de runtime nas duas direções, e ele fica intacto
+depois destes movimentos. O mapa `exports` do `package.json` é fechado (`.`,
+`./server`, `./preview`, as duas folhas de estilo), então caminho interno
+nunca foi alcançável pelo `import` de um consumidor. O que mudou foram
+caminhos de fonte, e isso importa porque `ARCHITECTURE.pt-BR.md` e
+`package-structure` listam eles.
+
+O formato em que isto chegou: **treze pastas dentro de `src/`, nenhuma com um
+arquivo só, e a maior listagem plana é `components/ui/` com 21 — que são 21
+arquivos de um componente cada, então a contagem é justamente o ponto.**
+Antes, três pastas tinham um arquivo cada e o próprio `src/` tinha dez
+arquivos que não são entry point.
+
+- **`src/fields/`** agrupa as três pastas por tipo de campo que estavam na
+  raiz como irmãs de `pdf/` e `designer/`: `fields/table/`, `fields/kpi/`,
+  `fields/chart/`. São a mesma coisa — a lógica pura que um tipo de campo tem
+  — e o `types/schema.ts` já deixa claro que tipo de campo é o eixo em que o
+  pacote inteiro gira. O `kpi/` em si já havia substituído o
+  `src/kpiFormat.ts`, cujo nome descrevia UM de treze exports (os outros doze
+  são defaults do cartão, raio de canto, e posição/trava por elemento); agora
+  é `fields/kpi/card.ts` mais `fields/kpi/format.ts`.
+
+- **`src/page/`** guarda `units.ts`, `sizes.ts` (era `pageSizes.ts`) e
+  `zones.ts`. **Isto reverte uma decisão tomada antes nesta mesma seção**:
+  eles estavam listados como "deliberadamente não movidos", pelo argumento de
+  que uma pasta `util/` seria gaveta de tranqueira. O argumento estava certo
+  sobre `util/` e errado sobre estes três — eles não são utilitários, são a
+  folha em si: o tamanho dela, como converte entre mm/px/pt, e em que faixa um
+  campo cai. `page/` é um assunto, não uma gaveta, e a diferença é toda aí.
+
+- **`src/template.ts`** substitui o `src/template/migrate.ts` — uma pasta com
+  exatamente um arquivo dentro, um nível de diretório que não carrega
+  informação nenhuma.
+
+- **`src/i18n/locales/en.ts`, `locales/pt-BR.ts`.** Os dois dicionários eram
+  1115 das 1219 linhas da pasta, então os sete arquivos que têm a lógica de
+  i18n de verdade ficavam soterrados por eles em qualquer listagem. Nada da
+  fronteira sem-React mudou: o `dictionaries.ts` continua com o mapa
+  locale → `Dict` sem importar React, que é o que deixa o `/server` alcançar
+  um dicionário, e o `test/entryBoundaries.test.ts` continua guardando isso.
+
+- **`src/expressions/engine/`** guarda `tokenize.ts`, `parse.ts`,
+  `evaluate.ts`, `functions.ts` e `formatters.ts`. Esta foi medida, não
+  olhada: dos doze arquivos de `expressions/`, exatamente estes cinco têm
+  **zero** importador fora da pasta, e os outros sete (`resolve.ts`,
+  `templateText.ts`, `schemaExpressions.ts`, `suggest.ts`, `suspicious.ts`,
+  `errors.ts`, `dataAccess.ts`) têm de dois a sete cada. A fronteira de pasta
+  agora diz o que o grafo de import já dizia.
+
+- **`src/components/PropertyPanel/`** e **`src/components/formula/`** tiram
+  onze arquivos de uma listagem plana de vinte. Os painéis seguem o formato
+  que o `FieldBox/` já tinha estabelecido — pasta com o nome do componente, o
+  componente no `index.tsx`, as variantes por tipo do lado — então
+  `import { PropertyPanel } from "../../components/PropertyPanel"` resolve sem
+  mudança. O `formula/` é minúsculo porque é assunto e não componente: o
+  `FormulaModal.tsx` é o editor, mas o `FormulaButton.tsx` é importado sozinho
+  pelos painéis de propriedade, então batizar a pasta com o nome de qualquer
+  um dos dois descreveria ela errado.
+
+- **O `test/` acompanha o `src/`** onde tinha ficado atrás: o `test/page/`
+  guarda os testes de units/sizes/zones, e o `test/template/migrate.test.ts`
+  virou `test/template.test.ts`. O `test/expressions/` ficou plano de
+  propósito — o `brackets.test.ts` exercita `tokenize`, `parse` e `evaluate`
+  juntos, então ele não tem lado nenhum de um split `engine/` pra sentar, e
+  forçar um poria a fronteira de pasta num lugar onde os testes de fato não
+  se dividem.
+
+Quatro comentários em `designer/` apontavam pra `src/bindingBuilders.ts` e
+`src/canvasGeometry.ts` — dois arquivos que já tinham parado de existir em
+releases anteriores. Agora eles citam `src/bindings/builders.ts` e
+`src/canvas/geometry.ts`. Comentário citando caminho que não resolve pra nada
+é a mesma podridão de prosa velha, e é mais difícil de notar porque nada
+compila ele.
+
+Um guard pegou um movimento sozinho: o teste de "nenhum `throw` monta a
+mensagem com dicionário" lê uma lista fixa de sete arquivos de fonte, e o
+`template/migrate.ts` era um deles. Ele falhou com um `ENOENT` cru de dentro
+do helper de leitura — falha de verdade, mas com uma mensagem que apontava pro
+helper em vez de pra lista. Agora ele afirma primeiro que cada alvo existe,
+então o próximo rename diz *"um alvo deste guard mudou de caminho — atualize a
+lista"*.
+
+Ainda na raiz de `src/`, e por quê: três dos onze arquivos são os entry points
+(`index.ts`, `server.ts`, `preview.ts`). Os outros oito — `errors.ts`,
+`errorUtils.ts`, `fieldWarnings.ts`, `materialIcons.ts`, `numberFormat.ts`,
+`schemaFactory.ts`, `drag.ts`, `template.ts` — têm importador espalhado por
+três ou mais pastas cada, que é o que "mora na raiz" quer dizer. A nota
+anterior sobre o `errorUtils.ts` continua valendo e vale repetir, porque o
+raciocínio quase se inverteu por contagem de linha: ele foi considerado pra
+fundir no `errors.ts` sob o argumento de ter oito linhas contra 639. O grafo de
+importadores diz o contrário — o `errorUtils.ts` tem dois importadores e os
+dois estão do lado React, o `errors.ts` tem doze e nenhum deles importa React.
+Estão em lados opostos da fronteira do `/server`. Duas preocupações, dois
+arquivos.
+
 ## 3.1.0 (2026-09-03)
 
 ### Adicionado

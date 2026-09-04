@@ -2,19 +2,12 @@ import type { Color, PDFFont, PDFPage } from "pdf-lib";
 import { rgb } from "pdf-lib";
 import type { KpiElementOffset, KpiSchema } from "../../types";
 import { MATERIAL_ICON_GRID, MATERIAL_ICON_PATHS } from "../../materialIcons";
-import {
-  DEFAULT_KPI_BORDER_RADIUS_PERCENT,
-  DEFAULT_KPI_ICON_SIZE,
-  DEFAULT_KPI_SUBTITLE_FONT_SIZE,
-  DEFAULT_KPI_TITLE_FONT_SIZE,
-  DEFAULT_KPI_VALUE_FONT_SIZE,
-  formatKpiValue,
-  kpiBorderRadius,
-} from "../../kpiFormat";
+import { DEFAULT_KPI_BORDER_RADIUS_PERCENT, DEFAULT_KPI_ICON_SIZE, DEFAULT_KPI_SUBTITLE_FONT_SIZE, DEFAULT_KPI_TITLE_FONT_SIZE, DEFAULT_KPI_VALUE_FONT_SIZE, kpiBorderRadius } from "../../fields/kpi/card";
+import { formatKpiValue } from "../../fields/kpi/format";
 import { colorOrDefault } from "../color";
 import { truncateToWidth } from "../textLayout";
 import { roundedRectPath } from "../svgShapes";
-import { mmToPt } from "../../units";
+import { mmToPt } from "../../page/units";
 
 const PADDING_PT = 8;
 

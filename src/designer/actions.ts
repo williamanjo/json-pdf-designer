@@ -11,6 +11,7 @@ import type {
 } from "../types";
 import { makeSectionColumnPair, makeSectionSchema, nextFreeY } from "../schemaFactory";
 import { columnLabel } from "../bindings/bindings";
+import { tokenFor } from "../fields/table/columnFormula";
 import { fileToBackgroundImage } from "../pdf/backgroundImage";
 import { toErrorMessage } from "../errorUtils";
 import {
@@ -24,14 +25,16 @@ import {
   reindexTableForNewHead,
   removeColumnFromArrayBinding,
   removeColumnFromTable,
+  renameColumnInArrayBinding,
+  renameColumnInTable,
   reorderArrayBindingColumns,
   reorderTableColumn as reorderTableColumnPure,
   setColumnFormulaOnArrayBinding,
   setColumnStyle as setColumnStylePure,
   setColumnWidth as setColumnWidthPure,
-} from "../table/columns";
+} from "../fields/table/columns";
 import { computeSpawnPosition, findTableDataSource } from "./helpers";
-import { applyOrientation, orientationOf, PAGE_SIZE_PRESETS } from "../pageSizes";
+import { applyOrientation, orientationOf, PAGE_SIZE_PRESETS } from "../page/sizes";
 import type { Dict } from "../i18n";
 
 // Toda mutação de template/bindings do editor, fora do componente.
@@ -312,8 +315,19 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
       const hadBindingBefore = latest.current.bindings.some((b) => b.schemaName === schemaName);
       if (schema && schema.type === "table" && !hadBindingBefore) {
         const newHead = binding.columns.map((c) => columnLabel(c));
-        const newContent = [binding.columns.map((c) => (typeof c === "string" ? `{${c}}` : c.formula))];
+        // `tokenFor` e não `` `{${c}}` ``: a chave pode ter ponto, espaço,
+        // parêntese ou quote, e a forma nua daria um path errado ou um erro de
+        // sintaxe. Mesma regra que a tabela nova e a normalização usam.
+        const newContent = [binding.columns.map((c) => (typeof c === "string" ? tokenFor(c) : c.formula))];
         updateSchema(schema.id, { head: newHead, content: newContent, footer: undefined, columnStyles: undefined });
+        // E a coluna de chave crua vira `{label, formula}` no próprio vínculo,
+        // pra não haver coluna crua nascendo por este caminho tampouco.
+        binding = {
+          ...binding,
+          columns: binding.columns.map((c, i) =>
+            typeof c === "string" ? { label: newHead[i] ?? c, formula: tokenFor(c) } : c
+          ),
+        };
       }
     }
     setBinding(schemaName, binding);
@@ -334,7 +348,7 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
   // selecionada dentro do `prev` funcional, confere que é mesmo type
   // "table", aplica o `mutator` recebido e substitui de volta no array) —
   // cada função só passa a lógica de coluna que muda, delegada pras funções
-  // puras de src/table/columns.ts.
+  // puras de src/fields/table/columns.ts.
   // `mutator` pode devolver undefined pra "sem mudança" (ex: coluna
   // duplicada em addColumnToTable).
   function updateSelectedTable(mutator: (table: TableSchema) => TableSchema | null | undefined) {
@@ -379,6 +393,32 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
   // já nasce formatada como moeda (2 casas, R$) em vez de token cru — não
   // precisa abrir o "ƒx" depois só pra marcar "isso aqui é dinheiro".
   // Texto/outro tipo continua exatamente como sempre (token cru).
+  // Renomear UMA coluna — só o rótulo, a referência fica.
+  //
+  // É a operação que o modelo não tinha, e a causa do bug relatado: sem ela o
+  // único jeito de mudar um título era o `setTableHead` abaixo, que reescreve
+  // a lista inteira e re-deriva cada slot casando nome novo contra head
+  // antigo. Um nome renomeado não está no head antigo, então a coluna perdia
+  // o token de `content` (que é o que o PDF usa), o estilo, a largura, e
+  // ganhava o título novo como chave de JSON.
+  //
+  // As duas metades em dois dispatches, como todas as outras funções de
+  // coluna — e a metade do vínculo só faz algo quando a coluna é calculada
+  // (`{label, formula}`), porque coluna de chave crua não tem rótulo próprio.
+  function renameTableColumn(index: number, label: string) {
+    const table = selectedTable();
+    if (!table) return;
+    const schemaName = table.name;
+    updateSelectedTable((t) => renameColumnInTable(t, index, label));
+    onChangeBindings((prev) => {
+      const existingBinding = prev.find((b) => b.schemaName === schemaName);
+      if (existingBinding?.type !== "array") return prev;
+      const columns = renameColumnInArrayBinding(existingBinding, index, label);
+      if (!columns) return prev;
+      return prev.map((b) => (b === existingBinding ? { ...b, columns } : b));
+    });
+  }
+
   function addTableColumn(column: string) {
     const table = selectedTable();
     if (!table) return;
@@ -563,6 +603,7 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     removeSchema,
     setBinding,
     handleChangeBinding,
+    renameTableColumn,
     setTableHead,
     addTableColumn,
     removeTableColumn,

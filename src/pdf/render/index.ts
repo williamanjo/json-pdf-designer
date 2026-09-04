@@ -1,8 +1,8 @@
 import type { PDFDocument, PDFFont, PDFImage, PDFPage } from "pdf-lib";
 import type { Binding, Schema } from "../../types";
 import { aggregateChartItems, renderTemplate, resolveChartItems, resolveKpiValue } from "../../bindings/bindings";
-import { resolveChartColors } from "../../chart/colors";
-import { mmToPt } from "../../units";
+import { resolveChartColors } from "../../fields/chart/colors";
+import { mmToPt } from "../../page/units";
 import { resolveFooterRow, resolveTopLevelTableRows } from "../resolvers";
 import { drawChart } from "./renderChart";
 import { drawKpi } from "./renderKpi";

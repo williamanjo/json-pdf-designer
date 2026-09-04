@@ -1,0 +1,110 @@
+import type { TextSchema } from "../../types";
+import { useT } from "../../i18n";
+import type { FieldSources } from "../../designer/helpers";
+import { allowDrop, readDroppedField } from "../../drag";
+import { FormulaButton } from "../formula/FormulaButton";
+import { BulkLocked, ClearFieldButton } from "../ui";
+import { useUiComponents } from "../ui/useUiComponents";
+
+type Props = {
+  schema: TextSchema;
+  activeTab: "dados" | "estilo";
+  bulkEdit?: boolean;
+  onChangeSchema: (patch: Partial<TextSchema>) => void;
+  // Campos que este schema alcança — a lista da esquerda do modal de
+  // fórmula (ver designer/helpers.ts, fieldSourcesFor).
+  fieldSources?: FieldSources;
+};
+
+export function PropertyPanelText({ schema, activeTab, bulkEdit, onChangeSchema, fieldSources }: Props) {
+  const t = useT();
+  const { ColorInput, Input, Select, Textarea } = useUiComponents();
+  const textarea = (
+    <div className="jpd-stack jpd-stack--tight">
+      <Textarea
+        label={t.text.designText}
+        value={schema.content}
+        onChange={(e) => onChangeSchema({ content: e.target.value })}
+        onDragOver={allowDrop}
+        onDrop={(e) => {
+          const f = readDroppedField(e);
+          if (!f) return;
+          e.preventDefault();
+          const token = `{${f.path}}`;
+          onChangeSchema({ content: schema.content ? `${schema.content} ${token}` : token });
+        }}
+      />
+      <div className="jpd-row jpd-row--right">
+        <FormulaButton
+          active={schema.content.includes("{")}
+          sources={fieldSources}
+          target={{
+            label: t.text.designText,
+            value: schema.content,
+            onSave: (next) => onChangeSchema({ content: next }),
+          }}
+        />
+      </div>
+    </div>
+  );
+  return (
+    <>
+      {activeTab === "dados" &&
+        (bulkEdit ? <BulkLocked hint={t.fieldsPanel.bulkDataLockedNoShared}>{textarea}</BulkLocked> : textarea)}
+      {activeTab === "estilo" && (
+        <>
+          <div className="jpd-grid2">
+            <Input
+              label={t.text.fontSize}
+              type="number"
+              value={schema.fontSize}
+              onChange={(e) => onChangeSchema({ fontSize: Number(e.target.value) })}
+            />
+            <ColorInput label={t.text.color} value={schema.fontColor} onChange={(e) => onChangeSchema({ fontColor: e.target.value })} />
+          </div>
+          <Select
+            label={t.text.alignment}
+            value={schema.alignment}
+            onChange={(e) => onChangeSchema({ alignment: e.target.value as TextSchema["alignment"] })}
+          >
+            <option value="left">{t.text.alignLeft}</option>
+            <option value="center">{t.text.alignCenter}</option>
+            <option value="right">{t.text.alignRight}</option>
+          </Select>
+          <div className="jpd-grid2">
+            <div className="jpd-row jpd-row--tight jpd-row--baseline">
+              <ColorInput
+                label={t.text.background}
+                value={schema.backgroundColor ?? "#ffffff"}
+                onChange={(e) => onChangeSchema({ backgroundColor: e.target.value })}
+              />
+              {schema.backgroundColor && (
+                <ClearFieldButton onClick={() => onChangeSchema({ backgroundColor: undefined })} label={t.text.removeBackground} />
+              )}
+            </div>
+            <div className="jpd-row jpd-row--tight jpd-row--baseline">
+              <ColorInput
+                label={t.text.border}
+                value={schema.borderColor ?? "#94a3b8"}
+                onChange={(e) => onChangeSchema({ borderColor: e.target.value, borderWidth: schema.borderWidth ?? 0.5 })}
+              />
+              {schema.borderColor && (
+                <ClearFieldButton onClick={() => onChangeSchema({ borderColor: undefined })} label={t.text.removeBorder} />
+              )}
+            </div>
+          </div>
+          {schema.borderColor && (
+            <Input
+              label={t.text.borderWidth}
+              type="number"
+              step={0.1}
+              min={0.1}
+              value={schema.borderWidth ?? 0.5}
+              onChange={(e) => onChangeSchema({ borderWidth: Number(e.target.value) })}
+            />
+          )}
+        </>
+      )}
+    </>
+  );
+}

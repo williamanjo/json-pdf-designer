@@ -1,4 +1,4 @@
-import { en, type Dict } from "../i18n/en";
+import { en, type Dict } from "../i18n/locales/en";
 
 // O texto de um campo é um TEMPLATE: texto literal com zero ou mais `{...}`
 // no meio (`FAT-{fatura}`). Este módulo é o que o editor precisa saber sobre

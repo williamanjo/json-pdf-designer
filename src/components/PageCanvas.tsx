@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import type { KpiElementKey, PageSize, Schema, SectionColumnDragPayload } from "../types";
-import { clampZoom, ZOOM_FIT_INSET_PX, ZOOM_STEP } from "./zoomScale";
-import { findSectionAt, schemasInRect } from "./canvasGeometry";
+import { clampZoom, ZOOM_FIT_INSET_PX, ZOOM_STEP } from "../canvas/zoomScale";
+import { findSectionAt, schemasInRect } from "../canvas/geometry";
 import { SECTION_COLUMN_MIME } from "../schemaFactory";
-import { GRID_SIZE_MM, mmToPx, pxToMm, snapToGrid } from "../units";
-import { classifyZone, clampToZone, isRedZone } from "../zones";
+import { GRID_SIZE_MM, mmToPx, pxToMm, snapToGrid } from "../page/units";
+import { classifyZone, clampToZone, isRedZone } from "../page/zones";
 import { useT } from "../i18n";
 import { FieldBox } from "./FieldBox";
 import { Ruler } from "./Ruler";

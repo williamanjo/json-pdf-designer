@@ -82,9 +82,9 @@ there is no second implementation to drift.
 
 Concrete, and checkable in this repo:
 
-- **1030 tests across 72 files**, weighted where the risk is: 19 files
-  cover PDF generation and pagination alone, plus 7 on the expression
-  parser, 8 on the UI kit, 6 on the editor's state boundaries, 5 on
+- **1115 tests across 75 files**, weighted where the risk is: 19 files
+  cover PDF generation and pagination alone, plus 8 on the expression
+  parser, 8 on the UI kit, 7 on the editor's state boundaries, 6 on
   tables, 4 on data binding.
 - **CI tests the published artifact, not the source.** It runs
   `npm pack`, installs the tarball into a clean directory, and asserts

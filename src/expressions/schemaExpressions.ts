@@ -1,5 +1,5 @@
 import type { Binding, Schema } from "../types";
-import { en, type Dict } from "../i18n/en";
+import { en, type Dict } from "../i18n/locales/en";
 import { expressionError, templateExpressionErrors } from "./resolve";
 import { suspiciousOperator, templateSuspiciousOperators } from "./suspicious";
 

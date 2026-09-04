@@ -4,7 +4,7 @@ import { buildChartBinding, buildKpiBinding, buildSectionBinding, buildTableBind
 import { CUSTOM_FIELD_FUNCTIONS, describeBindingShort } from "../bindings/bindings";
 import { stringifyColumns } from "../bindings/columnParsing";
 import { useT, withInlineCode } from "../i18n";
-import { allowDrop, readDroppedField } from "./dragField";
+import { allowDrop, readDroppedField } from "../drag";
 import { useUiComponents } from "./ui/useUiComponents";
 import { IconLink } from "./ui/icons";
 

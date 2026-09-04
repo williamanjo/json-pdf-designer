@@ -25,6 +25,45 @@ Cada campo aponta pro JSON real via um `Binding`:
   número só pra um cartão KPI, sobrescrevendo o `value` livre — veja
   [Cartões KPI](./kpi-cards).
 
+## Escrevendo um caminho
+
+Um caminho pode ser escrito nu ou delimitado, e a diferença importa por um
+motivo só: o caminho **nu** quebra no `.`, então uma chave de JSON cujo nome
+*contém* ponto não tem forma nua.
+
+| Escrito | Resolve |
+| --- | --- |
+| `{id}` | a chave `id` |
+| `{cliente.nome}` | caminha `cliente` → `nome` |
+| `{[id]}` | a chave `id` — a forma delimitada da mesma coisa |
+| `{[cliente].[nome]}` | caminha `cliente` → `nome` |
+| `{[cliente.nome]}` | a chave **literal** `"cliente.nome"`; ponto dentro do bracket não separa |
+| `{["token name"]}` | a chave `"token name"` |
+| `{[total] + 1}` | conta — o operador está fora do bracket |
+| `{CURRENCY([total], "R$", 2)}` | caminho delimitado como argumento de função |
+
+Duas regras que vale dizer na cara:
+
+- **Segmento com espaço tem que vir entre aspas** — `["minha chave"]`, não
+  `[minha chave]`. Neste formato um operador só é operador com espaço dos dois
+  lados, então `[a + b]` seria ambíguo entre a chave `"a + b"` e uma conta
+  dentro do bracket. É recusado em vez de adivinhado.
+- **As aspas são `"` ou `'`, a que o conteúdo permitir.** Não há caractere de
+  escape; chave que contém `"` se escreve entre `'`. O `tokenFor` escolhe por
+  você.
+
+A forma nua não está depreciada e não vai ficar — `{cliente.nome}`, `{my-key}`
+e `{my key}` são os caminhos que sempre foram. Use a delimitada quando a chave
+precisar, ou sempre, por uniformidade: o editor escreve ela em todo lugar e
+mostra a forma curta na célula do canvas, então `{[id]}` é o que fica gravado e
+`{id}` é o que você lê.
+
+:::warning[Uma chave mudou de significado na 3.2.0]
+`{[a]}` era a chave *literalmente chamada* `[a]`, porque o lexer absorvia os
+brackets no identificador. Agora é o caminho `a`. Se você tem uma chave de JSON
+com bracket no nome, escreva `{["[a]"]}`.
+:::
+
 ## Funções de template
 
 Dentro de `{...}` (texto, coluna calculada, célula de rodapé — em

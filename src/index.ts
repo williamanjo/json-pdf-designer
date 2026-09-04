@@ -54,7 +54,7 @@ export {
   resolveChartColors,
   type ChartPaletteName,
   type ChartPresetName,
-} from "./chart/colors";
+} from "./fields/chart/colors";
 export {
   MATERIAL_ICON_GRID,
   MATERIAL_ICON_PATHS,
@@ -64,7 +64,7 @@ export {
   type MaterialIconName,
 } from "./materialIcons";
 export { generatePdf, downloadPdf, type GeneratePdfOptions } from "./pdf/generate";
-export { migrateTemplate, CURRENT_TEMPLATE_VERSION } from "./template/migrate";
+export { migrateTemplate, CURRENT_TEMPLATE_VERSION } from "./template";
 // ===========================================================================
 // ERROS — toda falha é uma CLASSE, e `error.message` é INGLÊS
 //
@@ -148,9 +148,9 @@ export type { SchemaExpressionError } from "./expressions/schemaExpressions";
 
 export { makeChartSchema, makeKpiSchema, makeSectionColumnPair } from "./schemaFactory";
 export { I18nProvider, useT, useLocale, withInlineCode, type Locale, type Dict } from "./i18n";
-export { mmToPx, pxToMm, mmToPt } from "./units";
-export { PAGE_SIZE_PRESETS, orientationOf, applyOrientation, matchPreset, type Orientation } from "./pageSizes";
-export { classifyZone, isRedZone, clampToZone, type Zone, type Bands } from "./zones";
+export { mmToPx, pxToMm, mmToPt } from "./page/units";
+export { PAGE_SIZE_PRESETS, orientationOf, applyOrientation, matchPreset, type Orientation } from "./page/sizes";
+export { classifyZone, isRedZone, clampToZone, type Zone, type Bands } from "./page/zones";
 export { normalizeFontBytes } from "./pdf/fontUtils";
 export { default as Designer, type DesignerProps } from "./designer/Designer";
 // PdfPreview/PdfPreviewModal/configurePdfWorker NÃO saem daqui — moram em
@@ -249,7 +249,24 @@ export { useDesignerZoom } from "./designer/context/useDesignerZoom";
 export type { DesignerZoomValue } from "./designer/context/zoomContext";
 // Os limites que o canvas usa, pra uma barra própria não deixar passar valor
 // que o canvas depois recusa. `clampZoom` é o mesmo que o `setZoom` aplica.
-export { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "./components/zoomScale";
+export { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "./canvas/zoomScale";
+
+// COLUNA DE TABELA: token sempre, rótulo separado da referência.
+//
+// `tokenFor` é a única regra de "como uma chave vira token" — a tabela nova, a
+// normalização e os chips do ƒx passam todos por ela, então não há duas
+// versões pra divergir. `columnFormulaFor` é a MESMA precedência que o PDF usa
+// (célula com `{` vence o vínculo), exposta porque quem desenha o próprio
+// painel precisa dela pra não semear o editor do depósito errado.
+export { columnFormulaFor, segmentFor, tokenFor } from "./fields/table/columnFormula";
+// Tabela já vinculada a um caminho de array, com o token de cada coluna
+// preenchido. Estava fora do pacote, e os cinco examples a reimplementavam —
+// errado do mesmo jeito, com placeholder sem chaves.
+export { makeBoundTable } from "./schemaFactory";
+// Pra dado já salvo: converte coluna de chave crua em `{label, formula}`.
+// Idempotente. Não é chamada automaticamente — reescrever o template do
+// consumidor na montagem seria efeito colateral invisível.
+export { normalizeTableColumns } from "./fields/table/normalizeColumns";
 export type {
   DesignerActionsValue,
   DesignerConfigValue,

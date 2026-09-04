@@ -1339,6 +1339,32 @@
   .jpd-chip__label {
     flex: 1;
   }
+  /* Input de renomear coluna, que substitui o `__label` no duplo clique.
+   *
+   * Ele NÃO reusa `.jpd-input`: o chip é uma faixa de 28px com borda e fundo
+   * próprios, e o padding/altura do input do kit empurraria a alça de arrastar
+   * e o ƒx pra fora da linha. O que importa aqui é ocupar o mesmo espaço que
+   * o `<span>` ocupava, então herda fonte e cor e não pinta nada.
+   *
+   * `min-inline-size: 0` porque input tem largura intrínseca (~180px) que o
+   * `flex: 1` não vence — sem isso o chip esticava e a lista ganhava rolagem
+   * horizontal ao entrar em edição. */
+  .jpd-chip__input {
+    flex: 1;
+    min-inline-size: 0;
+    appearance: none;
+    border: 0 solid;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+  }
+  .jpd-chip__input:focus {
+    /* O foco já é evidente (o campo aparece só em edição, com o cursor
+     * dentro), e um anel aqui dobraria com a borda do chip. */
+    outline: none;
+  }
   .jpd-chip__grip {
     color: var(--jpd-text-disabled);
   }

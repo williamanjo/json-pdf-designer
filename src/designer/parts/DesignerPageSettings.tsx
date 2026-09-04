@@ -3,7 +3,7 @@ import { cx } from "../../components/ui/cx";
 import { IconUpload } from "../../components/ui/icons";
 import { useUiComponents } from "../../components/ui/useUiComponents";
 import { useT } from "../../i18n";
-import { matchPreset, orientationOf, PAGE_SIZE_PRESETS } from "../../pageSizes";
+import { matchPreset, orientationOf, PAGE_SIZE_PRESETS } from "../../page/sizes";
 import { useDesignerActions, useDesignerData, useDesignerUi } from "../context/hooks";
 import { useTabGate, type TabGate } from "./useTabGate";
 

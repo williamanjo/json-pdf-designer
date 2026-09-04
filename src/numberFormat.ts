@@ -1,5 +1,5 @@
 // Formatação pt-BR compartilhada — antes cada consumidor (CURRENCY dentro
-// de template, ver bindings.ts; KPI, ver kpiFormat.ts; gráfico, ver
+// de template, ver bindings.ts; KPI, ver kpi/format.ts; gráfico, ver
 // pdf/render/renderChart.ts) reimplementava seu próprio `toLocaleString("pt-BR", ...)`.
 // Só 2 eixos variam de verdade entre eles: casas decimais fixas (moeda,
 // sempre ".00") ou só-teto (KPI/número solto, inteiro fica sem casa), e

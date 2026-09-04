@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parse } from "../../src/expressions/parse";
-import { ExpressionSyntaxError, tokenize } from "../../src/expressions/tokenize";
+import { parse } from "../../src/expressions/engine/parse";
+import { ExpressionSyntaxError, tokenize } from "../../src/expressions/engine/tokenize";
 
 describe("tokenize — a regra lexical do formato", () => {
   // A regra central: um operador só é operador quando tem espaço em branco
@@ -46,7 +46,7 @@ describe("tokenize — a regra lexical do formato", () => {
 
 describe("parse — AST", () => {
   it("path simples", () => {
-    expect(parse("cliente.nome")).toEqual({ kind: "path", path: "cliente.nome" });
+    expect(parse("cliente.nome")).toEqual({ kind: "path", segments: ["cliente", "nome"] });
   });
 
   it("chamada de função com argumentos", () => {
@@ -54,7 +54,7 @@ describe("parse — AST", () => {
       kind: "call",
       name: "CONCAT",
       args: [
-        { kind: "path", path: "nome" },
+        { kind: "path", segments: ["nome"] },
         { kind: "text", value: " " },
         { kind: "number", value: 2, text: "2" },
       ],
@@ -75,8 +75,8 @@ describe("parse — AST", () => {
     expect(parse("a + b * c")).toEqual({
       kind: "binary",
       op: "+",
-      left: { kind: "path", path: "a" },
-      right: { kind: "binary", op: "*", left: { kind: "path", path: "b" }, right: { kind: "path", path: "c" } },
+      left: { kind: "path", segments: ["a"] },
+      right: { kind: "binary", op: "*", left: { kind: "path", segments: ["b"] }, right: { kind: "path", segments: ["c"] } },
     });
   });
 
@@ -85,8 +85,8 @@ describe("parse — AST", () => {
     expect(parse("a - b - c")).toEqual({
       kind: "binary",
       op: "-",
-      left: { kind: "binary", op: "-", left: { kind: "path", path: "a" }, right: { kind: "path", path: "b" } },
-      right: { kind: "path", path: "c" },
+      left: { kind: "binary", op: "-", left: { kind: "path", segments: ["a"] }, right: { kind: "path", segments: ["b"] } },
+      right: { kind: "path", segments: ["c"] },
     });
   });
 
@@ -94,8 +94,8 @@ describe("parse — AST", () => {
     expect(parse("(a + b) * c")).toEqual({
       kind: "binary",
       op: "*",
-      left: { kind: "binary", op: "+", left: { kind: "path", path: "a" }, right: { kind: "path", path: "b" } },
-      right: { kind: "path", path: "c" },
+      left: { kind: "binary", op: "+", left: { kind: "path", segments: ["a"] }, right: { kind: "path", segments: ["b"] } },
+      right: { kind: "path", segments: ["c"] },
     });
   });
 
@@ -103,8 +103,8 @@ describe("parse — AST", () => {
     expect(parse("a + 1 == b")).toEqual({
       kind: "compare",
       op: "==",
-      left: { kind: "binary", op: "+", left: { kind: "path", path: "a" }, right: { kind: "number", value: 1, text: "1" } },
-      right: { kind: "path", path: "b" },
+      left: { kind: "binary", op: "+", left: { kind: "path", segments: ["a"] }, right: { kind: "number", value: 1, text: "1" } },
+      right: { kind: "path", segments: ["b"] },
     });
   });
 

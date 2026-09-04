@@ -29,7 +29,7 @@ import type { Locale } from "json-pdf-designer/server";
 //
 // FORMA: `en` é o canônico (é o default do seletor deste example, e é o que
 // a tela já dizia antes desta rodada) e `ptBR: typeof en` é o contrato —
-// mesma convenção do próprio pacote (`src/i18n/en.ts` + `src/i18n/pt-BR.ts`).
+// mesma convenção do próprio pacote (`src/i18n/locales/en.ts` + `src/i18n/locales/pt-BR.ts`).
 // Chave faltando não compila; sem isso uma tradução esquecida sairia
 // `undefined`, renderizada como vazio, em silêncio.
 //

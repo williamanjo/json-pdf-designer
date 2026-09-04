@@ -1,12 +1,14 @@
 import type { Binding, ChartSchema, ImageSchema, KpiSchema, Schema, SectionSchema, TableSchema, TextSchema } from "./types";
-import { snapToGrid } from "./units";
-import { en } from "./i18n/en";
+import { snapToGrid } from "./page/units";
+import { en } from "./i18n/locales/en";
 import type { Dict } from "./i18n";
+import { tokenFor } from "./fields/table/columnFormula";
 
-// Mime custom do drag interno "chip de coluna da seção" -> canvas (ver
-// PropertyPanel.tsx/PageCanvas.tsx) — distinto do drop externo genérico
-// (onCanvasDrop), que o app consumidor pode usar pra qualquer outra coisa.
-export const SECTION_COLUMN_MIME = "application/x-json-pdf-designer-section-column";
+// O mime do arrasto interno mudou de casa pra `src/drag.ts`, junto do payload
+// externo — os dois são o mesmo contrato visto de lados diferentes, e um deles
+// morando na fábrica de schemas era só onde sobrou espaço. Reexportado aqui
+// porque vários call sites importam daqui.
+export { SECTION_COLUMN_MIME } from "./drag";
 
 export function uid(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -44,6 +46,49 @@ export function makeTableSchema(nextY: number, t: Dict = en): TableSchema {
     height: 30,
     head: [t.schemaDefaults.column1, t.schemaDefaults.column2],
     content: [[t.schemaDefaults.value1, t.schemaDefaults.value2]],
+  };
+}
+
+// Tabela JÁ VINCULADA a um caminho de array, com o token de cada coluna
+// preenchido.
+//
+// Isto estava FORA do pacote: `onCanvasDrop` é passthrough cru, então quem
+// montava schema+binding a partir de um caminho de array era o app. Os cinco
+// examples do repo escreviam a mesma coisa à mão, e escreviam errado do mesmo
+// jeito — `content: [columns.map((c) => c.toUpperCase())]`, um placeholder SEM
+// chaves (`"DESCRICAO"`), que o resolver não conta como template. Resultado: a
+// tabela ARRASTADA nascia sem token e o `ƒx` de cada coluna abria vazio,
+// enquanto a vinculada pelo painel nascia com. Era o bug relatado.
+//
+// Aqui `content` e `binding.columns` saem os dois de `tokenFor`, então não há
+// como um discordar do outro, e coluna de chave crua não é produzida em lugar
+// nenhum.
+export function makeBoundTable(
+  nextY: number,
+  path: string,
+  columns: string[],
+  t: Dict = en
+): { schema: TableSchema; binding: Binding } {
+  const base = makeBase(t.schemaDefaults.tableNamePrefix, nextY);
+  const schema: TableSchema = {
+    ...base,
+    type: "table",
+    width: 180,
+    height: 30,
+    // O título começa igual à chave; renomear depois (duplo clique na lista de
+    // colunas) muda só ele e a referência fica, porque a referência mora na
+    // fórmula.
+    head: [...columns],
+    content: [columns.map((c) => tokenFor(c))],
+  };
+  return {
+    schema,
+    binding: {
+      schemaName: base.name,
+      type: "array",
+      path,
+      columns: columns.map((c) => ({ label: c, formula: tokenFor(c) })),
+    },
   };
 }
 

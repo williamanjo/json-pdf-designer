@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { braceError, tokenAtCaret } from "../../src/expressions/templateText";
 import { renderTemplate } from "../../src/bindings/bindings";
-import { ptBR } from "../../src/i18n/pt-BR";
+import { ptBR } from "../../src/i18n/locales/pt-BR";
 
 describe("tokenAtCaret", () => {
   it("dentro das chaves devolve o conteúdo e onde ele começa", () => {

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
-import { clampZoom, ZOOM_FIT_INSET_PX, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "../../components/zoomScale";
-import { mmToPx } from "../../units";
+import { clampZoom, ZOOM_FIT_INSET_PX, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "../../canvas/zoomScale";
+import { mmToPx } from "../../page/units";
 import { useDesignerData } from "./hooks";
 import { DesignerZoomContext, type DesignerZoomValue } from "./zoomContext";
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Binding, KpiElementKey, Schema } from "../types";
 import { fieldWarning } from "../fieldWarnings";
-import { kpiElementLocked, kpiElementLockedPatch, kpiElementPresent, kpiElementRestorePatch } from "../kpiFormat";
+import { kpiElementLocked, kpiElementLockedPatch, kpiElementPresent, kpiElementRestorePatch } from "../fields/kpi/card";
 import { useT } from "../i18n";
 import { useUiComponents } from "./ui/useUiComponents";
 import { IconAlertTriangle, IconBringToFront, IconLock, IconLockOpen, IconPlus, IconSendToBack, IconTrash } from "./ui/icons";

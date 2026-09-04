@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { Schema, TableSchema } from "../../types";
-import { resolveColumnWidthsMm } from "../../table/layout";
-import { mmToPx, pxToMm } from "../../units";
-import { displayCell } from "../../table/columnFormula";
-import { resizeColumnPair } from "../../table/columnResize";
-import { startDragGesture } from "../dragGesture";
+import { resolveColumnWidthsMm } from "../../fields/table/layout";
+import { mmToPx, pxToMm } from "../../page/units";
+import { displayCell } from "../../fields/table/columnFormula";
+import { resizeColumnPair } from "../../fields/table/columnResize";
+import { startDragGesture } from "../../canvas/dragGesture";
 
 type Props = {
   schema: TableSchema;

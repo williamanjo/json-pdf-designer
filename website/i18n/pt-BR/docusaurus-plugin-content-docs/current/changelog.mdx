@@ -9,6 +9,828 @@ Todas as mudanças relevantes deste pacote ficam documentadas aqui.
 Formato inspirado, sem seguir à risca, em
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## 3.2.0 (2026-09-04)
+
+Coluna de tabela passou a ter identidade própria. Renomear o título muda o
+título e nada mais, o editor `ƒx` sempre abre com o token que está realmente
+em uso, e toda chave de JSON ganhou uma forma que dá pra escrever como
+caminho — inclusive as que não tinham nenhuma.
+
+### Adicionado
+
+- **Caminho entre brackets — `{[token]}`.** A leitura permissiva que este
+  formato sempre teve (um operador só é operador com espaço dos **dois**
+  lados, então `{my-key}` e `{my key}` são caminhos) cobria quase toda chave
+  de JSON, mas não todas: chave com **ponto literal**, ou com
+  `(`/`)`/`,`/`"`, ou com operador cercado de espaço dentro do nome, não tinha
+  forma nenhuma. A forma delimitada dá nome a elas:
+
+  | Escrito | Resolve |
+  |---|---|
+  | `{[id]}` | a chave `id` |
+  | `{[cliente].[nome]}` | caminha `cliente` → `nome` |
+  | `{[cliente.nome]}` | a chave **literal** `"cliente.nome"` — ponto *dentro* do bracket não separa |
+  | `{["token name"]}` | a chave `"token name"` — segmento com espaço precisa de aspas |
+  | `{[total] + 1}` | conta; o operador está *fora* do bracket |
+  | `{CURRENCY([total], "R$", 2)}` | caminho bracketado como argumento de função |
+
+  Segmento com espaço **tem** que vir entre aspas (`"` ou `'`, a que o
+  conteúdo permitir), e isso é recusa deliberada, não inconveniência:
+  `[a + b]` é ambíguo entre a chave `"a + b"` e uma conta dentro do bracket, e
+  escolher um em silêncio é pior que dizer não. `emptySegment`,
+  `unclosedBracket` e `spaceInSegment` são os três códigos de erro de
+  expressão novos.
+
+  O nó `path` da AST passou a carregar `segments: string[]` em vez de
+  `path: string`. Não é cosmético: uma string com pontos não consegue
+  representar `[a.b]` (um segmento que contém ponto), que é exatamente a
+  ambiguidade que os brackets existem pra resolver.
+
+- **Renomear coluna com duplo clique** na lista "Colunas atuais da tabela", e
+  a ação `renameTableColumn(index, label)` por trás. Ela muda `head[index]` e,
+  numa coluna calculada, o `label` do vínculo — e não toca em mais nada.
+
+- **`tokenFor(key)`** — a regra única de como uma chave vira token, usada pela
+  tabela recém-vinculada, pela normalização e pelos chips do `ƒx`, então as
+  três não têm como discordar. Mais `segmentFor` pro segmento sozinho.
+
+- **`columnFormulaFor(content, columns, index)`** — a mesma precedência que o
+  PDF usa, exportada pra quem desenha o próprio painel.
+
+- **`makeBoundTable(nextY, path, columns)`** — tabela já vinculada a um
+  caminho de array, com o token de cada coluna preenchido. Isto estava fora do
+  pacote, e os cinco examples deste repo o reimplementavam — errado do mesmo
+  jeito (ver Corrigido).
+
+- **`normalizeTableColumns(template, bindings)`** — converte coluna de chave
+  crua em `{label, formula}` em dado já salvo. Idempotente, e exportada
+  também de `json-pdf-designer/server`, porque normalizar acervo é trabalho de
+  script tanto quanto de editor. Ela **não** é chamada automaticamente:
+  reescrever o template do consumidor na montagem seria efeito colateral
+  invisível.
+
+### Mudou
+
+- **`{[a]}` significava a chave literalmente chamada `[a]`** (o lexer não
+  tratava bracket, então ele era absorvido pelo identificador) e agora
+  significa o caminho `a`. Chave de JSON com bracket no nome se escreve
+  `{["[a]"]}`. O resto está intacto: `{cliente.nome}`, `{my-key}` e
+  `{my key}` continuam os caminhos que sempre foram.
+
+  ```diff
+  - {[a]}        // a chave chamada "[a]"
+  + {["[a]"]}    // a mesma chave, depois da 3.2.0
+  ```
+
+- **O campo "Colunas (cabeçalho, vírgula)" saiu do painel de tabela.** Ele era
+  a causa do bug de renomear, não uma baixa da correção: substituía o `head`
+  inteiro a cada tecla. A ação `setTableHead` e a prop `onSetHeadList`
+  **continuam exportadas** — consumidor que renderiza `PropertyPanelTable`
+  direto não quebra; o painel só não tem mais um controle que reescreva a
+  lista.
+
+- **A célula do canvas esconde os brackets.** `{[id]}` é o que fica gravado e
+  `{id}` é o que é desenhado — o `displayCell` já fazia isso com
+  `{CURRENCY(x, "R$", 2)}`. Numa tabela de 68 colunas, 68 pares de brackets é
+  ruído, e a forma gravada continua explícita.
+
+### Corrigido
+
+- **O editor `ƒx` de uma coluna de tabela abria vazio.** O painel o semeava a
+  partir de `binding.columns[i]`, e só quando aquela entrada era objeto,
+  enquanto o PDF lê `content[0][i]` primeiro. Então numa tabela vinculada por
+  fonte de dados — cujo `columns[i]` é string crua e cujo `content[0][i]`
+  guarda o token — o editor lia o depósito de *fallback* e o PDF o
+  *principal*. O token estava lá, funcionava, e a interface nunca o mostrava.
+  O destaque do botão `ƒx` vinha da mesma leitura errada, então ele também não
+  acendia. Os dois agora passam por `columnFormulaFor`, que é a precedência do
+  próprio resolver.
+
+- **Renomear o título de uma coluna perdia a referência de dado.** Não existia
+  operação de renomear. O único jeito de mudar um título era o campo separado
+  por vírgula, que chamava `setTableHead` com a lista inteira a cada tecla; e
+  aquilo re-deriva todo slot casando cada nome novo contra o head *antigo* —
+  um nome renomeado, por definição, não está no head antigo. Então a coluna
+  caía no fallback e perdia `content[0][i]` (o token, que é o que decide o
+  PDF), `columnStyles[i]` e `columnWidths[i]`, enquanto `binding.columns[i]`
+  era sobrescrito com o **título novo virando chave de JSON**. Renomear era
+  indistinguível de "apaga a coluna X, insere a coluna Y".
+
+  Verificado no `report-builder`: depois do rename, `binding.columns[2]`
+  continua `fare_amount`, a célula de design continua `100.00`, e o Ctrl+Z do
+  próprio app desfaz o rename — ou seja ele passa pelo `setState` do
+  consumidor como toda outra mutação.
+
+- **Tabela arrastada da árvore de campos nascia sem token.** Montar tabela
+  vinculada nunca esteve no pacote (`onCanvasDrop` é passthrough cru), então
+  cada example fazia à mão e escrevia
+  `content: [columns.map((c) => c.toUpperCase())]` — um placeholder sem chaves
+  (`"DESCRICAO"`), que o resolver de propósito não trata como template. É por
+  isso que a tabela *arrastada* tinha o `ƒx` vazio e a vinculada pelo painel
+  não. Os cinco examples passam por `tokenFor` agora, e o `makeBoundTable` põe
+  a coisa inteira no pacote.
+
+- **O `handleChangeBinding` escrevia a forma sem brackets.** Vincular uma
+  tabela pelo painel emitia `` `{${c}}` ``, que está errado pra qualquer chave
+  com ponto, espaço ou parêntese. Ele usa `tokenFor` agora, e as colunas que
+  escreve são `{label, formula}` em vez de chave crua.
+
+### Interno — layout de arquivo
+
+Nenhum nome público mudou: o `publicSurface.test.ts` mantém um inventário
+explícito de todo export de runtime nas duas direções, e ele fica intacto
+depois destes movimentos. O mapa `exports` do `package.json` é fechado (`.`,
+`./server`, `./preview`, as duas folhas de estilo), então caminho interno
+nunca foi alcançável pelo `import` de um consumidor. O que mudou foram
+caminhos de fonte, e isso importa porque `ARCHITECTURE.pt-BR.md` e
+`package-structure` listam eles.
+
+O formato em que isto chegou: **treze pastas dentro de `src/`, nenhuma com um
+arquivo só, e a maior listagem plana é `components/ui/` com 21 — que são 21
+arquivos de um componente cada, então a contagem é justamente o ponto.**
+Antes, três pastas tinham um arquivo cada e o próprio `src/` tinha dez
+arquivos que não são entry point.
+
+- **`src/fields/`** agrupa as três pastas por tipo de campo que estavam na
+  raiz como irmãs de `pdf/` e `designer/`: `fields/table/`, `fields/kpi/`,
+  `fields/chart/`. São a mesma coisa — a lógica pura que um tipo de campo tem
+  — e o `types/schema.ts` já deixa claro que tipo de campo é o eixo em que o
+  pacote inteiro gira. O `kpi/` em si já havia substituído o
+  `src/kpiFormat.ts`, cujo nome descrevia UM de treze exports (os outros doze
+  são defaults do cartão, raio de canto, e posição/trava por elemento); agora
+  é `fields/kpi/card.ts` mais `fields/kpi/format.ts`.
+
+- **`src/page/`** guarda `units.ts`, `sizes.ts` (era `pageSizes.ts`) e
+  `zones.ts`. **Isto reverte uma decisão tomada antes nesta mesma seção**:
+  eles estavam listados como "deliberadamente não movidos", pelo argumento de
+  que uma pasta `util/` seria gaveta de tranqueira. O argumento estava certo
+  sobre `util/` e errado sobre estes três — eles não são utilitários, são a
+  folha em si: o tamanho dela, como converte entre mm/px/pt, e em que faixa um
+  campo cai. `page/` é um assunto, não uma gaveta, e a diferença é toda aí.
+
+- **`src/template.ts`** substitui o `src/template/migrate.ts` — uma pasta com
+  exatamente um arquivo dentro, um nível de diretório que não carrega
+  informação nenhuma.
+
+- **`src/i18n/locales/en.ts`, `locales/pt-BR.ts`.** Os dois dicionários eram
+  1115 das 1219 linhas da pasta, então os sete arquivos que têm a lógica de
+  i18n de verdade ficavam soterrados por eles em qualquer listagem. Nada da
+  fronteira sem-React mudou: o `dictionaries.ts` continua com o mapa
+  locale → `Dict` sem importar React, que é o que deixa o `/server` alcançar
+  um dicionário, e o `test/entryBoundaries.test.ts` continua guardando isso.
+
+- **`src/expressions/engine/`** guarda `tokenize.ts`, `parse.ts`,
+  `evaluate.ts`, `functions.ts` e `formatters.ts`. Esta foi medida, não
+  olhada: dos doze arquivos de `expressions/`, exatamente estes cinco têm
+  **zero** importador fora da pasta, e os outros sete (`resolve.ts`,
+  `templateText.ts`, `schemaExpressions.ts`, `suggest.ts`, `suspicious.ts`,
+  `errors.ts`, `dataAccess.ts`) têm de dois a sete cada. A fronteira de pasta
+  agora diz o que o grafo de import já dizia.
+
+- **`src/components/PropertyPanel/`** e **`src/components/formula/`** tiram
+  onze arquivos de uma listagem plana de vinte. Os painéis seguem o formato
+  que o `FieldBox/` já tinha estabelecido — pasta com o nome do componente, o
+  componente no `index.tsx`, as variantes por tipo do lado — então
+  `import { PropertyPanel } from "../../components/PropertyPanel"` resolve sem
+  mudança. O `formula/` é minúsculo porque é assunto e não componente: o
+  `FormulaModal.tsx` é o editor, mas o `FormulaButton.tsx` é importado sozinho
+  pelos painéis de propriedade, então batizar a pasta com o nome de qualquer
+  um dos dois descreveria ela errado.
+
+- **O `test/` acompanha o `src/`** onde tinha ficado atrás: o `test/page/`
+  guarda os testes de units/sizes/zones, e o `test/template/migrate.test.ts`
+  virou `test/template.test.ts`. O `test/expressions/` ficou plano de
+  propósito — o `brackets.test.ts` exercita `tokenize`, `parse` e `evaluate`
+  juntos, então ele não tem lado nenhum de um split `engine/` pra sentar, e
+  forçar um poria a fronteira de pasta num lugar onde os testes de fato não
+  se dividem.
+
+Quatro comentários em `designer/` apontavam pra `src/bindingBuilders.ts` e
+`src/canvasGeometry.ts` — dois arquivos que já tinham parado de existir em
+releases anteriores. Agora eles citam `src/bindings/builders.ts` e
+`src/canvas/geometry.ts`. Comentário citando caminho que não resolve pra nada
+é a mesma podridão de prosa velha, e é mais difícil de notar porque nada
+compila ele.
+
+Um guard pegou um movimento sozinho: o teste de "nenhum `throw` monta a
+mensagem com dicionário" lê uma lista fixa de sete arquivos de fonte, e o
+`template/migrate.ts` era um deles. Ele falhou com um `ENOENT` cru de dentro
+do helper de leitura — falha de verdade, mas com uma mensagem que apontava pro
+helper em vez de pra lista. Agora ele afirma primeiro que cada alvo existe,
+então o próximo rename diz *"um alvo deste guard mudou de caminho — atualize a
+lista"*.
+
+Ainda na raiz de `src/`, e por quê: três dos onze arquivos são os entry points
+(`index.ts`, `server.ts`, `preview.ts`). Os outros oito — `errors.ts`,
+`errorUtils.ts`, `fieldWarnings.ts`, `materialIcons.ts`, `numberFormat.ts`,
+`schemaFactory.ts`, `drag.ts`, `template.ts` — têm importador espalhado por
+três ou mais pastas cada, que é o que "mora na raiz" quer dizer. A nota
+anterior sobre o `errorUtils.ts` continua valendo e vale repetir, porque o
+raciocínio quase se inverteu por contagem de linha: ele foi considerado pra
+fundir no `errors.ts` sob o argumento de ter oito linhas contra 639. O grafo de
+importadores diz o contrário — o `errorUtils.ts` tem dois importadores e os
+dois estão do lado React, o `errors.ts` tem doze e nenhum deles importa React.
+Estão em lados opostos da fronteira do `/server`. Duas preocupações, dois
+arquivos.
+
+## 3.1.0 (2026-09-03)
+
+### Adicionado
+
+- **`useDesignerZoom()`** — o zoom do canvas passa a ser legível e gravável
+  de fora do canvas. Relatado contra a 3.0.1: montando o editor com
+  `DesignerProvider` + peças soltas, não havia como ler o zoom atual, nem
+  disparar zoom/fit/reset de uma barra própria, nem mover a barra de zoom
+  pra fora do canvas — a `.jpd-zoombar` padrão é `position: sticky`
+  **dentro** do `.jpd-designer__canvas`, então CSS só a movia pelos cantos
+  daquela caixa. A única alternativa era reimplementar zoom do zero, com uma
+  segunda cópia do valor pra dessincronizar da folha que o canvas realmente
+  renderiza.
+
+  ```tsx
+  const { zoom, min, max, setZoom, zoomIn, zoomOut, reset, fitWidth, fitHeight } = useDesignerZoom();
+  ```
+
+  Mais o `viewportRef` (o elemento que rola, preenchido pelo
+  `DesignerCanvas` montado), o tipo `DesignerZoomValue`, e `clampZoom` /
+  `ZOOM_MIN` / `ZOOM_MAX` / `ZOOM_STEP` pra um controle montado à mão não
+  discordar do canvas sobre os limites.
+
+- **`<DesignerCanvas hideZoombar />`** — tira o controle padrão e nada mais.
+  A folha, as réguas e o zoom em si continuam funcionando.
+
+- **`<PageCanvas zoom onChangeZoom hideZoombar />`** — o componente agora é
+  controlado-ou-não no zoom, decidido pela presença da prop. Omitida, ele
+  segue dono do próprio zoom exatamente como antes, que é o que o caminho
+  headless usa.
+
+  - **Por que contexto separado, e não um dos cinco.** A decisão original de
+    manter o zoom interno tinha argumento de verdade: arrastar um slider
+    re-renderizaria toda peça se o valor morasse no provider. Ela estava
+    certa sobre o problema e errada sobre a solução — o que cascateia é o
+    valor morar num contexto que todas as peças leem. O zoom ganhou contexto
+    próprio, então só quem chama `useDesignerZoom()` re-renderiza: a sua
+    barra e o canvas. A lista de campos, o inspetor e os painéis de
+    propriedade ficam parados. É o mesmo argumento que já dera contexto
+    próprio ao registry de primitivos.
+  - **`fitWidth()`/`fitHeight()` medem o viewport DO CANVAS**, não a janela,
+    e é por isso que funcionam a partir de um botão que não está perto dele:
+    o `DesignerCanvas` montado se registra no `viewportRef`. Sem canvas
+    montado eles não fazem nada, de propósito — o fallback antigo era
+    `window.innerWidth`, e foi assim que "ajustar largura" já deu 113% com
+    338px de página fora da tela.
+  - **Montando um slider:** use `step="any"`, não `step={step}`. Com
+    `min={0.25}` e `step={0.1}` um input range prende na grade
+    0,25 / 0,35 / … / 1,05, então pedir 1 dá 105% e o slider nunca encosta
+    em 100% exato. O `ZOOM_STEP` é o incremento dos botões +/−; a escala é
+    contínua.
+  - O `examples/composed-layout` agora demonstra isso: a barra dele fica ao
+    lado das abas de página, fora do canvas, com
+    `<DesignerCanvas hideZoombar />` — slider de verdade, porcentagem ao
+    vivo, e botões de ajustar/resetar.
+
+### Corrigido
+
+- **`clampZoom(NaN)` devolvia `NaN`**, e isso chegava em
+  `transform: scale(NaN)` — a folha desaparecia sem nada no console e sem
+  nada no DOM parecendo errado. `Math.max(0.25, NaN)` é `NaN`, e o `NaN`
+  sobrevive ao `Math.min` seguinte. Agora devolve 1 (100%), porque `NaN`
+  significa "não há valor" e 100% é a resposta menos surpreendente;
+  `Infinity` continua clampando pro máximo, já que ali existe valor.
+  Alcançável de dois jeitos: `fitWidth()` sobre uma página cujo `width` é
+  `NaN`, e uma barra própria passando `Number("")` de um campo esvaziado.
+- A guarda do `fitWidth()` usava `paginaPx <= 0`, e `NaN <= 0` é `false`,
+  então um tamanho de página `NaN` atravessava a checagem e ia pra divisão.
+  Agora testa `Number.isFinite`.
+- **O `test/publicSurface.test.ts` guardava um terço da superfície.** O
+  inventário dele filtrava por PascalCase, então todo hook (camelCase),
+  helper (camelCase) e constante (SCREAMING_CASE) ficava sem checagem — 104
+  exports de runtime sem guard nenhum, numa suíte que afirmava cobrir a API
+  pública "nas duas direções". `useDesignerZoom`, `clampZoom` e os três
+  `ZOOM_*` entraram na API pública com a suíte inteira verde, e foi assim
+  que o buraco apareceu. Os 104 estão declarados agora, e o caso dos hooks
+  checa as duas direções.
+
+## 3.0.0 (2026-09-02)
+
+Tira o Tailwind do pacote e quebra o `<Designer>` em peças que você mesmo
+posiciona. As duas coisas são uma só, não duas: o preset só pôde virar peças
+posicionáveis depois que a marcação deixou de carregar strings de utilitária
+que dependiam de um build de Tailwind pra existir. No lugar entra um
+`theme.css` escrito à mão sobre classes `.jpd-*` e custom properties
+`--jpd-*`, um `<DesignerProvider>` com dez peças e dez hooks em volta, e um
+registry que troca o Button/Input/Modal que o editor usa por dentro pelos
+seus.
+
+### Breaking
+
+- **`json-pdf-designer/style.css` não existe mais — importe
+  `json-pdf-designer/theme.css`.** As chaves `./style.css` e
+  `./dist/style.css` saíram do `exports`, e **não há alias** — então o import
+  antigo agora falha ao resolver em tempo de build
+  (`ERR_PACKAGE_PATH_NOT_EXPORTED`).
+
+  ```diff
+  - import "json-pdf-designer/style.css";
+  + import "json-pdf-designer/theme.css";
+  ```
+
+  Uma linha basta: o `theme.css` já importa o reset por dentro.
+  - Por quê: o pacote enviava Tailwind compilado, e isso incluía o
+    **Preflight** — um reset global caindo no *seu* app, vindo de uma folha
+    cujo único trabalho era pintar um editor.
+  - Por que não um alias: ele entregaria em silêncio uma folha *diferente*
+    (sem Preflight, com internals novos), e você descobriria por uma tela
+    renderizando errado. Erro de resolve é a falha melhor, porque acontece
+    no build e aponta pra esta entrada.
+  - O Tailwind saiu do pacote inteiro: `tailwindcss` e `@tailwindcss/cli`
+    fora do `devDependencies`, script `build:css` removido, `src/style.css`
+    deletado, e `npm run build` agora é só `tsup`. `theme.css` e `reset.css`
+    são escritos à mão e **não minificados**, de propósito — são o contrato
+    público que você lê pra aprender os nomes de classe e de token, e o seu
+    bundler minifica de qualquer jeito.
+- **O `theme.css` não carrega reset global.** Cada classe `.jpd-*` passa a
+  carregar o reset de que o elemento dela dependia — o trabalho que o
+  Preflight fazia. A única regra com `*` é escopada às raízes do próprio
+  editor e envolta em `:where()`, o que lhe dá **especificidade zero**:
+  qualquer regra sua ganha dela.
+  - O que o Preflight lhe dava de graça, e pode agora estar faltando na
+    *sua* marcação: `box-sizing: border-box`, `margin`/`padding: 0` em
+    heading, parágrafo e lista, `list-style: none`,
+    `font`/`color`/`background` em controle de formulário,
+    `svg { display: block }`, `code` em família monoespaçada,
+    `table { border-collapse: collapse }` e `appearance: button`. Se o seu
+    app se apoiava na folha do pacote pra isso, devolva o que você precisa.
+  - Novo export **`json-pdf-designer/reset.css`** — o subconjunto sem
+    aparência, pra quem vai estilizar `.jpd-*` do zero e não quer levar o
+    tema. Importar os dois é redundante, não é erro.
+  - **A armadilha que quase todo mundo erra devolvendo reset à mão:**
+    `border: 0` põe `border-style: none`, e aí qualquer `border-width`
+    posterior computa **zero**. Tem de ser `border: 0 solid`. O Preflight
+    escrevia assim de propósito; as nossas duas folhas também.
+- **Dark mode agora tem um hook documentado: `[data-jpd-theme="dark"]`.**
+  Ponha no `<html>` ou em qualquer ancestral. **A `.dark` continua
+  funcionando**, mantida como alias do que a 2.x usava
+  (`@custom-variant dark (&:where(.dark, .dark *))`) — verificado no
+  navegador que as duas pintam igual. `[data-jpd-theme="light"]` força
+  claro.
+  - Sem media query, de propósito: biblioteca não deve virar o seu app
+    light-only escuro porque o sistema operacional está. Pra seguir o SO,
+    leia `matchMedia` e escreva o atributo você mesmo.
+  - **Limitação que vale saber:** uma ilha de dark *escopada* — o atributo
+    num container em vez de no `<html>` — não pinta modal portalizado. O
+    `<Modal>` renderiza por `createPortal(document.body)`, que é
+    exatamente por que os tokens moram no `:root`.
+- **Toda classe dentro do `<Designer>` mudou.** A marcação agora é `.jpd-*`
+  mais `data-*`, na convenção `jpd-block__element--modifier` com UM nível de
+  elemento; estado é atributo `data-*`, nunca classe (a regra: se o JSX
+  teria de *concatenar* ou *escolher* uma string de classe, é `data-*`). O
+  CSS que você escreveu contra os nomes de classe Tailwind antigos para de
+  casar.
+  - Verificado nos examples deste próprio repo: o `examples/custom-ui`
+    estiliza só os containers *em volta* do editor, sem nenhum seletor
+    descendente alcançando a marcação de dentro — então nenhum consumidor
+    in-repo quebrou. Essa também é a forma que continua funcionando:
+    estilize a sua casca, e mire `.jpd-*` de propósito quando quiser
+    redefinir o editor.
+- **`Modal`: `maxWidthClass` → `size`.** A prop antiga recebia uma string de
+  classe Tailwind, que não sobrevive num pacote sem Tailwind dentro.
+
+  ```diff
+  - <Modal title="Campos" maxWidthClass="max-w-3xl" onClose={fechar}>
+  + <Modal title="Campos" size="lg" onClose={fechar}>
+  ```
+
+  `size` é `"sm" | "md" | "lg" | "xl" | "full"`, com default `"lg"` = 48rem,
+  que é o que o `max-w-3xl` dava. Largura arbitrária é
+  `style={{ maxWidth: 900 }}`, e o `style` agora chega no painel.
+  - Nenhum call site interno passava `maxWidthClass`, e ele não estava
+    documentado em doc nenhum — vivia só no código — então a remoção não
+    invalida nenhuma prosa que a gente escreveu.
+- **`className` deixa de concatenar e passa a fazer merge.** O `cx` deduplica
+  por token exato e devolve `undefined` (não `""`) quando não sobra nada,
+  então componentes que emitiam `class="… "` com espaço sobrando não emitem
+  mais — o `Card` era o pior deles, acrescentando um espaço até sem
+  `className` nenhum. Se você faz asserção em cima da marcação, aquele
+  espaço acabou.
+  - A ordem dos tokens dentro do atributo `class` não decide mais nada. Ela
+    nunca decidiu cascata nem com Tailwind, mas sem utilitária nenhuma
+    sobrando não há o que decidir: `.jpd-btn` e a sua classe têm a mesma
+    especificidade, então quem ganha é a ordem na FOLHA DE ESTILO. Quem
+    precisa vencer o `theme.css` carrega o CSS **depois** dele, ou usa
+    `style`, que ganha sempre.
+- **Os componentes do kit repassam `ref`, então não são mais funções
+  simples.** `Button`, `Input`, `Select`, `Textarea`, `Modal`, `Card`,
+  `TabPanel` e os outros são componentes `forwardRef`: `Button.name` deixa
+  de ser `"Button"`, e chamar `Button(props)` direto para de funcionar. É
+  `forwardRef` e não a prop `ref` do React 19 porque o React 18 continua
+  peer suportado.
+  - **Os 20 ícones são a exceção.** Continuam funções simples, sem ref, e as
+    props deles **alargaram** de `{ className }` pra `IconProps` =
+    `SVGAttributes`. De propósito não `SVGProps`, que estende
+    `ClassAttributes` e aceitaria um `ref` que não vai a lugar nenhum — o
+    tipo mentiria.
+- **`mono` não adiciona mais `font-mono`, e nenhum componente emite classe
+  Tailwind.** No `Input` e no `Textarea`, `mono` virou um atributo
+  `data-mono` que o `theme.css` estiliza. O `PaletteSwatches` e o
+  `PalettePicker` perderam toda prop cujo *valor* era classe Tailwind
+  (`size = "h-4 w-4"`, `swatchSize`, `swatchGap`, `swatchShrink`); como a API
+  limpa é a que estreia pública, não há nota de migração pra elas.
+  - **Isto aposenta o workflow "Using your own Tailwind installation".** Não
+    há mais utilitária no `dist` pra escanear, então toda receita de
+    `@source` ou `content` apontando pro pacote é agora conselho
+    *ativamente prejudicial*: silenciosamente não produz nada. Traga o seu
+    Tailwind, sim — só aponte pros seus próprios arquivos e estilize
+    `.jpd-*` com ele.
+- **A estrutura de DOM dentro do `<Designer>` também mudou**, não só os
+  nomes de classe: cada peça renderiza o wrapper dela, com uma classe
+  `jpd-*` na raiz. Se você alcançava a marcação do editor com seletor
+  descendente, ou com variante arbitrária do Tailwind tipo `[&_.foo]:…` num
+  container, isso pode quebrar. Nada neste repo fazia — a busca por variante
+  arbitrária em `examples/` na 2.1.1 volta vazia.
+- **Duplo-clique-pra-colapsar é afordância do `DesignerSidebar`, não de cada
+  peça.** Dentro do `<Designer>` é idêntico: duplo clique na aba ativa e o
+  painel colapsa. O `DesignerTabBar` ESCREVE o flag; o `DesignerSidebar` é
+  quem LÊ e colapsa. Então um `<DesignerTabBar>` avulso dá um duplo clique
+  sem efeito visível, que é o comportamento certo pra quem não tem o que
+  colapsar.
+  - Por que não por peça: o truque do `TabPanel` é um grid `1fr`→`0fr`, e
+    isso exige um pai `flex column` com `min-block-size: 0`. Peça avulsa não
+    garante esse pai, então colapso por peça animaria *errado*, em silêncio,
+    em vez de degradar.
+- **`sidebarTab` não gateia mais um painel a menos que você peça.** O gate
+  por aba é opt-in, por `whenTab`: sem `whenTab`, a peça renderiza
+  **sempre**; com `whenTab="pagina"` (ou um array de abas), ela só aparece
+  ali. É assim que o `DesignerSidebar` e o `<Designer>` reproduzem o
+  comportamento de hoje, então dentro do preset nada mudou.
+  - Por quê: se o gate fosse o default, pôr `DesignerPropertyPanel` e
+    `DesignerPageSettings` lado a lado no seu layout apagaria um dos dois,
+    porque só uma aba pode estar ativa. Seriam peças que *parecem*
+    decompostas mas só funcionam dentro de uma sidebar com abas, o que
+    anula a feature inteira.
+- **O `PdfPreviewModal` não herda primitivos de um `<Designer>` em outro
+  lugar da página.** Ele vive no entry `json-pdf-designer/preview` e resolve
+  do `UiComponentsProvider` mais próximo — e o provider do `<Designer>`
+  embrulha só a subárvore do próprio `<Designer>`. Se você quer o seu Button
+  dentro do modal de preview, ponha um `<UiComponentsProvider>` acima do
+  modal também (a mesma constante de módulo serve).
+
+- **O `generatePdf` agora lança erros tipados, e o `error.message` está em
+  inglês.** É a única quebra desta lista que não tem nada a ver com CSS nem
+  com marcação — ela alcança código que nunca importa folha de estilo,
+  inclusive um backend usando o entry `json-pdf-designer/server`.
+
+  Até a 2.1.1 toda falha era um `Error` comum, e a mensagem dele era
+  **português cravado** — pra todo mundo, inclusive pra quem rodava o editor
+  em inglês. O único jeito de distinguir uma falha da outra era casar essa
+  frase:
+
+  ```diff
+  - // 2.1.1 — casando uma frase em português, num app que pode estar em inglês
+  - if (/tamanho inválido/.test(err.message)) mostrarAjudaDeTamanho();
+  - else if (/Paginação travada/.test(err.message)) reportarBug(err);
+  + // 3.0.0 — casando uma classe
+  + if (err instanceof InvalidPageSizeError) mostrarAjudaDeTamanho(err.pageId);
+  + else if (err instanceof PaginationStalledError) reportarBug(err);
+  ```
+
+  São **18 classes concretas** sob uma base abstrata (`PdfGenerationError`,
+  abstrata de propósito — ninguém deve lançar a base). Cada uma carrega um
+  `code` literal e os campos estruturados que aquela falha realmente sabe,
+  pra nada precisar ser extraído de volta de uma frase:
+
+  ```ts
+  class InvalidPageSizeError extends PdfGenerationError {
+    readonly code = "invalidPageSize";
+    readonly blame = "template";
+    constructor(readonly pageId: string, readonly width: number, readonly height: number) { … }
+  }
+  ```
+
+  - Por que o `message` em inglês: ele é a camada de **diagnóstico** — o
+    console, seu rastreador de erro, a string que alguém cola num issue.
+    Mensagem que muda de idioma faz o agrupamento de log depender do idioma
+    de quem leu, e deixa stack trace impossível de buscar.
+  - **Isto ACRESCENTA localização, não tira.** O texto que uma *pessoa* lê
+    passa a sair do mesmo dicionário que você já entrega ao editor:
+
+    ```ts
+    const problem = describePdfError(err, dictFor(locale));
+    // → { code, blame, title, action?, field?, detail } | null
+    ```
+
+    `title` e `action` vêm no `locale`; `detail` é a mensagem crua em inglês.
+    Ou seja quem usa em inglês para de ver português, e trocar o `locale`
+    retraduz.
+  - **A armadilha, e é a razão inteira de `describePdfError` ser uma chamada
+    separada:** nunca guarde o texto descrito em estado. Guarde o erro cru e
+    descreva na *renderização*. Frase traduzida guardada em estado congela no
+    idioma em que foi criada, então o seletor de idioma deixa aquele pedaço
+    da tela atrás — e nada falha, só renderiza velho. Batemos nisso treze
+    vezes nos examples deste próprio repo enquanto os migrávamos, e é por
+    isso que os cinco agora guardam um motivo e resolvem o texto no render.
+
+    ```diff
+    - catch (err) { setErro(describePdfError(err, dictFor(locale))); }
+    + catch (err) { setCaixaDeErro({ err }); }     // o erro cru
+    + // …e no corpo do render:
+    + const problem = caixaDeErro && describePdfError(caixaDeErro.err, dictFor(locale));
+    ```
+  - O `describePdfError` devolve **`null`** pra erro que não é do pacote, de
+    propósito, em vez de inventar um título pra uma falha que ele não
+    entende. Os seus erros ficam com a sua cópia — veja
+    `examples/*/src/lib/generationError.ts` pra forma.
+  - `blame` é `"data" | "template" | "config" | "package"` — a mesma
+    distinção que um backend usa pra escolher entre 4xx e 500, então ela não
+    devia existir em duas versões. `blame: "package"` quer dizer que o bug é
+    nosso, e não do template de quem chamou.
+  - Tudo acima é exportado dos **dois** entries — `json-pdf-designer` e
+    `json-pdf-designer/server` — então um servidor classifica a falha sem
+    puxar o React.
+
+### A @layer da cascata, e por que não é regressão
+
+O `theme.css` mora dentro de uma `@layer json-pdf-designer`. É isso que faz
+o `className` que você passa sempre valer: CSS SEM layer ganha de CSS COM
+layer independente de especificidade, então qualquer regra sua vence a nossa
+por default, sem briga de especificidade. A ordem de layer é declarada antes
+da primeira regra (`@layer json-pdf-designer, utilities;`), então vale não
+importa qual folha você importa primeiro.
+
+O efeito colateral é que um seletor de **elemento** solto — `button { … }` no
+seu CSS global — também ganha, e alcança o chrome do editor. **Isto não é
+novidade da 3.0.0.** Foi medido: o `dist/style.css` da 2.x era output do
+Tailwind v4, e o Tailwind v4 também emite `@layer theme` / `@layer base` /
+`@layer utilities`, então um seletor de elemento sem layer já vencia lá. A
+`@layer` **preserva** a posição de cascata da 2.1.1 em vez de mudá-la. O
+conselho é o mesmo de sempre: escope por classe, e mire `.jpd-*` de
+propósito quando a intenção for redefinir o editor.
+
+### Adicionado
+
+- **`<DesignerProvider>`** — o provider de estado, e o que torna o resto
+  desta lista possível. Props: `template`, `onChangeTemplate`, `bindings`,
+  `onChangeBindings`, `onCanvasDrop`, `dataSources`, `gridSizeMm`,
+  `expandOnSelect`, `children`. O `Designer.tsx` foi de 986 linhas pra 101,
+  porque é só isso que o preset é agora: três providers e duas peças num
+  layout de duas colunas.
+- **Dez peças posicionáveis**: `DesignerCanvas`, `DesignerTabBar`,
+  `DesignerFieldList`, `DesignerToolbar`, `DesignerPageSettings`,
+  `DesignerPropertyPanel`, `DesignerFilterPanel`, `DesignerBindingEditor`,
+  `DesignerInspector` e `DesignerSidebar` — a última uma conveniência que
+  compõe as sete peças de conteúdo com o gate de aba do preset.
+  - Toda peça aceita `className` (merge, a sua vem depois), `style` (o seu
+    ganha) e `whenTab`. Várias aceitam `parts`, que endereça os elementos
+    *de dentro* por papel, mais flags como `heading`, `hint`, `header` e
+    `position`.
+  - O `DesignerPropertyPanel` recebe `section="dados" | "estilo"` como
+    **prop**, em vez de ler a aba ativa — então duas instâncias com sections
+    diferentes renderizam juntas.
+  - Nunca posicionáveis, de propósito: `FieldBox/*` e os painéis
+    `PropertyPanel{Text,Table,…}`, que são despachados por `schema.type`. Um
+    `<DesignerTextPanel/>` avulso não tem resposta pra "qual schema?" que
+    não seja "o selecionado", e aí ele é só um `DesignerPropertyPanel` pior.
+- **Dez hooks públicos.** Acessores `useDesignerData`,
+  `useDesignerActions`, `useDesignerSelection`, `useDesignerUi`,
+  `useDesignerConfig`; seletores `useDesignerSelectedSchema`,
+  `useDesignerFieldListSchemas`, `useDesignerBulkEdit`,
+  `useDesignerTabWarnings`, `useDesignerFilterColumns`.
+  - Os cinco contextos são divididos por **frequência de mudança**, então
+    cada peça lê só o que usa. O `useDesignerActions` nunca troca de
+    identidade — é o load-bearing, o motivo pelo qual uma peça memoizada
+    consegue segurar um mutador sem re-renderizar a cada mudança de
+    template — enquanto o `useDesignerData` muda a cada edição.
+  - Usados fora do provider, eles **lançam**, com mensagem nomeando o
+    provider, em vez de devolver `null`. Peça sem estado não tem fallback
+    nenhum, então um `null` silencioso deixaria você olhando um buraco na
+    tela.
+- **`UiComponentsProvider` / `useUiComponents` / `defaultUiComponents`** —
+  troca os primitivos que o editor usa *por dentro*. **Doze slots**:
+  `Button`, `Input`, `ColorInput`, `Select`, `Textarea`, `Checkbox`,
+  `Modal`, `Card`, `CardHeader`, `CardTitle`, `Badge`, `TabPanel`. Todo tipo
+  `*Props` é exportado pra que um adapter seja umas cinco linhas, tipado nas
+  duas pontas, e o exemplo escreve com `satisfies UiComponentsOverride`. O
+  `<Designer components={…}>` é açúcar pra montar o provider.
+  - `undefined` numa chave significa **herda** do provider de cima, não
+    volta-ao-default. Pra ter o nosso de volta, nomeie:
+    `{ Modal: defaultUiComponents.Modal }`.
+  - **A pegadinha pra ler antes de escrever um adapter:** o slot recebe as
+    props *como o chamador as escreveu*, e os defaults moram dentro dos
+    nossos componentes. O `<Button>` desestrutura
+    `{ variant = "primary", size = "sm" }` na assinatura *dele*, então um
+    chamador que escreve `<Button>ok</Button>` manda `variant: undefined`
+    pro seu adapter — medido: cinco dos seis botões da Toolbar chegam sem
+    `variant`. O seu adapter precisa dos próprios defaults. Os do editor
+    são Button primary/sm, Modal `lg`, e `TabPanel.collapsed` sem default.
+  - **Identidade instável é a aresta mais afiada.** Objeto inline cria um
+    tipo de componente novo a cada render e o React remonta o que você
+    slotou — o sintoma é o campo perder o foco a cada tecla. Hoiste o mapa
+    pra constante de módulo. Fora de produção o provider avisa no console,
+    uma vez.
+  - `components={{ Button: MuiButton }}` **não** type-checka direto (o
+    `variant` do MUI conflita com o nosso), e nenhum truque resolve — o
+    adapter é a resposta. `label` é a prop que morde: um slot que descarta
+    `label` remove o nome acessível de uns dezesseis controles. O
+    `TextField` do MUI tem `label` compatível; o `Input` do Chakra não tem.
+    E o `Textarea` é o único slot em que ignorar a `ref` quebra algo: o
+    modal de fórmula passa uma ref pra reposicionar o caret depois que você
+    aceita uma sugestão.
+  - Não slotáveis: `PageCanvas`/`Ruler`/`FieldBox` (são a maquete do PDF —
+    padding de primitivo estranho quebra o WYSIWYG), a barra de abas (a
+    2.1.1 inteira foi gasta encaixando seis abas em 290px; o `min-width` de
+    um Button slotado desfaz isso), o input de rename do `FieldList` (que
+    depende de `autoFocus` mais commit no `onBlur`), o input de arquivo
+    escondido, o glifo "ƒx" e os ícones.
+- **`Checkbox`** — fecha a lacuna de três `<input type="checkbox">` crus no
+  editor, e é o décimo segundo slot.
+- **Componentes do kit agora públicos**: `PalettePicker`, `PaletteSwatches`,
+  `MaterialIcon`, `CollapsibleSection`, `ClearFieldButton`. Todos eles — e
+  tudo que já era público — aceitam `className`, `style` e `...rest`, sob
+  uma regra: **`className`/`style`/`...rest` vão pro elemento que dá NOME ao
+  componente; todo outro elemento que ele renderiza é endereçado por
+  `parts`, por papel.** Então `Input.className` continua no `<input>`
+  (igual à 2.x) e o `<label>` que embrulha é `parts.root`;
+  `Modal.className` é o painel e o fundo escurecido é `parts.overlay`. O
+  `parts` aceita só `className`/`style` — sem handler, sem ref — com atalho
+  de string (`parts={{ label: "minha-classe" }}`) e forma de objeto quando
+  você precisa de `style`. O `mergeStyle` dá a vitória ao seu `style`.
+  - O `BulkLocked` fica interno de propósito: ele significa "travado porque
+    você selecionou vários do mesmo tipo", que é um *modo* do `<Designer>`.
+    Fora daquele contexto o componente não quer dizer nada.
+- **Uma superfície de erro tipada**: `PdfGenerationError` (abstrata) mais 18
+  classes concretas, `PDF_ERROR_CODES` (os 18 códigos como tupla `const`),
+  `PdfErrorCode`, `PdfErrorBlame`, `AnyPdfError` e `isPdfError(err)`, que
+  estreita `unknown` pra `AnyPdfError`. Tudo dos dois entries. O porquê de as
+  mensagens antigas de `Error` terem que sair está na seção Breaking.
+- **`describePdfError(err, dict)` → `PdfProblem | null`** — uma chamada que
+  transforma um erro capturado em
+  `{ code, blame, title, action?, field?, detail }` com a cópia já no idioma
+  do dicionário. Use junto com `dictFor(locale)`, também exportado dos dois
+  entries.
+  - Ela é exaustiva, então "caiu no ramo genérico porque eu não reconheci"
+    deixou de ser um estado possível do pacote — e um código novo em
+    `PDF_ERROR_CODES` para de compilar até ter cópia nos dois idiomas.
+  - O `PdfProblemCode` tem **19** membros enquanto o `PDF_ERROR_CODES` tem
+    18, e o extra não é descuido: `"expression"` cobre o `ExpressionError`,
+    que é uma hierarquia própria em vez de uma das 18 (ele já carrega um
+    `localize(dict)`, então descrevê-lo de novo aqui daria duas frases
+    diferentes pra mesma falha). É também o código de problema que você
+    dificilmente verá vindo do `generatePdf` — a geração é tolerante de
+    propósito, e expressão inválida renderiza como campo vazio. Ele aparece
+    quando você chama a API estrita, por exemplo o `parse` num backend que
+    valida o template antes de salvar.
+- **`json-pdf-designer/reset.css`** como export próprio — ver a entrada de
+  Breaking acima.
+- **Props novas do `<Designer>`, todas opcionais**: `gridSizeMm`,
+  `expandOnSelect`, `className`, `style`, `components`. As sete props que ele
+  sempre teve seguem inalteradas.
+- **`examples/composed-layout`** (porta 5177) — o app que só funciona porque
+  o gate de aba é opt-in: toolbar full-width em cima, lista de campos à
+  esquerda, canvas no meio, e uma coluna à direita com cinco painéis
+  empilhados que dentro do `<Designer>` seriam abas diferentes. Nenhuma peça
+  recebe `whenTab`. Medido: oito peças no DOM ao mesmo tempo, e zero
+  `.jpd-tabs`.
+  - O `examples/report-builder` migrou pras peças com um layout
+    **idêntico**, e o que a migração comprou foi o `<SelectedFieldBar>` — a
+    casca do próprio app lendo a seleção do editor por hook, o que era
+    impossível na 2.x (o comentário antigo em `App.tsx` dizia exatamente
+    isso: o `<Designer>` era dono da seleção e não havia prop pra dirigi-la
+    de fora). Verificado: "remover" na barra do próprio app leva o template
+    de três campos pra dois, e o Ctrl+Z do app desfaz (dois de volta pra
+    três) — ou seja o mutador do pacote passa pelo `setState` do consumidor,
+    e o undo/redo dele vê.
+  - O `examples/custom-ui` fica no `<Designer>` de propósito: é o teste de
+    regressão do caminho de uma linha, e não importa **nenhum** CSS do
+    pacote, estilizando `.jpd-*` do zero — esse é o modo SEM FOLHA DE ESTILO
+    do pacote. O `examples/no-preview` é outra coisa: ele importa o
+    `theme.css` normalmente, e é o melhor smoke test da PERDA DO PREFLIGHT,
+    porque não tem pipeline de Tailwind em ponta nenhuma — o `report-builder` tem o próprio, então emite Preflight
+    por conta e **não** reproduz uma perda de reset. Testar nele primeiro dá
+    falso verde.
+
+### Corrigido
+
+- **O `aria-label` do botão de fechar do `Modal` era o título do diálogo.**
+  Leitor de tela anunciava "Editor de fórmula" como o nome do botão que
+  fecha o editor de fórmula. Agora tem nome próprio, traduzido
+  (`t.modal.close`).
+- **O `fitTo` do canvas nunca usou o viewport do canvas.** Ele procurava por
+  `[data-scroll-root], [class*="overflow-auto"], [class*="overflow-y-auto"]`
+  — mas o `data-scroll-root` não era escrito em lugar nenhum, e o wrapper
+  usava `overflow-x-auto`, que não contém nenhuma das duas strings como
+  substring. Medido na 2.1.1: "ajustar largura" dava 113% com **338px de
+  página fora da viewport**. Com o atributo no lugar: 67%, e zero overflow.
+- **A régua não tinha dark mode.** O fundo escurecia
+  (`dark:bg-gray-800`), mas o tick e o número eram atributos SVG de
+  apresentação com hex fixo (`stroke="#94a3b8"`, `fill="#64748b"`) — tick
+  escuro sobre fundo escuro. Os três vêm de token agora
+  (`--jpd-ruler-bg`, `--jpd-ruler-tick`, `--jpd-ruler-label`), então andam
+  juntos.
+- **A faixa de abas do modal de fórmula transbordava, só em pt-BR.** Medido
+  no `examples/no-preview` num viewport de 1280px: "Campos do item" (96,7px)
+  mais "Caminhos de dado" (108,8px) dá **205,4px dentro de uma coluna de
+  176px**, e a faixa tinha `overflow: visible` — então os botões pintavam por
+  cima da coluna do editor ao lado. Em inglês as mesmas duas abas
+  ("Item fields" / "Data paths") somam 151px e cabem com folga, e é por isso
+  que o bug só existia traduzido. A faixa agora é
+  `jpd-tabs jpd-tabs--scroll` (`overflow-x: auto` mais
+  `min-inline-size: 0`), então ela mede `scrollWidth` 207 contra
+  `clientWidth` 176 e **rola em vez de cortar**.
+  - Só *aquela* instância recebe o modificador. O `.jpd-tabs` do painel
+    lateral não pode receber `overflow`, porque cortaria o popover do
+    `.jpd-tabs__more`.
+- **Os ícones perdiam o `display: block`.** Sem Preflight, todo `<svg>`
+  inline volta pra inline-baseline e ganha vão de descendente dentro de uma
+  linha flex — uns 23 call sites, incluindo o `<IconX/>` dentro dos botões
+  do próprio kit. Corrigido no base de `icons.tsx`, onde o `jpd-icon` agora
+  entra em todo ícone em vez de em cada call site.
+- **A borda do input de rename não tinha cor de dark.** O input inline do
+  `FieldList` carregava `border-sky-400` sem nenhum `dark:border-*` —
+  sky-400 sobre gray-800.
+- **A seta do seletor de paleta da tabela não tinha cor de dark.** Ela era
+  preservada por uma prop `staticArrow` que existia só pra manter vivo um
+  detalhe não intencional. A prop morreu e a seta segue o tema.
+- **O `gridSizeMm` não era honrado nem pelo colar nem pelo nascimento de
+  campo.** O `PageCanvas` já recebia a prop, mas o `computeSpawnPosition`, o
+  `nextFreeY` e o caminho do colar usavam a constante direto: com
+  `gridSizeMm={3}`, o arrasto alinhava em 3 enquanto nascer e colar
+  alinhavam em 5, então campo novo já nascia fora da sua grade. Os
+  **quatro** caminhos recebem o passo agora, e o `<Designer gridSizeMm>`
+  existe.
+- **O `.jpd-tabs__strip` perdeu o `::-webkit-scrollbar { display: none }`**
+  na migração — o `.jpd-scroll-x` antigo tinha as duas regras e só uma
+  atravessou. `scrollbar-width` sozinho não cobre Safari nem Chromium < 121,
+  e numa faixa de 28px de altura a barra come metade da altura.
+- **Template sem tamanho de página estourava no layout em vez de falhar como
+  problema de template.** O `assertFinitePageSize` morava dentro do render,
+  que roda *depois* do `layoutDocument` — e o layout lê o tamanho direto
+  (`pageDef.page.height - footerHeight`). Então um template cujo `page` não
+  existia — JSON editado à mão, arquivo de outra ferramenta, formato que a
+  migração não cobre — lançava
+  `TypeError: Cannot read properties of undefined (reading 'height')` de
+  dentro do layout, antes de o guard estar na pilha. O guard estourava
+  justamente na entrada que ele existe pra recusar.
+  - A mensagem feia não era o custo real. Um `TypeError` não é erro nosso,
+    então `describePdfError` devolve `null` pra ele, e o consumidor
+    classifica a falha como `blame: "package"` — "não é culpa sua, reporte"
+    — quando o problema era o template dele. É a confusão que a superfície
+    de erro tipada existe pra acabar.
+  - Agora o tamanho de toda página é conferido de antemão, antes do layout,
+    sobre a lista NORMALIZADA de páginas (`pages` é opcional; ausente, os
+    campos planos são a página implícita, que é o template mais comum que
+    existe). Conferir todas de uma vez também significa que quem carrega um
+    arquivo descobre que a página 7 está errada sem esperar seis páginas
+    boas renderizarem.
+- **O texto sobre a folha não tinha cor própria, então no dark ele ficava
+  ilegível.** O `.jpd-page` é a maquete do PDF, e a folha é sempre papel
+  branco — o PDF não tem dark mode. Só que ele declarava apenas
+  `background-color`, então todo texto de campo sem cor própria herdava o
+  `--jpd-text` do *tema*: cinza-claro sobre branco. Medido no
+  `examples/no-preview`, as células vazias `—` de uma tabela davam
+  **1.54:1** — texto que existe e não se lê. Agora o `.jpd-page` também
+  declara `color: var(--jpd-canvas-ink)` (**17,75:1**), um token que de
+  propósito não tem versão dark. Campo com `fontColor` no schema continua
+  sobrescrevendo inline, como sempre.
+- **O gatilho do seletor de paleta caía na cor de botão do sistema.** Ele é
+  um `<button>` que *tem* classe, então o reset por elemento
+  (`:not([class])`) não o alcança — de propósito, pra o reset nunca
+  repintar o botão do próprio consumidor — e ele também não estava na lista
+  por classe do `reset.css`. Sem `background-color` próprio ele caía no
+  `ButtonFace` do sistema, que com `color-scheme: dark` é cinza-escuro: o
+  rótulo dava **3,45:1** e a seta **1,25:1**. Agora ele declara
+  `background-color: var(--jpd-surface-field)`, como todo outro controle.
+- **O `reset.css` lia três tokens que só o `theme.css` declara.**
+  `--jpd-font-sans`, `--jpd-font-mono` e `--jpd-text-placeholder`, todos sem
+  fallback — e como o `reset.css` é export público por si, usado avulso cada
+  `var()` caía em nada e a regra morria calada. O pior dos três era o
+  `<code>` do `withInlineCode`, que sai sem classe e cuja monoespaçada vinha
+  só do Preflight.
+
+### Não quebra, e vale dizer em voz alta
+
+- **As sete props que o `<Designer>` sempre teve são idênticas**:
+  `template`, `onChangeTemplate`, `bindings`, `onChangeBindings`,
+  `onCanvasDrop`, `dataSources`, `locale`. Tudo o que é novo nele é
+  opcional.
+- **As chaves de localStorage de ordem e visibilidade de aba são
+  preservadas** — `json-pdf-designer:tab-order` e
+  `json-pdf-designer:hidden-tabs`. O layout de abas do usuário sobrevive ao
+  upgrade; verificado no navegador.
+- **`PageCanvas`, `Toolbar`, `FieldList`, `PropertyPanel`, `BindingEditor`,
+  `FilterTab` e `TemplateInspector` mantêm as props de hoje** e continuam
+  exportados dos módulos deles, então o caminho headless por props segue
+  funcionando exatamente como funcionava.
+- **O `react-rnd` continua só necessário pro canvas.** A peça é dona da
+  geometria da folha (mm→px, `transform: scale(zoom)`) porque o react-rnd
+  calcula o delta de arrasto contra esse transform — sobrescreva e o campo
+  foge do cursor. Você é dono do viewport que *rola*, que é o que o
+  `className` atinge, e da largura da sidebar (os 320px moram no CSS do
+  preset, não na peça). O zoom continua estado interno do `<PageCanvas>` e
+  nunca subiu pro contexto.
+- **O `server.ts` está intocado** — `server.d.ts` byte-idêntico no build. O
+  install de backend sem React é exatamente o que era na 2.0.0.
+
+
 ## 2.1.1 (2026-09-01)
 
 ### Corrigido

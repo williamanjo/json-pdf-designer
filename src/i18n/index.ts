@@ -1,5 +1,5 @@
 export type { Locale } from "./types";
-export type { Dict } from "./en";
+export type { Dict } from "./locales/en";
 export { I18nProvider } from "./context";
 export { useT, useLocale } from "./hooks";
 // O dicionário como valor, pra usar FORA de um componente React — ex:

@@ -1,5 +1,5 @@
 import type { Schema, TemplatePage } from "../../types";
-import { classifyZone } from "../../zones";
+import { classifyZone } from "../../page/zones";
 import type { BodyItem, FlowBounds } from "./layoutTypes";
 
 export function boundsOf(item: BodyItem): FlowBounds {

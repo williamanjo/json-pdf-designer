@@ -45,7 +45,7 @@ Debaixo das peças:
   controles de zoom. Delega a aparência de cada campo pra
   **`FieldBox/`** (um componente pequeno por `schema.type`).
 - **O painel lateral** — `FieldList.tsx`, `Toolbar.tsx` e, com um campo
-  selecionado, `PropertyPanel.tsx` — um dispatcher fino pra um
+  selecionado, `PropertyPanel/index.tsx` — um dispatcher fino pra um
   `PropertyPanel<Tipo>.tsx` por tipo de schema, cada um dividido em aba
   "Dados" e "Estilo". `BindingEditor.tsx` (o editor de vínculo genérico
   de path/array/seção/gráfico/kpi) e `PropertyPanelFields.tsx` (inputs
@@ -55,7 +55,25 @@ Debaixo das peças:
 Seleção, edição e vínculo vivem todos na mesma árvore React — sem ponte
 de módulo, sem API imperativa entre canvas e painel.
 
-## Vínculos e templates (`src/bindings/`, `src/table/columns.ts`)
+## Vínculos e templates (`src/bindings/`, `src/fields/table/columns.ts`)
+
+Duas delas valem menção, porque são a mesma operação por pontas opostas. O
+`reindexTableForNewHead` reescreve a lista de cabeçalho inteira e re-deriva
+todo slot casando cada nome novo contra o head *antigo*; um nome renomeado,
+por definição, não está no head antigo, então aquele slot cai num branco. O
+`renameColumnInTable` é o estreito: muda `head[index]` e nada mais, que é o
+que faz um rename preservar o token, o estilo e a largura da coluna.
+
+O `table/columnFormula.ts` é dono de duas coisas que o resto do pacote não
+pode duplicar: `tokenFor(key)`, a regra única de como uma chave de JSON vira
+token, e o `columnFormulaFor`, que reproduz a precedência do próprio resolver
+(célula de design com `{` vence o vínculo) pra o editor não conseguir mostrar
+coisa diferente do que o PDF vai usar.
+
+O `table/normalizeColumns.ts` converte coluna de chave crua em
+`{label, formula}` num template salvo mais os vínculos dele. Não é um passo do
+`migrateTemplate` e não pode ser: a chave da coluna vive nos **bindings**, que
+não fazem parte do `Template`.
 
 `bindings.ts` é lógica pura sobre strings/objetos simples, sem
 dependência de terceiros:
@@ -78,7 +96,7 @@ dependência de terceiros:
 - `describeBinding`/`describeBindingShort` — resumos legíveis usados só
   na UI do editor.
 
-`table/columns.ts` guarda as funções puras que mantêm `head`/`content`/
+`fields/table/columns.ts` guarda as funções puras que mantêm `head`/`content`/
 `footer`/`columnStyles` de uma `TableSchema` sincronizados com o
 `Binding` dela (array) quando uma coluna é adicionada/removida/
 reordenada/reformatada pelo painel.
@@ -182,10 +200,10 @@ abaixo).
     item do array vinculado, crescendo/paginando junto com o resto do
     corpo.
   - `renderChart.ts` — pizza/rosca ou barra, posição da legenda (tamanho
-    de fonte configurável), paleta de cores (`src/chart/colors.ts`).
+    de fonte configurável), paleta de cores (`src/fields/chart/colors.ts`).
   - `renderKpi.ts` — o cartão colorido + o path do ícone Material Symbols
     (`src/materialIcons.ts`), tamanhos de fonte/ícone/raio de canto
-    configuráveis (defaults em `src/kpiFormat.ts`).
+    configuráveis (defaults em `src/fields/kpi/card.ts`).
   - `renderText.ts`/`renderImage.ts` — os dois tipos de campo mais
     simples; `renderImage.ts` também guarda os limites de segurança de
     tamanho/contagem de imagem (`MAX_IMAGE_BYTES`/`MAX_DISTINCT_IMAGES`).
@@ -236,7 +254,7 @@ necessário.
 Módulos de apoio (continuam direto sob `src/pdf/`, usados tanto por
 `layout/` quanto por `render/`): `pagination.ts` (divide o corpo entre
 páginas contra `headerHeight`/`footerHeight`/`marginLeft`/`marginRight`
-— ver `src/zones.ts` pra como o editor classifica um campo em cabeçalho/
+— ver `src/page/zones.ts` pra como o editor classifica um campo em cabeçalho/
 rodapé/margem/corpo só pela posição), `fontUtils.ts` (embute uma fonte
 TTF própria via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts`
 (transforma um PDF/PNG/JPEG enviado no PNG de fundo da página),

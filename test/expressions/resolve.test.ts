@@ -9,9 +9,9 @@ import {
 } from "../../src/expressions/resolve";
 import { renderTemplate } from "../../src/bindings/bindings";
 import { fieldWarning, expressionErrors } from "../../src/fieldWarnings";
-import { en } from "../../src/i18n/en";
-import { ptBR } from "../../src/i18n/pt-BR";
-import { parse } from "../../src/expressions/parse";
+import { en } from "../../src/i18n/locales/en";
+import { ptBR } from "../../src/i18n/locales/pt-BR";
+import { parse } from "../../src/expressions/engine/parse";
 import { ExpressionSyntaxError } from "../../src/expressions/errors";
 import { suspiciousOperator } from "../../src/expressions/suspicious";
 import type { Binding, Schema } from "../../src/types";

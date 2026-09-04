@@ -11,11 +11,13 @@ import type { ChartFilterOp } from "../types";
 // Busca `path` ("a.b.c") em `obj` ignorando maiúsculas/minúsculas em cada
 // pedaço — JSON de sistema legado costuma vir com chave em caixa diferente
 // da que o template escreveu.
-export function getCaseInsensitive(obj: unknown, path: string): unknown {
-  if (!path) return obj;
-  const parts = path.split(".");
+// Caminha por SEGMENTOS já divididos. Existe separado porque um segmento pode
+// conter ponto (`{["a.b"]}`), e aí dividir a string aqui dentro desfaria
+// justamente a distinção que os brackets fizeram.
+export function getCaseInsensitiveSegments(obj: unknown, segments: string[]): unknown {
+  if (segments.length === 0) return obj;
   let cur = obj;
-  for (const part of parts) {
+  for (const part of segments) {
     if (cur === null || cur === undefined || typeof cur !== "object" || Array.isArray(cur)) return undefined;
     const rec = cur as Record<string, unknown>;
     const lo = part.toLowerCase();
@@ -24,6 +26,14 @@ export function getCaseInsensitive(obj: unknown, path: string): unknown {
     cur = rec[key];
   }
   return cur;
+}
+
+// Forma por STRING, mantida porque ~6 chamadores fora do motor de expressão
+// (KPI, gráfico, filtros) guardam o caminho como texto com pontos. Aqui o
+// ponto separa, que é o contrato de sempre pra esses campos.
+export function getCaseInsensitive(obj: unknown, path: string): unknown {
+  if (!path) return obj;
+  return getCaseInsensitiveSegments(obj, path.split("."));
 }
 
 // "campo/valor ausente" -> "" — regra repetida em todo lugar que serializa um

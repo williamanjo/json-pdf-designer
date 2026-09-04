@@ -10,8 +10,8 @@ import {
 import { CUSTOM_FIELD_FUNCTIONS } from "../../src/bindings/bindings";
 import { expressionError } from "../../src/expressions/resolve";
 import { suspiciousOperator } from "../../src/expressions/suspicious";
-import { en } from "../../src/i18n/en";
-import { ptBR } from "../../src/i18n/pt-BR";
+import { en } from "../../src/i18n/locales/en";
+import { ptBR } from "../../src/i18n/locales/pt-BR";
 
 const byName = (name: string): Suggestion => {
   const found = ALL_SUGGESTIONS.find((s) => s.name === name);

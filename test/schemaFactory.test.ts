@@ -10,7 +10,7 @@ import {
   nextFreeY,
   uid,
 } from "../src/schemaFactory";
-import { en } from "../src/i18n/en";
+import { en } from "../src/i18n/locales/en";
 import type { Schema, TextSchema } from "../src/types";
 
 describe("uid", () => {

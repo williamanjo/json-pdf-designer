@@ -1,7 +1,7 @@
 import { rgb } from "pdf-lib";
 import type { PDFFont, PDFPage } from "pdf-lib";
 import type { TextSchema } from "../../types";
-import { mmToPt } from "../../units";
+import { mmToPt } from "../../page/units";
 import { colorOrDefault } from "../color";
 import { alignX } from "../textLayout";
 import { finiteOr, sanitizeText } from "../textSafety";

@@ -11,7 +11,7 @@ grouped by responsibility, not by import order.
 export type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
 
 export type Template = {
-  version?: TemplateVersion; // document format version — absent = 1, see src/template/migrate.ts
+  version?: TemplateVersion; // document format version — absent = 1, see src/template.ts
   page: PageSize; // { width, height } in mm
   headerHeight?: number; // static bands (mm) repeated on every generated page
   footerHeight?: number;
@@ -38,7 +38,7 @@ truth, not this doc).
 
 Unit of measure: **mm** everywhere in the data model (easy to reason
 about — an A4 sheet is 210×297mm). Converted to **px** only to render on
-the editor canvas (`src/units.ts`, `mmToPx`/`pxToMm`) and to **pt** when
+the editor canvas (`src/page/units.ts`, `mmToPx`/`pxToMm`) and to **pt** when
 drawing the real PDF via pdf-lib (`mmToPt`).
 
 ## Editor (`src/designer/` + `src/components/`)
@@ -65,7 +65,7 @@ version, "Composing the editor" in [USAGE.md](./USAGE.md).
 - **The side panel** (`parts/DesignerSidebar.tsx`, which composes the seven
   content parts with the per-tab gate) — `FieldList.tsx` (the field list,
   click to select), `Toolbar.tsx` (add-field buttons), and, once a field is
-  selected, `PropertyPanel.tsx` — a thin dispatcher to one
+  selected, `PropertyPanel/index.tsx` — a thin dispatcher to one
   `PropertyPanel<Type>.tsx` per schema type, each split into a "Data" and a
   "Style" tab. `BindingEditor.tsx` (the generic path/array/section/chart
   binding editor) and `PropertyPanelFields.tsx` (shared X/Y/width/height
@@ -230,7 +230,7 @@ refs. `cx` (in `components/ui/cx.ts`) merges class strings, dedupes exact
 tokens and returns `undefined` when empty; `mergeStyle` lets the
 consumer's `style` win.
 
-## Bindings and templates (`src/bindings/`, `src/table/columns.ts`)
+## Bindings and templates (`src/bindings/`, `src/fields/table/columns.ts`)
 
 `bindings.ts` is pure logic over strings/plain objects, with no
 third-party dependency:
@@ -254,10 +254,31 @@ third-party dependency:
   summaries used only in the editor UI (accept an optional `Dict` for
   the active `locale`, default English).
 
-`table/columns.ts` holds the pure functions that keep a `TableSchema`'s
+`fields/table/columns.ts` holds the pure functions that keep a `TableSchema`'s
 `head`/`content`/`footer`/`columnStyles` in sync with its `Binding`
 (array) when a column is added/removed/reordered/reformatted from the
 panel.
+
+Two of them are worth calling out, because they are the same operation from
+opposite ends. `reindexTableForNewHead` rewrites the whole header list and
+re-derives every slot by matching each new name against the *old* head — it
+serves a bulk edit, and a renamed name is by definition absent from the old
+head, so that slot falls through to a blank. `renameColumnInTable` is the
+narrow one: it changes `head[index]` and nothing else, which is what makes a
+rename keep the column's token, style and width. There is no bulk-edit control
+in the panel any more; `setTableHead` remains exported for consumers.
+
+`table/columnFormula.ts` owns two things the rest of the package must not
+duplicate: `tokenFor(key)` — the single rule for turning a JSON key into a
+token, including when a segment needs quoting — and `columnFormulaFor`, which
+reproduces the resolver's own precedence (a design cell containing `{` beats
+the binding). The panel reads through the latter so the editor cannot show
+something different from what the PDF will use.
+
+`table/normalizeColumns.ts` converts raw-key columns into `{label, formula}`
+in a saved template plus its bindings. It is not a `migrateTemplate` step and
+cannot be: the column's key lives in the **bindings**, which are not part of
+`Template`.
 
 ### Degrade or fail: where the line is
 
@@ -296,6 +317,15 @@ version of the same table — keep the two in step.
 path lookup, value comparison and DATE/CURRENCY formatting — they live here
 rather than in `bindings.ts` because `bindings.ts` imports the engine, so
 the engine cannot import back.
+
+The `path` node of the AST carries `segments: string[]`, not a dotted string,
+and that is load-bearing rather than a style choice: `{[a.b]}` is one segment
+containing a dot, and a dotted string cannot tell that apart from walking
+`a` → `b`. Distinguishing the two is the entire reason the bracketed form
+exists, so the AST has to preserve it. `dataAccess.ts` therefore exposes
+`getCaseInsensitiveSegments` for the engine, with the older string-keyed
+`getCaseInsensitive` kept as a wrapper for the half-dozen callers outside the
+engine (KPI, chart, filters) that store a path as text.
 
 Three decisions worth knowing before touching it:
 
@@ -357,7 +387,7 @@ below).
   - `renderSection.ts` — repeats the group of member fields once per item
     of the bound array, growing/paginating with the rest of the body.
   - `renderChart.ts` — pie/donut/bar, legend placement, color palette
-    (`src/chart/colors.ts`).
+    (`src/fields/chart/colors.ts`).
   - `renderKpi.ts` — the colored card + Material Symbols icon path
     (`src/materialIcons.ts`).
   - `renderText.ts`/`renderImage.ts` — the two simplest field types;
@@ -407,7 +437,7 @@ in the first place.
 Supporting modules (still directly under `src/pdf/`, used by both
 `layout/` and `render/`): `pagination.ts` (splitting the body across
 pages against `headerHeight`/`footerHeight`/`marginLeft`/`marginRight`,
-see `src/zones.ts` for how the editor classifies a field into
+see `src/page/zones.ts` for how the editor classifies a field into
 header/footer/margin/body by position alone), `fontUtils.ts` (embedding
 a custom TTF via `fontkit`, `normalizeFontBytes`), `backgroundImage.ts`
 (turning an uploaded PNG/JPEG into the page's background PNG — image
