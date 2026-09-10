@@ -14,7 +14,7 @@ import type { Binding, Template } from "json-pdf-designer";
 
 export const sample = {
   empresa: {
-    nome: "Voetur Turismo",
+    nome: "Acme Turismo",
     cnpj: "00.000.000/0001-00",
     cidade: "Brasília/DF",
   },

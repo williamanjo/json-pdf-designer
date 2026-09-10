@@ -10,7 +10,7 @@ import type { Binding, Template } from "json-pdf-designer/server";
 // nenhuma coluna pra oferecer (ver lib/jsonExplorer.ts).
 export const initialSample = {
   company: {
-    name: "Voetur Turismo",
+    name: "Acme Travel",
     taxId: "12.345.678/0001-90",
     address: { city: "Brasília", state: "DF" },
   },
