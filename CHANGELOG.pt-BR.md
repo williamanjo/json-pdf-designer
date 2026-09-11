@@ -5,6 +5,141 @@
 Todas as mudanças relevantes deste pacote ficam documentadas aqui.
 Formato inspirado, sem seguir à risca, em
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
+## 3.3.0 (2026-09-10)
+
+Acessibilidade, e o CI que teria pegado isso.
+
+Quatro operações do editor existiam **só como gesto de mouse** — quem navega
+por teclado não conseguia fazer nenhuma delas. Uma, renomear coluna de tabela,
+era regressão da própria 3.2.0: ela removeu o campo "Colunas (cabeçalho,
+vírgula)", que era a única via por tecla, e deixou no lugar um duplo clique
+num `<span>`.
+
+### Added
+
+- **Botão de renomear (lápis) em todo chip de coluna**, ao lado do `ƒx`, do
+  estilo e do remover. `<button>` de verdade, então o Tab alcança e o leitor
+  de tela anuncia — o que o duplo clique nunca foi. O duplo clique continua
+  valendo; agora é o atalho, não o único caminho.
+- **Botão de renomear em toda linha da lista de campos**, mesmo motivo e mesmo
+  formato.
+- **`IconPencil`** entra no conjunto de ícones exportados (agora 21).
+- **Os três modais são diálogos de verdade.** `role="dialog"`,
+  `aria-modal="true"`, e `aria-labelledby` apontando pro título que já está na
+  tela (assim os dois não divergem). Mais o comportamento que faz a marcação
+  significar algo: o foco entra no diálogo ao abrir, o **Tab fica preso**
+  dentro dele, e o foco volta pro elemento que abriu ao fechar. Compartilhado
+  em `components/ui/useDialogA11y.ts`, porque o `PdfPreviewModal` não passa
+  pela casca do `Modal`.
+- **O `PdfPreviewModal` fecha com Escape.** Era o único modal do pacote que só
+  fechava com clique.
+
+### Fixed
+
+- **Selecionar campo era só-mouse.** A linha da lista carregava o `onClick` e
+  nada na lista era focável além dos botões de ação, então quem usa teclado
+  não conseguia selecionar campo NENHUM — o que trava toda edição, já que o
+  painel de propriedades segue a seleção. O nome do campo agora é um
+  `<button>` com `aria-pressed`; a linha segue clicável por conveniência de
+  mouse, marcada `role="presentation"` porque não é mais o controle acessível.
+  Mesmo tratamento nas sub-linhas de elemento de KPI.
+- **O × de "esconder aba" era um `<span role="button">` DENTRO de um
+  `<button>`** — interativo aninhado, que é HTML inválido, e sem `tabIndex`,
+  então esconder aba também era só-mouse. Agora é um `<button>` irmão, dentro
+  de um wrapper novo `.jpd-tab__slot`. O `<button className="jpd-tab">` em si
+  ficou intacto de propósito: o `data-active` dele é lido por um
+  `querySelector`, pelo CSS e pelo JSX, e esses três andam juntos. Diferença
+  visível: o sublinhado de aba ativa agora termina no rótulo, em vez de passar
+  por baixo do ×.
+- **O botão de fechar do `PdfPreviewModal` não tinha nome acessível** — só um
+  glifo `×` dentro do botão, anunciado como "button".
+- **Renomear não substituía nada.** Os dois inputs de rename abrem com o texto
+  selecionado. Antes o caret caía no fim e digitar *anexava* (`"PNR"` + o que
+  se digita) — achado no navegador, não em teste. Vale registrar a segunda
+  metade: `onFocus` **não** resolve. O `autoFocus` do React foca durante o
+  commit, antes do handler estar resolvível, então ele não dispara (medido:
+  `selectionStart` e `selectionEnd` os dois no fim). Exige um ref callback
+  ESTÁVEL — e estável importa, porque uma arrow inline re-selecionaria o texto
+  a cada tecla.
+
+### Changed
+
+- **`jsx-a11y` ligado no linter.** Ele simplesmente não estava em `plugins`, e
+  foi assim que 25 achados se acumularam sem ninguém ver. Quatorze regras são
+  erro; quatro estão desligadas **com o motivo escrito ao lado** no
+  `.oxlintrc.json`, e o motivo é o ponto: `click-events-have-key-events`,
+  `no-static-element-interactions` e `no-noninteractive-element-interactions`
+  disparam em *superfície de gesto* — a folha do canvas, o puxador de
+  redimensionar coluna, o arrasto de KPI, o duplo clique que troca a imagem, a
+  célula que entra em edição inline. Nenhuma tem equivalente de teclado que
+  faça sentido ("arraste isto 3mm pra direita" não é uma tecla), e todas são
+  alcançáveis de outro jeito: posição, tamanho, largura de coluna, imagem e
+  conteúdo de célula são editáveis pelo painel de propriedades, que é só campo
+  de formulário. Ligar as três produziria 13 avisos que só se calam pondo
+  `role="button"` e um `onKeyDown` vazio em `<div>` que não são botão — mentir
+  pro leitor de tela pra calar o linter. `interactive-supports-focus` fica
+  como **erro**, e é a regra que pegou o × da barra de abas.
+  `no-autofocus` está desligada porque, num editor inline, o autofocus *é* o
+  comportamento certo.
+- **`CardTitle` passa `children` explícito** em vez de pelo spread. Com
+  `<h3 {...rest} />` a regra `heading-has-content` não vê conteúdo nenhum e
+  acusa todo `CardTitle` como cabeçalho vazio; escrito assim a regra fica
+  ligada e continua pegando um genuinamente vazio.
+- **`viewportRef` passa a ser `MutableRefObject`**, não `RefObject` — ver a
+  seção de CI para o motivo.
+
+### CI
+
+O trabalho de acessibilidade acima era invisível pro CI, e outras três coisas
+que o pacote *promete* também eram:
+
+- **`peerDependencies` aceita `react ^18 || ^19`, e só uma era testada.** Um
+  job novo `react-18` rebaixa o React e roda typecheck, testes e build. Falhou
+  na hora, em duas incompatibilidades reais de tipo entre as majors, que um
+  consumidor em React 18 buildando do fonte teria batido:
+  - `Slot<P, E>` no registry de UI. No `@types/react` 18 a call signature de
+    um exotic component (o que `forwardRef` devolve) retorna `ReactNode`,
+    enquanto o `FunctionComponent` dentro de `ComponentType` retorna
+    `ReactElement | null` — mais estreito, então os nossos próprios doze
+    componentes `forwardRef` deixavam de ser atribuíveis aos slots deles
+    (12 × TS2322). O tipo agora é uma união que cobre as duas majors, sem
+    afrouxar nada pro consumidor.
+  - `viewportRef`. O `@types/react` 19 tornou o `RefObject` mutável e faz
+    `useRef<T|null>(null)` devolver `RefObject<T|null>`; no 18 o
+    `RefObject<T>` tem `current` **readonly**, e a prop `ref` de um `<div>` lá
+    recusa essa instanciação. `MutableRefObject<T|null>` é
+    `{ current: T|null }` nas duas.
+- **`engines` promete `node >=18`, e nada testava.** Uma matriz de Node no job
+  principal não serviria: o toolchain de dev não roda em 18 (vitest 4 pede
+  `^20||^22||>=24`, oxlint pede `^20.19||>=22.12`). Mas o consumidor não roda
+  vitest — ele importa o `dist`. Então o job novo `consumer-node` empacota com
+  um Node suportado e depois **instala e executa o tarball** em 18, 20 e 22,
+  que é a promessa que está de fato sendo feita.
+- **O site de docs só era gate depois do merge.** O build do Docusaurus rodava
+  só no `pages.yml`, que dispara em push pra master — então MDX quebrado
+  chegava em master e falhava no *deploy*, não no PR. E MDX quebra fácil aqui:
+  o changelog e a página de vínculos são cheios de `{...}` e `<...>`, que o
+  MDX lê como expressão e JSX. O job novo `docs` builda os dois locales,
+  porque tradução ausente ou erro de MDX só no espelho pt-BR não apareceria no
+  build `en`.
+
+### Tests
+
+`test/a11y.test.tsx` (novo, 14 casos): a marcação de diálogo afirmada sem DOM
+(que é exatamente por que o `ModalShell` existe separado do `Modal`), guards de
+fonte pra cada operação que era só-mouse, e um guard de que o plugin do linter
+continue ligado. Os 14 foram mutation-testados — 12 regressões deliberadas,
+todas pegas. Duas coisas que passam e vale escrever, porque as duas são modos
+de falha de guard que este repo já sofreu:
+
+- A primeira versão casava o **próprio comentário**. Os comentários daqui
+  citam o código antigo de propósito (`era um <span role="button">`), então os
+  guards de fonte leem através de `stripComments` — que já existia em
+  `test/support/classScan.ts`.
+- `toContain("useEscapeToClose")` passava pela **linha de import**: apagar a
+  chamada e deixar o import não derrubava o guard. Achado mutando o próprio
+  guard. Agora ele checa a chamada.
+
 ## 3.2.0 (2026-09-04)
 
 Coluna de tabela passou a ter identidade própria. Renomear o título muda o

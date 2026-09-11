@@ -1,6 +1,7 @@
-import { forwardRef, useEffect, type HTMLAttributes, type ReactNode } from "react";
+import { forwardRef, useId, type HTMLAttributes, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cx, readPart, type PartStyle } from "./cx";
+import { useDialogFocus, useEscapeToClose } from "./useDialogA11y";
 import { IconX } from "./icons";
 import { useT } from "../../i18n";
 
@@ -49,12 +50,21 @@ export const ModalShell = forwardRef<HTMLDivElement, ShellProps>(function ModalS
   const titlePart = readPart(parts?.title);
   const body = readPart(parts?.body);
   const footerPart = readPart(parts?.footer);
+  // `aria-labelledby` em vez de `aria-label={title}`: o título já está na
+  // tela no <h3>, e apontar pra ele mantém os dois em sincronia sozinhos.
+  const titleId = useId();
+  const { setPanel, onKeyDown } = useDialogFocus<HTMLDivElement>(ref);
 
   return (
     <div
       className={cx("jpd-modal", overlay.className)}
       style={overlay.style}
       onClick={onClose}
+      // O overlay é decoração + atalho de mouse. Não ganha `role="button"`
+      // nem tabIndex de propósito: seria uma parada de Tab invisível, e o
+      // equivalente por teclado já existe em dois lugares melhores — Escape
+      // (ver o hook) e o "×" do cabeçalho.
+      role="presentation"
       // Nada aqui dentro é arrastável. O portal já tira o modal de dentro do
       // elemento `draggable`, mas evento de React sobe pela árvore de REACT,
       // não pela do DOM — então o handler do chip ainda receberia um
@@ -63,15 +73,34 @@ export const ModalShell = forwardRef<HTMLDivElement, ShellProps>(function ModalS
       onDragStart={(e) => e.preventDefault()}
     >
       <div
-        ref={ref}
+        ref={setPanel}
         {...rest}
+        // `role="dialog"` + `aria-modal` é o que faz leitor de tela anunciar
+        // "diálogo" e parar de oferecer a página de trás. `tabIndex={-1}` é
+        // alvo de foco de FALLBACK: painel sem nenhum controle focável ainda
+        // precisa receber o foco, senão ele fica no documento atrás.
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onKeyDown={onKeyDown}
         data-size={size}
         className={cx("jpd-modal__panel", className)}
         style={style}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- ver abaixo
+        // O `stopPropagation` FICA, e o aviso de a11y aqui é aceito de olho
+        // aberto. Trocar por "o overlay decide pelo alvo" parece equivalente e
+        // não é: este modal vive num PORTAL, e evento de React sobe pela
+        // árvore de REACT, não pela do DOM — sem o stopPropagation, clique
+        // dentro do modal chega nos handlers do elemento que ABRIU o modal
+        // (o chip de coluna arrastável, ver o comentário do portal abaixo).
+        // É o mesmo motivo do `onDragStart` no overlay. Um diálogo sem nada
+        // clicável próprio é o espírito da regra; aqui o handler existe só pra
+        // CONTER evento, não pra reagir a clique.
         onClick={(e) => e.stopPropagation()}
       >
         <div className={cx("jpd-modal__header", header.className)} style={header.style}>
-          <h3 className={cx("jpd-modal__title", titlePart.className)} style={titlePart.style}>
+          <h3 id={titleId} className={cx("jpd-modal__title", titlePart.className)} style={titlePart.style}>
             {title}
           </h3>
           {/* `aria-label` era o TÍTULO DO DIÁLOGO, então leitor de tela
@@ -121,13 +150,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(props
   const t = useT();
   const { onClose } = props;
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+  useEscapeToClose(onClose);
 
   // SSR (ou qualquer ambiente sem DOM): não há onde portar, e um modal não faz
   // sentido em HTML estático.

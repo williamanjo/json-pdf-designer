@@ -1,4 +1,4 @@
-import { createContext, type ComponentType, type Ref } from "react";
+import { createContext, type ComponentType, type ForwardRefExoticComponent, type Ref, type RefAttributes } from "react";
 import { Badge, Card, CardHeader, CardTitle } from "./Card";
 import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
@@ -33,7 +33,24 @@ import type { TextareaProps } from "./Textarea";
 // — ela só ignora a ref, que é o comportamento "pode ignorar" documentado.
 // Mas o `Textarea` é o slot em que ignorar QUEBRA algo, e por isso a ref
 // dele é "obrigatório honrar" no contrato.
-type Slot<P, E> = ComponentType<P & { ref?: Ref<E> }>;
+//
+// A UNIÃO com `ForwardRefExoticComponent` existe por INCOMPATIBILIDADE ENTRE
+// AS DUAS MAJORS DE REACT que o `peerDependencies` aceita (`^18 || ^19`), e
+// só apareceu quando o CI passou a rodar a metade 18 do range:
+//
+//   - no @types/react 18, o `ExoticComponent` (o que `forwardRef` devolve)
+//     tem call signature que retorna `ReactNode`, enquanto o
+//     `FunctionComponent` dentro de `ComponentType` retorna
+//     `ReactElement | null` — mais estreito. Os nossos próprios componentes,
+//     todos `forwardRef`, deixavam de ser atribuíveis ao próprio slot deles
+//     (12 erros TS2322 em `defaultUiComponents`);
+//   - no 19 o `ref` virou prop normal e o `ComponentType` sozinho basta.
+//
+// A união cobre as duas sem afrouxar nada pro consumidor: função simples e
+// classe continuam entrando pelo `ComponentType`.
+type Slot<P, E> =
+  | ComponentType<P & { ref?: Ref<E> }>
+  | ForwardRefExoticComponent<P & RefAttributes<E>>;
 
 // ATENÇÃO, e isto morde na prática: o slot recebe as props COMO O CHAMADOR
 // AS ESCREVEU, e os defaults moram DENTRO dos nossos componentes.

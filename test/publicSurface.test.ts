@@ -92,7 +92,7 @@ const COMPONENTES_COM_PROPS = [
 const SEM_PROPS_PROPRIO = [
   // `CardHeader` é um `<div>` puro — as props dele são `CardProps`.
   "CardHeader",
-  // Os 20 ícones compartilham `IconProps`.
+  // Os 21 ícones compartilham `IconProps`.
   "IconAlertTriangle",
   "IconArrowsHorizontal",
   "IconArrowsVertical",
@@ -107,6 +107,7 @@ const SEM_PROPS_PROPRIO = [
   "IconLock",
   "IconLockOpen",
   "IconMinus",
+  "IconPencil",
   "IconPlus",
   "IconRefresh",
   "IconSendToBack",
@@ -149,7 +150,7 @@ describe("superfície pública — todo componente leva o `*Props` dele", () => 
     });
   }
 
-  it("IconProps é exportado (os 20 ícones compartilham)", () => {
+  it("IconProps é exportado (os 21 ícones compartilham)", () => {
     expect(TIPOS.has("IconProps")).toBe(true);
   });
 

@@ -1,4 +1,4 @@
-import { createContext, type RefObject } from "react";
+import { createContext, type MutableRefObject } from "react";
 
 // O ZOOM DO CANVAS, EM CONTEXTO PRÓPRIO.
 //
@@ -52,8 +52,17 @@ export type DesignerZoomValue = {
    * O elemento que rola, preenchido pelo `<DesignerCanvas>` montado. Público
    * porque é útil pra mais que o fit — rolar até um campo, por exemplo.
    * `null` até o canvas montar.
+   *
+   * `MutableRefObject` e não `RefObject`, e o motivo é as DUAS MAJORS de
+   * React que o `peerDependencies` aceita: o @types/react 19 tornou o
+   * `RefObject` mutável e faz `useRef<T|null>(null)` devolver
+   * `RefObject<T|null>`, enquanto no 18 o `RefObject<T>` tem `current`
+   * READONLY — e a prop `ref` de um `<div>` lá não aceita a instanciação
+   * `RefObject<T|null>` (TS2322 em DesignerCanvas.tsx, achado quando o CI
+   * passou a rodar React 18). `MutableRefObject<T|null>` é `{ current: T|null }`
+   * nas duas, e mutável entra onde se espera readonly.
    */
-  viewportRef: RefObject<HTMLDivElement | null>;
+  viewportRef: MutableRefObject<HTMLDivElement | null>;
 };
 
 

@@ -134,8 +134,15 @@ function DesignerTabBarBody({ className, style, parts }: Omit<DesignerTabBarProp
           escondida pra reabrir. */}
       <div ref={tabStripRef} onScroll={syncTabScroll} className={cx("jpd-tabs__strip", strip.className)} style={strip.style}>
         {orderedVisibleTabs.map((tab) => (
+          // O "x" de esconder a aba era um <span role="button"> DENTRO deste
+          // <button>: interativo aninhado (HTML inválido) e, por não ter
+          // tabIndex, esconder aba era operação exclusiva de mouse. Agora são
+          // dois botões irmãos dentro deste slot. O <button className="jpd-tab">
+          // fica INTACTO de propósito: o `data-active` dele é lido por um
+          // querySelector, pelo CSS e por este JSX — os três lugares que o
+          // comentário dele manda mexer juntos.
+          <span key={tab.key} className="jpd-tab__slot">
           <button
-            key={tab.key}
             type="button"
             // ÚNICO site que escreve o booleano CRU em vez de
             // `cond || undefined`: o efeito acima faz
@@ -181,27 +188,25 @@ function DesignerTabBarBody({ className, style, parts }: Omit<DesignerTabBarProp
             {dragOverTab === tab.key && draggedTab && draggedTab !== tab.key && <span className="jpd-tab__dropmark" />}
             {tab.label}
             {tab.warning && <IconAlertTriangle className="jpd-warnicon jpd-warnicon--sm" />}
-            {/* Fixar/esconder — só na aba ativa (senão não cabe todo mundo
-                junto na barra) — some pra todo campo até reabrir no "+". */}
-            {tab.removable && sidebarTab === tab.key && (
-              <span
-                role="button"
-                aria-label={t.tabBar.pinAria(tab.label)}
-                title={t.tabBar.pinTitle(tab.label)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  hideOptionalTab(tab.key as HideableTab);
-                }}
-                className="jpd-tab__pin"
-              >
-                {/* Sem className: o tamanho de 10px é do CSS
-                    (`.jpd-tab__pin > svg`), porque `width`/`height` de <svg>
-                    são geometry properties — CSS vence o atributo de 14 que
-                    icons.tsx escreve. */}
-                <IconX />
-              </span>
-            )}
           </button>
+          {/* Fixar/esconder — só na aba ativa (senão não cabe todo mundo
+              junto na barra) — some pra todo campo até reabrir no "+". */}
+          {tab.removable && sidebarTab === tab.key && (
+            <button
+              type="button"
+              aria-label={t.tabBar.pinAria(tab.label)}
+              title={t.tabBar.pinTitle(tab.label)}
+              onClick={() => hideOptionalTab(tab.key as HideableTab)}
+              className="jpd-tab__pin"
+            >
+              {/* Sem className: o tamanho de 10px é do CSS
+                  (`.jpd-tab__pin > svg`), porque `width`/`height` de <svg>
+                  são geometry properties — CSS vence o atributo de 14 que
+                  icons.tsx escreve. */}
+              <IconX />
+            </button>
+          )}
+          </span>
         ))}
       </div>
 

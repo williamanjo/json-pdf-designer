@@ -373,6 +373,7 @@ export {
   IconLock,
   IconLockOpen,
   IconMinus,
+  IconPencil,
   IconPlus,
   IconRefresh,
   IconSendToBack,

@@ -87,6 +87,8 @@ export const en = {
   },
   fieldList: {
     empty: 'No fields yet — use the "+" buttons above the canvas.',
+    renameAria: (name: string) => `Rename ${name}`,
+    renameTitle: "Rename (or double-click the name)",
     unlockAria: (name: string) => `Unlock ${name}`,
     lockAria: (name: string) => `Lock ${name}`,
     unlockTitle: "Unlock (allow move/resize)",
@@ -329,7 +331,7 @@ export const en = {
   table: {
     columnsHeaderLabel: "Columns (header, comma-separated)",
     renameColumnAria: (col: string) => `Rename column ${col}`,
-    renameColumnTitle: "Double-click to rename",
+    renameColumnTitle: "Rename column (or double-click the name)",
     currentColumnsHint: "Current table columns (drag to reorder):",
     formulaAria: (col: string) => `Formula for column ${col}`,
     formulaTitle: "Edit column formula (SUM/CURRENCY/CONCAT/arithmetic...)",

@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Binding, KpiElementKey, Schema } from "../types";
 import { fieldWarning } from "../fieldWarnings";
 import { kpiElementLocked, kpiElementLockedPatch, kpiElementPresent, kpiElementRestorePatch } from "../fields/kpi/card";
 import { useT } from "../i18n";
 import { useUiComponents } from "./ui/useUiComponents";
-import { IconAlertTriangle, IconBringToFront, IconLock, IconLockOpen, IconPlus, IconSendToBack, IconTrash } from "./ui/icons";
+import { IconAlertTriangle, IconBringToFront, IconLock, IconLockOpen, IconPencil, IconPlus, IconSendToBack, IconTrash } from "./ui/icons";
 
 type Props = {
   schemas: Schema[];
@@ -34,8 +34,8 @@ const KPI_ELEMENTS: KpiElementKey[] = ["icon", "title", "value", "subtitle"];
 // Lista de todo campo já colocado na página — clique seleciona (abre o
 // Field Edit logo abaixo); cadeado trava/destrava mover/redimensionar no
 // canvas (continua editável pelo painel); lixeira remove direto, sem
-// precisar selecionar primeiro; duplo clique no nome renomeia. Um KPI
-// selecionado sozinho ganha 4 sub-linhas (ícone/título/valor/legenda) —
+// precisar selecionar primeiro; o lápis (ou duplo clique no nome)
+// renomeia. Um KPI selecionado sozinho ganha 4 sub-linhas (ícone/título/valor/legenda) —
 // clique foca (Estilo contextual, ver PropertyPanelKpi.tsx), cadeado
 // destrava arrastar no canvas (nasce travado, ver KpiField.tsx), e um
 // botão adiciona/remove o sub-elemento (title/value/subtitle viram
@@ -73,6 +73,9 @@ export function FieldList({
   const itemRefs = useRef(new Map<string, HTMLDivElement>());
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
+  // Mesma razão (e mesmo gotcha do `onFocus`) do rename de coluna em
+  // PropertyPanel/PropertyPanelTable.tsx — ver o comentário longo lá.
+  const selecionarAoAbrir = useCallback((el: HTMLInputElement | null) => el?.select(), []);
   // Mesmo campo pode continuar "o último selecionado" por vários renders
   // seguidos (ex: editando o valor dele, que muda `schemas` a cada tecla)
   // — depender desse ID (primitivo, só muda quando a SELEÇÃO muda de
@@ -113,6 +116,12 @@ export function FieldList({
             else itemRefs.current.delete(schema.id);
           }}
           onClick={(e) => onSelect(schema.id, e.ctrlKey || e.metaKey)}
+          // A linha inteira continua clicável — é conveniência de MOUSE, e
+          // tirar isso encolheria o alvo pro tamanho do nome. Mas ela não é o
+          // controle ACESSÍVEL da seleção: esse é o <button> do nome logo
+          // abaixo, que o Tab alcança e o leitor de tela anuncia. Daí
+          // `role="presentation"` aqui — a linha é layout, não widget.
+          role="presentation"
           className="jpd-fieldrow"
           data-selected={isSelected || undefined}
         >
@@ -126,6 +135,7 @@ export function FieldList({
                   autoFocus
                   className="jpd-fieldrow__rename"
                   value={draftName}
+                  ref={selecionarAoAbrir}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => setDraftName(e.target.value)}
                   onBlur={() => commitRename(schema.id)}
@@ -141,12 +151,24 @@ export function FieldList({
                   }}
                 />
               ) : (
-                <span
+                // <button>, não <span>: selecionar um campo era operação
+                // EXCLUSIVA de mouse — a linha tinha `onClick` e nada na
+                // lista era focável além dos botões de ação, então quem
+                // navega por teclado não conseguia selecionar campo nenhum.
+                // `stopPropagation` porque o `onClick` da linha faria a mesma
+                // seleção de novo.
+                <button
+                  type="button"
                   className="jpd-rowname"
+                  aria-pressed={isSelected}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(schema.id, e.ctrlKey || e.metaKey);
+                  }}
                   onDoubleClick={onRename ? (e) => startRename(schema, e) : undefined}
                 >
                   {schema.name}
-                </span>
+                </button>
               )}
               <span className="jpd-muted">{typeLabel[schema.type]}</span>
             </span>
@@ -159,6 +181,20 @@ export function FieldList({
           {isSelected && onBringToFront && (
             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onBringToFront(schema.id); }} aria-label={t.fieldList.bringToFrontAria(schema.name)} title={t.fieldList.bringToFrontTitle}>
               <IconBringToFront />
+            </Button>
+          )}
+          {/* Via focável pro rename. O `onDoubleClick` no nome continua, mas
+              ele é gesto de mouse sobre um `<span>` sem tabIndex — sem este
+              botão, quem navega por teclado não tem como renomear campo. */}
+          {onRename && renamingId !== schema.id && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => startRename(schema, e)}
+              aria-label={t.fieldList.renameAria(schema.name)}
+              title={t.fieldList.renameTitle}
+            >
+              <IconPencil />
             </Button>
           )}
           <Button
@@ -185,11 +221,22 @@ export function FieldList({
                 <li
                   key={el}
                   onClick={(e) => { e.stopPropagation(); onSelectKpiElement?.(el); }}
+                  // Mesmo desenho da linha de cima: o <li> segue clicável por
+                  // conveniência de mouse, e o alvo ACESSÍVEL é o botão do
+                  // rótulo — focar sub-elemento de KPI também era só-mouse.
+                  role="presentation"
                   className="jpd-fieldrow jpd-fieldrow--sub"
                   data-selected={focused || undefined}
                   data-absent={!present || undefined}
                 >
-                  <span className="jpd-fieldrow__name jpd-fieldrow__name--sub">{kpiElementLabel[el]}</span>
+                  <button
+                    type="button"
+                    className="jpd-rowname jpd-fieldrow__name--sub"
+                    aria-pressed={focused}
+                    onClick={(e) => { e.stopPropagation(); onSelectKpiElement?.(el); }}
+                  >
+                    {kpiElementLabel[el]}
+                  </button>
                   {present && (
                     <Button
                       variant="ghost"

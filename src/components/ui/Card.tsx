@@ -13,8 +13,16 @@ export const CardHeader = forwardRef<HTMLDivElement, CardProps>(function CardHea
   return <div ref={ref} {...rest} className={cx("jpd-card__header", className)} />;
 });
 
-export const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(function CardTitle({ className, ...rest }, ref) {
-  return <h3 ref={ref} {...rest} className={cx("jpd-card__title", className)} />;
+// `children` desestruturado em vez de vir no spread, e não é estilo: com
+// `<h3 {...rest} />` o `jsx-a11y/heading-has-content` não TEM como ver
+// conteúdo nenhum e acusa cabeçalho vazio. Escrito assim a regra fica ligada
+// e continua pegando um `<CardTitle />` de verdade sem conteúdo.
+export const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(function CardTitle({ className, children, ...rest }, ref) {
+  return (
+    <h3 ref={ref} {...rest} className={cx("jpd-card__title", className)}>
+      {children}
+    </h3>
+  );
 });
 
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(function Badge({ className, ...rest }, ref) {

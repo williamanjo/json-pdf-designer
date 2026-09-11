@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { PageSize } from "../types";
 import { downloadPdf } from "../pdf/generate";
 import { useT } from "../i18n";
 import { PdfPreview } from "./PdfPreview";
 import { useUiComponents } from "./ui/useUiComponents";
 import { IconDownload, IconX } from "./ui/icons";
+import { useDialogFocus, useEscapeToClose } from "./ui/useDialogA11y";
 
 // pt (ponto do PDF, o que pdf-lib usa) por mm — mesma conta de units.ts,
 // duplicada aqui pra não puxar mmToPt só por causa disso (arquivo sem
@@ -46,6 +47,12 @@ export default function PdfPreviewModal({ bytes, page, name, onClose }: Props) {
   const { Button } = useUiComponents();
   const contentRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState<number | null>(null);
+  const titleId = useId();
+  // Este modal não passa pela casca do <Modal>, então Escape e foco preso
+  // vêm dos hooks direto. Antes disto ele era o único modal do pacote que
+  // NÃO fechava com Escape.
+  useEscapeToClose(onClose);
+  const { setPanel, onKeyDown } = useDialogFocus<HTMLDivElement>();
 
   const pageWidthPt = page.width * MM_TO_PT;
   const pageHeightPt = page.height * MM_TO_PT;
@@ -68,19 +75,46 @@ export default function PdfPreviewModal({ bytes, page, name, onClose }: Props) {
   }, [pageWidthPt, pageHeightPt]);
 
   return (
-    <div className="jpd-modal" onClick={onClose}>
+    // `role="presentation"` no overlay pelo mesmo motivo do <Modal>: é
+    // decoração mais atalho de mouse, e o caminho por teclado é o Escape
+    // (acima) e o "×" do cabeçalho — não uma parada de Tab invisível.
+    <div className="jpd-modal" onClick={onClose} role="presentation">
       {/* Mesmas classes do <Modal> genérico — três destas strings eram
           byte-idênticas às dele. A diferença é `data-fill`: aqui a altura é
           FIXA (92vh), não máxima, porque o cálculo de escala acima mede
           `clientHeight` do container e precisa dele preenchido. */}
-      <div data-size="xl" data-fill className="jpd-modal__panel" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={setPanel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onKeyDown={onKeyDown}
+        data-size="xl"
+        data-fill
+        className="jpd-modal__panel"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- ver abaixo
+        // O `stopPropagation` FICA, e o aviso de a11y aqui é aceito de olho
+        // aberto. Trocar por "o overlay decide pelo alvo" parece equivalente e
+        // não é: este modal vive num PORTAL, e evento de React sobe pela
+        // árvore de REACT, não pela do DOM — sem o stopPropagation, clique
+        // dentro do modal chega nos handlers do elemento que ABRIU o modal
+        // (mesmo raciocínio do <Modal>, ver lá).
+        // É o mesmo motivo do `onDragStart` no overlay. Um diálogo sem nada
+        // clicável próprio é o espírito da regra; aqui o handler existe só pra
+        // CONTER evento, não pra reagir a clique.
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="jpd-modal__header">
-          <h3 className="jpd-modal__title">{t.pdfPreviewModal.title}</h3>
+          <h3 id={titleId} className="jpd-modal__title">{t.pdfPreviewModal.title}</h3>
           <div className="jpd-row">
             <Button onClick={() => downloadPdf(bytes, `${name ?? t.pdfPreviewModal.defaultFileName}.pdf`)}>
               <IconDownload /> {t.pdfPreviewModal.download}
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            {/* Este botão saía SEM nome acessível nenhum: só um <svg> de "×"
+                dentro. Leitor de tela anunciava "button", sem dizer o que
+                ele faz. Usa a mesma string do "×" da casca do Modal. */}
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label={t.modal.close}>
               <IconX />
             </Button>
           </div>

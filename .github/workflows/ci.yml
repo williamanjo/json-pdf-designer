@@ -80,6 +80,93 @@ jobs:
           # apareceu o `page` ausente estourando TypeError no layout.
           node errors-check.mjs
 
+  # `engines` PROMETE `node >=18`, e nada testava a promessa.
+  #
+  # Uma matriz de Node no job `build` acima NÃO serve: o toolchain de
+  # desenvolvimento não roda em 18 (vitest 4 pede `^20||^22||>=24`, oxlint pede
+  # `^20.19||>=22.12`). Mas o consumidor não roda vitest — ele importa o
+  # `dist`. Então o teste que corresponde à promessa é: empacotar com o
+  # toolchain e INSTALAR + EXECUTAR o tarball em cada Node do range.
+  #
+  # Se isto ficar vermelho em 18, a decisão é uma das duas, e as duas são
+  # honestas: consertar o que usa API nova demais, ou subir o `engines`. O que
+  # não dá é seguir prometendo 18 sem nunca ter rodado lá.
+  consumer-node:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["18", "20", "22"]
+    steps:
+      - uses: actions/checkout@v4
+      # Empacota com um Node que o toolchain suporta...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm pack
+      # ...e troca pro Node do range ANTES de instalar e executar.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Instala e executa o tarball no Node ${{ matrix.node }}
+        run: |
+          node --version
+          mkdir -p /tmp/consumer-node
+          cp json-pdf-designer-*.tgz /tmp/consumer-node/pkg.tgz
+          cp test/pack-consumer/package.json test/pack-consumer/generate-check.mjs test/pack-consumer/errors-check.mjs /tmp/consumer-node/
+          cd /tmp/consumer-node
+          npm install ./pkg.tgz
+          node generate-check.mjs
+          node errors-check.mjs
+
+  # `peerDependencies` aceita `react ^18.0.0 || ^19.0.0`, e o repo desenvolve
+  # em 19 — a metade 18 do range declarado nunca era exercitada. Diferença de
+  # TIPO entre as duas majors (ex: children implícito, ReactNode) quebra o
+  # `typecheck` do consumidor sem quebrar nada aqui.
+  react-18:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # `--no-save` pra o package.json não virar parte do diff do job.
+      - name: Rebaixa pro React 18
+        run: npm install --no-save react@^18 react-dom@^18 @types/react@^18 @types/react-dom@^18
+      - run: node -p "require('react/package.json').version"
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+  # O SITE DE DOCS ERA GATE SÓ DEPOIS DO MERGE.
+  #
+  # O build do Docusaurus só rodava no `pages.yml`, que dispara em push pra
+  # master — então quebra de MDX chegava em master e falhava no DEPLOY, não no
+  # PR. E MDX quebra fácil neste repo: o changelog e a doc de vínculos são
+  # cheios de `{...}` e `<...>`, que o MDX lê como expressão/JSX.
+  #
+  # Builda os dois locales (é o que o pages.yml faz), porque erro de tradução
+  # ausente ou de MDX só no espelho pt-BR não apareceria no build en.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Build do site (en + pt-BR)
+        working-directory: website
+        run: |
+          npm ci
+          npm run build
+
   # OS EXAMPLES SÃO PARTE DO GATE, e até agora não eram.
   #
   # Eles são o dogfooding do pacote — o único lugar do repo onde a superfície

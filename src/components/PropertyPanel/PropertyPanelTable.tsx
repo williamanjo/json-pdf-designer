@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { columnFormulaFor } from "../../fields/table/columnFormula";
 import type { Binding, DataSourceOption, TableColumnStyle, TableCornerRadii, TableSchema } from "../../types";
 import { useT, withInlineCode } from "../../i18n";
@@ -9,7 +9,7 @@ import { FormulaButton } from "../formula/FormulaButton";
 import { ClearFieldButton, PalettePicker } from "../ui";
 import { useUiComponents } from "../ui/useUiComponents";
 import { CollapsibleSection } from "../ui/CollapsibleSection";
-import { IconDots, IconGrip, IconPlus, IconX } from "../ui/icons";
+import { IconDots, IconGrip, IconPencil, IconPlus, IconX } from "../ui/icons";
 import type { PaletteGroup } from "../ui/PalettePicker";
 
 type HAlign = "left" | "center" | "right";
@@ -111,8 +111,8 @@ type Props = {
   onReorderTableColumn?: (fromIndex: number, toIndex: number) => void;
   onSetColumnStyle?: (index: number, patch: Partial<TableColumnStyle>) => void;
   onSetColumnFormula?: (index: number, formula: string) => void;
-  // Renomear UMA coluna (duplo clique no chip). Só o rótulo muda; a
-  // referência de dado fica.
+  // Renomear UMA coluna (botão de lápis, ou duplo clique no chip). Só o
+  // rótulo muda; a referência de dado fica.
   onRenameTableColumn?: (index: number, label: string) => void;
   onSetColumnWidth?: (index: number, widthMm: number | undefined) => void;
   // Campos que este schema alcança — a lista da esquerda do modal de
@@ -140,8 +140,17 @@ export function PropertyPanelTable({
   const t = useT();
   const { Button, Checkbox, ColorInput, Input } = useUiComponents();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  // Qual coluna está com o título em edição (duplo clique no chip).
+  // Qual coluna está com o título em edição (botão de lápis ou duplo clique).
   const [renameIndex, setRenameIndex] = useState<number | null>(null);
+  // Seleciona o texto ao montar, por REF e não por `onFocus`.
+  // Com o botão de lápis como via principal o caret cai no FIM, e digitar
+  // ANEXA ao nome atual ("PNR" + o que se digita) — visto no navegador. E
+  // `onFocus` NÃO resolve: o foco do `autoFocus` acontece no commit, antes do
+  // handler estar resolvível, então ele não dispara (medido: selectionStart e
+  // selectionEnd ficavam os dois no fim). O ref roda na montagem, e precisa ser
+  // estável — uma arrow inline mudaria de identidade a cada render e
+  // re-selecionaria o texto a cada tecla.
+  const selecionarAoAbrir = useCallback((el: HTMLInputElement | null) => el?.select(), []);
   const [styleColIndex, setStyleColIndex] = useState<number | null>(null);
   const bindingColumns = binding?.type === "array" ? binding.columns : null;
 
@@ -253,6 +262,7 @@ export function PropertyPanelTable({
                             className="jpd-chip__input"
                             defaultValue={col}
                             aria-label={t.table.renameColumnAria(col)}
+                            ref={selecionarAoAbrir}
                             onClick={(e) => e.stopPropagation()}
                             onBlur={(e) => {
                               onRenameTableColumn?.(i, e.target.value);
@@ -275,6 +285,25 @@ export function PropertyPanelTable({
                           >
                             {col}
                           </span>
+                        )}
+                        {/* O duplo clique acima continua, mas ele é gesto de
+                            MOUSE: num `<span>` sem tabIndex, quem navega por
+                            teclado não tinha operação nenhuma — e a 3.2.0
+                            tinha removido o campo "Colunas (cabeçalho,
+                            vírgula)", que era a única via por tecla. Este
+                            botão é a via focável, ao lado das outras três
+                            (ƒx, estilo, remover), e por isso é um <button> de
+                            verdade e não um div clicável. */}
+                        {!editing && (
+                          <button
+                            type="button"
+                            onClick={() => setRenameIndex(i)}
+                            aria-label={t.table.renameColumnAria(col)}
+                            title={t.table.renameColumnTitle}
+                            className="jpd-iconbtn"
+                          >
+                            <IconPencil className="jpd-icon" />
+                          </button>
                         )}
                         {bindingColumns && (
                           <FormulaButton

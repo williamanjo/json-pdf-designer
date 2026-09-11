@@ -1560,8 +1560,20 @@
     border-radius: var(--jpd-radius-sm);
     background-color: var(--jpd-accent-border);
   }
-  /* "Esconder esta aba" — <span role="button">, só na aba ativa. */
+  /* Slot de uma aba: o <button> da aba MAIS o "x" de esconder, que antes era
+   * um <span role="button"> DENTRO do botão da aba — interativo aninhado, e
+   * sem tabIndex, ou seja esconder aba só funcionava com mouse. Agora são
+   * irmãos, e este slot é o que mantinha os dois lado a lado. Efeito visual
+   * da mudança: o sublinhado de aba ativa (`.jpd-tab[data-active="true"]`)
+   * passa a terminar no texto, sem se estender por baixo do "x". */
+  .jpd-tab__slot {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+  }
+  /* "Esconder esta aba" — <button>, só na aba ativa. */
   .jpd-tab__pin {
+    flex-shrink: 0;
     margin-inline-end: calc(var(--jpd-space-1) * -1);
     cursor: pointer;
     border-radius: var(--jpd-radius-sm);
@@ -2140,7 +2152,18 @@
 
   /* Nome do campo e sufixo apagado ao lado dele — os dois arquivos escreviam
    * a mesma string. */
+  /* É um <button> (não um <span>): selecionar campo por teclado exige um
+   * alvo focável, ver FieldList.tsx. O reset.css já tira fundo/borda/fonte
+   * de botão; aqui sobra o que o <span> dava de graça e o botão não dá —
+   * alinhar ao início, truncar em vez de estourar a linha, e o cursor. */
   .jpd-rowname {
+    min-inline-size: 0;
+    padding: 0;
+    text-align: start;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
     font-weight: 500;
     color: var(--jpd-text);
   }

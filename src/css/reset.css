@@ -68,7 +68,9 @@
   .jpd-tab,
   .jpd-tabs__btn,
   .jpd-menuitem,
-  .jpd-addlink {
+  .jpd-addlink,
+  .jpd-rowname,
+  .jpd-tab__pin {
     font: inherit;
     /* Fallback EXPLÍCITO porque este arquivo é um export por si
      * ("json-pdf-designer/reset.css"): usado sozinho, `--jpd-font-sans` não
@@ -90,7 +92,9 @@
   .jpd-tab,
   .jpd-tabs__btn,
   .jpd-menuitem,
-  .jpd-addlink {
+  .jpd-addlink,
+  .jpd-rowname,
+  .jpd-tab__pin {
     appearance: button;
     /* `0 solid`, não `0`. O Preflight escrevia `border: 0 solid` de propósito:
      * zera a largura MAS deixa o estilo como `solid`, pra que qualquer

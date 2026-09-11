@@ -24,6 +24,7 @@ export {
   IconChevronLeft,
   IconChevronRight,
   IconX,
+  IconPencil,
   IconTrash,
   IconGrip,
   IconLink,

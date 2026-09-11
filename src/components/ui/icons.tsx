@@ -52,6 +52,19 @@ export function IconX({ className, ...rest }: IconProps) {
   );
 }
 
+// Lápis — "editar o rótulo disto". Existe porque a única forma de renomear
+// era duplo clique, que é gesto de mouse: sem um alvo focável, quem navega
+// por teclado não tinha operação nenhuma (ver o botão em
+// PropertyPanel/PropertyPanelTable.tsx e em FieldList.tsx).
+export function IconPencil({ className, ...rest }: IconProps) {
+  return (
+    <svg {...base} {...rest} className={cx("jpd-icon", className)}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
 export function IconTrash({ className, ...rest }: IconProps) {
   return (
     <svg {...base} {...rest} className={cx("jpd-icon", className)}>

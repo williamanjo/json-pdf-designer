@@ -1740,7 +1740,7 @@ type Locale, type Dict
 Button, Input, ColorInput, Select, Textarea, Checkbox, Modal, Card, CardHeader, CardTitle,
 Badge, TabPanel
 PalettePicker, PaletteSwatches, MaterialIcon, CollapsibleSection, ClearFieldButton
-IconPlus, IconX, IconTrash, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
+IconPlus, IconX, IconTrash, IconPencil, IconGrip, IconLink, IconMinus, IconArrowsHorizontal,
 IconArrowsVertical, IconDots, IconUpload, IconLock, IconLockOpen, IconBringToFront,
 IconSendToBack, IconRefresh, IconDownload, IconFolderUp, IconAlertTriangle,
 IconChevronLeft, IconChevronRight

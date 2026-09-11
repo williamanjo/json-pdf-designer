@@ -84,6 +84,8 @@ export const ptBR: Dict = {
   },
   fieldList: {
     empty: 'Nenhum campo ainda — use os botões "+" acima do canvas.',
+    renameAria: (name) => `Renomear ${name}`,
+    renameTitle: "Renomear (ou duplo clique no nome)",
     unlockAria: (name) => `Destravar ${name}`,
     lockAria: (name) => `Travar ${name}`,
     unlockTitle: "Destravar (permitir mover/redimensionar)",
@@ -297,7 +299,7 @@ export const ptBR: Dict = {
   table: {
     columnsHeaderLabel: "Colunas (cabeçalho, vírgula)",
     renameColumnAria: (col: string) => `Renomear coluna ${col}`,
-    renameColumnTitle: "Duplo clique pra renomear",
+    renameColumnTitle: "Renomear coluna (ou duplo clique no nome)",
     currentColumnsHint: "Colunas atuais da tabela (arraste pra reordenar):",
     formulaAria: (col) => `Fórmula da coluna ${col}`,
     formulaTitle: "Editar fórmula da coluna (SUM/CURRENCY/CONCAT/aritmética...)",
