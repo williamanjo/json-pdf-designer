@@ -143,8 +143,12 @@ copy/paste, keyboard shortcuts, configurable page size/orientation. A
 tabbed side panel — **Fields** and **Page** (always available) plus
 **Data**/**Style**/**Filter** (only while a field is selected, depending
 on its type) — tabs are drag-reorderable and pinnable (hide with the
-"×", bring back with the "+"). Full detail on every feature in
-[docs/USAGE.md](docs/USAGE.md).
+"×", bring back with the "+"). Every operation the panel and the field
+list offer is reachable by keyboard, and the modals are real dialogs
+(focus trapped, `Escape` closes, focus returns to what opened them) — see
+[Accessibility](docs/USAGE.md#accessibility) for what is *deliberately*
+mouse-only on the canvas, and where to do the same thing from the panel.
+Full detail on every feature in [docs/USAGE.md](docs/USAGE.md).
 
 ## Expressions
 

@@ -252,8 +252,10 @@ sempre move os campos membros dela também, além do resto da seleção.
 linha seleciona — e rola a lista sozinha até o item, caso esteja fora da
 área visível —, botões de enviar-pra-trás/trazer-pra-frente aparecem na
 linha selecionada, cadeado trava/destrava mover/redimensionar, lixeira
-remove direto, duplo clique no nome renomeia o campo — remapeia junto
-qualquer `Binding.schemaName` que apontava pro nome antigo), **Página** (tamanho/orientação, cabeçalho/rodapé/margem,
+remove direto, lápis renomeia o campo — ou duplo clique no nome — remapeando
+junto qualquer `Binding.schemaName` que apontava pro nome antigo. O próprio
+nome do campo é um `<button>`, e é isso que torna selecionar campo alcançável
+por teclado (ver ["Acessibilidade"](#acessibilidade))), **Página** (tamanho/orientação, cabeçalho/rodapé/margem,
 imagem de fundo, toggle "editar cabeçalho/rodapé/margem") sempre
 acessíveis, e **Dados**/**Estilo**/**Filtro** — só aparecem enquanto um
 campo está selecionado, e só as que fazem sentido pro tipo dele (Estilo
@@ -415,8 +417,11 @@ em `TableSchema`) — e por **coluna individual** via `columnStyles`
 definido, cai no azul/branco/9pt de sempre — templates antigos não mudam
 de aparência.
 
-**Renomear uma coluna**: duplo clique no chip dela na lista "Colunas atuais da
-tabela". Só o título muda — o token, o estilo por coluna e a largura ficam,
+**Renomear uma coluna**: clique no botão de **lápis** no chip dela na lista
+"Colunas atuais da tabela", ou dê duplo clique no nome. O lápis é o caminho
+acessível — um `<button>` que o Tab alcança e o leitor de tela anuncia; o duplo
+clique é atalho de mouse pra mesma coisa. Nos dois casos o input abre com o
+texto **selecionado**, então digitar substitui o nome em vez de anexar a ele. Só o título muda — o token, o estilo por coluna e a largura ficam,
 porque a referência de dado mora na fórmula da coluna, não no rótulo dela. O
 antigo campo "Colunas (cabeçalho, vírgula)" saiu; ele substituía a lista de
 cabeçalho inteira a cada tecla, e era isso que fazia um rename ser
@@ -934,6 +939,13 @@ endereçado por `parts`.** Então `Input.className` continua no `<input>`
 `parts` aceita só `className`/`style` — sem handler, sem ref — com atalho
 de string (`parts={{ label: "minha-classe" }}`) e forma de objeto quando
 você também precisa de `style`.
+
+O `Modal` é um diálogo de verdade, e estilizar ele não muda isso: o painel
+carrega `role="dialog"`/`aria-modal`, o foco fica preso dentro enquanto ele
+está aberto e volta pro que abriu ao fechar, e `Escape` fecha. O elemento
+`parts.overlay` é marcado `role="presentation"` de propósito — ele fecha no
+clique como atalho de mouse, e uma parada de Tab de tela cheia que não se vê
+seria pior que nenhuma. Ver ["Acessibilidade"](#acessibilidade).
 
 Três mudanças da 3.0.0 pra saber antes de atualizar:
 
@@ -1527,6 +1539,103 @@ seu container. Os tokens moram no `:root` justamente por isso. Se você
 precisa de ilha escopada *e* modal escuro, ponha o atributo no `<html>`
 (ou no `document.body`).
 
+## Acessibilidade
+
+Toda operação que o painel lateral e a lista de campos oferecem é alcançável
+por teclado, e cada controle tem nome acessível. Isso **não** era verdade antes
+da 3.3.0: quatro operações existiam só como gesto de mouse, e uma delas
+(renomear coluna de tabela) havia regredido na 3.2.0, que removeu o campo de
+texto que era a única via por tecla.
+
+### O que o teclado alcança
+
+| Operação | Controle |
+| --- | --- |
+| Selecionar um campo | o **nome** do campo na lista é um `<button>`, com `aria-pressed` refletindo a seleção |
+| Renomear um campo | um botão de **lápis** na linha (duplo clique no nome continua valendo) |
+| Travar / destravar, remover, enviar-pra-trás / trazer-pra-frente | botões, cada um com `aria-label` nomeando o campo |
+| Focar sub-elemento de KPI (ícone/título/valor/legenda) | o rótulo da sub-linha é um `<button>` com `aria-pressed` |
+| Renomear coluna de tabela | um botão de **lápis** no chip da coluna |
+| Escrever expressão de coluna, estilizar coluna, remover coluna | os botões `ƒx`, `⋯` e `×` do chip |
+| Esconder a aba opcional ativa | o `×` da aba, um `<button>` ao lado dela (era um `role="button"` DENTRO dela, que é HTML inválido e não tinha parada de Tab) |
+
+Os dois inputs de rename abrem com o texto **selecionado**, então digitar
+substitui o nome em vez de anexar a ele, e commitam no `Enter` ou ao perder o
+foco, cancelam no `Escape`.
+
+### Diálogos
+
+Os três modais — o `Modal` genérico, o editor de expressão `ƒx` construído
+sobre ele, e o `PdfPreviewModal` — são diálogos de verdade:
+
+- `role="dialog"` e `aria-modal="true"`, então o leitor de tela anuncia um
+  diálogo em vez de seguir oferecendo a página atrás do fundo escurecido.
+- `aria-labelledby` aponta pro título que já está na tela, em vez de duplicar
+  o texto num `aria-label` que poderia divergir dele.
+- O foco entra no diálogo ao abrir — no primeiro controle focável, a menos que
+  algo dentro já tenha tomado o foco (um `autoFocus`, que o trap de propósito
+  não rouba). **Tab e Shift+Tab ficam presos** dentro, e o foco volta pro
+  elemento que abriu o diálogo ao fechar.
+- `Escape` fecha. Clicar no fundo escurecido também fecha, como atalho de
+  mouse — o overlay é marcado `role="presentation"` em vez de receber um
+  `role="button"`, porque uma parada de Tab de tela cheia que não se vê é pior
+  que parada nenhuma.
+
+O comportamento mora em `src/components/ui/useDialogA11y.ts` e é
+compartilhado, porque o `PdfPreviewModal` não passa pela casca do `Modal` (ele
+carrega o cálculo de zoom que ajusta a folha à janela) e teria divergido — como
+já havia: antes da 3.3.0 ele era o único modal que não fechava com `Escape`, e
+o botão de fechar dele era um glifo `×` sem nome acessível nenhum.
+
+### O que é só-mouse de propósito, e onde fazer pelo painel
+
+O canvas é superfície de manipulação direta. "Arraste isto 3mm pra direita" não
+é uma tecla, e inventar `role="button"` mais um handler de tecla vazio num
+alvo de arrasto só enganaria o leitor de tela. Então esses gestos continuam
+gestos — e **cada um deles edita algo que também é campo de formulário no
+painel de propriedades**:
+
+| Gesto no canvas | A mesma mudança, pelo painel |
+| --- | --- |
+| Arrastar / redimensionar um campo | inputs X, Y, Largura, Altura (mm) |
+| Seleção por caixa no canvas vazio | selecionar na lista **Campos** |
+| Arrastar a borda de uma coluna | o input **Largura (mm)** da coluna |
+| Arrastar um sub-elemento de KPI | os inputs de posição dele em **Estilo** |
+| Duplo clique numa imagem pra trocar | o botão de upload em **Dados** |
+| Duplo clique numa célula pra editar inline | os inputs `ƒx` / de rodapé da célula |
+
+### Para quem contribui
+
+O `jsx-a11y` está ligado no `.oxlintrc.json` — ele simplesmente não estava em
+`plugins`, e foi assim que 25 achados se acumularam sem ninguém ver. Quatorze
+regras são erro. Quatro estão `off`, cada uma com o motivo escrito ao lado
+naquele arquivo: as três acima, que disparam em superfície de gesto, e
+`no-autofocus` (num editor inline, mover o foco pro input **é** o
+comportamento certo — o usuário acabou de pedir pra editar aquele rótulo).
+
+`interactive-supports-focus` fica como **erro** de propósito. É a regra que
+pegou o `×` da barra de abas, e é a que pega essa classe inteira: elemento que
+reivindica papel interativo sem ser focável.
+
+`test/a11y.test.tsx` guarda o resultado — a marcação de diálogo (afirmada sem
+DOM, que é por que o `ModalShell` é exportado separado do `Modal`), um guard de
+fonte por operação que era só-mouse, e um guard de que o plugin do linter
+continue ligado.
+
+### Limites que vale dizer
+
+Isto não é declaração de conformidade. O que está verificado está listado
+acima e guardado por teste; o que **não** foi feito:
+
+- Nenhuma varredura automática de acessibilidade (axe ou similar) e nenhuma
+  passada com leitor de tela no CI. Os guards são de marcação, mais o linter.
+- A lista de campos é uma lista de botões, não um `listbox` com navegação por
+  seta — o `Tab` percorre as linhas e os botões de ação delas.
+- Nenhuma auditoria de contraste de cor do tema padrão. Se você precisa de uma
+  razão de contraste específica, os tokens `--jpd-*` são o lugar de definir
+  (ver ["Estilo e tema"](#estilo-e-tema)), e o `reset.css` sozinho permite
+  fornecer a aparência inteira por conta.
+
 ## Versionamento de template (`Template.version`)
 
 Um `Template` é um **formato de documento**, não uma estrutura interna. Uma vez
@@ -1987,6 +2096,8 @@ src/
                           CollapsibleSection, ClearFieldButton, ícones — exportados (ver acima), usados por dentro
       registry.ts      -> os 12 slots + defaultUiComponents; UiComponentsProvider.tsx / useUiComponents.ts
       cx.ts            -> merge de classe (dedupe de token exato, undefined quando vazio) + mergeStyle
+      useDialogA11y.ts -> o que faz um overlay ser DIÁLOGO: foco entra ao abrir, Tab preso, foco volta ao
+                          fechar, Escape fecha — compartilhado, porque o PdfPreviewModal não usa a casca
   index.ts             -> exports públicos do pacote (nunca alcança o pdfjs-dist)
   server.ts            -> entry "/server": a metade sem React (generatePdf, migrateTemplate, os erros)
   preview.ts           -> entry "/preview": o ÚNICO grafo que pode importar pdfjs-dist

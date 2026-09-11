@@ -143,8 +143,12 @@ copiar/colar, atalhos de teclado, tamanho/orientação de página
 configuráveis. Painel lateral em abas — **Campos**, **Página** (sempre
 acessíveis) e **Dados**/**Estilo**/**Filtro** (só enquanto um campo está
 selecionado, conforme o tipo dele) — abas reordenáveis por arraste e
-fixáveis (escondidas no "×", reabertas no "+"). Detalhe completo de cada
-recurso em [docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md).
+fixáveis (escondidas no "×", reabertas no "+"). Toda operação que o painel
+e a lista de campos oferecem é alcançável por teclado, e os modais são
+diálogos de verdade (Tab preso, `Escape` fecha, foco volta pro que abriu) —
+ver [Acessibilidade](docs/USAGE.pt-BR.md#acessibilidade) pra o que é *de
+propósito* só-mouse no canvas, e onde fazer a mesma coisa pelo painel.
+Detalhe completo de cada recurso em [docs/USAGE.pt-BR.md](docs/USAGE.pt-BR.md).
 
 ## Expressões
 

@@ -25,8 +25,12 @@ kept separate, overrides only that column). With nothing set, it falls
 back to the usual blue/white/9pt — old templates don't change
 appearance.
 
-**Renaming a column**: double-click its chip in the "Current table columns"
-list. Only the title changes — the token, the per-column style and the width
+**Renaming a column**: click the **pencil** button on its chip in the
+"Current table columns" list, or double-click the name. The pencil is the
+accessible path — a `<button>` that Tab reaches and a screen reader announces;
+the double-click is a mouse shortcut for the same thing. Either way the input
+opens with the text **selected**, so typing replaces the name instead of
+appending to it. Only the title changes — the token, the per-column style and the width
 all stay, because the data reference lives in the column's formula and not in
 its label. The old "Columns (header, comma)" field is gone: it replaced the
 whole header list on every keystroke, which is what used to make a rename

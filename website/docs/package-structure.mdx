@@ -136,6 +136,8 @@ src/
                           CollapsibleSection, ClearFieldButton, icons — exported (see above), used internally
       registry.ts      -> the 12 slots + defaultUiComponents; UiComponentsProvider.tsx / useUiComponents.ts
       cx.ts            -> class merge (dedupes exact tokens, returns undefined when empty) + mergeStyle
+      useDialogA11y.ts -> what makes an overlay a DIALOG: focus in on open, Tab trapped, focus back on
+                          close, Escape to close — shared, because PdfPreviewModal skips the Modal shell
   index.ts             -> the package's public exports (never reaches pdfjs-dist)
   server.ts            -> the "/server" entry: the React-free half (generatePdf, migrateTemplate, the errors)
   preview.ts           -> the "/preview" entry: the ONLY graph allowed to import pdfjs-dist

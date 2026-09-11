@@ -48,6 +48,7 @@ const sidebars = {
         "customizing-components",
         "theming",
         "ui-language",
+        "accessibility",
       ],
     },
     {

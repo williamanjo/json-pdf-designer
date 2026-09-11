@@ -137,6 +137,8 @@ src/
                           CollapsibleSection, ClearFieldButton, ícones — exportados (ver acima), usados por dentro
       registry.ts      -> os 12 slots + defaultUiComponents; UiComponentsProvider.tsx / useUiComponents.ts
       cx.ts            -> merge de classe (dedupe de token exato, undefined quando vazio) + mergeStyle
+      useDialogA11y.ts -> o que faz um overlay ser DIÁLOGO: foco entra ao abrir, Tab preso, foco volta ao
+                          fechar, Escape fecha — compartilhado, porque o PdfPreviewModal não usa a casca
   index.ts             -> exports públicos do pacote (nunca alcança o pdfjs-dist)
   server.ts            -> entry "/server": a metade sem React (generatePdf, migrateTemplate, os erros)
   preview.ts           -> entry "/preview": o ÚNICO grafo que pode importar pdfjs-dist

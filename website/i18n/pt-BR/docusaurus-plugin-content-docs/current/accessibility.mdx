@@ -1,0 +1,100 @@
+---
+title: Acessibilidade
+sidebar_label: Acessibilidade
+description: O que o teclado alcança, como os diálogos se comportam, quais gestos do canvas continuam só-mouse e onde fazer a mesma coisa pelo painel.
+---
+
+Toda operação que o painel lateral e a lista de campos oferecem é alcançável
+por teclado, e cada controle tem nome acessível. Isso **não** era verdade antes
+da 3.3.0: quatro operações existiam só como gesto de mouse, e uma delas
+(renomear coluna de tabela) havia regredido na 3.2.0, que removeu o campo de
+texto que era a única via por tecla.
+
+## O que o teclado alcança
+
+| Operação | Controle |
+| --- | --- |
+| Selecionar um campo | o **nome** do campo na lista é um `<button>`, com `aria-pressed` refletindo a seleção |
+| Renomear um campo | um botão de **lápis** na linha (duplo clique no nome continua valendo) |
+| Travar / destravar, remover, enviar-pra-trás / trazer-pra-frente | botões, cada um com `aria-label` nomeando o campo |
+| Focar sub-elemento de KPI (ícone/título/valor/legenda) | o rótulo da sub-linha é um `<button>` com `aria-pressed` |
+| Renomear coluna de tabela | um botão de **lápis** no chip da coluna |
+| Escrever expressão de coluna, estilizar coluna, remover coluna | os botões `ƒx`, `⋯` e `×` do chip |
+| Esconder a aba opcional ativa | o `×` da aba, um `<button>` ao lado dela (era um `role="button"` DENTRO dela, que é HTML inválido e não tinha parada de Tab) |
+
+Os dois inputs de rename abrem com o texto **selecionado**, então digitar
+substitui o nome em vez de anexar a ele, e commitam no `Enter` ou ao perder o
+foco, cancelam no `Escape`.
+
+## Diálogos
+
+Os três modais — o `Modal` genérico, o editor de expressão `ƒx` construído
+sobre ele, e o `PdfPreviewModal` — são diálogos de verdade:
+
+- `role="dialog"` e `aria-modal="true"`, então o leitor de tela anuncia um
+  diálogo em vez de seguir oferecendo a página atrás do fundo escurecido.
+- `aria-labelledby` aponta pro título que já está na tela, em vez de duplicar
+  o texto num `aria-label` que poderia divergir dele.
+- O foco entra no diálogo ao abrir — no primeiro controle focável, a menos que
+  algo dentro já tenha tomado o foco (um `autoFocus`, que o trap de propósito
+  não rouba). **Tab e Shift+Tab ficam presos** dentro, e o foco volta pro
+  elemento que abriu o diálogo ao fechar.
+- `Escape` fecha. Clicar no fundo escurecido também fecha, como atalho de
+  mouse — o overlay é marcado `role="presentation"` em vez de receber um
+  `role="button"`, porque uma parada de Tab de tela cheia que não se vê é pior
+  que parada nenhuma.
+
+O comportamento mora em `src/components/ui/useDialogA11y.ts` e é
+compartilhado, porque o `PdfPreviewModal` não passa pela casca do `Modal` (ele
+carrega o cálculo de zoom que ajusta a folha à janela) e teria divergido — como
+já havia: antes da 3.3.0 ele era o único modal que não fechava com `Escape`, e
+o botão de fechar dele era um glifo `×` sem nome acessível nenhum.
+
+## O que é só-mouse de propósito, e onde fazer pelo painel
+
+O canvas é superfície de manipulação direta. "Arraste isto 3mm pra direita" não
+é uma tecla, e inventar `role="button"` mais um handler de tecla vazio num
+alvo de arrasto só enganaria o leitor de tela. Então esses gestos continuam
+gestos — e **cada um deles edita algo que também é campo de formulário no
+painel de propriedades**:
+
+| Gesto no canvas | A mesma mudança, pelo painel |
+| --- | --- |
+| Arrastar / redimensionar um campo | inputs X, Y, Largura, Altura (mm) |
+| Seleção por caixa no canvas vazio | selecionar na lista **Campos** |
+| Arrastar a borda de uma coluna | o input **Largura (mm)** da coluna |
+| Arrastar um sub-elemento de KPI | os inputs de posição dele em **Estilo** |
+| Duplo clique numa imagem pra trocar | o botão de upload em **Dados** |
+| Duplo clique numa célula pra editar inline | os inputs `ƒx` / de rodapé da célula |
+
+## Para quem contribui
+
+O `jsx-a11y` está ligado no `.oxlintrc.json` — ele simplesmente não estava em
+`plugins`, e foi assim que 25 achados se acumularam sem ninguém ver. Quatorze
+regras são erro. Quatro estão `off`, cada uma com o motivo escrito ao lado
+naquele arquivo: as três acima, que disparam em superfície de gesto, e
+`no-autofocus` (num editor inline, mover o foco pro input **é** o
+comportamento certo — o usuário acabou de pedir pra editar aquele rótulo).
+
+`interactive-supports-focus` fica como **erro** de propósito. É a regra que
+pegou o `×` da barra de abas, e é a que pega essa classe inteira: elemento que
+reivindica papel interativo sem ser focável.
+
+`test/a11y.test.tsx` guarda o resultado — a marcação de diálogo (afirmada sem
+DOM, que é por que o `ModalShell` é exportado separado do `Modal`), um guard de
+fonte por operação que era só-mouse, e um guard de que o plugin do linter
+continue ligado.
+
+## Limites que vale dizer
+
+Isto não é declaração de conformidade. O que está verificado está listado
+acima e guardado por teste; o que **não** foi feito:
+
+- Nenhuma varredura automática de acessibilidade (axe ou similar) e nenhuma
+  passada com leitor de tela no CI. Os guards são de marcação, mais o linter.
+- A lista de campos é uma lista de botões, não um `listbox` com navegação por
+  seta — o `Tab` percorre as linhas e os botões de ação delas.
+- Nenhuma auditoria de contraste de cor do tema padrão. Se você precisa de uma
+  razão de contraste específica, os tokens `--jpd-*` são o lugar de definir
+  (ver [Tema e CSS](./theming.mdx)), e o `reset.css` sozinho permite
+  fornecer a aparência inteira por conta.

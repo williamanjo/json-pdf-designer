@@ -251,8 +251,10 @@ moves its member fields too, in addition to the rest of the selection.
 select it — the list scrolls itself to the item if it's out of view —
 send-to-back/bring-to-front buttons appear on the selected row, a lock
 icon locks/unlocks moving/resizing, a trash icon removes it directly,
-double-clicking the name renames the field (remaps any `Binding.schemaName`
-pointing at the old name along with it)),
+a pencil icon renames the field — or double-click the name — remapping any
+`Binding.schemaName` pointing at the old name along with it. The field name
+itself is a `<button>`, which is what makes selecting a field reachable by
+keyboard at all (see ["Accessibility"](#accessibility))),
 **Page** (size/orientation, header/footer/margin, background image,
 an "edit header/footer/margin" toggle) always available, and **Data**/
 **Style**/**Filter** — only present while a field is selected, and only
@@ -416,8 +418,12 @@ whole value row (every data row), the whole footer
 nothing set, it falls back to the usual blue/white/9pt — old templates
 don't change appearance.
 
-**Renaming a column**: double-click its chip in the "Current table columns"
-list. Only the title changes — the token, the per-column style and the width
+**Renaming a column**: click the **pencil** button on its chip in the
+"Current table columns" list, or double-click the name. The pencil is the
+accessible path — a `<button>` that Tab reaches and a screen reader announces;
+the double-click is a mouse shortcut for the same thing. Either way the input
+opens with the text **selected**, so typing replaces the name instead of
+appending to it. Only the title changes — the token, the per-column style and the width
 all stay, because the data reference lives in the column's formula, not in its
 label. The old "Columns (header, comma)" field is gone; it replaced the whole
 header list on every keystroke, which is what used to make a rename
@@ -933,6 +939,13 @@ is addressed through `parts`.** So `Input.className` still lands on the
 `parts` accepts only `className`/`style` — no handlers, no refs — with a
 string shorthand (`parts={{ label: "my-class" }}`) and an object form when
 you need `style` too.
+
+`Modal` is a real dialog, and styling it does not change that: the panel
+carries `role="dialog"`/`aria-modal`, focus is trapped inside while it is open
+and returns to whatever opened it on close, and `Escape` closes. The
+`parts.overlay` element is marked `role="presentation"` on purpose — it closes
+on click as a mouse shortcut, and a full-screen tab stop you cannot see would
+be worse than none. See ["Accessibility"](#accessibility).
 
 Three 3.0.0 changes worth knowing before you upgrade:
 
@@ -1523,6 +1536,103 @@ your container in the DOM. The tokens live on `:root` precisely for that
 reason. If you need a scoped island *and* dark modals, set the attribute on
 `<html>` (or on `document.body`) instead.
 
+## Accessibility
+
+Every operation the side panel and the field list offer is reachable with a
+keyboard, and each control has an accessible name. That was **not** true
+before 3.3.0: four operations existed only as mouse gestures, and one of them
+(renaming a table column) had regressed in 3.2.0, which removed the text field
+that was its only keyboard path.
+
+### What the keyboard reaches
+
+| Operation | Control |
+| --- | --- |
+| Select a field | the field **name** in the list is a `<button>`, with `aria-pressed` reflecting selection |
+| Rename a field | a **pencil** button on the row (double-click on the name still works) |
+| Lock / unlock, remove, send-to-back / bring-to-front | buttons, each with an `aria-label` naming the field |
+| Focus a KPI sub-element (icon/title/value/caption) | the sub-row label is a `<button>` with `aria-pressed` |
+| Rename a table column | a **pencil** button on the column chip |
+| Write a column expression, style a column, remove a column | the `ƒx`, `⋯` and `×` buttons on the chip |
+| Hide the active optional tab | the `×` on the tab, a `<button>` beside the tab (it used to be a `role="button"` *inside* it, which is invalid HTML and had no tab stop) |
+
+Both rename inputs open with the text **selected**, so typing replaces the
+name rather than appending to it, and commit on `Enter` or blur, cancel on
+`Escape`.
+
+### Dialogs
+
+The three modals — the generic `Modal`, the `ƒx` expression editor built on
+it, and `PdfPreviewModal` — are real dialogs:
+
+- `role="dialog"` and `aria-modal="true"`, so a screen reader announces a
+  dialog instead of continuing to offer the page behind the overlay.
+- `aria-labelledby` points at the heading already on screen, rather than
+  duplicating the title into an `aria-label` that could drift from it.
+- Focus moves into the dialog on open — onto the first focusable control,
+  unless something inside already claimed focus (an `autoFocus`, which the
+  trap deliberately does not steal). **Tab and Shift+Tab are trapped** inside,
+  and focus returns to the element that opened the dialog on close.
+- `Escape` closes. Clicking the darkened overlay also closes, as a mouse
+  shortcut — the overlay is marked `role="presentation"` rather than given a
+  `role="button"`, because a full-screen tab stop you cannot see is worse than
+  no tab stop.
+
+The behaviour lives in `src/components/ui/useDialogA11y.ts` and is shared,
+because `PdfPreviewModal` does not go through the `Modal` shell (it carries the
+zoom-to-fit measurement) and would otherwise have drifted — as it had: before
+3.3.0 it was the only modal that did not close with `Escape`, and its close
+button was a bare `×` glyph with no accessible name.
+
+### What is deliberately mouse-only, and where to do it instead
+
+The canvas is a direct-manipulation surface. "Drag this 3mm to the right" is
+not a keystroke, and inventing `role="button"` plus an empty key handler for a
+drag target would only mislead a screen reader. So those gestures stay
+gestures — and **every one of them edits something that is also a form field
+in the property panel**:
+
+| Canvas gesture | Same change, from the panel |
+| --- | --- |
+| Drag / resize a field | X, Y, Width, Height (mm) inputs |
+| Marquee-select over empty canvas | select in the **Fields** list |
+| Drag a column edge to resize | the column's **Width (mm)** input |
+| Drag a KPI sub-element | its position inputs under **Style** |
+| Double-click an image to replace it | the upload button under **Data** |
+| Double-click a cell to edit inline | the cell's `ƒx` / footer inputs |
+
+### For contributors
+
+`jsx-a11y` is enabled in `.oxlintrc.json` — it was simply absent from
+`plugins`, which is how 25 findings accumulated unnoticed. Fourteen rules are
+errors. Four are `off`, each with the reason written beside it in that file:
+the three rules above that fire on gesture surfaces, and `no-autofocus`
+(in an inline editor, moving focus to the input **is** the correct behaviour —
+the user just asked to edit that label).
+
+`interactive-supports-focus` stays an **error** on purpose. It is the rule
+that caught the tab-bar `×`, and it is the one that catches this whole class:
+an element that claims an interactive role without being focusable.
+
+`test/a11y.test.tsx` guards the result — the dialog markup (asserted without a
+DOM, which is why `ModalShell` is exported separately from `Modal`), a source
+guard per operation that used to be mouse-only, and a guard that the linter
+plugin stays enabled.
+
+### Limits worth stating
+
+This is not a conformance claim. What is verified is listed above and guarded
+by tests; what has **not** been done:
+
+- No automated accessibility scan (axe or similar) and no screen-reader pass
+  in CI. The guards are markup-level plus the linter.
+- The field list is a list of buttons, not a `listbox` with arrow-key
+  navigation — `Tab` steps through rows and their action buttons.
+- No colour-contrast audit of the default theme. If you need a specific
+  contrast ratio, the `--jpd-*` tokens are the place to set it (see
+  ["Styling and theming"](#styling-and-theming)), and `reset.css` alone lets
+  you supply the whole appearance yourself.
+
 ## Template versioning (`Template.version`)
 
 A `Template` is a **document format**, not an internal structure. Once it
@@ -1982,6 +2092,8 @@ src/
                           CollapsibleSection, ClearFieldButton, icons — exported (see above), used internally
       registry.ts      -> the 12 slots + defaultUiComponents; UiComponentsProvider.tsx / useUiComponents.ts
       cx.ts            -> class merge (dedupes exact tokens, returns undefined when empty) + mergeStyle
+      useDialogA11y.ts -> what makes an overlay a DIALOG: focus in on open, Tab trapped, focus back on
+                          close, Escape to close — shared, because PdfPreviewModal skips the Modal shell
   index.ts             -> the package's public exports (never reaches pdfjs-dist)
   server.ts            -> the "/server" entry: the React-free half (generatePdf, migrateTemplate, the errors)
   preview.ts           -> the "/preview" entry: the ONLY graph allowed to import pdfjs-dist
