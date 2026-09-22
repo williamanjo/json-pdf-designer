@@ -12,6 +12,12 @@
 
 **Design a PDF report in the browser, generate it anywhere.**
 
+**[Open the live playground](https://williamanjo.github.io/json-pdf-designer/playground/)** — drag a field onto the page, point it at a JSON key, download the PDF.
+Nothing to install.
+
+<!-- GIF: 10s — drag a field, bind it to JSON, generate. Drop it here as
+     docs/demo.gif and replace this comment with the image tag. -->
+
 A visual report editor for React — drag/resize canvas, fields bound to a
 JSON data source, repeated sections (data band / master-detail), tables
 with calculated columns and totals, charts, KPI cards, real pagination,
