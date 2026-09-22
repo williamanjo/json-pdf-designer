@@ -11,7 +11,7 @@ type Props = {
   onChangeSources: (sources: JsonSource[]) => void;
   onResync: () => void;
   fieldCount: number;
-  // Código, não frase — a tradução acontece aqui no render (ver lib/sources.ts).
+  // A code, not a phrase — the translation happens here at render time (see lib/sources.ts).
   errorsById: Record<string, SourceErrorCode>;
   locale: Locale;
 };
@@ -20,28 +20,27 @@ function nameFromFile(file: File): string {
   return file.name.replace(/\.json$/i, "");
 }
 
-// Uma ou mais fontes de JSON — cada arquivo/bloco colado vira uma entrada;
-// na hora de gerar (App.tsx), todas são mescladas (nível superior, último
-// sobrescreve em caso de chave repetida) num objeto só antes de vincular
-// campo. "Resync campos" atualiza a lista de campos disponíveis com base
-// nessa mescla.
+// One or more JSON sources — each file/pasted block becomes an entry; at
+// generation time (App.tsx), all of them are merged (top level, the last one
+// wins on a repeated key) into a single object before binding a field. "Resync
+// fields" updates the list of available fields based on that merge.
 //
-// Input/Textarea/ícones são HTML nativo + CSS de src/index.css — nada
-// importado do pacote.
+// The Input/Textarea/icons are native HTML + CSS from src/index.css — nothing
+// imported from the package.
 export default function DataSourcePanel({ sources, onChangeSources, onResync, fieldCount, errorsById, locale }: Props) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
-  // NOMES dos arquivos que não deram pra ler, não a frase pronta. Guardar
-  // frase traduzida em estado congela o idioma no momento do erro: a mensagem
-  // ficaria em português na tela depois de trocar o seletor pro inglês, porque
-  // `locale` só afeta o que é renderizado DEPOIS da troca. Guardando o dado, a
-  // frase é montada a cada render e acompanha o seletor.
+  // The NAMES of the files that could not be read, not the finished phrase.
+  // Holding a translated phrase in state freezes the language at the moment of
+  // the error: the message would stay in Portuguese on screen after switching
+  // the picker to English, because `locale` only affects what is rendered
+  // AFTER the switch. Holding the data, the phrase is built on every render.
   const [failedFileNames, setFailedFileNames] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const d = t(locale);
 
-  // Rejeita com o NOME do arquivo (dado), não com uma frase — quem escreve a
-  // frase é o render, ver `failedFileNames`.
+  // It rejects with the file's NAME (data), not with a phrase — what writes
+  // the phrase is the render, see `failedFileNames`.
   function readFileAsText(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -51,11 +50,11 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
     });
   }
 
-  // Lê TODOS os arquivos do lote antes de chamar onChangeSources uma vez só
-  // — disparar um onChangeSources por arquivo dentro do forEach fazia cada
-  // callback de onload capturar o MESMO `sources` (stale closure), então
-  // soltar 2+ arquivos de uma vez só mantinha o último (cada um sobrescrevia
-  // o anterior em vez de acumular).
+  // It reads ALL the files of the batch before calling onChangeSources once
+  // — firing one onChangeSources per file inside the forEach made each onload
+  // callback capture the SAME `sources` (a stale closure), so dropping 2+ files
+  // at once kept only the last one (each overwrote the previous instead of
+  // accumulating).
   async function addFilesAsSources(files: FileList) {
     setFailedFileNames([]);
     const results = await Promise.allSettled(Array.from(files).map((file) => readFileAsText(file).then((raw) => ({ file, raw }))));
@@ -65,8 +64,8 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
       if (result.status === "fulfilled") {
         newSources.push({ id: uid(), name: nameFromFile(result.value.file), raw: result.value.raw });
       } else {
-        // String vazia = "nem o nome deu pra saber"; o render escolhe a
-        // palavra ("arquivo desconhecido" / "unknown file").
+        // An empty string = "not even the name could be known"; the render picks
+        // the word ("arquivo desconhecido" / "unknown file").
         failedNames.push(result.reason instanceof Error ? result.reason.message : "");
       }
     }
@@ -86,11 +85,11 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
   }
 
   function addBlankSource() {
-    // `fonte_N` NÃO é traduzido: é o NOME da fonte, um dado que vai pro
-    // projeto salvo e é o que a pessoa vê/edita. Trocar de idioma não pode
-    // renomear dado que já existe, e um projeto salvo em pt-BR reaberto em
-    // inglês continuaria com `fonte_2` — o resultado seria nome inconsistente
-    // dentro do mesmo arquivo.
+    // `fonte_N` is NOT translated: it is the source's NAME, data that goes
+    // into the saved project and is what the person sees/edits. Switching
+    // language must not rename data that already exists, and a project saved
+    // in pt-BR reopened in English would still have `fonte_2` — the result
+    // would be an inconsistent name inside the same file.
     onChangeSources([...sources, { id: uid(), name: `fonte_${sources.length + 1}`, raw: "{}" }]);
   }
 

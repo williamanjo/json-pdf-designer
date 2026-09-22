@@ -37,63 +37,63 @@ import { computeSpawnPosition, findTableDataSource } from "./helpers";
 import { applyOrientation, orientationOf, PAGE_SIZE_PRESETS } from "../page/sizes";
 import type { Dict } from "../i18n";
 
-// Toda mutação de template/bindings do editor, fora do componente.
+// Every template/binding mutation of the editor, outside the component.
 //
-// POR QUE ISTO EXISTE — duas razões, e a segunda é a que manda:
+// WHY THIS EXISTS — two reasons, and the second is the one that rules:
 //
-// 1. Testabilidade. Enquanto estas funções viviam dentro do Designer.tsx,
-//    a lógica mais delicada do pacote (espelhar célula de tabela no vínculo,
-//    remapear bindings.schemaName no rename, reindexar coluna por NOME,
-//    limpar sectionId órfão) não tinha um único teste — precisaria montar o
-//    componente inteiro. Como fábrica, dá pra capturar os updaters
-//    despachados e aplicá-los num template de mentira. Ver
+// 1. Testability. While these functions lived inside Designer.tsx, the most
+//    delicate logic in the package (mirroring a table cell into the binding,
+//    remapping bindings.schemaName on a rename, reindexing a column by NAME,
+//    clearing an orphan sectionId) did not have a single test — it would
+//    have required mounting the whole component. As a factory, the
+//    dispatched updaters can be captured and applied to a fake template. See
 //    test/designer/actions.test.ts.
 //
-// 2. Identidade estável. As peças do editor (DesignerCanvas,
-//    DesignerPropertyPanel, ...) vão receber estas funções por contexto. Se
-//    o objeto de actions fosse recriado a cada render, o valor do contexto
-//    mudaria a cada tecla digitada e `React.memo` em qualquer peça viraria
-//    inútil PRA SEMPRE — o consumidor não teria como optar por sair. Por
-//    isso NADA reativo entra por parâmetro: tudo que muda ao longo do tempo
-//    (template, bindings, seleção, modo isolado, dicionário) é lido de
-//    `latest.current`, uma ref atribuída durante o render. Com isso a
-//    fábrica é chamada uma vez, com lista de dependência vazia.
+// 2. Stable identity. The editor's parts (DesignerCanvas,
+//    DesignerPropertyPanel, ...) receive these functions through context. If
+//    the actions object were rebuilt on every render, the context value
+//    would change on every keystroke and `React.memo` on any part would be
+//    useless FOREVER — the consumer would have no way to opt out. That is
+//    why NOTHING reactive comes in as a parameter: everything that changes
+//    over time (template, bindings, selection, isolated mode, dictionary) is
+//    read from `latest.current`, a ref assigned during render. With that,
+//    the factory is called once, with an empty dependency list.
 //
-// O QUE NÃO MUDOU: a autoridade da ESCRITA é o `prev` de dentro do callback
-// funcional — é o que impede dois cliques em sequência rápida de um
-// sobrescrever o array inteiro por cima do outro (foi assim que um "orgao"
-// foi parar no índice de "tarKandir", ver o comentário longo mais abaixo).
-// `latest.current` informa DECISÃO de escrita secundária (ex: "a célula
-// mudou, então o vínculo precisa acompanhar?") e leitura de guarda (ex:
-// "esse nome já existe?"). Ler da ref é equivalente ao closure de antes — o
-// React recria o handler a cada render, então o handler clicado já era o do
-// render mais novo —, ou seja: sem regressão, e sem promessa de ter
-// consertado a corrida de dois cliques na escrita PAREADA (template +
-// bindings), que segue igual.
+// WHAT DID NOT CHANGE: the authority on a WRITE is the `prev` inside the
+// functional callback — that is what stops two clicks in quick succession
+// from overwriting each other's whole array (that is how an "orgao" ended up
+// at the index of "tarKandir", see the long comment further down).
+// `latest.current` informs a secondary write DECISION (e.g. "the cell
+// changed, does the binding have to follow?") and guard reads (e.g. "does
+// this name already exist?"). Reading from the ref is equivalent to the old
+// closure — React recreates the handler on every render, so the handler that
+// was clicked already belonged to the newest render — that is: no
+// regression, and no promise of having fixed the two-click race on a PAIRED
+// write (template + bindings), which is unchanged.
 //
-// TRÊS EXCEÇÕES CONHECIDAS, em que conteúdo escrito ainda deriva de snapshot.
-// Estão listadas aqui porque a regra acima, sem elas, seria mentira:
+// THREE KNOWN EXCEPTIONS, where written content still derives from a snapshot.
+// They are listed here because the rule above, without them, would be a lie:
 //
-// 1. `setTableHead` — `oldHead` sai do snapshot e serve de mapa nome→índice
-//    pra reindexar `binding.columns`. Duas edições rápidas do head escrevem
-//    valor de coluna errado sob um rótulo: é a classe original do bug, ainda
-//    viva. Consertar exige casar por `columnLabel(binding.columns[i])` em vez
-//    de por `oldHead`, o que muda a semântica no caso de head e columns
-//    dessincronizados (que os testes de table/columns fixam) — mudança de
-//    comportamento, não cabe num commit de refactor.
-// 2. `setColumnFormula` — só o lado do VÍNCULO (`rawPath`/`headFallback`);
-//    a célula, que é quem decide o PDF, já vem do `prev`.
-// 3. `addSchema` — `computeSpawnPosition` precisa do template pra achar
-//    posição livre, e a função devolve o schema posicionado de forma
-//    SÍNCRONA porque `createSection` precisa do nome dele pra criar o
-//    vínculo na mesma ação. Dois "+ texto" muito rápidos nascem na mesma
-//    coordenada. Trade-off de desenho, não descuido.
-// TUDO que muda ao longo do tempo mora aqui — inclusive os próprios
-// setters. Os `onChange*` vêm do consumidor (o `report-builder` monta os
-// dele em cima de undo/redo + autosave), então não há garantia de que sejam
-// estáveis entre renders; passá-los por parâmetro faria a fábrica ser
-// recriada junto. Com eles na ref, a lista de dependência do useMemo é
-// VAZIA de verdade.
+// 1. `setTableHead` — `oldHead` comes from the snapshot and serves as a
+//    name→index map to reindex `binding.columns`. Two quick head edits write
+//    the wrong column value under a label: it is the original class of the
+//    bug, still alive. Fixing it requires matching by
+//    `columnLabel(binding.columns[i])` instead of by `oldHead`, which changes
+//    the semantics when head and columns are out of sync (which the
+//    table/columns tests pin) — a behavior change, not a refactor commit.
+// 2. `setColumnFormula` — only the BINDING side (`rawPath`/`headFallback`);
+//    the cell, which is what decides the PDF, already comes from `prev`.
+// 3. `addSchema` — `computeSpawnPosition` needs the template to find a free
+//    position, and the function returns the positioned schema
+//    SYNCHRONOUSLY because `createSection` needs its name to create the
+//    binding in the same action. Two very quick "+ text" are born at the
+//    same coordinate. A design trade-off, not an oversight.
+// EVERYTHING that changes over time lives here — including the setters
+// themselves. The `onChange*` come from the consumer (`report-builder` builds
+// its own on top of undo/redo + autosave), so there is no guarantee they are
+// stable across renders; passing them as parameters would rebuild the factory
+// along with them. With them in the ref, the useMemo dependency list is
+// genuinely EMPTY.
 export type DesignerLatest = {
   template: Template;
   bindings: Binding[];
@@ -101,18 +101,18 @@ export type DesignerLatest = {
   isolateBands: boolean;
   t: Dict;
   dataSources: DataSourceOption[] | undefined;
-  // Passo da grade (config do <Designer>). Entra AQUI e nao por parametro
-  // pelo mesmo motivo do resto: a fabrica roda uma vez, com lista de
-  // dependencia vazia, e todo valor que muda entre renders tem de ser lido
-  // na hora do evento.
+  // Grid step (the <Designer> config). It comes in HERE and not as a
+  // parameter for the same reason as the rest: the factory runs once, with an
+  // empty dependency list, and every value that changes between renders has
+  // to be read at the moment of the event.
   gridSizeMm: number | undefined;
   onChangeTemplate: Dispatch<SetStateAction<Template>>;
   onChangeBindings: Dispatch<SetStateAction<Binding[]>>;
   setSelectedIds: (ids: string[]) => void;
-  // Estado que nao e do template, mas cuja ESCRITA e mutador: o modo
-  // isolado (toggle limpa a selecao junto) e o erro de upload de fundo.
-  // Sao `useState` setters, ja estaveis por contrato do React — estao na
-  // ref por uniformidade, nao por necessidade.
+  // State that does not belong to the template but whose WRITE is a mutator:
+  // the isolated mode (the toggle clears the selection too) and the
+  // background upload error. They are `useState` setters, already stable by
+  // React's contract — they are in the ref for uniformity, not by necessity.
   setIsolateBands: Dispatch<SetStateAction<boolean>>;
   setBackgroundUploadError: (message: string | null) => void;
 };
@@ -120,13 +120,13 @@ export type DesignerLatest = {
 export type DesignerActions = ReturnType<typeof makeDesignerActions>;
 
 export function makeDesignerActions(latest: { current: DesignerLatest }) {
-  // Repasses finos, pros corpos abaixo ficarem legíveis (e idênticos aos que
-  // viviam no componente).
+  // Thin passthroughs, so the bodies below stay readable (and identical to
+  // the ones that lived in the component).
   const onChangeTemplate: Dispatch<SetStateAction<Template>> = (u) => latest.current.onChangeTemplate(u);
   const onChangeBindings: Dispatch<SetStateAction<Binding[]>> = (u) => latest.current.onChangeBindings(u);
   const setSelectedIds = (ids: string[]) => latest.current.setSelectedIds(ids);
 
-  // Atalhos de leitura. Sempre chamados na hora do evento, nunca guardados.
+  // Read shortcuts. Always called at event time, never stored.
   const schemas = () => latest.current.template.schemas;
   const selectedSchema = () => schemas().find((s) => s.id === latest.current.selectedId) ?? null;
   const selectedTable = () => {
@@ -150,27 +150,27 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
       ...prev,
       schemas: prev.schemas.map((s) => (s.id === id ? ({ ...s, ...patch } as Schema) : s)),
     }));
-    // Célula de tabela editada direto no canvas: a célula É a fórmula da
-    // coluna (generate.ts resolve a linha a partir de `content`), então o
-    // vínculo tem de acompanhar. Sem isto o painel "ƒx" seguia mostrando a
-    // fórmula antiga — dois valores pra mesma coisa, e o que aparecia no
-    // painel não era o que ia sair no PDF. O caminho contrário (editar pelo
-    // ƒx) já espelhava, em setColumnFormula.
-    // `patch` é Partial<Schema> (união), e `content` não existe em
-    // SectionSchema — o acesso precisa do estreitamento explícito.
+    // A table cell edited right on the canvas: the cell IS the column's
+    // formula (generate.ts resolves the row from `content`), so the binding
+    // has to follow. Without this the "ƒx" panel kept showing the old
+    // formula — two values for the same thing, and what appeared in the
+    // panel was not what would come out in the PDF. The opposite path
+    // (editing through the ƒx) already mirrored, in setColumnFormula.
+    // `patch` is Partial<Schema> (a union), and `content` does not exist on
+    // SectionSchema — the access needs the explicit narrowing.
     const nextContent = (patch as Partial<TableSchema>).content;
     if (before?.type === "table" && Array.isArray(nextContent)) {
       mirrorTableCellsToBinding(before, nextContent);
     }
   }
 
-  // Renomear pela aba Campos (FieldList.tsx) — nome vazio ou já usado por
-  // outro campo é ignorado (mesma regra de unicidade do "colar", ver
-  // freshName/usedNames em useClipboardAndDelete.ts). Precisa remapear
-  // `bindings` também — sem isso, um vínculo existente
-  // ("Binding.schemaName") apontando pro nome antigo para de bater com o
-  // schema renomeado (generate.ts resolve vínculo por nome) e
-  // silenciosamente some do PDF gerado.
+  // Renaming from the Fields tab (FieldList.tsx) — an empty name, or one
+  // already used by another field, is ignored (the same uniqueness rule as
+  // "paste", see freshName/usedNames in useClipboardAndDelete.ts). It has to
+  // remap `bindings` as well — without that, an existing binding
+  // ("Binding.schemaName") pointing at the old name stops matching the
+  // renamed schema (generate.ts resolves a binding by name) and silently
+  // disappears from the generated PDF.
   function renameSchema(id: string, rawName: string) {
     const newName = rawName.trim();
     if (!newName) return;
@@ -186,9 +186,9 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     onChangeBindings((prev) => prev.map((b) => (b.schemaName === oldName ? { ...b, schemaName: newName } : b)));
   }
 
-  // Mesmo patch em TODOS os ids de uma vez — usado só na edição em bloco
-  // (ver BULK_EDIT_TYPES no Designer): mudar o estilo com vários campos do
-  // MESMO tipo selecionados aplica em todos juntos, não só no último.
+  // The same patch on ALL ids at once — used only in bulk editing (see
+  // BULK_EDIT_TYPES in the Designer): changing the style with several fields
+  // of the SAME type selected applies to all of them, not just the last one.
   function updateSchemas(ids: string[], patch: Partial<Schema>) {
     const idSet = new Set(ids);
     onChangeTemplate((prev) => ({
@@ -197,10 +197,10 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     }));
   }
 
-  // Arrastar um campo que faz parte de uma seleção múltipla move os outros
-  // selecionados ao vivo — posição ABSOLUTA (original + delta desde o
-  // início do arrasto, calculado no PageCanvas via snapshot), não
-  // incremental, senão cada frame do onDrag divergiria do anterior.
+  // Dragging a field that is part of a multiple selection moves the other
+  // selected ones live — an ABSOLUTE position (original + delta since the
+  // start of the drag, computed in PageCanvas from a snapshot), not an
+  // incremental one, otherwise each onDrag frame would diverge from the last.
   function moveGroup(updates: Array<{ id: string; x: number; y: number }>) {
     if (updates.length === 0) return;
     const byId = new Map(updates.map((u) => [u.id, u]));
@@ -213,8 +213,8 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     }));
   }
 
-  // Reordena a pilha de desenho (z-order) — quem vem depois no array
-  // aparece por cima no canvas E no PDF gerado.
+  // Reorders the drawing stack (z-order) — whatever comes later in the array
+  // appears on top, on the canvas AND in the generated PDF.
   function bringToFront(id: string) {
     onChangeTemplate((prev) => {
       const idx = prev.schemas.findIndex((s) => s.id === id);
@@ -237,10 +237,10 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     });
   }
 
-  // Posição de nascimento (centro do corpo, ou dentro da faixa vermelha
-  // quando isolado) — ver computeSpawnPosition em helpers.ts. Devolve o
-  // schema JÁ posicionado porque createSection precisa do nome dele pra
-  // criar o vínculo na mesma ação.
+  // Birth position (the center of the body, or inside the red band when
+  // isolated) — see computeSpawnPosition in helpers.ts. It returns the
+  // schema ALREADY positioned because createSection needs its name to create
+  // the binding in the same action.
   function addSchema(schema: Schema): Schema {
     const { template, isolateBands, gridSizeMm } = latest.current;
     const placed = computeSpawnPosition(template, schema, isolateBands, gridSizeMm);
@@ -249,12 +249,12 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     return placed;
   }
 
-  // "Vazia" (sourcePath undefined) ou já vinculada a uma fonte de dados
-  // conhecida (dataSources) — nesse caso o binding "section" já nasce
-  // pronto, sem precisar digitar o path no BindingEditor depois.
+  // "Empty" (sourcePath undefined) or already bound to a known data source
+  // (dataSources) — in that case the "section" binding is born ready, with
+  // no need to type the path in the BindingEditor afterwards.
   //
-  // Fechar o seletor de seção é decisão de QUEM CHAMA (o estado dele é
-  // local da toolbar, não do editor).
+  // Closing the section picker is the CALLER's decision (its state is local
+  // to the toolbar, not to the editor).
   function createSection(sourcePath?: string) {
     const { t, gridSizeMm } = latest.current;
     const section = addSchema(makeSectionSchema(nextFreeY(schemas(), gridSizeMm), t)) as SectionSchema;
@@ -264,8 +264,8 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     return section;
   }
 
-  // Soltar um "chip" de coluna (arrastado do PropertyPanel de uma seção
-  // vinculada) no canvas — cria o par header+valor, já membros da seção.
+  // Dropping a column "chip" (dragged from the PropertyPanel of a bound
+  // section) on the canvas — it creates the header+value pair, already members.
   function dropSectionColumn(payload: SectionColumnDragPayload, xMm: number, yMm: number) {
     const { t } = latest.current;
     const { header, value, valueBinding } = makeSectionColumnPair(payload.sectionId, payload.column, xMm, yMm, t);
@@ -277,10 +277,10 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     const schema = schemas().find((s) => s.id === id);
     onChangeTemplate((prev) => ({
       ...prev,
-      // Filho de uma seção apagada vira campo solto de novo (limpa
-      // sectionId) — sem isso ficava com um id órfão apontando pra
-      // seção que não existe mais e sumia do PDF gerado (silencioso,
-      // sem erro nenhum) mesmo continuando visível no canvas.
+      // A child of a deleted section becomes a loose field again (it clears
+      // sectionId) — without this it kept an orphan id pointing at a
+      // section that no longer exists and disappeared from the generated
+      // PDF (silently, with no error) while still visible on the canvas.
       schemas: prev.schemas
         .filter((s) => s.id !== id)
         .map((s) => (s.sectionId === id ? { ...s, sectionId: undefined } : s)),
@@ -299,29 +299,29 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     });
   }
 
-  // Vínculo "array" novo (1ª vez, ainda sem binding nenhum) numa tabela —
-  // sincroniza head/content com as colunas do vínculo antes de salvar.
-  // Sem isso, uma tabela recém-criada (head placeholder "Coluna 1"/
-  // "Coluna 2") que escolhe um Data Source no BindingEditor ganhava um
-  // binding.columns cheio (todas as colunas da fonte) enquanto head
-  // continuava com só 2 — desalinhado desde o clique em "Vincular", antes
-  // de qualquer "+"/remover acontecer (cada "+" subsequente só piorava,
-  // já achando a coluna "já presente" no binding inflado e nunca
-  // adicionando de verdade). Vínculo JÁ EXISTENTE sendo só editado (path
-  // trocado etc) não mexe em head — só a criação do zero.
+  // A new "array" binding (the 1st time, with no binding yet) on a table —
+  // it syncs head/content with the binding's columns before saving. Without
+  // it, a freshly created table (placeholder head "Column 1"/"Column 2")
+  // that picks a Data Source in the BindingEditor got a full
+  // binding.columns (every column of the source) while head still had only
+  // 2 — out of alignment from the click on "Bind", before any "+"/remove
+  // happened (every subsequent "+" only made it worse, finding the column
+  // "already present" in the inflated binding and never really adding it).
+  // An ALREADY EXISTING binding merely being edited (path swapped and so
+  // on) does not touch head — only creation from scratch does.
   function handleChangeBinding(schemaName: string, binding: Binding | null) {
     if (binding?.type === "array") {
       const schema = schemas().find((s) => s.name === schemaName);
       const hadBindingBefore = latest.current.bindings.some((b) => b.schemaName === schemaName);
       if (schema && schema.type === "table" && !hadBindingBefore) {
         const newHead = binding.columns.map((c) => columnLabel(c));
-        // `tokenFor` e não `` `{${c}}` ``: a chave pode ter ponto, espaço,
-        // parêntese ou quote, e a forma nua daria um path errado ou um erro de
-        // sintaxe. Mesma regra que a tabela nova e a normalização usam.
+        // `tokenFor` and not `` `{${c}}` ``: the key may contain a dot, a
+        // space, a parenthesis or a quote, and the bare form would give a wrong
+        // path or a syntax error. Same rule as the new table and normalization.
         const newContent = [binding.columns.map((c) => (typeof c === "string" ? tokenFor(c) : c.formula))];
         updateSchema(schema.id, { head: newHead, content: newContent, footer: undefined, columnStyles: undefined });
-        // E a coluna de chave crua vira `{label, formula}` no próprio vínculo,
-        // pra não haver coluna crua nascendo por este caminho tampouco.
+        // And a raw-key column becomes `{label, formula}` in the binding itself,
+        // so no raw column is born through this path either.
         binding = {
           ...binding,
           columns: binding.columns.map((c, i) =>
@@ -333,24 +333,24 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     setBinding(schemaName, binding);
   }
 
-  // TODAS as funções de coluna abaixo (setTableHead/addTableColumn/
+  // ALL the column functions below (setTableHead/addTableColumn/
   // removeTableColumn/reorderTableColumn/setColumnStyle/setColumnFormula)
-  // recalculam a TABELA de dentro do próprio callback funcional (nunca a
-  // partir de um schema fechado no render) — 2 cliques em sequência rápida
-  // (antes do 1º re-render acontecer) liam o MESMO schema desatualizado, e o
-  // 2º clique sobrescrevia o array inteiro por cima do 1º (não só não via a
-  // mudança do outro — APAGAVA ela). Foi exatamente como um "orgao" foi
-  // parar no índice de "tarKandir": um clique de "+" usou uma cópia de
-  // head/columns de ANTES do clique anterior aplicar, reescreveu o array
-  // inteiro com base nela, e derrubou a adição alheia.
+  // recompute the TABLE from inside the functional callback itself (never
+  // from a schema closed over at render time) — 2 clicks in quick succession
+  // (before the 1st re-render happened) read the SAME stale schema, and the
+  // 2nd click overwrote the whole array on top of the 1st (it did not merely
+  // fail to see the other's change — it ERASED it). That is exactly how an
+  // "orgao" ended up at the index of "tarKandir": a "+" click used a copy of
+  // head/columns from BEFORE the previous click applied, rewrote the whole
+  // array from it, and knocked out the other addition.
   //
-  // updateSelectedTable centraliza o find/guard/map repetido (acha a tabela
-  // selecionada dentro do `prev` funcional, confere que é mesmo type
-  // "table", aplica o `mutator` recebido e substitui de volta no array) —
-  // cada função só passa a lógica de coluna que muda, delegada pras funções
-  // puras de src/fields/table/columns.ts.
-  // `mutator` pode devolver undefined pra "sem mudança" (ex: coluna
-  // duplicada em addColumnToTable).
+  // updateSelectedTable centralizes the repeated find/guard/map (it finds the
+  // selected table inside the functional `prev`, checks that it really is
+  // type "table", applies the `mutator` it received and puts it back in the
+  // array) — each function only passes the column logic that differs,
+  // delegated to the pure functions in src/fields/table/columns.ts.
+  // `mutator` may return undefined for "no change" (e.g. a duplicate column
+  // in addColumnToTable).
   function updateSelectedTable(mutator: (table: TableSchema) => TableSchema | null | undefined) {
     const { selectedId } = latest.current;
     if (!selectedId) return;
@@ -363,17 +363,17 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     });
   }
 
-  // Editar "Colunas (cabeçalho, vírgula)" à mão — reescreve `head` inteiro
-  // de uma vez (não é add/remove de 1 índice, é a lista toda substituída).
-  // Pra cada nome do NOVO head, acha esse MESMO nome no head ANTIGO e
-  // carrega o que tava naquele índice (content/footer/columnStyles/
-  // binding.columns) — por NOME, não por posição. Só por posição (ex:
-  // truncar/preencher no índice) já deixou um bug de verdade: reduzir de
-  // 9 pra 1 coluna ("fatura") simplesmente pegava o índice 0 de tudo, que
-  // era "orgao" (1ª coluna do binding original) — o valor certo de
-  // "fatura" (índice 2) nunca era encontrado, PDF saía com órgão sob o
-  // rótulo fatura, silencioso. Nome novo sem correspondência antiga vira
-  // coluna crua (mesmo padrão do "+" de sempre).
+  // Editing "Columns (header, comma)" by hand — it rewrites the whole `head`
+  // at once (this is not an add/remove of 1 index, it is the entire list
+  // replaced). For each name in the NEW head, it finds that SAME name in the
+  // OLD head and carries over what was at that index (content/footer/
+  // columnStyles/binding.columns) — by NAME, not by position. By position
+  // alone (e.g. truncating/padding at the index) it already caused a real
+  // bug: reducing from 9 columns to 1 ("fatura") simply took index 0 of
+  // everything, which was "orgao" (the 1st column of the original binding) —
+  // the right value for "fatura" (index 2) was never found, and the PDF came
+  // out with the agency under the invoice label, silently. A new name with
+  // no old match becomes a raw column (the usual "+" pattern).
   function setTableHead(newHead: string[]) {
     const table = selectedTable();
     if (!table) return;
@@ -388,23 +388,23 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     });
   }
 
-  // Se o valor de exemplo desse campo no JSON é numérico (typeof number,
-  // visto em findTableDataSource -> dataSources[].columnTypes), a coluna
-  // já nasce formatada como moeda (2 casas, R$) em vez de token cru — não
-  // precisa abrir o "ƒx" depois só pra marcar "isso aqui é dinheiro".
-  // Texto/outro tipo continua exatamente como sempre (token cru).
-  // Renomear UMA coluna — só o rótulo, a referência fica.
+  // If this field's sample value in the JSON is numeric (typeof number,
+  // seen in findTableDataSource -> dataSources[].columnTypes), the column is
+  // born formatted as currency (2 decimals, R$) instead of a raw token — no
+  // need to open the "ƒx" afterwards just to mark "this one is money".
+  // Text/any other type stays exactly as it always was (a raw token).
+  // Rename ONE column — only the label, the reference stays.
   //
-  // É a operação que o modelo não tinha, e a causa do bug relatado: sem ela o
-  // único jeito de mudar um título era o `setTableHead` abaixo, que reescreve
-  // a lista inteira e re-deriva cada slot casando nome novo contra head
-  // antigo. Um nome renomeado não está no head antigo, então a coluna perdia
-  // o token de `content` (que é o que o PDF usa), o estilo, a largura, e
-  // ganhava o título novo como chave de JSON.
+  // It is the operation the model did not have, and the cause of the reported
+  // bug: without it the only way to change a title was `setTableHead` below,
+  // which rewrites the whole list and re-derives each slot by matching the new
+  // name against the old head. A renamed name is not in the old head, so the
+  // column lost its `content` token (which is what the PDF uses), its style
+  // and its width, and gained the new title as a JSON key.
   //
-  // As duas metades em dois dispatches, como todas as outras funções de
-  // coluna — e a metade do vínculo só faz algo quando a coluna é calculada
-  // (`{label, formula}`), porque coluna de chave crua não tem rótulo próprio.
+  // The two halves in two dispatches, like every other column function — and
+  // the binding half only does something when the column is calculated
+  // (`{label, formula}`), because a raw-key column has no label of its own.
   function renameTableColumn(index: number, label: string) {
     const table = selectedTable();
     if (!table) return;
@@ -436,15 +436,15 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     });
   }
 
-  // Remove a coluna do cabeçalho/linhas de preview pelo índice — inclui
-  // as placeholder "Coluna 1"/"Coluna 2" (tabela recém-criada, antes de
-  // vincular a nada) e as que vieram do "+" da fonte de dados.
+  // Removes the column from the header/preview rows by index — this includes
+  // the placeholder "Column 1"/"Column 2" (a freshly created table, before
+  // binding to anything) and the ones that came from the data source's "+".
   //
-  // A remoção do `head`/`content` é por índice (fonte de verdade direta),
-  // mas do binding.columns é por NOME — head e columns podem dessincronizar
-  // (ex: usuário editou o texto livre "Colunas, vírgula" sem mexer no
-  // vínculo), e remover por índice ali arriscava tirar a coluna ERRADA do
-  // binding. Por nome, na pior hipótese não acha e não tira nada (seguro).
+  // Removal from `head`/`content` is by index (the direct source of truth),
+  // but from binding.columns it is by NAME — head and columns can fall out
+  // of sync (e.g. the user edited the free "Columns, comma" text without
+  // touching the binding), and removing by index there risked taking the
+  // WRONG column out of the binding. By name, at worst it finds nothing.
   function removeTableColumn(index: number) {
     const table = selectedTable();
     if (!table) return;
@@ -464,11 +464,11 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     });
   }
 
-  // Arrastar pra reordenar (lista "Colunas atuais da tabela" no painel) —
-  // desloca head/content/footer juntos (índice é a fonte de verdade dos
-  // três). O binding.columns só reordena junto se o tamanho bater com o
-  // head — senão fica como tá, pra não arriscar embaralhar valor errado
-  // sob rótulo errado (mesma cautela do remove por nome).
+  // Dragging to reorder (the "Current table columns" list in the panel) —
+  // it shifts head/content/footer together (the index is the source of truth
+  // for all three). binding.columns is only reordered with them if its length
+  // matches head — otherwise it is left alone, so as not to risk shuffling
+  // the wrong value under the wrong label (same caution as removal by name).
   function reorderTableColumn(fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
     const table = selectedTable();
@@ -485,43 +485,43 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     });
   }
 
-  // Estilo (cor/fundo/tamanho) por coluna, header e valor — botão de
-  // pincel na lista de colunas do painel. Mescla no índice, sem mexer
-  // no resto (undefined num campo do patch limpa só aquele campo).
+  // Style (color/background/size) per column, header and value — the brush
+  // button in the panel's column list. It merges at the index, without
+  // touching the rest (undefined on a patch field clears only that field).
   function setColumnStyle(index: number, patch: Partial<TableColumnStyle>) {
     updateSelectedTable((t) => setColumnStylePure(t, index, patch));
   }
 
-  // Largura de UMA coluna — input numérico do painel (arrastar a divisão
-  // no canvas já grava `columnWidths` direto via onUpdateSchema genérico,
-  // ver TableField.tsx). Mesmo padrão funcional de setColumnStyle acima.
+  // Width of ONE column — the panel's numeric input (dragging the divider on
+  // the canvas already writes `columnWidths` directly through the generic
+  // onUpdateSchema, see TableField.tsx). Same pattern as setColumnStyle above.
   function setColumnWidth(index: number, widthMm: number | undefined) {
     updateSelectedTable((t) => setColumnWidthPure(t, index, widthMm));
   }
 
-  // Fórmula de UMA coluna do vínculo "array" — botão "ƒx" na lista de
-  // colunas do painel (só aparece pra tabela vinculada de verdade; sem
-  // vínculo, o template já é editável direto na célula da tabela). Vazio
-  // volta a ser coluna crua (só o nome); com texto, vira {label, formula}.
+  // Formula for ONE column of the "array" binding — the "ƒx" button in the
+  // panel's column list (it only appears for a genuinely bound table; with
+  // no binding, the template is already editable in the table cell itself).
+  // Empty reverts to a raw column (name only); with text, {label, formula}.
   function setColumnFormula(index: number, formula: string) {
     const table = selectedTable();
     if (!table) return;
     const schemaName = table.name;
-    // content[i] é quem manda na hora de resolver a célula (ver generate.ts) —
-    // sem espelhar aqui, o token bruto que já tava em content (ex: "{tarKandir}")
-    // continua ganhando de qualquer fórmula nova salva só no binding, e a
-    // edição pelo ƒx não tem efeito nenhum no PDF.
+    // content[i] is what rules when resolving the cell (see generate.ts) —
+    // without mirroring here, the raw token already in content (e.g.
+    // "{tarKandir}") keeps beating any new formula saved only in the binding,
+    // and editing through the ƒx has no effect at all on the PDF.
     //
-    // A CÉLULA é recalculada de dentro do updater, a partir do `prev` — é ela
-    // que decide o que sai no PDF, então não pode vir de snapshot.
+    // The CELL is recomputed from inside the updater, out of `prev` — it is
+    // what decides what comes out in the PDF, so it cannot come from a snapshot.
     updateSelectedTable((t) => {
       const { cell } = computeColumnFormulaCell(formula, t.content[0]?.[index], t.head[index]);
       return applyColumnCellToTable(t, index, cell);
     });
-    // `rawPath`/`headFallback` do lado do VÍNCULO ainda saem do snapshot: são
-    // dois dispatches separados (template e bindings) e o updater de um não
-    // pode ler o `prev` do outro. Mesma limitação de escrita pareada descrita
-    // no comentário de abertura — o lado que decide o PDF é o de cima.
+    // The binding side's `rawPath`/`headFallback` still come from the snapshot:
+    // they are two separate dispatches (template and bindings) and one
+    // updater cannot read the other's `prev`. Same paired-write limitation
+    // described in the opening comment — the side that decides the PDF is above.
     const { rawPath } = computeColumnFormulaCell(formula, table.content[0]?.[index], table.head[index]);
     const headFallback = table.head[index];
     onChangeBindings((prev) => {
@@ -536,14 +536,14 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     onChangeTemplate((prev) => ({ ...prev, ...patch }));
   }
 
-  // Troca o tamanho/orientação da página — preserva a orientação atual ao
-  // trocar de preset, e preserva o preset (largura/altura) ao só girar.
+  // Swaps the page's size/orientation — it preserves the current orientation
+  // when switching preset, and preserves the preset (width/height) on a rotate.
   function setPagePreset(presetName: string) {
     const preset = PAGE_SIZE_PRESETS.find((p) => p.name === presetName);
     if (!preset) return;
-    // A orientação sai do `prev`, não de um snapshot: girar a página e trocar
-    // o preset em sequência rápida liam a MESMA orientação velha e a segunda
-    // ação desfazia a primeira.
+    // The orientation comes out of `prev`, not out of a snapshot: rotating the
+    // page and switching the preset in quick succession read the SAME stale
+    // orientation and the second action undid the first.
     onChangeTemplate((prev) => ({ ...prev, page: applyOrientation(preset.size, orientationOf(prev.page)) }));
   }
 
@@ -551,29 +551,29 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     onChangeTemplate((prev) => ({ ...prev, page: applyOrientation(prev.page, orientation) }));
   }
 
-  // PNG data URI de fundo (letterhead). Escrita crua no template — o
-  // caminho de "usuário escolheu um arquivo" é `handleBackgroundUpload`
-  // abaixo, que lê/converte e reporta erro.
+  // Background PNG data URI (letterhead). A raw write into the template —
+  // the "the user picked a file" path is `handleBackgroundUpload` below,
+  // which reads/converts and reports an error.
   function setBackgroundImage(backgroundImage: string | undefined) {
     onChangeTemplate((prev) => ({ ...prev, backgroundImage }));
   }
 
-  // Modo isolado (só cabeçalho/rodapé/margem visíveis). Limpa a seleção
-  // ANTES de virar a chave: os dois conjuntos de campo são disjuntos (ver
-  // o filtro de fieldListSchemas), então manter a seleção deixaria o painel
-  // de propriedades editando um campo que o canvas não mostra mais.
+  // Isolated mode (only header/footer/margin visible). It clears the
+  // selection BEFORE flipping the switch: the two sets of fields are
+  // disjoint (see the fieldListSchemas filter), so keeping the selection
+  // would leave the property panel editing a field the canvas no longer shows.
   function toggleIsolateBands() {
     latest.current.setSelectedIds([]);
     latest.current.setIsolateBands((v) => !v);
   }
 
-  // Upload de imagem de fundo. Mutador, e não helper do componente, porque
-  // o único caminho de sucesso dele é `setBackgroundImage` — e o de falha
-  // precisa do dicionário, que já mora na ref.
+  // Background image upload. A mutator, and not a component helper, because
+  // its only success path is `setBackgroundImage` — and its failure path
+  // needs the dictionary, which already lives in the ref.
   //
-  // `e.target.value = ""` antes de qualquer await: sem isso, escolher o
-  // MESMO arquivo de novo (depois de um erro, ou depois de remover o fundo)
-  // não dispara `change`, e o upload "não responde".
+  // `e.target.value = ""` before any await: without it, picking the SAME
+  // file again (after an error, or after removing the background) does not
+  // fire `change`, and the upload "does not respond".
   async function handleBackgroundUpload(e: { target: HTMLInputElement }) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -583,9 +583,9 @@ export function makeDesignerActions(latest: { current: DesignerLatest }) {
     try {
       setBackgroundImage(await fileToBackgroundImage(file));
     } catch (err) {
-      // PDF corrompido ou canvas 2D indisponível fazem fileToBackgroundImage
-      // rejeitar — sem isto a promise quebrava em silêncio (só console) e o
-      // upload "sumia" sem o usuário entender por quê.
+      // A corrupt PDF or an unavailable 2D canvas make fileToBackgroundImage
+      // reject — without this the promise broke silently (console only) and
+      // the upload "vanished" without the user understanding why.
       setBackgroundUploadError(toErrorMessage(err, t.pageSettings.backgroundUploadError));
     }
   }

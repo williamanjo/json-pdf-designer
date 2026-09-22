@@ -1,14 +1,14 @@
 import type { JsonSource } from "../components/DataSourcePanel";
 
-// Junta N fontes JSON num objeto só, nível superior — em caso de chave
-// repetida, a fonte mais pra baixo na lista vence. Erro de uma fonte
-// (JSON inválido, ou não é objeto) não impede as outras de entrar na
-// mescla; só fica de fora e aparece marcada.
+// It merges N JSON sources into a single object, at the top level — on a
+// repeated key, the source further down the list wins. An error in one source
+// (invalid JSON, or not an object) does not stop the others from entering the
+// merge; it is simply left out and shown marked.
 //
-// Devolve o MOTIVO do erro (um código), não a frase pronta: a frase é
-// escolhida na hora de renderizar, em DataSourcePanel. Guardar texto já
-// traduzido no estado era o bug — trocar o idioma não recalcula o estado, e a
-// mensagem de erro ficava congelada no idioma em que foi gerada.
+// It returns the error's REASON (a code), not the finished phrase: the phrase
+// is chosen at render time, in DataSourcePanel. Holding already-translated
+// text in state was the bug — switching the language does not recompute the
+// state, and the error message stayed frozen in the language it was born in.
 export type SourceProblem = "invalidJson" | "notObject";
 
 export function mergeSources(sources: JsonSource[]): { data: Record<string, unknown>; errorsById: Record<string, SourceProblem> } {

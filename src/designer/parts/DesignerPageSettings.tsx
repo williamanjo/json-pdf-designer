@@ -13,10 +13,10 @@ export type DesignerPageSettingsProps = {
   whenTab?: TabGate;
 };
 
-// Peça posicionável: tamanho/orientação da página, alturas de
-// cabeçalho/rodapé, margens, imagem de fundo e o modo isolado.
+// A placeable part: page size/orientation, header/footer heights, margins,
+// background image and the isolated mode.
 //
-// A raiz é `.jpd-stack`, a MESMA que o `Designer.tsx` tinha.
+// The root is `.jpd-stack`, the SAME one `Designer.tsx` had.
 export function DesignerPageSettings({ whenTab, ...rest }: DesignerPageSettingsProps) {
   if (!useTabGate(whenTab)) return null;
   return <DesignerPageSettingsBody {...rest} />;
@@ -80,12 +80,12 @@ function DesignerPageSettingsBody({ className, style }: Omit<DesignerPageSetting
           onChange={(e) => updatePageBand({ marginRight: Number(e.target.value) || 0 })}
         />
       </div>
-      {/* Este <label> era o `outline` do ui/Button transcrito à mão, string
-          por string. Agora consome as MESMAS classes do kit: `<label>` não é
-          `<button>`, mas `.jpd-btn` + `data-size`/`data-variant` não dependem
-          do elemento (o `appearance: button` do reset é inerte fora de
-          widget). Continua um `<label>` porque o input de arquivo tem de
-          ficar por dentro pra o clique abrir o seletor. */}
+      {/* This <label> was the ui/Button `outline` transcribed by hand,
+          string by string. It now consumes the SAME classes as the kit: a
+          `<label>` is not a `<button>`, but `.jpd-btn` + `data-size`/
+          `data-variant` do not depend on the element (the reset's
+          `appearance: button` is inert outside a widget). It stays a `<label>`
+          because the file input has to sit inside for the click to open the picker. */}
       <label className="jpd-btn" data-size="sm" data-variant="outline">
         <IconUpload /> {t.pageSettings.backgroundUpload}
         <input type="file" accept="image/png,image/jpeg" onChange={handleBackgroundUpload} hidden />

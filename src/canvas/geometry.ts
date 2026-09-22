@@ -1,13 +1,13 @@
 import type { Schema } from "../types";
 import { pxToMm } from "../page/units";
 
-// Altura (mm) da barra "jpd-section__handle" no topo da seção
-// (FieldBox/SectionField.tsx, h-4 = 16px) — usada pra caixa de seleção só
-// pegar a seção quando cruza essa faixa, não o corpo inteiro.
+// Height (mm) of the "jpd-section__handle" bar at the top of the section
+// (FieldBox/SectionField.tsx, h-4 = 16px) — used so the marquee only picks
+// up the section when it crosses that band, not the whole body.
 const SECTION_HEADER_HEIGHT_MM = pxToMm(16);
 
-// Centro do campo caindo dentro do retângulo de uma seção = vira membro
-// dela (sectionId) — fora de qualquer seção = limpa o vínculo de grupo.
+// A field whose center falls inside a section rectangle becomes a member
+// of it (sectionId) — outside any section clears the group binding.
 export function findSectionAt(schemas: Schema[], x: number, y: number, width: number, height: number, excludeId: string) {
   const cx = x + width / 2;
   const cy = y + height / 2;
@@ -16,12 +16,12 @@ export function findSectionAt(schemas: Schema[], x: number, y: number, width: nu
   );
 }
 
-// Hit-test da caixa de seleção (marquee): quais schemas cruzam o retângulo
-// (mm) desenhado no fundo do canvas. Seção só entra na seleção se a caixa
-// cruzar a faixa do HEADER dela (mesma altura da barra
-// "jpd-section__handle") — cruzar só o corpo (onde os campos membros ficam
-// desenhados) nunca seleciona a seção, só os campos que estiverem por baixo
-// da caixa.
+// Marquee hit-test: which schemas cross the rectangle (mm) drawn on the
+// canvas background. A section only enters the selection if the box
+// crosses its HEADER band (the same height as the "jpd-section__handle"
+// bar) — crossing the body alone (where the member fields are drawn)
+// never selects the section, only the fields that happen to sit under
+// the box.
 export function schemasInRect(schemas: Schema[], rectMm: { x1: number; y1: number; x2: number; y2: number }) {
   return schemas.filter((s) => {
     const testHeight = s.type === "section" ? Math.min(s.height, SECTION_HEADER_HEIGHT_MM) : s.height;

@@ -3,29 +3,29 @@ import { en, type Dict } from "../i18n/locales/en";
 import { expressionError, templateExpressionErrors } from "./resolve";
 import { suspiciousOperator, templateSuspiciousOperators } from "./suspicious";
 
-// Todas as expressões que UM schema carrega, e o erro de sintaxe de cada uma.
+// Every expression ONE schema carries, and each one's syntax error.
 //
-// Existe porque a geração é tolerante de propósito (expressão inválida vira
-// campo vazio, não derruba o PDF — ver resolve.ts). Sem isto, o problema
-// ficaria invisível: o campo aparece em branco e ninguém sabe por quê. Aqui é
-// o outro lado do acordo — o editor aponta, antes de gerar.
+// It exists because generation is deliberately tolerant (an invalid
+// expression becomes an empty field, it does not bring the PDF down — see
+// resolve.ts). Without this, the problem would be invisible: the field shows
+// up blank and nobody knows why. Here is the other side of the bargain.
 
 export type SchemaExpressionError = {
-  // "error" = a expressão não compila, o campo renderiza vazio com certeza.
-  // "warning" = compila, mas quase certamente não é o que o autor quis (ver
-  // suspicious.ts) — pode ser chave de JSON legítima, então não é erro.
+  // "error" = the expression does not compile, the field will certainly
+  // render empty. "warning" = it compiles, but is almost certainly not what
+  // the author meant (see suspicious.ts) — it may be a legitimate JSON key.
   severity: "error" | "warning";
-  // Onde no schema está a expressão: "content", "visibleWhen", "value",
-  // "footer[2]" etc. — pra mensagem dizer ONDE mexer, não só QUE tem erro.
+  // Where in the schema the expression is: "content", "visibleWhen", "value",
+  // "footer[2]" and so on — so the message says WHERE to fix, not only THAT.
   field: string;
-  // O trecho problemático (`{...}` com as chaves, ou a condição nua no caso
-  // do visibleWhen).
+  // The problematic stretch (the `{...}` with its braces, or the bare
+  // condition in the case of visibleWhen).
   expression: string;
   message: string;
 };
 
-// Um campo cujo valor é um TEMPLATE (texto com `{...}` no meio) — o erro é
-// por token.
+// A field whose value is a TEMPLATE (text with `{...}` in the middle) — the
+// error is per token.
 function fromTemplate(field: string, template: string | undefined, t: Dict): SchemaExpressionError[] {
   if (!template) return [];
   return [
@@ -38,7 +38,7 @@ function fromTemplate(field: string, template: string | undefined, t: Dict): Sch
   ];
 }
 
-// Um campo cujo valor é uma EXPRESSÃO nua (sem chaves) — hoje só o
+// A field whose value is a bare EXPRESSION (no braces) — today only
 // `visibleWhen`.
 function fromCondition(field: string, condition: string | undefined, t: Dict): SchemaExpressionError[] {
   const trimmed = condition?.trim();
@@ -62,7 +62,7 @@ export function schemaExpressionErrors(schema: Schema, t: Dict = en): SchemaExpr
       errors.push(...fromTemplate("subtitle", schema.subtitle, t));
       break;
     case "table":
-      // A linha de totais é um template por célula.
+      // The totals row is a template per cell.
       (schema.footer ?? []).forEach((cell, i) => errors.push(...fromTemplate(`footer[${i}]`, cell, t)));
       break;
     default:

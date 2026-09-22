@@ -3,69 +3,69 @@ import { cx } from "./cx";
 import { Labeled, type LabeledParts } from "./Labeled";
 import { PaletteSwatches } from "./PaletteSwatches";
 
-// Uma opção dentro do dropdown: nome estável (é o que `onSelect` recebe e o
-// que decide o destaque de "selecionado") + as cores já resolvidas pra essa
-// opção (o caller resolve — este componente não sabe nada de paletas de
-// gráfico/tabela) + um rótulo opcional pra mostrar ao lado das bolinhas
-// (variant "list", ver abaixo; variant "grid" ignora `label`, só mostra as
-// bolinhas, igual o seletor de tabela já fazia).
+// One option inside the dropdown: a stable name (it is what `onSelect`
+// receives and what decides the "selected" highlight) + the colors already
+// resolved for that option (the caller resolves them — this component knows
+// nothing about chart/table palettes) + an optional label to show next to the
+// dots (variant "list", see below; variant "grid" ignores `label` and shows
+// only the dots, as the table picker already did).
 export type PaletteGroupItem = {
   name: string;
   colors: string[];
   label?: string;
 };
 
-// Um grupo de opções com um cabeçalho opcional. `label` vazio ("") não
-// desenha cabeçalho nenhum — é o que o caller do gráfico usa pra ter uma
-// lista "plana" (um grupo só, sem título) reaproveitando a mesma estrutura
-// dos 3 grupos Claro/Médio/Escuro da tabela.
+// A group of options with an optional header. An empty `label` ("") draws no
+// header at all — that is what the chart's caller uses to get a "flat" list
+// (a single group, no title) while reusing the same structure as the table's
+// 3 Light/Medium/Dark groups.
 export type PaletteGroup = {
   label: string;
   items: PaletteGroupItem[];
 };
 
 export type PalettePickerProps = Omit<HTMLAttributes<HTMLDivElement>, "onSelect"> & {
-  /** Rótulo acima do botão (ex.: "Paleta de cores"). Omitido = sem rótulo. */
+  /** Label above the button (e.g. "Color palette"). Omitted = no label. */
   label?: string;
-  /** Nome da paleta atualmente selecionada — usado só pra destacar a opção certa na lista. */
+  /** Name of the currently selected palette — used only to highlight the right option. */
   currentName: string;
-  /** Cores já resolvidas da paleta atual, mostradas nas bolinhas do botão. Array vazio mostra `emptyPlaceholder` no lugar. */
+  /** Already-resolved colors of the current palette, shown in the button's dots. An empty array shows `emptyPlaceholder` instead. */
   currentColors: string[];
-  /** Texto mostrado no botão ao lado das bolinhas. Padrão: `currentName`. */
+  /** Text shown on the button next to the dots. Defaults to `currentName`. */
   currentLabel?: string;
   onSelect: (name: string) => void;
   groups: PaletteGroup[];
-  /** Mostrado no lugar das bolinhas quando `currentColors` está vazio. Padrão: "—" (caso da tabela sem preset/customizado). */
+  /** Shown in place of the dots when `currentColors` is empty. Defaults to "—" (the table case with no preset/custom). */
   emptyPlaceholder?: string;
   /**
-   * "list" (padrão, caso do gráfico): opções empilhadas, uma coluna, cada
-   * uma com bolinhas + `item.label`. Grupos não desenham cabeçalho (só
-   * fazem sentido com um único grupo de `label` vazio).
-   * "grid" (caso da tabela): opções por grupo, cada grupo com cabeçalho
-   * (quando `group.label` não é vazio) e uma grade 2 colunas de opções só
-   * com bolinhas (sem `item.label`).
+   * "list" (default, the chart case): options stacked in one column, each with
+   * dots + `item.label`. Groups draw no header (they only make sense with a
+   * single group whose `label` is empty).
+   * "grid" (the table case): options per group, each group with a header
+   * (when `group.label` is not empty) and a 2-column grid of options showing
+   * dots only (no `item.label`).
    */
   variant?: "list" | "grid";
-  /** Tamanho das bolinhas. "md" (gráfico) | "sm" (tabela). */
+  /** Size of the dots. "md" (chart) | "sm" (table). */
   swatchSize?: "sm" | "md";
   parts?: LabeledParts;
 };
 
-// Dropdown de paleta nomeada, reaproveitável: botão mostra a paleta atual
-// (bolinhas + texto), clique abre/fecha uma lista de opções (bolinhas de
-// cada uma), escolher uma aplica e fecha de novo. Generaliza os dois
-// seletores quase idênticos que PropertyPanelChart.tsx e
-// PropertyPanelTable.tsx tinham cada um o seu.
+// A reusable named-palette dropdown: the button shows the current palette
+// (dots + text), a click opens/closes a list of options (each with its dots),
+// picking one applies it and closes again. It generalizes the two nearly
+// identical pickers that PropertyPanelChart.tsx and PropertyPanelTable.tsx
+// each had one of.
 //
-// BREAKING em 3.0.0, duas coisas:
+// BREAKING in 3.0.0, two things:
 //
-// - `swatchSize`/`swatchGap`/`swatchShrink` (três strings de classe Tailwind)
-//   colapsaram num `swatchSize` de dois valores. As duas chamadas reais
-//   sempre passavam o mesmo trio junto, e sempre casado com o `variant`.
-// - `staticArrow` morreu. Ele existia só pra preservar o que o comentário
-//   dele mesmo chamava de "detalhe não intencional da versão original": a
-//   seta do seletor da TABELA não alternava ▾/▴ e não tinha cor de dark
-//   mode. Com token, existe uma cor de seta; a seta alterna nos dois casos.
+// - `swatchSize`/`swatchGap`/`swatchShrink` (three Tailwind class strings)
+//   collapsed into a two-valued `swatchSize`. The two real calls always passed
+//   the same trio together, and always matched to the `variant`.
+// - `staticArrow` is gone. It existed only to preserve what its own comment
+//   called an "unintended detail of the original version": the TABLE picker's
+//   arrow did not toggle ▾/▴ and had no dark mode color. With a token there
+//   is an arrow color; the arrow toggles in both cases.
 export const PalettePicker = forwardRef<HTMLDivElement, PalettePickerProps>(function PalettePicker(
   { label, currentName, currentColors, currentLabel, onSelect, groups, emptyPlaceholder = "—", variant = "list", swatchSize, className, parts, ...rest },
   ref

@@ -2,33 +2,34 @@ import { dictFor, expressionErrors, fieldWarning } from "json-pdf-designer";
 import type { Binding, Locale, Schema, Template, TemplatePage } from "json-pdf-designer";
 import { t } from "../i18n";
 
-// Tudo que está torto no template ANTES de gerar.
+// Everything that is crooked in the template BEFORE generating.
 //
-// Existe porque a geração é tolerante de propósito: expressão inválida resolve
-// pra vazio em vez de derrubar o PDF. Ótimo pra não perder um relatório de 200
-// páginas por uma vírgula — mas sem isto o problema fica invisível (o campo
-// aparece em branco e ninguém sabe por quê). Este é o outro lado do acordo.
+// It exists because generation is deliberately tolerant: an invalid expression
+// resolves to empty instead of bringing the PDF down. Great for not losing a
+// 200-page report over one comma — but without this the problem is invisible
+// (the field shows up blank and nobody knows why). This is the other side of
+// the bargain.
 //
-// Tudo aqui vem de export público do pacote: `expressionErrors` (cada expressão
-// que um campo carrega, incluindo o `visibleWhen` e as fórmulas de coluna) e
-// `fieldWarning` (a mesma mensagem que o ícone de alerta da lista de campos do
-// <Designer> mostra).
+// Everything here comes from a public export of the package: `expressionErrors`
+// (every expression a field carries, including the `visibleWhen` and the
+// column formulas) and `fieldWarning` (the same message the alert icon in the
+// <Designer>'s field list shows).
 
 export type TemplateProblem = {
   pageIndex: number;
   pageName: string;
   schemaId: string;
   schemaName: string;
-  // "expressao" = vai renderizar vazio agora. "config" = configuração pela
-  // metade (falta vínculo, filtro sem valor).
+  // "expressao" = it will render empty right now. "config" = half-finished
+  // configuration (a missing binding, a filter with no value).
   kind: "expressao" | "suspeita" | "config";
-  // Onde no schema: "content", "visibleWhen", "footer[1]", "columns[2].formula".
+  // Where in the schema: "content", "visibleWhen", "footer[1]", "columns[2].formula".
   where?: string;
   message: string;
 };
 
-// `page.name` é DADO (o nome que o usuário deu à página, e que pode sair no
-// PDF) — só o fallback "Página N" é rótulo da casca, então só ele traduz.
+// `page.name` is DATA (the name the user gave the page, and which may come
+// out in the PDF) — only the "Page N" fallback is a shell label, so only it
 function pageLabel(page: TemplatePage, index: number, locale: Locale): string {
   return page.name?.trim() || t(locale).pageLabel(index + 1);
 }
@@ -48,14 +49,14 @@ function problemsOfSchema(
     schemaName: schema.name,
   };
 
-  // Erro de sintaxe vem primeiro: já está produzindo saída errada (campo
-  // vazio), enquanto "falta vínculo" é configuração incompleta.
-  // `severity` separa os dois: "error" não compila e o campo sai vazio com
-  // certeza; "warning" compila mas é quase certamente engano — um operador com
-  // espaço de um lado só (`{fatura /}`) virou nome de chave. O aviso existe
-  // porque esse caso não é erro de sintaxe nenhum e passava calado.
-  // `dictFor(locale)` também aqui: a mensagem do parser sai do dicionário, e
-  // sem ele viria em inglês no meio da UI em português.
+  // A syntax error comes first: it is already producing wrong output (an
+  // empty field), while "missing binding" is incomplete configuration.
+  // `severity` separates the two: "error" does not compile and the field
+  // certainly comes out empty; "warning" compiles but is almost certainly a
+  // mistake — an operator with whitespace on one side only (`{fatura /}`)
+  // became a key name. The warning exists because that case is no syntax error
+  // at all and used to pass silently.
+  // `dictFor(locale)` here too: the parser's message comes from the dictionary.
   const syntax = expressionErrors(schema, binding, dictFor(locale)).map((e) => ({
     ...base,
     kind: (e.severity === "error" ? "expressao" : "suspeita") as "expressao" | "suspeita",
@@ -64,11 +65,11 @@ function problemsOfSchema(
   }));
   if (syntax.length > 0) return syntax;
 
-  // `fieldWarning` também cobre erro de expressão (é a primeira coisa que ele
-  // checa), então só chega aqui quando não havia nenhum — o que sobra é
-  // configuração.
-  // `dictFor` dá o dicionário como VALOR — `useT()` só existe dentro de um
-  // componente, e isto roda fora da árvore React.
+  // `fieldWarning` also covers an expression error (it is the first thing it
+  // checks), so it only gets here when there was none — what is left is
+  // configuration.
+  // `dictFor` gives the dictionary as a VALUE — `useT()` only exists inside a
+  // component, and this runs outside the React tree.
   const warning = fieldWarning(schema, binding, dictFor(locale));
   return warning ? [{ ...base, kind: "config" as const, message: warning }] : [];
 }

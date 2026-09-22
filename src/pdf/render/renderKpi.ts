@@ -11,13 +11,13 @@ import { mmToPt } from "../../page/units";
 
 const PADDING_PT = 8;
 
-// Ícone do Material Symbols (mesmo path do preview no canvas, ver
-// components/FieldBox/KpiField.tsx) — path autorado no grid 960 padrão
-// (viewBox "0 -960 960 960"), desenhado via drawSvgPath. scale = size/960
-// faz o ícone ocupar exatamente `size` pt; a âncora (x,y) é o canto
-// inferior-esquerdo do ícone porque o grid do Material tem y de 0 (base)
-// a -960 (topo) — dá zero pro drawSvgPath (que espera y crescendo pra
-// baixo a partir da âncora) cair exatamente na base do ícone.
+// A Material Symbols icon (the same path as the canvas preview, see
+// components/FieldBox/KpiField.tsx) — a path authored on the standard 960
+// grid (viewBox "0 -960 960 960"), drawn through drawSvgPath. scale = size/960
+// makes the icon take exactly `size` pt; the anchor (x,y) is the icon's
+// bottom-left corner because the Material grid has y going from 0 (the
+// baseline) to -960 (the top) — which makes drawSvgPath (which expects y to
+// grow downward from the anchor) land exactly on the icon's base.
 function drawIcon(page: PDFPage, icon: string, cx: number, cy: number, size: number, color: Color): void {
   const path = MATERIAL_ICON_PATHS[icon as keyof typeof MATERIAL_ICON_PATHS];
   if (!path) return;
@@ -25,10 +25,10 @@ function drawIcon(page: PDFPage, icon: string, cx: number, cy: number, size: num
   page.drawSvgPath(path, { x: cx - size / 2, y: cy - size / 2, scale, color });
 }
 
-// Converte um offset customizado (mm, canto superior-esquerdo do
-// sub-elemento relativo ao cartão — ver KpiElementOffset) pro ponto (pt,
-// espaço da página) que `drawText` espera: a caixa some `fontSizePt` de
-// altura, a baseline fica embaixo dela.
+// Converts a custom offset (mm, the sub-element's top-left corner relative to
+// the card — see KpiElementOffset) into the point (pt, page space) `drawText`
+// expects: the box loses `fontSizePt` of height, and the baseline sits below
+// it.
 function offsetToBaselinePoint(
   offset: KpiElementOffset,
   xPt: number,
@@ -41,9 +41,9 @@ function offsetToBaselinePoint(
   return { x: boxX, y: boxTopY - fontSizePt };
 }
 
-// Converte um offset customizado (mm, canto superior-esquerdo do
-// sub-elemento relativo ao cartão — ver KpiElementOffset) pro ponto (pt,
-// espaço da página) que `drawIcon` espera (`drawIcon` já espera o centro).
+// Converts a custom offset (mm, the sub-element's top-left corner relative to
+// the card — see KpiElementOffset) into the point (pt, page space) `drawIcon`
+// expects (`drawIcon` already expects the center).
 function offsetToCenterPoint(
   offset: KpiElementOffset,
   xPt: number,
@@ -56,12 +56,13 @@ function offsetToCenterPoint(
   return { x: boxX + iconSizePt / 2, y: boxTopY - iconSizePt / 2 };
 }
 
-// Cartão de indicador: fundo sólido com cantos arredondados, ícone + título
-// no topo, valor grande no meio, legenda embaixo (posição padrão) — cada
-// um pode ter posição própria (schema.<el>Offset) e title/value/subtitle
-// ausente (undefined) simplesmente não desenha (sub-elemento removido, ver
-// FieldList.tsx). title/value/subtitle já vêm resolvidos (renderTemplate
-// contra o documento, ver generate.ts) — esta função só desenha.
+// A KPI card: a solid background with rounded corners, an icon + title at the
+// top, a large value in the middle, a subtitle at the bottom (the default
+// position) — each of them may have a position of its own (schema.<el>Offset)
+// and an absent title/value/subtitle (undefined) simply does not draw (a
+// removed sub-element, see FieldList.tsx). title/value/subtitle already arrive
+// resolved (renderTemplate against the document, see generate.ts) — this
+// function only draws.
 export function drawKpi(
   page: PDFPage,
   font: PDFFont,

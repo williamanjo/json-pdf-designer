@@ -2,10 +2,10 @@ import type { Template, Binding } from "json-pdf-designer/server";
 import turmaSample from "../samples/turmaSample.json";
 import type { ExampleDefinition } from "./types";
 
-// Exemplo: "Boletim de Turma" — seção repetindo por aluno SEM nenhuma
-// tabela dentro, só um campo de texto membro (uma "linha" por aluno) —
-// mostra que seção funciona igual de bem só com texto. Usa {Line} (número
-// da repetição) e AVG/COUNT direto no fechamento.
+// Example: "Class Report Card" — a section repeating per student WITHOUT any
+// table inside, only a member text field (one "row" per student) — it shows
+// that a section works just as well with text alone. It uses {Line} (the
+// repetition's number) and AVG/COUNT directly in the closing.
 const template: Template = {
   version: 1,
   page: { width: 210, height: 297 },

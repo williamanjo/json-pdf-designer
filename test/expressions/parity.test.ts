@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { renderTemplate } from "../../src/bindings/bindings";
 
-// Paridade com o motor anterior (o reescritor string-para-string que a AST
-// substituiu). Cada caso aqui foi SONDADO contra o build 2.0.0 antes da troca,
-// e o valor esperado é o que aquele motor produzia — não o que parece certo
-// hoje. É a prova de que a substituição não regrediu nada.
+// Parity with the previous engine (the string-to-string rewriter the AST
+// replaced). Each case here was PROBED against the 2.0.0 build before the
+// swap, and the expected value is what that engine produced — not what looks
+// right today. It is the proof that the replacement regressed nothing.
 //
-// Os casos que o motor anterior ERRAVA (precedência, agrupamento) e os que ele
-// derrubava com exceção (texto em conta, divisão por zero) ficam em
-// evaluate.test.ts, sob "os quatro defeitos", justamente porque ali o
-// comportamento MUDOU de propósito.
+// The cases the previous engine GOT WRONG (precedence, grouping) and the ones
+// it brought down with an exception (text in arithmetic, division by zero)
+// live in evaluate.test.ts, under "the four defects", precisely because there
+// the behavior CHANGED on purpose.
 
 const data = {
   a: 2,
@@ -30,9 +30,9 @@ const data = {
   s: "x>y",
 };
 
-// [descrição, template, saída do motor anterior]
+// [description, template, the previous engine's output]
 const CASES: [string, string, string][] = [
-  // A regra lexical: operador só é operador cercado de espaço.
+  // The lexical rule: an operator is only an operator surrounded by whitespace.
   ["path com hífen", "{my-key}", "ok-hifen"],
   ["path com espaço", "{my key}", "ok-espaco"],
   ["path que parece subtração", "{a-b}", "literal"],
@@ -40,15 +40,15 @@ const CASES: [string, string, string][] = [
   ["operador com espaço só antes", "{a -b}", ""],
   ["operador com espaço só depois", "{a- b}", ""],
 
-  // splitDelimited: aspas e parênteses aninhados.
+  // splitDelimited: quotes and nested parentheses.
   ["literal com vírgula dentro", '{CONCAT("a, b", nome)}', "a, bAna"],
   ["literal com parêntese dentro", '{CONCAT("a (b)", nome)}', "a (b)Ana"],
   ["função aninhada em função", '{CONCAT("tot: ", NUMBER(valor, 2))}', "tot: 10.00"],
   ["path cujo valor tem parêntese", "{texto}", "Lucro (bruto)"],
   ["UPPER de valor com parêntese", "{UPPER(texto)}", "LUCRO (BRUTO)"],
 
-  // Agregador seguido de operador — o caso que motivou o guarda de
-  // parênteses balanceados no motor anterior (antes dele, dava "0").
+  // An aggregator followed by an operator — the case that motivated the
+  // balanced-parentheses guard in the previous engine (before it, this gave "0").
   ["SUM menos path", "{SUM(itens.t) - custo}", "8"],
   ["SUM menos literal", "{SUM(itens.t) - 2}", "10"],
   ["SUM simples", "{SUM(itens.t)}", "12"],
@@ -73,7 +73,7 @@ const CASES: [string, string, string][] = [
   ["CURRENCY default", "{CURRENCY(a)}", "2,00"],
   ["DATE default", '{DATE("2026-07-01")}', "01/07/2026"],
 
-  // Aritmética e resolução de path.
+  // Arithmetic and path resolution.
   ["ruído de float arredondado", "{12 * 22.9}", "274.8"],
   ["path ausente vale 0 na conta", "{naoexiste + a}", "2"],
   ["função desconhecida", "{FOO(a)}", ""],

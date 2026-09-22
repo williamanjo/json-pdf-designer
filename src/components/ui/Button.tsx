@@ -9,15 +9,15 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: Size;
 };
 
-// `variant`/`size` são ATRIBUTO, não classe. Antes eram dois mapas de string
-// Tailwind (`sizeCls`/`variantCls`) que o componente escolhia e concatenava;
-// agora o JSX escreve `data-variant`/`data-size` e quem decide aparência é o
-// theme.css. É a regra geral da migração: se o componente teria de ESCOLHER
-// uma classe, é atributo.
+// `variant`/`size` are an ATTRIBUTE, not a class. They used to be two maps of
+// Tailwind strings (`sizeCls`/`variantCls`) that the component picked from and
+// concatenated; now the JSX writes `data-variant`/`data-size` and appearance is
+// decided by theme.css. That is the general rule of the migration: if the
+// component would have to CHOOSE a class, it is an attribute.
 //
-// `...rest` vem ANTES de `className`/`data-*` de propósito: assim um atributo
-// funcional (`type`, `aria-*`, `onClick`) continua sobrescrevível pelo
-// consumidor, mas o cálculo de classe e de estado é sempre o nosso.
+// `...rest` deliberately comes BEFORE `className`/`data-*`: that way a
+// functional attribute (`type`, `aria-*`, `onClick`) stays overridable by the
+// consumer, but the class and state computation is always ours.
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = "primary", size = "sm", className, type = "button", ...rest },
   ref

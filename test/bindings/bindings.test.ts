@@ -92,18 +92,18 @@ describe("resolveToken — aritmética e aninhamento", () => {
   });
 
   it("profundidade além do limite dá erro claro no parser, em vez de estourar a call stack", () => {
-    // A garantia original: aninhamento absurdo NÃO derruba o V8 por stack
-    // overflow, vira uma condição limitada e legível. Ela vive na API estrita
-    // (`parse`, e `expressionError` em cima dela).
+    // The original guarantee: absurd nesting does NOT bring V8 down with a
+    // stack overflow, it becomes a bounded and legible condition. It lives in
+    // the strict API (`parse`, and `expressionError` on top of it).
     const nested = "CURRENCY(".repeat(50) + "1" + ")".repeat(50);
     expect(() => parse(nested)).toThrow(/nesting too deep/i);
     expect(expressionError(nested)).toMatch(/nesting too deep/i);
   });
 
   it("...e na GERAÇÃO resolve pra vazio, igual erro de sintaxe", () => {
-    // Mesma troca de sempre: um campo mal escrito deixa AQUELE campo em
-    // branco, não derruba o PDF inteiro. O aviso do campo no editor é onde o
-    // problema aparece (ver fieldWarnings.ts).
+    // The same trade as always: one badly written field leaves THAT field
+    // blank, it does not bring the whole PDF down. The field's warning in the
+    // editor is where the problem shows up (see fieldWarnings.ts).
     const nested = "CURRENCY(".repeat(50) + "1" + ")".repeat(50);
     expect(resolveToken(nested, {})).toBe("");
   });
@@ -136,9 +136,9 @@ describe("resolveToken — IF", () => {
   });
 
   it("só resolve o lado escolhido — o outro não precisa nem existir", () => {
-    // "inexistente" não existe no dado — se IF resolvesse os DOIS lados
-    // sempre, isso ainda funcionaria (viraria string vazia), mas o ponto
-    // aqui é confirmar que o branch NÃO escolhido nem é avaliado.
+    // "inexistente" is not in the data — if IF always resolved BOTH sides,
+    // this would still work (it would become an empty string), but the point
+    // here is to confirm that the branch NOT chosen is not even evaluated.
     expect(resolveToken('IF(status == "paid", inexistente, "Pendente")', { status: "open" })).toBe("Pendente");
   });
 

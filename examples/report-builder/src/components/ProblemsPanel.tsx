@@ -6,18 +6,18 @@ import { t } from "../i18n";
 type Props = {
   locale: Locale;
   problems: TemplateProblem[];
-  // Clique num problema leva pra página e seleciona o campo — o painel só
-  // aponta se der pra chegar lá.
+  // Clicking a problem takes you to the page and selects the field — the
+  // panel only points at it if it can get there.
   onGoTo: (pageIndex: number, schemaId: string) => void;
 };
 
-// "Problemas do template" — o outro lado da tolerância da geração.
+// "Template problems" — the other side of generation's tolerance.
 //
-// O pacote resolve expressão inválida pra vazio em vez de derrubar o PDF (uma
-// vírgula esquecida não pode custar um relatório de 200 páginas). O preço é que
-// o campo sai em branco sem explicação. Este painel é onde a explicação
-// aparece, antes de gerar — montado com `expressionErrors` e `fieldWarning`,
-// exports públicos do pacote.
+// The package resolves an invalid expression to empty instead of bringing the
+// PDF down (a forgotten comma must not cost a 200-page report). The price is
+// that the field comes out blank with no explanation. This panel is where the
+// explanation appears, before generating — built with `expressionErrors` and
+// `fieldWarning`, public exports of the package.
 export default function ProblemsPanel({ locale, problems, onGoTo }: Props) {
   const tx = t(locale);
   const willRenderEmpty = problems.filter((p) => p.kind === "expressao").length;
@@ -38,8 +38,9 @@ export default function ProblemsPanel({ locale, problems, onGoTo }: Props) {
         <p className="text-[11px] text-slate-500">{tx.problemsNone}</p>
       ) : (
         <>
-          {/* Frase INTEIRA (plural incluído) vem do dicionário, não montada
-              no JSX: em inglês o número não fica no mesmo lugar da oração. */}
+          {/* The WHOLE sentence (plural included) comes from the dictionary,
+              not assembled in the JSX: in English the number does not sit in
+              the same place in the clause. */}
           {suspect > 0 && <p className="text-[11px] text-red-700">{tx.problemsSuspect(suspect)}</p>}
           {willRenderEmpty > 0 && <p className="text-[11px] text-red-700">{tx.problemsEmpty(willRenderEmpty)}</p>}
           <ul className="flex flex-col gap-1">

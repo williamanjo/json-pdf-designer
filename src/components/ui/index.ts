@@ -11,13 +11,13 @@ export { PalettePicker, type PalettePickerProps, type PaletteGroup, type Palette
 export { PaletteSwatches, type PaletteSwatchesProps } from "./PaletteSwatches";
 export { ClearFieldButton, type ClearFieldButtonProps } from "./ClearFieldButton";
 export { CollapsibleSection, type CollapsibleSectionProps } from "./CollapsibleSection";
-// Tipos da API de estilo: `parts` de qualquer componente é montado com eles,
-// e um adapter de slot (Fase 4) precisa nomeá-los sem re-derivar.
+// Types of the styling API: any component's `parts` is built from them, and a
+// slot adapter (Phase 4) needs to name them without re-deriving them.
 export type { PartStyle, ClassValue } from "./cx";
 export type { LabeledParts } from "./Labeled";
 export { MaterialIcon, type MaterialIconProps } from "./MaterialIcon";
-// Props dos 20 ícones. `SVGAttributes`, e de propósito NÃO `SVGProps` — ver
-// o comentário de icons.tsx.
+// Props of the 20 icons. `SVGAttributes`, and deliberately NOT `SVGProps` —
+// see the comment in icons.tsx.
 export type { IconProps } from "./icons";
 export {
   IconPlus,

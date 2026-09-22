@@ -7,21 +7,21 @@ import { resolveRowFromItem } from "../../../src/pdf/resolvers";
 import { makeBoundTable } from "../../../src/schemaFactory";
 import type { Binding, TableSchema, Template } from "../../../src/types";
 
-// IDENTIDADE DE COLUNA DE TABELA.
+// TABLE COLUMN IDENTITY.
 //
-// Os três sintomas relatados tinham três causas distintas, e cada bloco aqui
-// cobre uma:
+// The three reported symptoms had three distinct causes, and each block here
+// covers one:
 //
-//   1. o `ƒx` abria vazio      -> o painel lia o depósito de FALLBACK
-//                                 (`binding.columns[i]`, e só a forma de
-//                                 objeto) enquanto o PDF lê o PRINCIPAL
+//   1. the `ƒx` opened empty   -> the panel read the FALLBACK store
+//                                 (`binding.columns[i]`, and only the object
+//                                 form) while the PDF reads the PRIMARY one
 //                                 (`content[0][i]`).
-//   2. renomear perdia a ref   -> não existia operação de renomear; o único
-//                                 editor de título reescrevia o head inteiro e
-//                                 re-derivava todo slot casando nome novo
-//                                 contra head antigo.
-//   3. voltava com o token     -> consequência de (1): a célula com `{` é o
-//                                 primeiro passo do resolver.
+//   2. renaming lost the ref   -> there was no rename operation; the only
+//                                 title editor rewrote the whole head and
+//                                 re-derived every slot by matching the new
+//                                 name against the old head.
+//   3. the token came back     -> a consequence of (1): the cell with a `{` is
+//                                 the resolver's first step.
 
 function tabela(over: Partial<TableSchema> = {}): TableSchema {
   return {
@@ -43,8 +43,8 @@ function tabela(over: Partial<TableSchema> = {}): TableSchema {
 
 describe("renomear coluna — só o rótulo, a referência fica", () => {
   it("troca o head e NÃO toca em mais nada", () => {
-    // É o caso que o bug produzia ao contrário: o `setTableHead` blanqueava
-    // `content` (o token, que decide o PDF), o estilo e a largura.
+    // It is the case the bug produced in reverse: `setTableHead` blanked
+    // `content` (the token, which decides the PDF), the style and the width.
     const antes = tabela();
     const depois = renameColumnInTable(antes, 1, "Nota fiscal");
 
@@ -56,8 +56,8 @@ describe("renomear coluna — só o rótulo, a referência fica", () => {
   });
 
   it("rótulo vazio é ignorado", () => {
-    // O campo de texto antigo fazia `filter(Boolean)` na lista inteira, então
-    // apagar o nome no meio da digitação colapsava a tabela.
+    // The old text field did a `filter(Boolean)` over the whole list, so
+    // clearing the name mid-typing collapsed the table.
     const antes = tabela();
     expect(renameColumnInTable(antes, 0, "   ")).toBe(antes);
   });
@@ -77,14 +77,14 @@ describe("renomear coluna — só o rótulo, a referência fica", () => {
     };
     const columns = renameColumnInArrayBinding(binding, 1, "Nota fiscal");
     expect(columns).toEqual(["orgao", { label: "Nota fiscal", formula: "{[fatura]}" }]);
-    // A FÓRMULA não é tocada — é ela que carrega a referência.
+    // The FORMULA is not touched — it is the one carrying the reference.
     expect(columns).not.toBeNull();
     expect((columns![1] as { formula: string }).formula).toBe("{[fatura]}");
   });
 
   it("coluna de chave crua não tem rótulo próprio, então devolve null", () => {
-    // `null` = "não há o que gravar", e quem chama evita um dispatch de
-    // bindings que não mudaria nada.
+    // `null` = "there is nothing to write", and the caller avoids a bindings
+    // dispatch that would change nothing.
     const binding = { schemaName: "vendas", type: "array" as const, path: "rows", columns: ["orgao"] };
     expect(renameColumnInArrayBinding(binding, 0, "Órgão")).toBeNull();
   });
@@ -115,15 +115,15 @@ describe("tokenFor — a única regra de chave -> token", () => {
     ["has_azul", "{[has_azul]}"],
     ["created_at", "{[created_at]}"],
     ["my-key", "{[my-key]}"],
-    // Espaço exige quotes — o lexer recusa `[a b]` de propósito.
+    // A space requires quotes — the lexer refuses `[a b]` on purpose.
     ["token name", '{["token name"]}'],
-    // Ponto vira segmento literal, que é o que os brackets destravam.
+    // A dot becomes a literal segment, which is what the brackets unlock.
     ["cliente.nome", "{[cliente.nome]}"],
-    // Quote escolhida por CONTEÚDO: o lexer não tem escape, então trocar a
-    // quote é o que resolve sem inventar sintaxe.
+    // The quote is chosen by CONTENT: the lexer has no escape, so swapping the
+    // quote is what resolves it without inventing syntax.
     ['a"b', "{['a\"b']}"],
     ["a'b", '{["a\'b"]}'],
-    // A chave cujo nome tem bracket.
+    // The key whose name has a bracket.
     ["[a]", '{["[a]"]}'],
   ];
 

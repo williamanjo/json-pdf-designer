@@ -4,19 +4,19 @@ import { resolveChartColors } from "../../fields/chart/colors";
 import { pieSlicePath, pointOnCircle } from "../../fields/chart/pieGeometry";
 import { DEFAULT_CHART_LEGEND_FONT_SIZE } from "../../fields/chart/format";
 
-// Preview em miniatura (ícone fixo, não em escala real do PDF, ver
-// PiePreview) — escala o tamanho de fonte da legenda PROPORCIONALMENTE ao
-// default (8pt -> 7px, o tamanho fixo de sempre), em vez de converter
-// pt->px de verdade (que estouraria a caixinha pequena do preview).
+// Thumbnail preview (fixed icon, not at the real PDF scale, see
+// PiePreview) — it scales the legend font size PROPORTIONALLY to the
+// default (8pt -> 7px, the fixed size it always had), instead of doing a
+// real pt->px conversion (which would overflow the small preview box).
 const LEGEND_PREVIEW_BASE_PX = 7;
 function legendPreviewFontSizePx(legendFontSize: number | undefined): number {
   return ((legendFontSize ?? DEFAULT_CHART_LEGEND_FONT_SIZE) / DEFAULT_CHART_LEGEND_FONT_SIZE) * LEGEND_PREVIEW_BASE_PX;
 }
 
-// Preview de design só — 4 fatias/barras fixas de exemplo, só pra mostrar
-// que o campo é um gráfico, qual tipo e (agora) qual paleta de cor foi
-// escolhida (pronta ou personalizada). O dado (e a agregação em cima do
-// vínculo real) só entra na hora de gerar o PDF (ver pdf/render/renderChart.ts).
+// Design preview only — 4 fixed sample slices/bars, just to show that the
+// field is a chart, which type it is and (now) which color palette was
+// chosen (preset or custom). The data (and the aggregation over the real
+// binding) only enters when the PDF is generated (see pdf/render/renderChart.ts).
 function chartPreview(colorPalette: string | undefined, customPaletteColors: string[] | undefined) {
   const palette = resolveChartColors(colorPalette, customPaletteColors);
   const values = [40, 25, 20, 15];
@@ -54,14 +54,14 @@ function PiePreview({ pieStyle, withSliceLabels, preview }: { pieStyle: ChartSch
   );
 }
 
-// Exemplo de legenda (rótulo + cor) — só pra mostrar ONDE ela vai ficar
-// (right/left/top/bottom); "slices" não tem legenda separada, o rótulo
-// já vai escrito em cima de cada fatia (ver PiePreview).
+// Sample legend (label + color) — only to show WHERE it will sit
+// (right/left/top/bottom); "slices" has no separate legend, the label is
+// already written on top of each slice (see PiePreview).
 function LegendPreview({ preview, fontSizePx }: { preview: { value: number; color: string }[]; fontSizePx: number }) {
   return (
-    // `jpd-list` traz o reset de <ul> (marcador/margin/padding) que vinha do
-    // Preflight; o tamanho de fonte segue inline porque é derivado do
-    // legendFontSize do schema.
+    // `jpd-list` carries the <ul> reset (marker/margin/padding) that used to
+    // come from Preflight; the font size stays inline because it derives
+    // from the schema's legendFontSize.
     <ul className="jpd-list jpd-chart__legend" style={{ fontSize: fontSizePx }}>
       {preview.map((p, i) => (
         <li key={i} className="jpd-row jpd-row--tight">
@@ -73,14 +73,14 @@ function LegendPreview({ preview, fontSizePx }: { preview: { value: number; colo
   );
 }
 
-// Arranjo donut+legenda por posição escolhida no painel — mesmas 5 opções
-// de ChartSchema.legendPosition, só que aqui é um exemplo fixo (não lê o
-// vínculo real) pra dar pra ver o efeito sem gerar PDF.
+// Donut+legend arrangement by the position chosen in the panel — the same 5
+// options as ChartSchema.legendPosition, except that here it is a fixed
+// sample (not the real binding) so the effect shows without generating a PDF.
 function pieLayout(legendPosition: NonNullable<ChartSchema["legendPosition"]>, donut: ReactNode, legend: ReactNode): ReactNode {
   if (legendPosition === "slices") return donut;
-  // Os quatro braços abaixo eram duas strings de classe repetidas (top==bottom,
-  // left==right): a diferença entre os pares é só a ORDEM dos filhos, e entre
-  // os grupos só o eixo. Uma classe + data-legend.
+  // The four arms below were two repeated class strings (top==bottom,
+  // left==right): the difference between the pairs is only the ORDER of the
+  // children, and between the groups only the axis. One class + data-legend.
   if (legendPosition === "top") {
     return (
       <div className="jpd-chart__layout" data-legend="top">

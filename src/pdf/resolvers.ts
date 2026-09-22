@@ -1,6 +1,6 @@
-// Resolve o conteúdo de um schema (texto/tabela) contra o dado real —
-// puro, sem nenhuma dependência de pdf-lib. Usado tanto pelo fluxo
-// principal (generate.ts) quanto pelo desenho de seção (render/renderSection.ts).
+// Resolves a schema's content (text/table) against the real data — pure, with
+// no dependency on pdf-lib at all. Used both by the main flow (generate.ts)
+// and by the section drawing (render/renderSection.ts).
 import type { Binding, TableSchema } from "../types";
 import { filteredArrayAt, renderTemplate } from "../bindings/bindings";
 
@@ -10,23 +10,23 @@ export function resolveTableRows(schema: TableSchema, value: string | undefined)
     const parsed = JSON.parse(value);
     if (Array.isArray(parsed)) return parsed;
   } catch {
-    // valor não é JSON de linhas (ex: schema sem vínculo) — mantém o preview
+    // the value is not row JSON (e.g. a schema with no binding) — it keeps the preview
   }
   return schema.content;
 }
 
-// Uma linha (uma tabela vinculada a array, um item) — célula a célula. Se
-// a célula de design (content[0][i]) tiver um {token} de verdade, ele
-// manda: troca o token, troca o valor puxado, ponto — não depende de
-// bater nome/posição com nenhuma lista de colunas à parte (essa é a fonte
-// do bug de dessincronia: encurtar o cabeçalho por fora não muda o que
-// essa célula referencia). Célula SEM chave nenhuma (ex: "PNR0000",
-// preview genérico de tabela recém-criada) não conta como template — cai
-// direto pro vínculo, senão um exemplo estático value viraria "o mesmo
-// texto fixo em toda linha" pra sempre, ignorando o dado real. Vazio
-// também cai pro vínculo (`binding.columns[i]`, path cru ou
-// {label,formula}); sem nada disso, tenta o rótulo do cabeçalho como path
-// direto no item.
+// One row (a table bound to an array, one item) — cell by cell. If the design
+// cell (content[0][i]) holds a real {token}, that rules: swap the token, swap
+// the value pulled, full stop — it does not depend on matching a name/position
+// against any separate column list (that is the source of the desync bug:
+// shortening the header from outside does not change what that cell
+// references). A cell with NO key at all (e.g. "PNR0000", a generic preview of
+// a freshly created table) does not count as a template — it falls straight
+// through to the binding, otherwise a static sample value would become "the
+// same fixed text on every row" forever, ignoring the real data. Empty also
+// falls through to the binding (`binding.columns[i]`, a raw path or
+// {label,formula}); with none of that, it tries the header's label as a
+// direct path into the item.
 export function resolveRowFromItem(tableSchema: TableSchema, item: unknown, binding: Extract<Binding, { type: "array" }> | undefined): string[] {
   return tableSchema.head.map((headLabel, i) => {
     const cellTemplate = tableSchema.content[0]?.[i];
@@ -46,11 +46,11 @@ export function resolveArrayRows(tableSchema: TableSchema, arr: unknown[], bindi
   return arr.map((item) => resolveRowFromItem(tableSchema, item, binding));
 }
 
-// Linhas de uma tabela do CORPO (não membro de seção) vinculada a um
-// array — mesma resolução célula-a-célula (token de design manda,
-// binding.columns é só o fallback). Sem vínculo "array" (ex: chave/
-// valor, ou sem vínculo nenhum), cai no caminho de sempre (inputs
-// pré-computado pelo buildInputs, ou o preview de design).
+// The rows of a BODY table (not a section member) bound to an array — the
+// same cell-by-cell resolution (the design token rules, binding.columns is
+// only the fallback). With no "array" binding (e.g. key/value, or no binding
+// at all), it falls back to the usual path (inputs precomputed by buildInputs,
+// or the design preview).
 export function resolveTopLevelTableRows(tableSchema: TableSchema, bindings: Binding[], data: unknown, inputs: Record<string, string>): string[][] {
   const binding = bindings.find(
     (b): b is Extract<Binding, { type: "array" }> => b.schemaName === tableSchema.name && b.type === "array"
@@ -62,15 +62,15 @@ export function resolveTopLevelTableRows(tableSchema: TableSchema, bindings: Bin
   return resolveTableRows(tableSchema, inputs[tableSchema.name]);
 }
 
-// Linhas de uma tabela MEMBRO de seção — dois casos:
-// 1) Vinculada (type "array", path relativo ao ITEM) — mestre-detalhe de
-//    verdade (ex. Pedido -> ItensPedido): uma linha por item do array
-//    aninhado. Célula a célula, o TOKEN de design manda (ver
-//    resolveRowFromItem) — binding.columns só é usado onde a célula
-//    tiver ficado vazia.
-// 2) Sem vínculo — UMA linha só, contra o ITEM atual (mesma resolução
-//    célula a célula, sem lista de colunas nenhuma). Só cai no preview
-//    de design puro se nem isso resolver nada (item vazio/sem campos).
+// The rows of a table that is a section MEMBER — two cases:
+// 1) Bound (type "array", a path relative to the ITEM) — real master-detail
+//    (e.g. Order -> OrderItems): one row per item of the nested array. Cell by
+//    cell, the design TOKEN rules (see resolveRowFromItem) — binding.columns
+//    is only used where the cell was left empty.
+// 2) Unbound — a SINGLE row, against the current ITEM (the same cell-by-cell
+//    resolution, with no column list at all). It only falls back to the pure
+//    design preview if not even that resolves anything (an empty item, or one
+//    with no fields).
 export function resolveNestedTableRows(tableMember: TableSchema, item: unknown, bindings: Binding[]): string[][] {
   const binding = bindings.find(
     (b): b is Extract<Binding, { type: "array" }> => b.schemaName === tableMember.name && b.type === "array"
@@ -85,19 +85,19 @@ export function resolveNestedTableRows(tableMember: TableSchema, item: unknown, 
   return tableMember.content;
 }
 
-// Linha de totais de uma tabela — cada célula é um template de verdade
-// (texto fixo e/ou {token}/{SUM(...)}), resolvida contra o dado
-// informado por quem chama (documento inteiro pra tabela solta, ITEM
-// atual pra tabela membro de seção — mesma distinção de sempre).
+// A table's totals row — each cell is a real template (fixed text and/or
+// {token}/{SUM(...)}), resolved against the data the caller gives (the whole
+// document for a loose table, the current ITEM for a table that is a section
+// member — the same distinction as always).
 export function resolveFooterRow(tableSchema: TableSchema, resolveData: unknown): string[] | undefined {
   if (!tableSchema.footer || tableSchema.footer.length === 0) return undefined;
   return tableSchema.footer.map((cell) => renderTemplate(cell, resolveData));
 }
 
-// Texto sem vínculo "template"/"scalar" usa o próprio conteúdo como
-// template (resolve {token}/{SUM(...)} etc contra o dado informado) —
-// mesma regra em QUALQUER lugar que desenha texto: corpo antes/depois de
-// bloco, cabeçalho/rodapé/margem repetido, membro de seção.
+// Text with no "template"/"scalar" binding uses its own content as the
+// template (it resolves {token}/{SUM(...)} and so on against the given data) —
+// the same rule ANYWHERE text is drawn: the body before/after a block, a
+// repeated header/footer/margin, a section member.
 export function resolveTextValue(content: string, binding: Binding | undefined, resolveData: unknown): string {
   if (binding?.type === "template") return renderTemplate(binding.template, resolveData);
   if (binding?.type === "scalar") return renderTemplate(`{${binding.path}}`, resolveData);

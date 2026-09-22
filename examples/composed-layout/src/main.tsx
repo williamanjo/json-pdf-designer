@@ -1,9 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-// Uma linha só: `theme.css` já importa o `reset.css` por dentro.
+// A single line: `theme.css` already imports `reset.css` internally.
 //
-// Este example NÃO tem pipeline de Tailwind (ver vite.config.ts) — a casca
-// é CSS puro em index.css, e o editor vem estilizado do pacote.
+// This example has NO Tailwind pipeline (see vite.config.ts) — the shell is
+// plain CSS in index.css, and the editor comes styled from the package.
 import "json-pdf-designer/theme.css";
 import "./index.css";
 import App from "./App.tsx";

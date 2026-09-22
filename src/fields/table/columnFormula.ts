@@ -1,12 +1,12 @@
 import { splitDelimited } from "../../bindings/splitDelimited";
 
-// Formula de coluna sem estado extra: tudo é derivado da PRÓPRIA string
-// (parse) e reescrito nela (build) a cada troca do seletor "Tipo de dado"
-// — só funciona pra um formato "limpo" (vazio, {path} nu, ou UMA chamada
-// de função só, tipo {CURRENCY(preco, "R$", 2)}); fórmula com prefixo
-// literal misturado (ex: "FAT-{fatura}") cai pra "raw" e só mostra o
-// campo de texto livre de sempre — não dá pra decompor isso num seletor
-// sem perder o prefixo.
+// A column formula with no extra state: everything is derived from the
+// STRING itself (parse) and rewritten into it (build) on every change of the
+// "Data type" picker — it only works for a "clean" format (empty, a bare
+// {path}, or ONE single function call, such as {CURRENCY(price, "R$", 2)});
+// a formula with a literal prefix mixed in (e.g. "FAT-{fatura}") falls back
+// to "raw" and only shows the usual free text field — there is no way to
+// decompose that into a picker without losing the prefix.
 export type ParsedColumnFormula =
   | { kind: "empty" }
   | { kind: "bare"; path: string }
@@ -96,13 +96,13 @@ export function tokenFor(key: string): string {
 
 // Um segmento bracketado, com quotes só quando o conteúdo exige. A escolha da
 // quote é por CONTEÚDO, não fixa: chave que contém `"` sai entre `'`, e
-// vice-versa — o lexer aceita as duas e não tem escape, então trocar a quote
-// é o que resolve sem inventar sintaxe.
+// vice versa — the lexer accepts both and has no escape, so swapping the
+// quote is what resolves it without inventing syntax.
 export function segmentFor(key: string): string {
-  // Bracket na chave TAMBÉM exige quotes, não só espaço: sem isso
-  // `segmentFor("[a]")` saía `[[a]]`, e o lexer fecharia o segmento no
-  // primeiro `]` — lendo a chave como `"[a"`. Foi o teste de round-trip que
-  // pegou.
+  // A bracket in the key ALSO requires quotes, not just a space: without
+  // this, `segmentFor("[a]")` came out as `[[a]]`, and the lexer would close
+  // the segment at the first `]` — reading the key as `"[a"`. It was the
+  // round-trip test that caught it.
   if (!/[\s"'[\]]/.test(key)) return `[${key}]`;
   const quote = key.includes('"') ? "'" : '"';
   return `[${quote}${key}${quote}]`;

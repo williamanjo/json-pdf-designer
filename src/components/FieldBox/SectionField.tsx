@@ -1,16 +1,16 @@
 import type { SectionSchema } from "../../types";
 import { useT } from "../../i18n";
 
-// A seção só arrasta pela barra do topo (classe "jpd-section__handle",
-// travada no dragHandleClassName do Rnd em PageCanvas.tsx) — sem isso,
-// qualquer clique dentro dela (que agora pode ter campo membro desenhado
-// por cima) arriscava mover a seção sem querer em vez do campo.
+// The section is dragged only by the bar at the top (class
+// "jpd-section__handle", pinned in the Rnd's dragHandleClassName in
+// PageCanvas.tsx) — without it, any click inside it (which can now have a
+// member field drawn on top) risked moving the section instead of the field.
 //
-// AS DUAS CLASSES DAQUI SÃO LIDAS POR JAVASCRIPT, não só por CSS:
-// "jpd-section__body" é testada com classList.contains() no hit-test de área
-// vazia e "jpd-section__handle" vai pro dragHandleClassName do react-rnd (que
-// faz o casamento no DOM por conta própria). Renomear uma delas sem renomear
-// o par em PageCanvas.tsx quebra arrasto/seleção SEM erro no console.
+// BOTH CLASSES HERE ARE READ BY JAVASCRIPT, not only by CSS:
+// "jpd-section__body" is tested with classList.contains() in the empty-area
+// hit-test and "jpd-section__handle" goes into react-rnd's dragHandleClassName
+// (which matches it in the DOM on its own). Renaming one without renaming its
+// pair in PageCanvas.tsx breaks drag/selection WITH NO console error.
 export function SectionField(_props: { schema: SectionSchema }) {
   const t = useT();
   return (

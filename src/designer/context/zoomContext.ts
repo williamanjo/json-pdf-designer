@@ -1,40 +1,40 @@
 import { createContext, type MutableRefObject } from "react";
 
-// O ZOOM DO CANVAS, EM CONTEXTO PRÓPRIO.
+// THE CANVAS ZOOM, IN A CONTEXT OF ITS OWN.
 //
-// Até a 3.0.1 o zoom era `useState` interno do `<PageCanvas>` e nunca subia.
-// A justificativa registrada no `DesignerCanvas` era de performance:
-// "arrastar o slider re-renderizaria toda peça se o valor morasse no
-// provider". Ela estava certa sobre o PROBLEMA e errada sobre a SOLUÇÃO — o
-// que causa re-render em cascata é o valor morar num dos cinco contextos que
-// todas as peças leem, não o valor estar em contexto.
+// Up to 3.0.1 the zoom was `useState` internal to `<PageCanvas>` and never
+// came up. The justification recorded in `DesignerCanvas` was performance:
+// "dragging the slider would re-render every part if the value lived in the
+// provider". It was right about the PROBLEM and wrong about the SOLUTION —
+// what causes a cascading re-render is the value living in one of the five
+// contexts every part reads, not the value being in a context.
 //
-// Contexto SEPARADO resolve as duas coisas ao mesmo tempo:
+// A SEPARATE context solves both at once:
 //
-//   - quem não chama `useDesignerZoom()` não re-renderiza quando o zoom muda
-//     — lista de campos, inspetor e painel de propriedades ficam parados
-//     enquanto o slider é arrastado;
-//   - quem chama (o canvas, e a barra que o consumidor desenhar) recebe o
-//     valor de verdade, então não existe segunda cópia pra dessincronizar.
+//   - whoever does not call `useDesignerZoom()` does not re-render when the
+//     zoom changes — the field list, the inspector and the property panel
+//     stay put while the slider is dragged;
+//   - whoever does call it (the canvas, and any bar the consumer draws) gets
+//     the real value, so there is no second copy to fall out of sync.
 //
-// É o mesmo argumento que já justificava o registry de primitivos ter
-// contexto próprio (ver components/ui/registry.ts).
+// It is the same argument that already justified the primitives registry
+// having a context of its own (see components/ui/registry.ts).
 //
-// O que estava impossível antes disto: ler o zoom pra mostrar em outro lugar,
-// disparar zoom/fit de um botão fora do canvas, e desenhar a própria barra em
-// qualquer container React — a `.jpd-zoombar` padrão é `position: sticky`
-// DENTRO do canvas, então CSS só a movia dentro daquela caixa.
+// What was impossible before this: reading the zoom to show it elsewhere,
+// firing zoom/fit from a button outside the canvas, and drawing your own bar
+// in any React container — the default `.jpd-zoombar` is `position: sticky`
+// INSIDE the canvas, so CSS could only move it within that box.
 
 export type DesignerZoomValue = {
-  /** Fator atual. 1 = 100%. Sempre dentro de [`min`, `max`]. */
+  /** The current factor. 1 = 100%. Always within [`min`, `max`]. */
   zoom: number;
-  /** Limites e passo usados pelo canvas — os mesmos que a barra padrão usa. */
+  /** The limits and step the canvas uses — the same ones the default bar uses. */
   min: number;
   max: number;
   step: number;
   /**
-   * Aceita valor ou updater, igual `setState`. O resultado é sempre clampado,
-   * então passar 12 ou -3 não quebra nada: vira `max` / `min`.
+   * Accepts a value or an updater, like `setState`. The result is always
+   * clamped, so passing 12 or -3 breaks nothing: it becomes `max` / `min`.
    */
   setZoom: (proximo: number | ((anterior: number) => number)) => void;
   zoomIn: () => void;
@@ -42,25 +42,25 @@ export type DesignerZoomValue = {
   /** Volta pra 100%. */
   reset: () => void;
   /**
-   * Ajusta pra largura/altura do viewport que ROLA — o `<DesignerCanvas>`,
-   * que se registra em `viewportRef`. Sem canvas montado, não faz nada (em
-   * vez de medir a janela inteira e devolver um zoom grande demais).
+   * Fits to the width/height of the viewport that SCROLLS — the
+   * `<DesignerCanvas>`, which registers itself in `viewportRef`. With no
+   * canvas mounted it does nothing (instead of measuring the whole window).
    */
   fitWidth: () => void;
   fitHeight: () => void;
   /**
-   * O elemento que rola, preenchido pelo `<DesignerCanvas>` montado. Público
-   * porque é útil pra mais que o fit — rolar até um campo, por exemplo.
-   * `null` até o canvas montar.
+   * The element that scrolls, filled in by the mounted `<DesignerCanvas>`.
+   * Public because it is useful for more than the fit — scrolling to a field,
+   * for instance. `null` until the canvas mounts.
    *
-   * `MutableRefObject` e não `RefObject`, e o motivo é as DUAS MAJORS de
-   * React que o `peerDependencies` aceita: o @types/react 19 tornou o
-   * `RefObject` mutável e faz `useRef<T|null>(null)` devolver
-   * `RefObject<T|null>`, enquanto no 18 o `RefObject<T>` tem `current`
-   * READONLY — e a prop `ref` de um `<div>` lá não aceita a instanciação
-   * `RefObject<T|null>` (TS2322 em DesignerCanvas.tsx, achado quando o CI
-   * passou a rodar React 18). `MutableRefObject<T|null>` é `{ current: T|null }`
-   * nas duas, e mutável entra onde se espera readonly.
+   * `MutableRefObject` and not `RefObject`, and the reason is the TWO REACT
+   * MAJORS that `peerDependencies` accepts: @types/react 19 made `RefObject`
+   * mutable and makes `useRef<T|null>(null)` return `RefObject<T|null>`,
+   * while in 18 `RefObject<T>` has a READONLY `current` — and a `<div>`'s
+   * `ref` prop there does not accept the `RefObject<T|null>` instantiation
+   * (TS2322 in DesignerCanvas.tsx, found when CI started running React 18).
+   * `MutableRefObject<T|null>` is `{ current: T|null }` in both, and mutable
+   * goes where readonly is expected.
    */
   viewportRef: MutableRefObject<HTMLDivElement | null>;
 };

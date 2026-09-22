@@ -15,14 +15,14 @@ function filterOps(t: Dict): { value: ChartFilterOp; label: string }[] {
   ];
 }
 
-// Aba "Filtro" — edita `binding.filters` direto (não é rascunho local: o
-// vínculo já existe quando essa aba faz sentido de usar). Grupos combinam
-// com OU, condições dentro de um grupo combinam com E (ver ChartFilterGroup
-// em types/binding.ts, filtro avançado com grupos E/OU combináveis).
-// Compartilhado entre chart/table/kpi — Designer.tsx renderiza direto na
-// aba "Filtro" (nível superior, mesma fileira de abas de Campos/Dados/
-// Estilo/Página) pra qualquer um dos três tipos com vínculo array por
-// trás (chart, table -> binding "array", kpi).
+// The "Filter" tab — it edits `binding.filters` directly (it is not a local
+// draft: the binding already exists by the time this tab is worth using).
+// Groups combine with OR, conditions inside a group combine with AND (see
+// ChartFilterGroup in types/binding.ts, the advanced filter with combinable
+// AND/OR groups). Shared between chart/table/kpi — Designer.tsx renders it
+// directly in the "Filter" tab (top level, same tab row as Fields/Data/
+// Style/Page) for any of the three types backed by an array binding
+// (chart, table -> "array" binding, kpi).
 export function FilterTab({
   binding,
   onChangeBinding,

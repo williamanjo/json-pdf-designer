@@ -10,8 +10,8 @@ async function loadPageSizes(bytes: Uint8Array): Promise<[number, number][]> {
 
 describe("generatePdf — multi-página (Template.pages)", () => {
   it("soma as páginas físicas de cada página-design (contínuo, não reinicia)", async () => {
-    // Página 1: tabela grande o bastante pra quebrar em 2 páginas físicas
-    // (mesmo cenário do teste de paginação de 1 página já existente).
+    // Page 1: a table large enough to break across 2 physical pages (the same
+    // scenario as the existing single-page pagination test).
     const bigTable: TableSchema = {
       id: "t1",
       name: "tabela",
@@ -23,7 +23,7 @@ describe("generatePdf — multi-página (Template.pages)", () => {
       head: ["A", "B"],
       content: Array.from({ length: 60 }, (_, i) => [String(i), String(i * 2)]),
     };
-    // Página 2: design totalmente diferente (página A5, campo de texto só).
+    // Page 2: a completely different design (an A5 page, a text field only).
     const label: TextSchema = {
       id: "txt1",
       name: "rotulo",
@@ -39,7 +39,7 @@ describe("generatePdf — multi-página (Template.pages)", () => {
     };
 
     const template: Template = {
-      // Campos flat de topo viram irrelevantes quando `pages` existe.
+      // The top-level flat fields become irrelevant when `pages` exists.
       page: { width: 210, height: 297 },
       schemas: [],
       pages: [
@@ -51,9 +51,9 @@ describe("generatePdf — multi-página (Template.pages)", () => {
     const bytes = await generatePdf(template, {}, []);
     const sizes = await loadPageSizes(bytes);
 
-    // Página-design 1 (A4) quebrou em >1 página física; a última página
-    // física pertence à página-design 2 (A5) — tamanhos diferentes provam
-    // que os dois designs foram desenhados no MESMO documento, em sequência.
+    // Design page 1 (A4) broke into >1 physical page; the last physical page
+    // belongs to design page 2 (A5) — the different sizes prove that the two
+    // designs were drawn into the SAME document, in sequence.
     expect(sizes.length).toBeGreaterThan(2);
     const a5WidthPt = Math.round((148 * 72) / 25.4);
     expect(sizes[sizes.length - 1][0]).toBe(a5WidthPt);

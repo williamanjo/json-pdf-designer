@@ -11,20 +11,21 @@ const config = {
     v4: true,
   },
 
-  // Site de PROJETO (não usuario.github.io raiz) — baseUrl precisa do
-  // nome do repo.
+  // A PROJECT site (not the user.github.io root) — baseUrl needs the repo's
+  // name.
   url: "https://williamanjo.github.io",
   baseUrl: "/json-pdf-designer/",
 
   organizationName: "williamanjo",
   projectName: "json-pdf-designer",
 
-  // `throw` de propósito: entrada de sidebar apontando pra doc deletado
-  // ABORTA o build em vez de gerar uma página quebrada em silêncio. Foi o
-  // que pegou a remoção do `tailwind-setup` na 3.0.0.
+  // `throw` on purpose: a sidebar entry pointing at a deleted doc ABORTS the
+  // build instead of generating a broken page in silence. It is what caught
+  // the removal of `tailwind-setup` in 3.0.0.
   onBrokenLinks: "throw",
-  // Movido de `onBrokenMarkdownLinks` (deprecado, sai na v4) — o valor é o
-  // mesmo, só o lugar mudou. Sem isto, todo build imprime dois avisos.
+  // Moved from `onBrokenMarkdownLinks` (deprecated, going away in v4) — the
+  // value is the same, only the place changed. Without this, every build
+  // prints two warnings.
   markdown: {
     hooks: {
       onBrokenMarkdownLinks: "warn",
@@ -49,21 +50,21 @@ const config = {
           sidebarPath: "./sidebars.js",
           routeBasePath: "docs",
           editUrl: "https://github.com/williamanjo/json-pdf-designer/edit/master/website/",
-          // Data real do último commit de cada página (via git) — precisa
-          // estar ligado pro `lastmod: "date"` do sitemap (abaixo) ter de
-          // onde tirar a data; também aparece como "Last updated on..." no
-          // rodapé de cada página de doc.
+          // The real date of each page's last commit (through git) — it has to
+          // be on for the sitemap's `lastmod: "date"` (below) to have a date to
+          // take; it also appears as "Last updated on..." in the footer of each
+          // doc page.
           showLastUpdateTime: true,
         },
         blog: false,
         theme: {
           customCss: "./src/css/custom.css",
         },
-        // changefreq/priority não trazem benefício real pro Google hoje
-        // (a própria Docusaurus já marca as duas opções como "TODO: remover
-        // em v4") — null tira os dois do sitemap gerado. lastmod: "date"
-        // usa a data REAL do último commit de cada rota (via git, mesmo
-        // mecanismo do "Last updated" no rodapé da doc) — não inventa data.
+        // changefreq/priority bring no real benefit for Google today
+        // (Docusaurus itself already marks both options as "TODO: remove in
+        // v4") — null removes both from the generated sitemap. lastmod: "date"
+        // uses the REAL date of each route's last commit (through git, the same
+        // mechanism as the docs' footer "Last updated") — it invents no date.
         sitemap: {
           changefreq: null,
           priority: null,
@@ -90,11 +91,11 @@ const config = {
             label: "Docs",
           },
           {
-            // Rota de verdade do Docusaurus (src/pages/playground/) —
-            // "to" normal, com locale/baseUrl resolvidos automaticamente
-            // (igual qualquer outra página do site). Só os 5 exemplos
-            // linkados de dentro dela (bundles estáticos à parte) que
-            // abrem em aba nova — ver src/pages/playground/index.js.
+            // A real Docusaurus route (src/pages/playground/) — a normal
+            // "to", with the locale/baseUrl resolved automatically (like any
+            // other page of the site). Only the 5 examples linked from inside
+            // it (separate static bundles) open in a new tab — see
+            // src/pages/playground/index.js.
             to: "/playground",
             label: "Playground",
             position: "left",
@@ -123,9 +124,9 @@ const config = {
           },
           {
             title: "Playground",
-            // "html" cru pelo mesmo motivo do navbar acima. Esses 5 apontam
-            // direto pra um exemplo específico (não a landing page) — aba
-            // nova de propósito, cada exemplo é um app pesado à parte.
+            // Raw "html" for the same reason as the navbar above. These 5 point
+            // straight at a specific example (not the landing page) — a new
+            // tab on purpose, each example is a heavy app of its own.
             items: [
               {
                 html: '<a class="footer__link-item" href="/json-pdf-designer/playground/report-builder/" target="_blank" rel="noopener noreferrer">report-builder</a>',

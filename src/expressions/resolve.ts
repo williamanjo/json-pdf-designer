@@ -3,46 +3,46 @@ import { ExpressionError } from "./errors";
 import { evaluate, evaluateToString, isTruthy } from "./engine/evaluate";
 import { parse } from "./engine/parse";
 
-// Camada tolerante em cima do parser estrito.
+// A tolerant layer on top of the strict parser.
 //
-// O parser estoura em expressão mal-formada, e isso é bom: é o que permite o
-// editor APONTAR o problema (ver fieldWarnings.ts) em vez de deixar um campo
-// misteriosamente em branco. Mas estourar na hora de GERAR seria pior que o
-// comportamento anterior: antes, um `{CONCAT(a,)}` esquecido num campo
-// deixava aquele campo vazio; se o parse estourasse aqui, o mesmo erro
-// derrubaria o PDF INTEIRO — nenhuma página sai. Trocar "um campo em branco"
-// por "nenhum relatório" não é melhoria.
+// The parser blows up on a malformed expression, and that is good: it is what
+// lets the editor POINT AT the problem (see fieldWarnings.ts) instead of
+// leaving a field mysteriously blank. But blowing up at GENERATION time would
+// be worse than the previous behavior: before, a forgotten `{CONCAT(a,)}` in
+// a field left that field empty; if the parse blew up here, the same mistake
+// would bring down the ENTIRE PDF — not a single page comes out. Trading "one
+// blank field" for "no report" is not an improvement.
 //
-// Então: geração é tolerante (campo vazio), e o erro aparece no editor, antes
-// de gerar. Quem quiser a versão estrita programaticamente usa `parse`
-// direto, ou `expressionError` abaixo.
+// So: generation is tolerant (an empty field), and the error shows up in the
+// editor, before generating. Whoever wants the strict version programmatically
+// uses `parse` directly, or `expressionError` below.
 
-// Todo `{...}` de um template. `[^{}]+` = um token não contém chaves.
+// Every `{...}` of a template. `[^{}]+` = a token contains no braces.
 const TOKEN_RE = /\{([^{}]+)\}/g;
 
-// Resolve um token, devolvendo "" quando ele é sintaticamente inválido.
+// Resolves one token, returning "" when it is syntactically invalid.
 export function resolveTokenLenient(token: string, data: unknown): string {
   try {
     return evaluateToString(parse(token), data);
   } catch (err) {
-    // Só erro de TEMPLATE é engolido (sintaxe, profundidade). Qualquer outro
-    // é bug do motor e tem de subir — engolir tudo esconderia regressão.
+    // Only a TEMPLATE error is swallowed (syntax, depth). Anything else is an
+    // engine bug and has to surface — swallowing it all would hide a regression.
     if (err instanceof ExpressionError) return "";
     throw err;
   }
 }
 
-// Resolve um template inteiro (texto com zero ou mais `{...}`), token a token.
-// Um token inválido vira "" sem afetar os outros — é o raio de alcance que o
-// motor anterior tinha.
+// Resolves a whole template (text with zero or more `{...}`), token by token.
+// An invalid token becomes "" without affecting the others — it is the blast
+// radius the previous engine had.
 export function renderTemplateLenient(template: string, data: unknown): string {
   return template.replace(TOKEN_RE, (_, inner) => resolveTokenLenient(inner, data));
 }
 
-// Verdade/falsidade de uma expressão de condição (o `visibleWhen` de um
-// campo). Condição inválida conta como VISÍVEL, não invisível: um erro de
-// digitação não pode fazer um campo desaparecer do relatório em silêncio — o
-// editor avisa, e o campo continua aparecendo até alguém consertar.
+// The truthiness of a condition expression (a field's `visibleWhen`). An
+// invalid condition counts as VISIBLE, not invisible: a typo must not make a
+// field silently disappear from the report — the editor warns, and the field
+// keeps showing up until someone fixes it.
 export function evaluateConditionLenient(condition: string, data: unknown, fallback = true): boolean {
   try {
     return isTruthy(evaluate(parse(condition), data));
@@ -52,12 +52,12 @@ export function evaluateConditionLenient(condition: string, data: unknown, fallb
   }
 }
 
-// A mensagem de erro de sintaxe de UMA expressão, ou null se está válida.
-// Usada pelo aviso de campo no editor.
+// The syntax error message of ONE expression, or null if it is valid. Used
+// by the field warning in the editor.
 //
-// `t` decide o idioma da mensagem; sem ele, inglês (a convenção de mensagem de
-// biblioteca, e o que um backend loga). Quem está dentro do React passa o
-// `useT()`; fora dele, `dictFor(locale)`.
+// `t` decides the message's language; without it, English (the library
+// message convention, and what a backend logs). Whoever is inside React
+// passes `useT()`; outside it, `dictFor(locale)`.
 export function expressionError(source: string, t: Dict = en): string | null {
   try {
     parse(source);
@@ -68,8 +68,8 @@ export function expressionError(source: string, t: Dict = en): string | null {
   }
 }
 
-// Os tokens `{...}` sintaticamente inválidos de um template, com a mensagem de
-// cada um. Vazio = template válido.
+// The syntactically invalid `{...}` tokens of a template, with each one's
+// message. Empty = a valid template.
 export function templateExpressionErrors(template: string, t: Dict = en): { token: string; message: string }[] {
   const errors: { token: string; message: string }[] = [];
   for (const match of template.matchAll(TOKEN_RE)) {

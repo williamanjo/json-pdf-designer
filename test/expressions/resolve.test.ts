@@ -19,10 +19,10 @@ import type { Binding, Schema } from "../../src/types";
 const data = { a: 2, b: 3, pago: "true", cancelado: "", total: 1500, tipo: "empresa" };
 
 describe("tolerância na geração", () => {
-  // O parser é estrito de propósito, mas a GERAÇÃO não pode ser: antes da AST,
-  // um `{CONCAT(a,)}` esquecido deixava AQUELE campo vazio. Se o parse
-  // estourasse na geração, o mesmo erro derrubaria o PDF inteiro — trocar "um
-  // campo em branco" por "nenhum relatório" seria uma piora.
+  // The parser is strict on purpose, but GENERATION cannot be: before the
+  // AST, a forgotten `{CONCAT(a,)}` left THAT field empty. If the parse blew
+  // up at generation time, the same mistake would bring the whole PDF down —
+  // trading "one blank field" for "no report" would be a step backwards.
 
   it("expressão inválida resolve pra vazio em vez de estourar", () => {
     for (const src of ["{a == b == c}", "{a) b}", "{SUM(a) SUM(b)}", "{(a + b}", '{CONCAT("x}']) {
@@ -31,13 +31,13 @@ describe("tolerância na geração", () => {
   });
 
   it("um token ruim não contamina os outros tokens do mesmo texto", () => {
-    // O raio de alcance é o token, não o campo inteiro nem o documento.
+    // The blast radius is the token, not the whole field nor the document.
     expect(renderTemplate("ok={a} ruim={a) b} depois={b}", data)).toBe("ok=2 ruim= depois=3");
   });
 
   it("vírgula sobrando antes do `)` continua tolerada", () => {
-    // O motor anterior aceitava (splitDelimited descartava a parte vazia).
-    // Estourar aqui quebraria template que hoje renderiza.
+    // The previous engine accepted it (splitDelimited discarded the empty
+    // part). Blowing up here would break a template that renders today.
     expect(renderTemplate("{CONCAT(a,)}", data)).toBe("2");
     expect(renderTemplate("{CONCAT(a, b,)}", data)).toBe("23");
   });
@@ -48,8 +48,8 @@ describe("tolerância na geração", () => {
 });
 
 describe("literal numérico preserva o texto escrito", () => {
-  // O motor anterior devolvia o texto cru do literal; passar por Number
-  // comeria as casas decimais que o autor escreveu.
+  // The previous engine returned the literal's raw text; passing it through
+  // Number would eat the decimal places the author wrote.
   it("mantém casas decimais e zeros à esquerda", () => {
     expect(renderTemplate("{2.50}", data)).toBe("2.50");
     expect(renderTemplate("{1.10}", data)).toBe("1.10");
@@ -78,9 +78,9 @@ describe("AND / OR / NOT", () => {
   });
 
   it("AND liga mais forte que OR", () => {
-    // false OR (true AND true) = true. Se OR ligasse mais forte daria
-    // (false OR true) AND true = true também, então o caso decisivo é este:
-    // true OR (false AND false) = true, vs (true OR false) AND false = false.
+    // false OR (true AND true) = true. If OR bound tighter it would give
+    // (false OR true) AND true = true as well, so the decisive case is this
+    // one: true OR (false AND false) = true, vs (true OR false) AND false = false.
     expect(renderTemplate("{a > 1 OR a > 5 AND b > 5}", data)).toBe("true");
   });
 
@@ -94,8 +94,8 @@ describe("AND / OR / NOT", () => {
   });
 
   it("sem espaço dos dois lados NÃO é operador — continua sendo path", () => {
-    // A regra lexical do formato vale igual pros operadores por palavra: uma
-    // chave JSON chamada "AND" tem de continuar acessível.
+    // The format's lexical rule holds for word operators too: a JSON key
+    // called "AND" has to stay reachable.
     expect(renderTemplate("{AND}", { AND: "chave" })).toBe("chave");
     expect(renderTemplate("{a AND b}", { "a AND b": "chave-com-and" })).toBe("false");
   });
@@ -115,8 +115,7 @@ describe("evaluateConditionLenient", () => {
   });
 
   it("condição inválida cai no fallback (visível), não em invisível", () => {
-    // Um erro de digitação não pode fazer um campo desaparecer do relatório em
-    // silêncio.
+    // A typo must not make a field silently disappear from the report.
     expect(evaluateConditionLenient("a) b", data)).toBe(true);
     expect(evaluateConditionLenient("a) b", data, false)).toBe(false);
   });
@@ -129,8 +128,8 @@ describe("detecção de erro pro aviso do editor", () => {
   });
 
   it("expressionError descreve o problema e a posição", () => {
-    // Sem dicionário, inglês — é a convenção de mensagem de biblioteca, e o
-    // que um backend loga. Com dicionário, ver o teste de idioma abaixo.
+    // With no dictionary, English — it is the library message convention, and
+    // what a backend logs. With a dictionary, see the language test below.
     expect(expressionError("a) b")).toMatch(/Leftover content.*position/);
     expect(expressionError("(a + b")).toMatch(/Unclosed parenthesis.*position/);
   });
@@ -142,15 +141,15 @@ describe("detecção de erro pro aviso do editor", () => {
   });
 
   it("posição do erro é o offset EXATO, com espaço no meio e token repetido", () => {
-    // Dois jeitos errados de fazer isto: indexOf aponta a primeira ocorrência
-    // do texto do token; somar o tamanho dos tokens ignora o espaço entre
-    // eles. Cada token guarda o próprio offset (ver `start` em tokenize.ts).
+    // Two wrong ways to do this: indexOf points at the first occurrence of the
+    // token's text; summing the tokens' lengths ignores the whitespace between
+    // them. Each token keeps its own offset (see `start` in tokenize.ts).
     //
-    //  "a + b) c"  -> o ")" que sobra está no índice 5
+    //  "a + b) c"  -> the leftover ")" is at index 5
     //   012345
     expect(expressionError("a + b) c")).toMatch(/position 5 /);
-    // Token repetido: o segundo ")" é o que sobra, no índice 1 (o primeiro
-    // já encerrou a expressão).
+    // A repeated token: the second ")" is the leftover one, at index 1 (the
+    // first already ended the expression).
     expect(expressionError("a) + a)")).toMatch(/position 1 /);
   });
 });
@@ -186,8 +185,8 @@ describe("aviso no campo", () => {
   });
 
   it("erro de sintaxe vem ANTES de vínculo faltando na prioridade", () => {
-    // Sintaxe já está produzindo saída errada; vínculo faltando é
-    // configuração pela metade.
+    // The syntax is already producing wrong output; a missing binding is
+    // half-finished configuration.
     const chart: Schema = {
       id: "c", name: "graf", type: "chart", x: 0, y: 0, width: 10, height: 10,
       chartType: "pie", visibleWhen: "a) b",
@@ -196,10 +195,10 @@ describe("aviso no campo", () => {
   });
 
   it("fórmula de coluna calculada é um TEMPLATE, não expressão nua", () => {
-    // `resolveRowFromItem` passa a fórmula por `renderTemplate`, então
-    // `"FAT-{fatura}"` (texto fixo + token) é uso legítimo. Validar como
-    // expressão nua acusava toda fórmula normal — falso positivo real, pego
-    // pelo painel de problemas do example report-builder.
+    // `resolveRowFromItem` passes the formula through `renderTemplate`, so
+    // `"FAT-{fatura}"` (fixed text + a token) is legitimate use. Validating it
+    // as a bare expression flagged every normal formula — a real false
+    // positive, caught by the report-builder example's problems panel.
     const ok: Binding = {
       schemaName: "tab",
       type: "array",
@@ -238,11 +237,11 @@ describe("aviso no campo", () => {
 });
 
 describe("erro de profundidade não derruba a geração", () => {
-  // O furo que este arranjo de classes de erro fechou: antes, o guarda de
-  // profundidade lançava um `Error` cru, e a camada tolerante só pegava
-  // `ExpressionSyntaxError` — então uma expressão absurdamente aninhada
-  // derrubava o `generatePdf` inteiro. Justamente o caso (template malformado
-  // ou malicioso) em que tolerar mais importa.
+  // The hole this arrangement of error classes closed: before, the depth
+  // guard threw a raw `Error`, and the tolerant layer only caught
+  // `ExpressionSyntaxError` — so an absurdly nested expression brought the
+  // whole `generatePdf` down. Precisely the case (a malformed or malicious
+  // template) in which tolerating matters most.
   const deep = "CURRENCY(".repeat(60) + "valor" + ")".repeat(60);
 
   it("o parser estrito continua acusando", () => {

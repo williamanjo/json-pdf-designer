@@ -13,10 +13,10 @@ export const CardHeader = forwardRef<HTMLDivElement, CardProps>(function CardHea
   return <div ref={ref} {...rest} className={cx("jpd-card__header", className)} />;
 });
 
-// `children` desestruturado em vez de vir no spread, e não é estilo: com
-// `<h3 {...rest} />` o `jsx-a11y/heading-has-content` não TEM como ver
-// conteúdo nenhum e acusa cabeçalho vazio. Escrito assim a regra fica ligada
-// e continua pegando um `<CardTitle />` de verdade sem conteúdo.
+// `children` is destructured instead of arriving in the spread, and that is not
+// style: with `<h3 {...rest} />`, `jsx-a11y/heading-has-content` has NO way to
+// see any content and flags an empty heading. Written this way the rule stays
+// on and still catches a real `<CardTitle />` with no content.
 export const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(function CardTitle({ className, children, ...rest }, ref) {
   return (
     <h3 ref={ref} {...rest} className={cx("jpd-card__title", className)}>

@@ -1,46 +1,47 @@
 import type { ReactNode } from "react";
 import type { Locale } from "json-pdf-designer/server";
 
-// Dicionário da CASCA deste app — os rótulos que são NOSSOS.
+// This app's SHELL dictionary — the labels that are OURS.
 //
-// Este example é o caso extremo do repo: ele não renderiza o `<Designer>`
-// nem nenhuma peça `Designer*`, então quase tudo na tela é casca própria.
-// O `locale` do estado do App alimenta DOIS dicionários:
+// This example is the repo's extreme case: it renders neither the
+// `<Designer>` nor any `Designer*` part, so almost everything on screen is its
+// own shell. The App state's `locale` feeds TWO dictionaries:
 //
-//   - `dictFor(locale)`, do pacote — para todo conceito que é DELE: nome de
-//     tipo de campo, geometria (X/Y/largura/altura), `visibleWhen`,
-//     propriedades de texto/KPI/gráfico, "vínculo faltando", "filtro
-//     incompleto", mensagem de erro de expressão. Duplicar qualquer um
-//     desses aqui seria criar duas traduções pra dessincronizar.
-//   - este arquivo — para o que só existe NESTE app: o cabeçalho, as abas de
-//     vista, o painel de fontes de dados, o explorador de campos, o painel
-//     de problemas, o banner de erro de geração, e as três coisas do painel
-//     de propriedades que o pacote não tem conceito equivalente (a lista
-//     "cabeçalho + coluna do JSON" só de leitura, o editor de linhas
-//     estáticas, e o aviso de que imagem/seção não são editáveis aqui).
+//   - `dictFor(locale)`, from the package — for every concept that is ITS OWN:
+//     a field type's name, the geometry (X/Y/width/height), `visibleWhen`, the
+//     text/KPI/chart properties, "missing binding", "incomplete filter", an
+//     expression error message. Duplicating any of those here would create two
+//     translations to fall out of sync.
+//   - this file — for what exists only in THIS app: the header, the view tabs,
+//     the data sources panel, the field explorer, the problems panel, the
+//     generation error banner, and the three things in the property panel the
+//     package has no equivalent concept for (the read-only "header + JSON
+//     column" list, the static row editor, and the notice that an image/
+//     section is not editable here).
 //
-// O QUE NÃO ESTÁ AQUI, DE PROPÓSITO: nada que seja DADO. O conteúdo dos
-// templates de `data/templates/` (inclusive o `label` de cada um, que é o
-// NOME do documento, não um rótulo de UI), o JSON de amostra, os nomes de
-// campo (`kandir_tabela`, `rows.total`) e o que sai no PDF continuam no
-// idioma em que foram escritos. Trocar a UI pro inglês não traduz um
-// relatório escrito em português — o `<Designer locale>` do pacote documenta
-// essa distinção e a casca a respeita.
+// WHAT IS DELIBERATELY NOT HERE: anything that is DATA. The content of the
+// templates in `data/templates/` (including each one's `label`, which is the
+// document's NAME, not a UI label), the sample JSON, the field names
+// (`kandir_tabela`, `rows.total`) and what comes out in the PDF stay in the
+// language they were written in. Switching the UI to English does not
+// translate a report written in Portuguese — the package's `<Designer locale>`
+// documents that distinction and the shell honors it.
 //
-// FORMA: `en` é o canônico (é o default do seletor deste example, e é o que
-// a tela já dizia antes desta rodada) e `ptBR: typeof en` é o contrato —
-// mesma convenção do próprio pacote (`src/i18n/locales/en.ts` + `src/i18n/locales/pt-BR.ts`).
-// Chave faltando não compila; sem isso uma tradução esquecida sairia
-// `undefined`, renderizada como vazio, em silêncio.
+// SHAPE: `en` is the canonical one (it is this example's picker default, and
+// it is what the screen already said before this round) and `ptBR: typeof en`
+// is the contract — the same convention as the package itself
+// (`src/i18n/locales/en.ts` + `src/i18n/locales/pt-BR.ts`). A missing key does
+// not compile; without that a forgotten translation would come out
+// `undefined`, rendered as empty, in silence.
 //
-// Mensagem com número/nome é FUNÇÃO, não concatenação no JSX: em pt-BR a
-// ordem das partes muda ("3 campos carregados" vs "3 field(s) loaded"), e
-// concatenar prende a frase à ordem do inglês.
+// A message with a number/name is a FUNCTION, not concatenation in the JSX: in
+// pt-BR the order of the parts changes ("3 campos carregados" vs "3 field(s)
+// loaded"), and concatenating pins the sentence to English's order.
 
 const en = {
   header: {
-    // "headless-designer" é o nome da pasta/do example — nome próprio, não
-    // se traduz; só a palavra em volta dele.
+    // "headless-designer" is the folder's/the example's name — a proper noun,
+    // not translated; only the word around it is.
     title: "headless-designer example",
     formatVersionTitle: "Template format version",
     formatMeta: (version: number, maxPages: number) => `format v${version} · up to ${maxPages} pages`,
@@ -181,23 +182,25 @@ const en = {
     dismiss: "Dismiss",
   },
 
-  // Texto SÓ das falhas que o pacote NÃO conhece. Antes da 3.0.0 esta seção
-  // tinha nove entradas — uma por código de erro de geração — porque a casca
-  // era dona de toda a cópia. Agora `describePdfError` devolve título e ação
-  // já localizados pros erros DELE (ver lib/generationError.ts), então
-  // manter as nove aqui seria manter uma segunda tradução pra dessincronizar.
+  // Text ONLY for the failures the package does NOT know about. Before 3.0.0
+  // this section had nine entries — one per generation error code — because
+  // the shell owned all the copy. Now `describePdfError` returns an
+  // already-localized title and action for ITS errors (see
+  // lib/generationError.ts), so keeping the nine here would be keeping a
+  // second translation to fall out of sync.
   //
-  // Sobraram quatro coisas: uma ação que este example reescreve de propósito,
-  // e os três erros que são conceito nosso.
+  // Four things are left: one action this example deliberately rewrites, and
+  // the three errors that are our own concept.
   failures: {
-    // ÚNICA reescrita de texto do pacote. A ação dele é "corrija a expressão
-    // — <mensagem>"; aqui existe um painel que já lista TODAS as expressões
-    // quebradas com o lugar de cada uma, e mandar a pessoa pra lá é melhor
-    // que repetir uma mensagem só. Título, código e culpa continuam dele.
+    // The ONLY rewrite of the package's text. Its action is "fix the
+    // expression — <message>"; here there is a panel that already lists ALL
+    // the broken expressions with each one's location, and sending the person
+    // there is better than repeating a single message. The title, code and
     expressionAction: 'See the "Template problems" panel — it lists every broken expression and where it is.',
 
-    // Arquivo de projeto: o JSON que este example salva e recarrega. As três
-    // razões pedem AÇÕES diferentes, e é só por isso que são três.
+    // A project file: the JSON this example saves and reloads. The three
+    // reasons call for different ACTIONS, and that is the only reason there
+    // are three.
     projectFile: {
       shape: {
         title: "This project file is in an unexpected shape",
@@ -215,9 +218,9 @@ const en = {
       },
     },
 
-    // Asset de fonte deste example (src/assets/inter-regular.ttf). Falhar em
-    // BUSCÁ-LO é problema de build/instalação — nada a ver com os erros de
-    // fonte do pacote, que são sobre bytes que chegaram e o fontkit recusou.
+    // This example's font asset (src/assets/inter-regular.ttf). Failing to
+    // FETCH it is a build/installation problem — nothing to do with the
+    // package's font errors, which are about bytes that arrived and fontkit refused.
     fontAsset: {
       title: "Could not load the bundled font",
       action:
@@ -225,9 +228,9 @@ const en = {
         "and reload — the PDF cannot be generated without it.",
     },
 
-    // Genérico HONESTO: não finge saber. Antes da 3.0.0 toda falha caía aqui,
-    // porque a classificação era por regex numa mensagem em português que a
-    // 3.0.0 passou a emitir em inglês.
+    // An HONEST generic: it does not pretend to know. Before 3.0.0 every
+    // failure landed here, because the classification was by a regex on a
+    // message in Portuguese that 3.0.0 started emitting in English.
     unknown: {
       title: "Could not generate the PDF",
       action: "Check the detail below. If it makes no sense, save the project and report it.",
@@ -235,8 +238,8 @@ const en = {
   },
 };
 
-// `typeof en` é o contrato: chave faltando ou tipo de argumento diferente
-// não compila.
+// `typeof en` is the contract: a missing key or a different argument type
+// does not compile.
 const ptBR: typeof en = {
   header: {
     title: "exemplo headless-designer",

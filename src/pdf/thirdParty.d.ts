@@ -3,9 +3,9 @@ declare module "wawoff2" {
   export function compress(input: Uint8Array): Promise<Uint8Array>;
 }
 
-// Binding emscripten cru, por baixo do decompress() de cima — usado direto
-// em fontUtils.ts pra contornar uma race condition real do wrapper oficial
-// (ver comentário em fontUtils.ts).
+// The raw emscripten binding, underneath the decompress() above — used
+// directly in fontUtils.ts to work around a real race condition in the
+// official wrapper (see the comment in fontUtils.ts).
 declare module "wawoff2/build/decompress_binding.js" {
   interface DecompressBinding {
     decompress(input: Uint8Array): Uint8Array | false;
@@ -16,8 +16,8 @@ declare module "wawoff2/build/decompress_binding.js" {
   export default binding;
 }
 
-// Inflate (zlib/deflate) puro, usado em fontUtils.ts pra descomprimir as
-// tabelas de um WOFF (v1) — sem @types próprio.
+// Pure inflate (zlib/deflate), used in fontUtils.ts to decompress a WOFF
+// (v1)'s tables — with no @types of its own.
 declare module "tiny-inflate" {
   export default function inflate(source: Uint8Array, dest: Uint8Array): Uint8Array;
 }

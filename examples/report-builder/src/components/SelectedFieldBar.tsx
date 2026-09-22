@@ -8,32 +8,32 @@ import {
 } from "json-pdf-designer";
 import { t } from "../i18n";
 
-// Barra de contexto do campo selecionado, desenhada pela CASCA DO APP (não
-// pelo editor) e com Tailwind próprio deste projeto.
+// The selected field's context bar, drawn by THE APP'S SHELL (not by the
+// editor) and with this project's own Tailwind.
 //
-// Antes da 3.0.0 isto era IMPOSSÍVEL: o `<Designer>` era dono da seleção e não
-// havia como ler de fora — o comentário em App.tsx dizia exatamente isso ("o
-// <Designer> é dono da seleção, não há prop pra dirigi-la de fora"). Agora o
-// estado mora no `<DesignerProvider>`, então qualquer parte do app que esteja
-// dentro dele pode ler por hook.
+// Before 3.0.0 this was IMPOSSIBLE: the `<Designer>` owned the selection and
+// there was no way to read it from outside — the comment in App.tsx said
+// exactly that ("the <Designer> owns the selection, there is no prop to drive
+// it from outside"). Now the state lives in the `<DesignerProvider>`, so any
+// part of the app inside it can read it through a hook.
 //
-// É a demonstração mais curta possível dos hooks públicos, e a única coisa
-// que a migração deste example pras peças COMPROU de verdade — o layout de
-// duas colunas continua idêntico ao do preset.
+// It is the shortest possible demonstration of the public hooks, and the only
+// thing migrating this example to the parts actually BOUGHT — the two-column
+// layout is still identical to the preset's.
 export default function SelectedFieldBar() {
-  // Esta barra não recebe prop nenhuma, e o idioma também não precisa virar
-  // uma: ela vive DENTRO do `<I18nProvider>` que o DesignerPanel monta, então
-  // `useLocale()` devolve exatamente o mesmo `locale` do estado do App. Uma
-  // fonte, duas camadas — `useT()` pro que é do pacote, `t()` pro que é nosso.
+  // This bar receives no prop at all, and the language does not need to
+  // become one either: it lives INSIDE the `<I18nProvider>` the DesignerPanel
+  // assembles, so `useLocale()` returns exactly the same `locale` as the App's
+  // state. One source, two layers — `useT()` for what is the package's, `t()`
   const locale = useLocale();
   const tx = t(locale);
   const tPkg = useT();
   const { selected } = useDesignerSelectedSchema();
   const { selectedIds } = useDesignerSelection();
   const { bulkEditActive } = useDesignerBulkEdit();
-  // `useDesignerActions()` nunca troca de identidade — é o contexto que foi
-  // desenhado pra ser estável, pra uma peça memoizada poder consumir mutador
-  // sem re-renderizar quando o template muda.
+  // `useDesignerActions()` never changes identity — it is the context that
+  // was designed to be stable, so a memoized part can consume a mutator
+  // without re-rendering when the template changes.
   const { removeSchema, bringToFront, sendToBack } = useDesignerActions();
 
   if (!selected) {
@@ -46,11 +46,11 @@ export default function SelectedFieldBar() {
 
   return (
     <div className="flex h-8 flex-shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs">
-      {/* NOME do campo: dado do usuário, sai como está (por isso a fonte
-          mono). TIPO do campo: conceito do PACOTE, e o pacote já traduz —
-          `useT().fieldTypeLabels` em vez de uma cópia nossa pra
-          dessincronizar. Antes disto saía cru ("text"/"table"), em inglês
-          mesmo com a UI em português. */}
+      {/* The field's NAME: the user's data, it comes out as it is (hence
+          the mono font). The field's TYPE: the PACKAGE's concept, and the
+          package already translates it — `useT().fieldTypeLabels` instead of a
+          copy of ours to fall out of sync. Before this it came out raw
+          ("text"/"table"), in English even with the UI in Portuguese. */}
       <span className="font-mono font-medium text-slate-700">{selected.name}</span>
       <span className="text-slate-400">{tPkg.fieldTypeLabels[selected.type]}</span>
       <span className="text-slate-300">·</span>

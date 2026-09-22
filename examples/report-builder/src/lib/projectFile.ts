@@ -1,51 +1,53 @@
 import type { Template, Binding } from "json-pdf-designer";
 import { migrateTemplate } from "json-pdf-designer";
 
-// Exporta template + vínculos como um JSON pra baixar — "projeto" no
-// sentido de "dá pra recarregar depois" (ver parseProjectFile).
+// It exports the template + bindings as a JSON to download — a "project" in
+// the sense of "it can be loaded back later" (see parseProjectFile).
 export function downloadProjectFile(template: Template, bindings: Binding[]) {
   const payload = { template, bindings };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  // Nome do ARQUIVO baixado: não traduz. É o identificador do artefato que o
-  // usuário vai reabrir depois — trocar de idioma não pode mudar como o
-  // arquivo dele se chama.
+  // The downloaded FILE's name: not translated. It is the identifier of the
+  // artifact the user will reopen later — switching language must not change
+  // what their file is called.
   a.download = "projeto-relatorio.json";
   a.click();
   URL.revokeObjectURL(url);
 }
 
-// Lê e valida um arquivo de projeto exportado por downloadProjectFile —
-// mesma validação de forma do loadAutosave (ver hooks/useAutosave.ts):
-// sem isso, um JSON editado à mão (ou de uma versão antiga incompatível)
-// passava direto pro estado tipado e quebrava o Designer mais na frente,
-// sem erro claro na hora do import.
-// POR QUE UMA CLASSE COM CÓDIGO, e não `new Error(t.frase)`.
+// It reads and validates a project file exported by downloadProjectFile —
+// the same shape validation as loadAutosave (see hooks/useAutosave.ts):
+// without it, a hand-edited JSON (or one from an old incompatible version)
+// went straight into the typed state and broke the Designer further along,
+// with no clear error at import time.
+// WHY A CLASS WITH A CODE, and not `new Error(t.phrase)`.
 //
-// Esta função ANTES recebia o dicionário e rejeitava com a mensagem já
-// traduzida. O argumento era que aquilo virava o `detail` do banner — a camada
-// técnica —, e detail congelado no idioma do erro seria aceitável.
+// This function USED to take the dictionary and reject with the message
+// already translated. The argument was that it became the banner's `detail` —
+// the technical layer — and a detail frozen in the error's language would be
+// acceptable.
 //
-// O argumento não fechava, por um motivo medido: sem código, a CLASSIFICAÇÃO
-// não tinha sinal nenhum. As quatro falhas de arquivo de projeto caíam no ramo
-// final de `describeGenerationError` e saíam como `appUnknown` com
-// `blame: "package"` — ou seja, o banner dizia "não é culpa sua, reporte" pra
-// alguém que só escolheu um JSON torto. O único jeito de distinguir seria
-// casar regex na frase, que muda com o idioma: exatamente o anti-padrão que
-// esta rodada tirou do resto deste arquivo.
+// The argument did not hold, for a measured reason: with no code, the
+// CLASSIFICATION had no signal at all. The four project file failures fell
+// into `describeGenerationError`'s final branch and came out as `appUnknown`
+// with `blame: "package"` — that is, the banner said "not your fault, report
+// it" to someone who had merely chosen a crooked JSON. The only way to tell
+// them apart would be matching a regex on the phrase, which changes with the
+// language: exactly the anti-pattern this round removed from the rest of this
+// file.
 //
-// Agora `reason` é o sinal, título e ação saem do dicionário no render, e a
-// mensagem volta a ser inglês de diagnóstico — igual às do pacote, que é o
-// texto que se cola num issue.
+// Now `reason` is the signal, the title and action come from the dictionary at
+// render time, and the message goes back to being diagnostic English — like
+// the package's, which is the text that gets pasted into an issue.
 //
-// As quatro validações colapsam em TRÊS razões porque as duas primeiras são a
-// mesma falha pra quem lê: o arquivo abriu, o JSON era válido, e a forma
-// dentro dele está errada.
+// The four validations collapse into THREE reasons because the first two are
+// the same failure for whoever reads: the file opened, the JSON was valid, and
+// the shape inside it is wrong.
 //
-// Campo `readonly` no corpo, e não parameter property: o tsconfig destes
-// examples liga `erasableSyntaxOnly`.
+// A `readonly` field in the body, and not a parameter property: these
+// examples' tsconfig turns on `erasableSyntaxOnly`.
 export type ProjectFileReason = "shape" | "malformed" | "unreadable";
 
 export class ProjectFileError extends Error {

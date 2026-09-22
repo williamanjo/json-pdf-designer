@@ -1,14 +1,14 @@
-// Distribuição de largura de coluna — compartilhada entre o desenho real
-// (pdf/render/renderTable.ts, em pt) e o preview do canvas (components/FieldBox/
-// TableField.tsx, em px) pra nunca divergir. Opera sempre em mm (mesma
-// unidade de TableSchema.columnWidths) — quem chama converte o resultado
-// pra pt/px no final (mmToPt/mmToPx), não aqui.
+// Column width distribution — shared between the real drawing
+// (pdf/render/renderTable.ts, in pt) and the canvas preview (components/FieldBox/
+// TableField.tsx, in px) so the two never diverge. It always works in mm (the
+// same unit as TableSchema.columnWidths) — the caller converts the result to
+// pt/px at the end (mmToPt/mmToPx), not here.
 //
-// Larguras EXPLÍCITAS (schema.columnWidths[i] definido) são respeitadas
-// como estão; o que sobra de `totalMm` é dividido em partes iguais entre
-// as colunas SEM largura própria. Sem nenhuma largura definida em lugar
-// nenhum, todas caem no rateio — divisão igual de sempre, comportamento
-// idêntico a antes de columnWidths existir.
+// EXPLICIT widths (schema.columnWidths[i] set) are respected as they are;
+// whatever is left of `totalMm` is split evenly between the columns WITHOUT a
+// width of their own. With no width set anywhere at all, they all fall into
+// the split — the usual equal division, behavior identical to what it was
+// before columnWidths existed.
 export function resolveColumnWidthsMm(
   columnWidths: (number | undefined)[] | undefined,
   colCount: number,

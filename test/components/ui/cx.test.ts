@@ -21,9 +21,9 @@ describe("cx", () => {
   });
 
   it("é idempotente — passar o resultado de volta não muda nada", () => {
-    // É o que garante asserção estável de markup quando a composição passa
-    // pelo cx duas vezes (ClearFieldButton -> Button, ou um adapter de slot
-    // que embrulha o nosso próprio componente).
+    // It is what guarantees a stable markup assertion when composition passes
+    // through cx twice (ClearFieldButton -> Button, or a slot adapter that
+    // wraps our own component).
     const once = cx("jpd-btn", "minha");
     expect(cx(once)).toBe(once);
     expect(cx(once, "minha")).toBe(once);
@@ -60,7 +60,7 @@ describe("readPart", () => {
 
   it("parte ausente vira objeto vazio — o chamador não precisa de guarda", () => {
     expect(readPart(undefined)).toEqual({});
-    // String vazia é "sem classe", não classe "".
+    // An empty string is "no class", not the class "".
     expect(readPart("")).toEqual({});
   });
 

@@ -1,73 +1,73 @@
-// Tokenizador das expressões de template ({...} em conteúdo de campo).
+// The tokenizer for template expressions ({...} inside a field's content).
 //
-// A regra lexical central deste formato, e o motivo de existir um
-// tokenizador à mão em vez de um genérico: **um operador só é operador
-// quando tem espaço em branco dos DOIS lados**. Fora disso ele faz parte do
-// identificador.
+// This format's central lexical rule, and the reason a hand-written
+// tokenizer exists instead of a generic one: **an operator is only an
+// operator when it has whitespace on BOTH sides**. Otherwise it is part of
+// the identifier.
 //
-//   {my-key}    -> path "my-key"       (hífen dentro do nome da chave)
-//   {my key}    -> path "my key"       (chave JSON com espaço)
+//   {my-key}    -> path "my-key"       (hyphen inside the key name)
+//   {my key}    -> path "my key"       (JSON key with a space)
 //   {a-b}       -> path "a-b"
-//   {a - b}     -> subtração
-//   {IF(a==2,…)}-> path "a==2" (não é comparação — sem espaço)
-//   {IF(a == 2,…)} -> comparação
+//   {a - b}     -> subtraction
+//   {IF(a==2,…)}-> path "a==2" (not a comparison — no whitespace)
+//   {IF(a == 2,…)} -> a comparison
 //
-// Não é capricho: é o contrato que o motor anterior tinha (por acidente do
-// regex `/\s[+\-*/]\s/`) e do qual template salvo em produção depende. Um
-// tokenizador "normal" quebraria `{my-key}` em `my`, `-`, `key` e devolveria
-// 0 em silêncio. Aqui a regra é explícita e testada.
+// It is not a whim: it is the contract the previous engine had (by accident
+// of the `/\s[+\-*/]\s/` regex) and that templates saved in production depend
+// on. A "normal" tokenizer would break `{my-key}` into `my`, `-`, `key` and
+// silently return 0. Here the rule is explicit and tested.
 //
-// Vale igual pros operadores por PALAVRA (AND/OR/NOT): `{a AND b}` combina
-// duas condições, `{AND}` é o path de uma chave chamada "AND".
+// The same holds for the WORD operators (AND/OR/NOT): `{a AND b}` combines
+// two conditions, `{AND}` is the path of a key called "AND".
 //
 // ---------------------------------------------------------------------------
-// PATH ENTRE BRACKETS (3.2.0)
+// BRACKETED PATH (3.2.0)
 //
-// A regra permissiva acima resolve quase toda chave de JSON, mas não toda: uma
-// chave com ponto LITERAL no nome não tinha forma nenhuma (o `.` sempre
-// separava segmento), nem uma chave com `(`/`)`/`,`/`"`, nem uma com operador
-// cercado de espaço. A forma delimitada dá nome a todas:
+// The permissive rule above covers almost every JSON key, but not all: a key
+// with a LITERAL dot in its name had no form at all (the `.` always separated
+// segments), nor did a key with `(`/`)`/`,`/`"`, nor one with an operator
+// surrounded by spaces. The delimited form names all of them:
 //
-//   {[id]}                -> chave "id"
-//   {[cliente].[nome]}    -> caminha cliente -> nome
-//   {[cliente.nome]}      -> chave LITERAL "cliente.nome" (ponto não separa)
-//   {["token name"]}      -> chave "token name"
-//   {[total] + 1}         -> conta (o operador está FORA do bracket)
-//   {CURRENCY([total], "R$", 2)} -> path bracketado como argumento
+//   {[id]}                -> key "id"
+//   {[cliente].[nome]}    -> walks cliente -> nome
+//   {[cliente.nome]}      -> the LITERAL key "cliente.nome" (the dot does not split)
+//   {["token name"]}      -> key "token name"
+//   {[total] + 1}         -> arithmetic (the operator is OUTSIDE the bracket)
+//   {CURRENCY([total], "R$", 2)} -> a bracketed path as an argument
 //
-// Espaço dentro do bracket EXIGE quotes. Sem essa regra, `[a + b]` seria
-// ambíguo entre a chave "a + b" e uma conta dentro do bracket — e adivinhar um
-// dos dois em silêncio é pior que recusar.
+// A space inside the bracket REQUIRES quotes. Without that rule, `[a + b]`
+// would be ambiguous between the key "a + b" and arithmetic inside the
+// bracket — and silently guessing one of the two is worse than refusing.
 //
-// A forma nua continua valendo, sem exceção: `{cliente.nome}`, `{my-key}`,
-// `{my key}` são os paths de sempre. O único caso cujo significado mudou é uma
-// chave literalmente chamada `[algo]`, que antes caía no acumulador de átomo e
-// agora precisa de `{["[algo]"]}`.
+// The bare form still stands, without exception: `{cliente.nome}`, `{my-key}`,
+// `{my key}` are the paths they always were. The only case whose meaning
+// changed is a key literally called `[something]`, which used to fall into the
+// atom accumulator and now needs `{["[something]"]}`.
 
 import { ExpressionSyntaxError } from "../errors";
-// Reexportado porque quem lida com tokens costuma querer o erro junto.
+// Re-exported because whoever handles tokens usually wants the error too.
 export { ExpressionSyntaxError };
 
-// Onde o token começa na string original. A posição aparece na mensagem de
-// erro, que por sua vez vira o aviso do campo no editor — então tem de apontar
-// o caractere exato, não uma aproximação.
+// Where the token starts in the original string. The position appears in the
+// error message, which in turn becomes the field's warning in the editor — so
+// it has to point at the exact character, not an approximation.
 type Located = { start: number };
 
 export type Token = Located &
   (
-    // `source` guarda o texto exatamente como foi escrito. Pra número isso
-    // importa: `{2.50}` renderiza "2.50", não "2.5" — o literal preserva as
-    // casas que o autor escreveu (é o que o motor anterior fazia, devolvendo o
-    // texto cru). Numa conta, o valor é coagido normalmente.
+    // `source` keeps the text exactly as it was written. For a number that
+    // matters: `{2.50}` renders "2.50", not "2.5" — the literal preserves the
+    // places the author wrote (which is what the previous engine did,
+    // returning the raw text). In arithmetic, the value is coerced normally.
     | { kind: "number"; value: number; source: string }
     | { kind: "string"; value: string; source: string }
-    // Identificador: nome de função OU path de dado. Quem decide é o parser,
-    // olhando se vem um "(" depois.
+    // An identifier: a function name OR a data path. The parser decides,
+    // looking at whether a "(" comes next.
     | { kind: "ident"; value: string; source: string }
-    // Path DELIMITADO — uma cadeia de segmentos já resolvida pelo lexer, cada
-    // um sem quotes. Vem separado do `ident` porque aqui os segmentos são
-    // dados de verdade (`["a.b"]` é UM segmento com ponto dentro), e uma
-    // string com ponto não consegue representar isso.
+    // A DELIMITED path — a chain of segments already resolved by the lexer,
+    // each without quotes. It is separate from `ident` because here the
+    // segments are real data (`["a.b"]` is ONE segment with a dot inside),
+    // and a dotted string cannot represent that.
     | { kind: "path"; segments: string[]; source: string }
     | { kind: "op"; value: "+" | "-" | "*" | "/"; source: string }
     | { kind: "compare"; value: "==" | "!=" | ">=" | "<=" | ">" | "<"; source: string }
@@ -77,46 +77,46 @@ export type Token = Located &
     | { kind: "comma"; source: string }
   );
 
-// Tupla, não Set<string>: iterar/comparar sobre ela preserva o tipo literal,
-// que é o que dispensa um cast ao montar o token.
+// A tuple, not a Set<string>: iterating/comparing over it preserves the
+// literal type, which is what avoids a cast when building the token.
 const ARITHMETIC = ["+", "-", "*", "/"] as const;
-// 2 caracteres antes de 1 — senão ">=" seria lido como ">" seguido de "="
-// sobrando. Mesma ordem que o IF_OPERATORS do motor anterior usava.
+// 2 characters before 1 — otherwise ">=" would be read as ">" with a leftover
+// "=". The same order the previous engine's IF_OPERATORS used.
 const COMPARISONS = ["==", "!=", ">=", "<=", ">", "<"] as const;
-// Mais longo antes do mais curto pela mesma razão (nenhum é prefixo de outro
-// aqui, mas a ordem deixa a intenção explícita).
+// Longest before shortest for the same reason (none is a prefix of another
+// here, but the order makes the intent explicit).
 const NOT = "NOT";
 const LOGICALS = ["AND", NOT, "OR"] as const;
 
 const isSpace = (ch: string | undefined) => ch !== undefined && /\s/.test(ch);
 
-// Um operador nesta posição está cercado de espaço nos dois lados?
+// Is an operator at this position surrounded by whitespace on both sides?
 function isSurroundedBySpace(src: string, start: number, length: number): boolean {
   return isSpace(src[start - 1]) && isSpace(src[start + length]);
 }
 
-// O token do operador que começa em `i`, já com kind e value certos — só
-// falta o `start`, que quem chama preenche. Devolver o token pronto (em vez de
-// `{ text, kind }`) é o que dispensa reconstruí-lo com cast lá em cima.
+// The token of the operator starting at `i`, already with the right kind and
+// value — only `start` is missing, which the caller fills in. Returning the
+// finished token (instead of `{ text, kind }`) avoids rebuilding it with a cast.
 //
-// `Omit` direto sobre a união colapsaria os três membros num só objeto com
-// `kind: "op" | "compare" | "logical"` e `value` de todos juntos — aí o
-// resultado não seria mais atribuível a `Token`. O `T extends unknown` força a
-// distribuição, preservando os três membros separados.
+// An `Omit` straight over the union would collapse the three members into one
+// object with `kind: "op" | "compare" | "logical"` and every `value` together
+// — and then the result would no longer be assignable to `Token`. The
+// `T extends unknown` forces distribution, keeping the three members separate.
 type WithoutStart<T> = T extends unknown ? Omit<T, "start"> : never;
 type OperatorToken = WithoutStart<Extract<Token, { kind: "op" | "compare" | "logical" }>>;
 
-// Qual operador começa em `i`, se algum ESTIVER cercado de espaço. Devolve
-// null quando não há — inclusive quando o caractere é um operador mas está
-// encostado no texto (aí ele pertence ao identificador).
+// Which operator starts at `i`, if any IS surrounded by whitespace. It
+// returns null when there is none — including when the character is an
+// operator but sits against the text (then it belongs to the identifier).
 function operatorAt(src: string, i: number): OperatorToken | null {
   for (const cmp of COMPARISONS) {
     if (src.startsWith(cmp, i) && isSurroundedBySpace(src, i, cmp.length)) {
       return { kind: "compare", value: cmp, source: cmp };
     }
   }
-  // AND/OR/NOT são case-insensitive, igual nome de função (`sum(...)`
-  // funciona). O `source` guarda como foi escrito; o `value` normaliza.
+  // AND/OR/NOT are case-insensitive, like a function name (`sum(...)` works).
+  // `source` keeps it as written; `value` normalizes it.
   for (const word of LOGICALS) {
     const written = src.slice(i, i + word.length);
     if (written.toUpperCase() === word && isSurroundedBySpace(src, i, word.length)) {
@@ -131,9 +131,9 @@ function operatorAt(src: string, i: number): OperatorToken | null {
   return null;
 }
 
-// `NOT` no COMEÇO da expressão (ou logo depois de um "(" / operador) não tem
-// espaço à esquerda, então `isSurroundedBySpace` recusaria. Este caso extra
-// cobre `{NOT pago}` e `{IF(NOT pago, …)}` — só pra NOT, que é prefixo.
+// A `NOT` at the START of the expression (or right after a "(" / an operator)
+// has no whitespace on its left, so `isSurroundedBySpace` would refuse it.
+// This extra case covers `{NOT paid}` and `{IF(NOT paid, …)}` — NOT only.
 function leadingNotAt(src: string, i: number, tokens: Token[]): boolean {
   if (src.slice(i, i + NOT.length).toUpperCase() !== NOT) return false;
   if (!isSpace(src[i + NOT.length])) return false;
@@ -143,13 +143,13 @@ function leadingNotAt(src: string, i: number, tokens: Token[]): boolean {
   return prev !== undefined && (prev.kind === "lparen" || prev.kind === "comma" || prev.kind === "logical");
 }
 
-// Caracteres que sempre encerram um átomo. `[` e `]` entraram na 3.2.0: sem
-// eles, `a[0]` continuaria virando um identificador só, e aí um `[` perdido no
-// meio do texto passaria calado em vez de dar erro de sintaxe.
+// Characters that always end an atom. `[` and `]` joined in 3.2.0: without
+// them, `a[0]` would still become a single identifier, and then a stray `[`
+// in the middle of the text would pass silently instead of being a syntax error.
 const ATOM_BREAK = new Set(["(", ")", ",", '"', "[", "]"]);
 
-// Um segmento entre brackets, a partir do `[` em `i`. Devolve o conteúdo já
-// sem quotes e onde o `]` terminou.
+// One bracketed segment, starting at the `[` at `i`. It returns the content
+// already unquoted and where the `]` ended.
 function bracketSegmentAt(src: string, i: number): { value: string; end: number } {
   const open = i + 1;
   const quote = src[open];
@@ -165,13 +165,13 @@ function bracketSegmentAt(src: string, i: number): { value: string; end: number 
   if (close === -1) throw new ExpressionSyntaxError("unclosedBracket", src, i);
   const body = src.slice(open, close);
   if (body === "") throw new ExpressionSyntaxError("emptySegment", src, i);
-  // Espaço sem quotes é recusado de propósito — ver o comentário do topo.
+  // An unquoted space is refused on purpose — see the comment at the top.
   if (/\s/.test(body)) throw new ExpressionSyntaxError("spaceInSegment", src, i);
   return { value: body, end: close + 1 };
 }
 
-// A cadeia inteira: `[a]`, `[a].[b]`, `[a.b].[c]`, e também `[a].b` (cauda
-// nua, aceita porque recusá-la só produziria um erro confuso).
+// The whole chain: `[a]`, `[a].[b]`, `[a.b].[c]`, and also `[a].b` (a bare
+// tail, accepted because refusing it would only produce a confusing error).
 function bracketPathAt(src: string, i: number): { segments: string[]; source: string; end: number } {
   const start = i;
   const segments: string[] = [];
@@ -183,7 +183,7 @@ function bracketPathAt(src: string, i: number): { segments: string[]; source: st
       segments.push(seg.value);
       pos = seg.end;
     } else {
-      // Segmento nu numa cauda: consome até a próxima fronteira.
+      // A bare segment in a tail: it consumes up to the next boundary.
       const from = pos;
       while (pos < src.length) {
         const c = src[pos];
@@ -195,7 +195,7 @@ function bracketPathAt(src: string, i: number): { segments: string[]; source: st
       segments.push(bare);
     }
 
-    // Continua a cadeia só se houver um `.` com algo depois dele.
+    // It continues the chain only if there is a `.` with something after it.
     if (src[pos] !== "." || pos + 1 >= src.length) break;
     pos++;
   }
@@ -242,14 +242,14 @@ export function tokenize(source: string): Token[] {
       continue;
     }
 
-    // Espaço fora de identificador (entre um ")" e um operador, por exemplo)
-    // — só pula. Espaço DENTRO de identificador é tratado no acumulador
-    // abaixo, que só corta no fim.
+    // Whitespace outside an identifier (between a ")" and an operator, for
+    // instance) — it is simply skipped. Whitespace INSIDE an identifier is
+    // handled by the accumulator below, which only trims at the end.
     if (/\s/.test(ch)) { i++; continue; }
 
-    // Átomo: consome até bater em pontuação ou num operador cercado de
-    // espaço. Espaço e hífen encostados entram no átomo de propósito (ver o
-    // comentário no topo).
+    // An atom: it consumes up to punctuation or an operator surrounded by
+    // whitespace. A space or a hyphen sitting against the text joins the atom
+    // on purpose (see the comment at the top).
     const start = i;
     while (i < source.length) {
       const c = source[i];
@@ -260,11 +260,11 @@ export function tokenize(source: string): Token[] {
     const raw = source.slice(start, i);
     const text = raw.trim();
     if (text === "") {
-      // Só espaço até a próxima pontuação — nada a emitir.
+      // Nothing but whitespace up to the next punctuation — nothing to emit.
       continue;
     }
-    // Literal numérico puro (o "2" de NUMBER(valor, 2)). Sem isto viraria
-    // busca de path por engano — chave "2" não existe no JSON.
+    // A pure numeric literal (the "2" of NUMBER(value, 2)). Without this it
+    // would become a path lookup by mistake — the key "2" is not in the JSON.
     if (/^-?\d+(\.\d+)?$/.test(text)) {
       tokens.push({ kind: "number", value: Number(text), source: text, start: start + raw.indexOf(text) });
     } else {

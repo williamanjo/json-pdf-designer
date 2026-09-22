@@ -3,26 +3,26 @@ import type { ShellDict } from "../i18n";
 
 type Props = {
   problems: TemplateProblem[];
-  // Dicionário da CASCA — só o CHROME deste painel (título, estado vazio, os
-  // dois resumos de contagem). A MENSAGEM de cada problema já vem traduzida
-  // pelo dicionário do PACOTE, montada em lib/templateProblems.ts com
-  // `expressionErrors(..., dictFor(locale))` e `t.warnings.*`: expressão
-  // inválida e vínculo faltando são conceitos do pacote, não deste app.
+  // The SHELL's dictionary — only this panel's CHROME (the title, the empty
+  // state, the two count summaries). Each problem's MESSAGE already arrives
+  // translated by the PACKAGE's dictionary, built in lib/templateProblems.ts
+  // with `expressionErrors(..., dictFor(locale))` and `t.warnings.*`: an
+  // invalid expression and a missing binding are the package's concepts.
   tt: ShellDict;
-  // Clique num problema leva pra página E seleciona o campo. No
-  // report-builder o clique só chega até a página, porque lá o <Designer> é
-  // dono da seleção e não há prop pra dirigi-la de fora. Aqui a seleção é
-  // estado do App, então dá pra ir até o campo.
+  // Clicking a problem takes you to the page AND selects the field. In
+  // report-builder the click only gets as far as the page, because there the
+  // <Designer> owns the selection and there is no prop to drive it from
+  // outside. Here the selection is the App's state, so it can go to the field.
   onGoTo: (pageIndex: number, schemaId: string) => void;
 };
 
-// "Template problems" — o outro lado da tolerância da geração.
+// "Template problems" — the other side of generation's tolerance.
 //
-// O pacote resolve expressão inválida pra vazio em vez de derrubar o PDF (uma
-// vírgula esquecida não pode custar um relatório de 200 páginas). O preço é que
-// o campo sai em branco sem explicação. Este painel é onde a explicação
-// aparece, antes de gerar — montado com `expressionErrors` + `dictFor`, dois
-// exports do entry `/server` (ver lib/templateProblems.ts).
+// The package resolves an invalid expression to empty instead of bringing the
+// PDF down (a forgotten comma must not cost a 200-page report). The price is
+// that the field comes out blank with no explanation. This panel is where the
+// explanation appears, before generating — built with `expressionErrors` +
+// `dictFor`, two exports of the `/server` entry (see lib/templateProblems.ts).
 export default function ProblemsPanel({ problems, tt, onGoTo }: Props) {
   const willRenderEmpty = problems.filter((p) => p.kind === "expressao").length;
   const suspect = problems.filter((p) => p.kind === "suspeita").length;
@@ -38,9 +38,10 @@ export default function ProblemsPanel({ problems, tt, onGoTo }: Props) {
         <p className="panel-hint">{tt.problems.none}</p>
       ) : (
         <>
-          {/* Frase INTEIRA vinda do dicionário, não "número + resto" colado
-              no JSX: no plural o português muda o meio da frase ("ela
-              compila" → "elas compilam"), não só o numeral na frente. */}
+          {/* The WHOLE sentence comes from the dictionary, not "a number +
+              the rest" glued in the JSX: in the plural Portuguese changes the
+              middle of the sentence ("ela compila" → "elas compilam"), not
+              only the numeral in front. */}
           {suspect > 0 && <p className="error-text">{tt.problems.suspicious(suspect)}</p>}
           {willRenderEmpty > 0 && <p className="error-text">{tt.problems.willRenderEmpty(willRenderEmpty)}</p>}
           <ul className="problem-list">

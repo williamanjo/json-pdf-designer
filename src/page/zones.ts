@@ -9,8 +9,8 @@ export type Bands = {
   marginRight?: number;
 };
 
-// Preenche cada banda ausente com 0 — evitar repetir o mesmo bloco de
-// fallback em classifyZone e clampToZone.
+// It fills every absent band with 0 — to avoid repeating the same fallback
+// block in classifyZone and clampToZone.
 function resolveBands(bands: Bands): Required<Bands> {
   return {
     headerHeight: bands.headerHeight ?? 0,
@@ -20,11 +20,11 @@ function resolveBands(bands: Bands): Required<Bands> {
   };
 }
 
-// Zona de um campo é sempre derivada da posição (x/y), nunca guardada no
-// schema — cai automaticamente na faixa vermelha (header/footer/margem)
-// quando fica contido nela. Usado tanto pro editor (canvas, toggle de
-// isolamento, trava de arrastar) quanto pro generate.ts (o que repete em
-// toda página gerada).
+// A field's zone is always derived from its position (x/y), never stored in
+// the schema — it falls into the red band (header/footer/margin) automatically
+// when it is contained in it. Used both by the editor (canvas, isolation
+// toggle, drag lock) and by generate.ts (what repeats on every generated
+// page).
 export function classifyZone(schema: Schema, page: PageSize, bands: Bands): Zone {
   const { headerHeight, footerHeight, marginLeft, marginRight } = resolveBands(bands);
   if (schema.y + schema.height <= headerHeight) return "header";
@@ -38,8 +38,8 @@ export function isRedZone(zone: Zone): boolean {
   return zone !== "body";
 }
 
-// Calcula os limites (min/max de x/y) permitidos pra zona informada — parte
-// pura do cálculo de clampToZone, sem a etapa final de clamping.
+// Computes the limits (min/max of x/y) allowed for the given zone — the pure
+// part of the clampToZone computation, without the final clamping step.
 function clampBoundsForZone(
   zone: Zone,
   page: PageSize,
@@ -72,9 +72,9 @@ function clampBoundsForZone(
   return { minX, maxX, minY, maxY };
 }
 
-// Trava x/y dentro dos limites da zona informada — usada ao arrastar ou
-// redimensionar, pra um campo do corpo nunca invadir a faixa
-// vermelha (header/footer/margem) e um campo da faixa nunca sair dela.
+// Clamps x/y inside the given zone's limits — used when dragging or
+// resizing, so a body field never invades the red band (header/footer/margin)
+// and a band field never leaves it.
 export function clampToZone(
   zone: Zone,
   x: number,

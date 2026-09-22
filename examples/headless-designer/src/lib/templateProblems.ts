@@ -2,51 +2,52 @@ import { dictFor, expressionErrors } from "json-pdf-designer/server";
 import type { Binding, Locale, Schema, Template, TemplatePage } from "json-pdf-designer/server";
 import { shellDict } from "../i18n";
 
-// Tudo que está torto no template ANTES de gerar.
+// Everything that is crooked in the template BEFORE generating.
 //
-// Existe porque a geração é tolerante de propósito: expressão inválida resolve
-// pra vazio em vez de derrubar o PDF. Ótimo pra não perder um relatório de 200
-// páginas por uma vírgula — mas sem isto o problema fica invisível (o campo
-// aparece em branco e ninguém sabe por quê). Este é o outro lado do acordo.
+// It exists because generation is deliberately tolerant: an invalid expression
+// resolves to empty instead of bringing the PDF down. Great for not losing a
+// 200-page report over one comma — but without this the problem is invisible
+// (the field shows up blank and nobody knows why). This is the other side of
+// the bargain.
 //
-// A varredura de expressão vem de export público do pacote: `expressionErrors`
-// devolve cada expressão que um campo carrega (incluindo o `visibleWhen` e as
-// fórmulas de coluna), e `dictFor(locale)` dá o dicionário como VALOR — o hook
-// `useT()` só existe dentro de um componente, e isto roda fora da árvore React.
+// The expression scan comes from a public export of the package:
+// `expressionErrors` returns every expression a field carries (including the
+// `visibleWhen` and the column formulas), and `dictFor(locale)` gives the
+// dictionary as a VALUE — the `useT()` hook only exists inside a component,
+// and this runs outside the React tree.
 //
-// ONDE ESTE ARQUIVO DIFERE DO report-builder: lá a parte de "configuração pela
-// metade" sai de `fieldWarning(schema, binding, t)`. Essa função é exportada
-// pelo entry `.` (o com React) e NÃO pelo `/server` — e este example importa só
-// do `/server`, de propósito. Então as duas regras que ela aplica (vínculo
-// faltando em section/chart, e filtro com condição sem valor) estão escritas
-// aqui embaixo, reusando as MENSAGENS do dicionário do pacote pra não inventar
-// texto próprio nem perder a tradução.
+// WHERE THIS FILE DIFFERS FROM report-builder: there the "half-finished
+// configuration" part comes from `fieldWarning(schema, binding, t)`. That
+// function is exported by the `.` entry (the React one) and NOT by `/server` —
+// and this example imports only from `/server`, on purpose. So the two rules
+// it applies (a missing binding on a section/chart, and a filter condition
+// with no value) are written down here, reusing the package dictionary's
 
 export type TemplateProblem = {
   pageIndex: number;
   pageName: string;
   schemaId: string;
   schemaName: string;
-  // "expressao" = vai renderizar vazio agora. "config" = configuração pela
-  // metade (falta vínculo, filtro sem valor).
+  // "expressao" = it will render empty right now. "config" = half-finished
+  // configuration (a missing binding, a filter with no value).
   kind: "expressao" | "suspeita" | "config";
-  // Onde no schema: "content", "visibleWhen", "footer[1]", "columns[2].formula".
+  // Where in the schema: "content", "visibleWhen", "footer[1]", "columns[2].formula".
   where?: string;
   message: string;
 };
 
-// `page.name` é DADO (o nome que o autor do template deu à página) e sai como
-// veio; o fallback "Page N"/"Página N" é rótulo da casca, e é o MESMO do
-// `PageTabs` — uma entrada só de dicionário serve os dois, senão a aba e o
-// painel de problemas chamariam a mesma página de dois jeitos.
+// `page.name` is DATA (the name the template's author gave the page) and
+// comes out as it arrived; the "Page N"/"Página N" fallback is a shell label,
+// and it is the SAME one as `PageTabs` — a single dictionary entry serves
+// both, otherwise the tab and the problems panel would name the same page two
 function pageLabel(page: TemplatePage, index: number, locale: Locale): string {
   return page.name?.trim() || shellDict(locale).pages.tab(index + 1);
 }
 
-// Vinculado a um array (chart/table/kpi) mas alguma condição de filtro tem
-// coluna escolhida e valor em branco — filtro montado pela metade, que
-// filtraria tudo fora sem o usuário perceber. (Cópia da regra de
-// `filterIncomplete` do pacote, que só o entry React exporta.)
+// Bound to an array (chart/table/kpi) but some filter condition has a chosen
+// column and a blank value — a half-built filter, which would filter
+// everything out without the user noticing. (A copy of the package's
+// `filterIncomplete` rule, which only the React entry exports.)
 function filterIncomplete(binding: Binding | undefined): boolean {
   if (!binding || (binding.type !== "chart" && binding.type !== "array" && binding.type !== "kpi")) return false;
   return (binding.filters ?? []).some((group) => group.some((cond) => cond.column && !cond.value.trim()));
@@ -68,12 +69,12 @@ function problemsOfSchema(
     schemaName: schema.name,
   };
 
-  // Erro de sintaxe vem primeiro: já está produzindo saída errada (campo
-  // vazio), enquanto "falta vínculo" é configuração incompleta.
-  // `severity` separa os dois: "error" não compila e o campo sai vazio com
-  // certeza; "warning" compila mas é quase certamente engano — um operador com
-  // espaço de um lado só (`{fatura /}`) virou nome de chave. O aviso existe
-  // porque esse caso não é erro de sintaxe nenhum e passava calado.
+  // A syntax error comes first: it is already producing wrong output (an
+  // empty field), while "missing binding" is incomplete configuration.
+  // `severity` separates the two: "error" does not compile and the field
+  // certainly comes out empty; "warning" compiles but is almost certainly a
+  // mistake — an operator with whitespace on one side only (`{fatura /}`)
+  // became a key name. The warning exists because that case is no syntax error.
   const syntax = expressionErrors(schema, binding, t).map((e) => ({
     ...base,
     kind: (e.severity === "error" ? "expressao" : "suspeita") as "expressao" | "suspeita",
@@ -82,9 +83,10 @@ function problemsOfSchema(
   }));
   if (syntax.length > 0) return syntax;
 
-  // Só chega aqui quando não havia erro de expressão nenhum — o que sobra é
-  // configuração. Section/chart sem vínculo não desenham nada; texto/tabela sem
-  // vínculo ficam de fora de propósito (conteúdo estático é uso legítimo).
+  // It only gets here when there was no expression error at all — what is
+  // left is configuration. A section/chart with no binding draws nothing;
+  // text/table with no binding are deliberately left out (static content is
+  // legitimate use).
   if ((schema.type === "section" || schema.type === "chart") && !binding) {
     return [{ ...base, kind: "config" as const, message: t.warnings.missingBinding }];
   }

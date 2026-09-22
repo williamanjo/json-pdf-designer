@@ -1,0 +1,34 @@
+name: Feature request
+description: A new field type, a new expression function, an API you wish existed
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >
+        What report are you trying to build that you cannot build today?
+        Describe the report, not the API you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today instead
+      description: The workaround, if there is one, and where it breaks down.
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: Shape you have in mind
+      description: Optional. Template JSON or a component API sketch.
+  - type: checkboxes
+    id: surface
+    attributes:
+      label: Which surface does this touch
+      options:
+        - label: Editor UI
+        - label: PDF generation
+        - label: Expression language
+        - label: Types or public API

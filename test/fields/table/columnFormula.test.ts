@@ -120,9 +120,9 @@ describe("displayCell", () => {
 });
 
 describe("displayCell — os brackets são gravados, mas não mostrados", () => {
-  // A forma bracketada é a que fica no dado (explícita, sem ambiguidade). Na
-  // célula do canvas ela é ruído: numa tabela de 68 colunas são 68 pares de
-  // brackets pra ler. Aqui é só desenho — o dado não muda.
+  // The bracketed form is what stays in the data (explicit, unambiguous). In
+  // the canvas cell it is noise: in a 68-column table that is 68 pairs of
+  // brackets to read. Here it is only drawing — the data does not change.
   it("path bracketado simples vira a forma curta", () => {
     expect(displayCell("{[id]}")).toBe("{id}");
   });
@@ -145,9 +145,9 @@ describe("displayCell — os brackets são gravados, mas não mostrados", () => 
   });
 
   it("ponto LITERAL dentro do bracket sai igual ao caminho — e é só display", () => {
-    // `{[a.b]}` (chave literal) e `{[a].[b]}` (caminho) desenham os dois como
-    // `{a.b}`. É aceitável porque isto não volta pra gravação: reconstruir a
-    // partir do desenho é justamente a ambiguidade que os brackets resolvem.
+    // `{[a.b]}` (a literal key) and `{[a].[b]}` (a path) both draw as
+    // `{a.b}`. That is acceptable because this does not go back into storage:
+    // reconstructing from the drawing is exactly the ambiguity brackets resolve.
     expect(displayCell("{[a.b]}")).toBe("{a.b}");
     expect(displayCell("{[a].[b]}")).toBe("{a.b}");
   });

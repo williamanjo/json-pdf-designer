@@ -4,52 +4,54 @@ import type { Ui } from "../i18n";
 import { t } from "../i18n";
 import { ProjectFileError, type ProjectFileProblem } from "./projectFile";
 
-// Tradução de um erro de `generatePdf` numa mensagem que diz o que FAZER.
+// Translating a `generatePdf` error into a message that says what to DO.
 //
-// QUEM CLASSIFICA É O PACOTE. `describePdfError(err, dictFor(locale))` recebe
-// o erro cru e devolve `{ code, blame, title, action?, field?, detail }` já
-// LOCALIZADO — ou `null` quando o erro não é dele. Este arquivo não olha
-// `err.message`: nem por `instanceof` classe por classe (que dava um `if` por
-// erro, e silêncio quando o pacote ganhava um novo), nem — muito menos — por
-// regex na frase. A mensagem lançada é inglês de DESENVOLVEDOR (log, stack,
-// Sentry), e casar texto nela é exatamente o bug que este arquivo tinha: as
-// regexes eram em português, o pacote passou a lançar em inglês, e TODA falha
-// classificada caiu no ramo genérico sem nada avisar.
+// THE PACKAGE IS WHAT CLASSIFIES. `describePdfError(err, dictFor(locale))`
+// takes the raw error and returns `{ code, blame, title, action?, field?,
+// detail }` already LOCALIZED — or `null` when the error is not its own. This
+// file does not look at `err.message`: not by `instanceof` class by class
+// (which gave one `if` per error, and silence when the package gained a new
+// one), and much less by a regex on the phrase. The thrown message is
+// DEVELOPER English (log, stack, Sentry), and matching text in it is exactly
+// the bug this file had: the regexes were in Portuguese, the package started
+// throwing in English, and EVERY classified failure fell into the generic
+// branch with nothing to warn.
 //
-// O que sobrou aqui, então, é só o que o pacote NÃO pode saber:
+// What is left here, then, is only what the package CANNOT know:
 //
-//   1. `ProjectFileError` — arquivo de projeto deste example (lib/projectFile.ts).
-//      O pacote não tem conceito de "arquivo de projeto"; `describePdfError`
-//      devolve `null` pra ele. É NOSSO erro, com texto nosso.
-//   2. Um ramo por TOM/ESTRUTURA: ver `invalidPageSize` abaixo.
-//   3. O genérico honesto pro que não é de ninguém (falha de `fetch` da fonte,
-//      TypeError de dentro do pdf-lib).
+//   1. `ProjectFileError` — this example's project file (lib/projectFile.ts).
+//      The package has no concept of a "project file"; `describePdfError`
+//      returns `null` for it. It is OUR error, with our text.
+//   2. One branch for TONE/STRUCTURE: see `invalidPageSize` below.
+//   3. The honest generic for what belongs to nobody (a failed `fetch` of the
+//      font, a TypeError from inside pdf-lib).
 //
-// E continua sendo chamado no RENDER do App, não no `catch`: o estado guarda o
-// erro CRU e a frase é montada a cada render — trocar de idioma com o banner
-// aberto retraduz o banner.
+// And it is still called in the App's RENDER, not in the `catch`: the state
+// holds the RAW error and the phrase is built on every render — switching
+// language with the banner open retranslates the banner.
 
 export type GenerationProblem = {
-  // O discriminante. `PdfProblemCode` são os 18 codes do pacote + "expression";
-  // os dois de fora são nossos. Serve pra ramo próprio na UI, telemetria ou
-  // status HTTP num backend — sem casar texto.
+  // The discriminant. `PdfProblemCode` is the package's 18 codes +
+  // "expression"; the two outside are ours. It serves for a branch of its own
+  // in the UI, telemetry or an HTTP status in a backend — without matching text.
   code: PdfProblemCode | "projectFile" | "desconhecido";
-  // Culpa de quem: muda o tom da UI e, num servidor, o status HTTP. Vinha de
-  // um enum NOSSO em português; agora é o `blame` do pacote
-  // ("data" | "template" | "config" | "package"), porque derivar isso à mão
-  // era mais uma cópia pra dessincronizar.
+  // Whose fault it is: it changes the UI's tone and, on a server, the HTTP
+  // status. It used to come from an enum of OURS in Portuguese; now it is the
+  // package's `blame` ("data" | "template" | "config" | "package"), because
+  // deriving that by hand was one more copy to fall out of sync.
   blame: PdfErrorBlame;
-  // Título curto — o que aconteceu, no idioma pedido.
+  // A short title — what happened, in the language asked for.
   title: string;
-  // O que a pessoa faz agora. OPCIONAL porque o pacote omite quando não há
-  // ação útil (bug dele: a "ação" é reportar, e o título já diz).
+  // What the person does now. OPTIONAL because the package omits it when
+  // there is no useful action (its own bug: the "action" is to report it, and
+  // the title already says so).
   action?: string;
-  // Campo do template envolvido, quando o erro sabe qual.
+  // The template field involved, when the error knows which one.
   field?: string;
-  // Mensagem original, pra quem quiser o detalhe cru. Do pacote ela vem em
-  // INGLÊS de propósito (é diagnóstico de desenvolvedor, não UI) e mostrar
-  // traduzido seria mentir sobre o que está no log. Quando a falha é NOSSA
-  // (ProjectFileError), o detalhe sai do dicionário.
+  // The original message, for whoever wants the raw detail. From the package
+  // it comes in ENGLISH on purpose (it is a developer diagnostic, not UI) and
+  // showing it translated would be lying about what is in the log. When the
+  // failure is OURS (ProjectFileError), the detail comes from the dictionary.
   detail: string;
 };
 
@@ -69,9 +71,10 @@ function projectFileDetail(ui: Ui, problem: ProjectFileProblem): string {
 export function describeGenerationError(err: unknown, locale: Locale): GenerationProblem {
   const ui = t(locale);
 
-  // Recusa de arquivo de projeto (lib/projectFile.ts). Vem primeiro porque é
-  // NOSSO erro, com código próprio — e é o único caso em que até o `detail`
-  // sai do dicionário, já que a frase é nossa e não do pacote.
+  // A refused project file (lib/projectFile.ts). It comes first because it is
+  // OUR error, with a code of its own — and it is the only case in which even
+  // the `detail` comes from the dictionary, since the phrase is ours and not
+  // the package's.
   if (err instanceof ProjectFileError) {
     return {
       code: "projectFile",
@@ -82,28 +85,29 @@ export function describeGenerationError(err: unknown, locale: Locale): Generatio
     };
   }
 
-  // Erro do pacote: ele classifica E localiza. Zero `instanceof` por classe,
-  // zero regex. `dictFor(locale)` é o MESMO dicionário que o `<I18nProvider>`
-  // entrega ao editor (App.tsx passa o mesmo `locale`), então o banner nunca
-  // fala num idioma e o editor no outro.
+  // A package error: it classifies AND localizes. Zero `instanceof` per
+  // class, zero regex. `dictFor(locale)` is the SAME dictionary the
+  // `<I18nProvider>` hands the editor (App.tsx passes the same `locale`), so
+  // the banner never speaks one language and the editor another.
   const problem = describePdfError(err, dictFor(locale));
   if (problem) {
-    // O ÚNICO ramo próprio, e não é questão de gosto: o `action` que o pacote
-    // dá pra `invalidPageSize` manda "definir largura e altura na ABA
-    // 'Página'" — e o assunto deste example é justamente montar o editor SEM
-    // barra de abas. Aqui a peça `<DesignerPageSettings>` é um cartão na
-    // coluna da direita, então a frase do pacote mandaria procurar uma coisa
-    // que não existe na tela. Título, `code`, `blame` e `field` continuam
-    // vindo dele; só esta orientação de navegação é nossa.
+    // The ONLY branch of our own, and it is not a matter of taste: the
+    // `action` the package gives for `invalidPageSize` says to "set the width
+    // and height on the 'Page' TAB" — and this example's whole subject is
+    // assembling the editor WITHOUT a tab bar. Here the
+    // `<DesignerPageSettings>` part is a card in the right-hand column, so the
+    // package's phrase would send someone looking for something that is not on
+    // screen. The title, `code`, `blame` and `field` still come from it.
     if (problem.code === "invalidPageSize") {
       return { ...problem, action: ui.erroTamanhoAcao };
     }
     return problem;
   }
 
-  // Não é nosso nem do pacote: `fetch` da fonte que falhou, TypeError de
-  // dentro do pdf-lib, erro de rede. Genérico honesto — inventar título pra
-  // uma falha que não conhecemos é pior que admitir que não sabemos.
+  // Neither ours nor the package's: a failed `fetch` of the font, a
+  // TypeError from inside pdf-lib, a network error. An honest generic —
+  // inventing a title for a failure we do not know is worse than admitting we
+  // do not know.
   return {
     code: "desconhecido",
     blame: "package",

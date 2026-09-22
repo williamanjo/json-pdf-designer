@@ -8,12 +8,12 @@ export type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   parts?: LabeledParts;
 };
 
-// `forwardRef` e não ref-como-prop: o peer aceita React 18 (ver
-// package.json), e ali função componente ainda não recebe `ref` direto. Quem
-// precisa é o editor de expressão (FormulaModal.tsx), que reposiciona o caret
-// depois de aceitar uma sugestão — o único consumidor de ref do kit que
-// existia antes da 3.0.0, e o que prova que a ref chega no controle e não no
-// wrapper de rótulo.
+// `forwardRef` and not ref-as-a-prop: the peer accepts React 18 (see
+// package.json), and there a function component does not yet receive `ref`
+// directly. The one that needs it is the expression editor (FormulaModal.tsx),
+// which repositions the caret after accepting a suggestion — the kit's only
+// ref consumer that existed before 3.0.0, and what proves the ref reaches the
+// control and not the label wrapper.
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
   { label, className, mono, parts, rows = 2, ...rest },
   ref

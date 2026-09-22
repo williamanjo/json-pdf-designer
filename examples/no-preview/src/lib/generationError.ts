@@ -4,68 +4,73 @@ import { t } from "../i18n";
 import { FontAssetError } from "./font";
 import { ProjectFileError } from "./projectFile";
 
-// Tradução de uma falha de `generatePdf` (ou de carregar um projeto) numa
-// mensagem que diz o que FAZER.
+// Translating a failure of `generatePdf` (or of loading a project) into a
+// message that says what to DO.
 //
-// QUEM CLASSIFICA É O PACOTE. `describePdfError(err, dictFor(locale))` recebe o
-// erro cru e devolve `{ code, blame, title, action?, field?, detail }` já
-// localizado — ou `null` quando o erro não é dele. Não há `instanceof` por
-// classe aqui, e muito menos regex em `err.message`: `error.message` do pacote
-// é inglês fixo (diagnóstico de log), e casá-lo com frase em português foi
-// exatamente como a versão anterior deste arquivo passou a jogar TODA falha
-// classificada no ramo "erro inesperado" em silêncio.
+// THE PACKAGE IS WHAT CLASSIFIES. `describePdfError(err, dictFor(locale))`
+// takes the raw error and returns `{ code, blame, title, action?, field?,
+// detail }` already localized — or `null` when the error is not its own. There
+// is no `instanceof` per class here, and much less a regex on `err.message`:
+// the package's `error.message` is fixed English (a log diagnostic), and
+// matching it against a Portuguese phrase is exactly how the previous version
+// of this file started throwing EVERY classified failure into the "unexpected
+// error" branch, silently.
 //
-// Num backend é a mesma chamada, e `problem.blame` é o que escolhe entre 413,
-// 400 e 500.
+// In a backend it is the same call, and `problem.blame` is what chooses
+// between 413, 400 and 500.
 //
-// O import vem do entry principal (`json-pdf-designer`), não de
-// `json-pdf-designer/server`: os dois exportam `describePdfError`, mas este
-// app já importa `generatePdf`/`downloadPdf`/`<Designer>` do principal, e
-// puxar o mesmo localizador por dois specifiers duplicaria o módulo no bundle.
-// Nenhum dos dois entries toca pdf.js — é o que `check-no-pdfjs.mjs` confere
-// depois do build.
+// The import comes from the main entry (`json-pdf-designer`), not from
+// `json-pdf-designer/server`: both export `describePdfError`, but this app
+// already imports `generatePdf`/`downloadPdf`/`<Designer>` from the main one,
+// and pulling the same localizer through two specifiers would duplicate the
+// module in the bundle. Neither entry touches pdf.js — which is what
+// `check-no-pdfjs.mjs` verifies after the build.
 
-// O `code` do pacote (18 códigos + "expression") mais os NOSSOS, pra quem
-// consome poder tratar um caso à parte sem casar texto. Os três de baixo o
-// pacote não conhece: fonte deste example, arquivo de projeto deste example, e
-// o "não sei o que é isso" honesto.
+// The package's `code` (18 codes + "expression") plus OURS, so a consumer can
+// handle a case of their own without matching text. The three below are ones
+// the package does not know: this example's font, this example's project file,
+// and the honest "I do not know what this is".
 export type GenerationProblemCode = PdfProblemCode | "fontAsset" | "projectFile" | "unknown";
 
 export type GenerationProblem = {
   code: GenerationProblemCode;
-  // De quem é a culpa: muda o tom da UI (ver GenerationErrorBanner) e, num
-  // servidor, o status HTTP. Vem do PACOTE quando o erro é dele — antes este
-  // arquivo derivava à mão, com os rótulos em português como chave.
+  // Whose fault it is: it changes the UI's tone (see GenerationErrorBanner)
+  // and, on a server, the HTTP status. It comes from THE PACKAGE when the
+  // error is its own — this file used to derive it by hand, with the
+  // Portuguese labels as the key.
   blame: PdfErrorBlame;
   // O que aconteceu, no idioma pedido.
   title: string;
-  // O que a pessoa faz agora. Ausente quando não há ação útil (bug do pacote:
-  // a ação é reportar, e o título já diz).
+  // What the person does now. Absent when there is no useful action (a
+  // package bug: the action is to report it, and the title already says so).
   action?: string;
-  // Campo do template envolvido, quando o erro sabe qual.
+  // The template field involved, when the error knows which one.
   field?: string;
-  // `err.message` cru — inglês, de propósito. Detalhe técnico, não a frase
-  // principal.
+  // The raw `err.message` — English, on purpose. A technical detail, not the
+  // main sentence.
   detail: string;
 };
 
-// `locale` escolhe o idioma. Nada aqui é guardado em estado: App.tsx guarda o
-// erro CRU e chama isto no render, então trocar o idioma com o banner aberto
-// retraduz o banner na hora (inclusive o texto que vem do pacote).
+// `locale` chooses the language. Nothing here is held in state: App.tsx holds
+// the RAW error and calls this at render time, so switching the language with
+// the banner open retranslates the banner on the spot (including the text that
+// comes from the package).
 export function describeGenerationError(err: unknown, locale: Locale): GenerationProblem {
   const s = t(locale);
 
-  // 1. O que é do pacote, o pacote classifica E localiza. `dictFor(locale)` é
-  //    o dicionário dele como VALOR — o mesmo que o `<Designer locale>` usa,
-  //    então a mensagem nunca manda procurar uma aba com outro nome.
+  // 1. What belongs to the package, the package classifies AND localizes.
+  //    `dictFor(locale)` is its dictionary as a VALUE — the same one the
+  //    `<Designer locale>` uses, so the message never sends someone looking
+  //    for a tab under another name.
   const doPacote = describePdfError(err, dictFor(locale));
   if (doPacote) return doPacote;
 
-  // 2. Daqui pra baixo é NOSSO, e o pacote devolveu `null` porque não sabe
-  //    nada disso.
+  // 2. From here down it is OURS, and the package returned `null` because it
+  //    knows nothing about any of it.
 
-  // A fonte é deste example (src/assets/inter-regular.ttf, ver lib/font.ts) —
-  // só este app sabe onde ela mora e o que fazer quando ela não carrega.
+  // The font belongs to this example (src/assets/inter-regular.ttf, see
+  // lib/font.ts) — only this app knows where it lives and what to do when it
+  // does not load.
   if (err instanceof FontAssetError) {
     return {
       code: "fontAsset",
@@ -76,14 +81,15 @@ export function describeGenerationError(err: unknown, locale: Locale): Generatio
     };
   }
 
-  // Arquivo de projeto inválido. O `problem` é a CHAVE do caso (não a frase),
-  // então a mensagem é escrita aqui, no render, e acompanha o idioma.
+  // An invalid project file. The `problem` is the case's KEY (not the
+  // phrase), so the message is written here, at render time, and follows the
+  // language.
   if (err instanceof ProjectFileError) {
     return {
       code: "projectFile",
-      // O arquivo de projeto É template + vínculos: a culpa é do conteúdo do
-      // arquivo, não do pacote. Sem isso ele cairia no tom neutro de "bug
-      // nosso", que é o oposto do que aconteceu.
+      // A project file IS a template + bindings: the blame belongs to the
+      // file's content, not to the package. Without this it would fall into the
+      // neutral "our bug" tone, which is the opposite of what happened.
       blame: "template",
       title: s.project[err.problem],
       action: s.project.action,
@@ -91,10 +97,10 @@ export function describeGenerationError(err: unknown, locale: Locale): Generatio
     };
   }
 
-  // 3. Genérico HONESTO: um erro que não é do pacote nem nosso (TypeError de
-  //    dentro do pdf-lib, falha de rede, o que for). Este é o único caso em
-  //    que "erro inesperado" é verdade — e ele mostra o detalhe cru, porque é
-  //    tudo o que se sabe.
+  // 3. An HONEST generic: an error that is neither the package's nor ours (a
+  //    TypeError from inside pdf-lib, a network failure, whatever). This is
+  //    the only case in which "unexpected error" is true — and it shows the
+  //    raw detail, because it is all that is known.
   return {
     code: "unknown",
     blame: "package",

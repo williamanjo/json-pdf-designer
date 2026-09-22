@@ -10,43 +10,43 @@ export type DesignerCanvasProps = {
   style?: CSSProperties;
   whenTab?: TabGate;
   /**
-   * Esconde a barra flutuante de zoom. Use com `useDesignerZoom()` pra
-   * desenhar a sua, em qualquer lugar da árvore — inclusive fora do canvas,
-   * que é o que CSS não conseguia fazer (a `.jpd-zoombar` é
-   * `position: sticky` DENTRO desta caixa).
+   * Hides the floating zoom bar. Use it with `useDesignerZoom()` to draw
+   * your own, anywhere in the tree — including outside the canvas, which is
+   * what CSS could not do (the `.jpd-zoombar` is `position: sticky` INSIDE
+   * this box).
    */
   hideZoombar?: boolean;
 };
 
-// Peça posicionável: a folha em mm, com arrastar/redimensionar por campo
-// (react-rnd), caixa de seleção, réguas e a barra de zoom.
+// A placeable part: the sheet in mm, with per-field drag/resize (react-rnd),
+// a marquee, rulers and the zoom bar.
 //
-// DIVISÃO DE RESPONSABILIDADE, e ela não é negociável:
+// DIVISION OF RESPONSIBILITY, and it is not negotiable:
 //
-//   A PEÇA é dona da geometria da folha — mm→px, `transform: scale(zoom)`,
-//   `transformOrigin`. O `react-rnd` recebe `scale={zoom}` e calcula o delta
-//   de arrasto CONTRA isso; consumidor sobrescrevendo o transform faz o
-//   campo fugir do cursor.
+//   THE PART owns the sheet's geometry — mm→px, `transform: scale(zoom)`,
+//   `transformOrigin`. `react-rnd` receives `scale={zoom}` and computes the
+//   drag delta AGAINST it; a consumer overriding the transform makes the
+//   field run away from the cursor.
 //
-//   O CONSUMIDOR é dono do viewport que ROLA. É o que `className`/`style`
-//   daqui atingem: a caixa de fora, não a folha.
+//   THE CONSUMER owns the viewport that SCROLLS. That is what `className`/
+//   `style` here reach: the outer box, not the sheet.
 //
-// O ZOOM subiu pro contexto na 3.1.0, e o comentário que estava aqui dizia o
-// contrário — vale registrar por quê, porque a razão antiga não era boba.
+// THE ZOOM moved up to a context in 3.1.0, and the comment that used to be
+// here said the opposite — worth recording why, because the old reason was
+// not silly.
 //
-// Ela dizia: "arrastar o slider re-renderizaria toda peça se o valor morasse
-// no provider". Verdade, se o valor morasse num dos cinco contextos que
-// todas as peças leem. Mas o zoom ganhou contexto PRÓPRIO
-// (`context/zoom.tsx`), então quem não chama `useDesignerZoom()` continua
-// parado enquanto o slider é arrastado — e quem monta o próprio layout passa
-// a poder ler o zoom, disparar fit/reset de fora, e desenhar a própria barra
-// onde quiser.
+// It said: "dragging the slider would re-render every part if the value
+// lived in the provider". True, if the value lived in one of the five
+// contexts every part reads. But the zoom got a context of its OWN
+// (`context/zoom.tsx`), so whoever does not call `useDesignerZoom()` stays
+// put while the slider is dragged — and whoever builds their own layout can
+// now read the zoom, fire fit/reset from outside, and draw their own bar.
 //
-// O `<PageCanvas>` daqui vira CONTROLADO por isso. Ele continua funcionando
-// sem as props (estado interno), que é o caminho headless.
+// The `<PageCanvas>` here becomes CONTROLLED because of that. It still works
+// without the props (internal state), which is the headless path.
 //
-// A raiz é o `<div data-scroll-root className="jpd-designer__canvas">` que o
-// `Designer.tsx` tinha — mesma caixa, mesmo atributo.
+// The root is the `<div data-scroll-root className="jpd-designer__canvas">`
+// that `Designer.tsx` had — same box, same attribute.
 export function DesignerCanvas({ whenTab, ...rest }: DesignerCanvasProps) {
   if (!useTabGate(whenTab)) return null;
   return <DesignerCanvasBody {...rest} />;
@@ -61,30 +61,30 @@ function DesignerCanvasBody({ className, style, hideZoombar = false }: Omit<Desi
   const { zoom, setZoom, viewportRef } = useDesignerZoom();
 
   return (
-    // O canvas tem largura INLINE fixa (contentWidth * zoom, em PageCanvas),
-    // então ele não encolhe — `flex-shrink` não vence uma largura declarada.
-    // Sem esta caixa, uma página A4 a 100% (810px) mais o painel de 320px
-    // passavam da largura do container e o painel saía da viewport, visível
-    // só rolando a página toda pra direita. O `min-inline-size: 0` de
-    // `.jpd-designer__canvas` deixa a caixa encolher abaixo do conteúdo, e o
-    // `overflow-x: auto` põe a rolagem AQUI, no canvas, em vez de empurrar o
-    // painel pra fora.
+    // The canvas has a fixed INLINE width (contentWidth * zoom, in PageCanvas),
+    // so it does not shrink — `flex-shrink` does not beat a declared width.
+    // Without this box, an A4 page at 100% (810px) plus the 320px panel went
+    // past the container's width and the panel left the viewport, visible
+    // only by scrolling the whole page to the right. The `min-inline-size: 0`
+    // on `.jpd-designer__canvas` lets the box shrink below its content, and
+    // the `overflow-x: auto` puts the scrolling HERE, on the canvas, instead
+    // of pushing the panel out.
     //
-    // `data-scroll-root` marca ESTA caixa como o viewport que rola, pro
-    // "ajustar largura/altura" medir o espaço certo (ver fitTo em
-    // PageCanvas.tsx). Sem o atributo, o seletor de lá só tinha os braços
-    // `[class*="overflow-auto"]`/`[class*="overflow-y-auto"]` — e
-    // "overflow-x-auto" não contém nenhuma das duas substrings, então o
-    // closest não achava nada e caía no fallback `window.innerWidth`: o zoom
-    // vinha calculado sobre a janela inteira, sempre maior que a área real.
-    // Os braços de classe ficam como estão, pra quem embrulha isto numa
-    // caixa `overflow-auto` própria — e agora são a ÚNICA saída pra esse
-    // caso, porque `.jpd-designer__canvas` não tem "overflow" no nome.
-    // `ref` pro contexto de zoom: é ESTA caixa que rola, e é ela que o
-    // `fitWidth()`/`fitHeight()` mede. Antes a medição saía do `closest()` a
-    // partir do botão clicado — o que funciona pra barra padrão, que vive
-    // dentro do canvas, e não funciona pra um botão que o consumidor põe em
-    // qualquer outro lugar da tela.
+    // `data-scroll-root` marks THIS box as the viewport that scrolls, so
+    // "fit width/height" measures the right space (see fitTo in
+    // PageCanvas.tsx). Without the attribute, the selector there only had the
+    // `[class*="overflow-auto"]`/`[class*="overflow-y-auto"]` arms — and
+    // "overflow-x-auto" contains neither substring, so the closest found
+    // nothing and fell back to `window.innerWidth`: the zoom came out
+    // computed over the whole window, always larger than the real area.
+    // The class arms stay as they are, for anyone wrapping this in an
+    // `overflow-auto` box of their own — and they are now the ONLY way out
+    // for that case, since `.jpd-designer__canvas` has no "overflow" in it.
+    // `ref` for the zoom context: THIS box is the one that scrolls, and it is
+    // the one `fitWidth()`/`fitHeight()` measures. The measurement used to
+    // come from `closest()` starting at the clicked button — which works for
+    // the default bar, living inside the canvas, and does not work for a
+    // button the consumer puts anywhere else on screen.
     <div
       ref={viewportRef}
       data-scroll-root

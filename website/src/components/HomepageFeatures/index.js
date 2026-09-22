@@ -3,11 +3,11 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Heading from '@theme/Heading';
 import styles from './styles.module.css';
 
-// Texto bilíngue à mão (en/pt-BR) — mesmo motivo do playground
-// (src/pages/playground/index.js): este componente não é conteúdo de doc
-// (docusaurus-plugin-content-docs), então não ganha tradução automática
-// via i18n/pt-BR/... — precisa ler o locale ativo e escolher o texto certo
-// na mão.
+// Bilingual text by hand (en/pt-BR) — the same reason as the playground
+// (src/pages/playground/index.js): this component is not doc content
+// (docusaurus-plugin-content-docs), so it gets no automatic translation
+// through i18n/pt-BR/... — it has to read the active locale and pick the right
+// text by hand.
 const FeatureList = [
   {
     Emoji: '🖱️',

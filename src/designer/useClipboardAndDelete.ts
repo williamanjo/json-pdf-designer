@@ -6,33 +6,33 @@ import type { Binding, Schema, Template } from "../types";
 import { uniqueSchemaName } from "./helpers";
 import { GRID_SIZE_MM, snapToGrid } from "../page/units";
 
-// Delete/copiar/colar do canvas — extraído de DesignerInner (Designer.tsx)
-// pra um hook próprio. Fica num arquivo .ts (não .tsx) porque só exporta
-// hook, nunca componente — um .tsx só pode exportar componente (regra
-// oxlint react(only-export-components), quebra o Fast Refresh senão),
-// mesmo motivo de src/bindings/builders.ts e src/canvas/geometry.ts.
+// Delete/copy/paste for the canvas — extracted from DesignerInner
+// (Designer.tsx) into a hook of its own. It lives in a .ts file (not .tsx)
+// because it only exports a hook, never a component — a .tsx may only export
+// components (the oxlint react(only-export-components) rule, otherwise Fast
+// Refresh breaks), same reason as src/bindings/builders.ts.
 
-// Onde um campo colado nasce: um passo de grade abaixo/à direita do
-// original, travado dentro da página.
+// Where a pasted field is born: one grid step below/right of the original,
+// clamped inside the page.
 //
-// Extraído do handler pra ser TESTÁVEL: o resto do hook são dois
-// `useEffect` que registram listener de teclado, e exercitar isso exigiria
-// jsdom (que a suíte inteira evita — ver test/components/ui/, que usa
-// renderToStaticMarkup). A regra de posição é a parte que tem como estar
-// errada, e agora ela é uma função pura.
+// Extracted from the handler to be TESTABLE: the rest of the hook is two
+// `useEffect` that register keyboard listeners, and exercising that would
+// require jsdom (which the whole suite avoids — see test/components/ui/,
+// which uses renderToStaticMarkup). The position rule is the part that can
+// be wrong, and it is now a pure function.
 export function pastePosition(
   s: Pick<Schema, "x" | "y" | "width" | "height">,
   page: { width: number; height: number },
   gridMm: number
 ): { x: number; y: number } {
-  // Desloca +1 passo de grade (não +8mm cru — arrastar SEMPRE cai num
-  // múltiplo de gridMm via snapToGrid; colar sem alinhar deixa fora da
-  // grade até o usuário arrastar manual pra "recolocar no lugar"). Trava
-  // dentro da página por cima — campo já encostado na borda (tabela larga
-  // com x+width quase no fim) não sai do grid.
+  // It shifts by +1 grid step (not a raw +8mm — dragging ALWAYS lands on a
+  // multiple of gridMm through snapToGrid; pasting without aligning leaves it
+  // off the grid until the user drags by hand to "put it back"). It clamps
+  // inside the page on top of that — a field already against the edge (a wide
+  // table with x+width near the end) does not leave the grid.
   //
-  // Arredonda o limite pra BAIXO (não snapToGrid, que arredonda pro mais
-  // próximo e podia estourar a página por até meio passo).
+  // It rounds the limit DOWN (not snapToGrid, which rounds to the nearest and
+  // could overflow the page by up to half a step).
   const maxX = Math.floor(Math.max(0, page.width - s.width) / gridMm) * gridMm;
   const maxY = Math.floor(Math.max(0, page.height - s.height) / gridMm) * gridMm;
   return {
@@ -48,19 +48,19 @@ export type UseClipboardAndDeleteParams = {
   setSelectedIds: Dispatch<SetStateAction<string[]>>;
   onChangeTemplate: Dispatch<SetStateAction<Template>>;
   onChangeBindings: Dispatch<SetStateAction<Binding[]>>;
-  // Dicionário i18n (useT()) — só pro sufixo de nome do "colar"
+  // The i18n dictionary (useT()) — only for the "paste" name suffix
   // (t.schemaDefaults.pasteSuffix).
   t: Dict;
-  // Passo da grade, vindo da config do <Designer>. Opcional: sem ele o
-  // colar usava GRID_SIZE_MM direto, então um consumidor com
-  // `gridSizeMm={2}` tinha arrasto alinhado em 2mm e colagem em 5mm — o
-  // campo colado nascia fora da grade dele.
+  // The grid step, coming from the <Designer> config. Optional: without it
+  // pasting used GRID_SIZE_MM directly, so a consumer with `gridSizeMm={2}`
+  // had dragging aligned to 2mm and pasting to 5mm — the pasted field was
+  // born off their grid.
   gridSizeMm?: number;
 };
 
-// Só registra os 2 listeners de teclado (delete e copiar/colar) — não
-// devolve nada, os dois efeitos são auto-contidos (o clipboard em si é um
-// useRef interno, nunca precisou vazar pra fora do componente original).
+// It only registers the 2 keyboard listeners (delete and copy/paste) — it
+// returns nothing, the two effects are self-contained (the clipboard itself
+// is an internal useRef, it never needed to leak out of the original component).
 export function useClipboardAndDelete({
   template,
   bindings,
@@ -71,9 +71,9 @@ export function useClipboardAndDelete({
   t,
   gridSizeMm = GRID_SIZE_MM,
 }: UseClipboardAndDeleteParams): void {
-  // Delete/Backspace apaga TODOS os campos selecionados — só quando o foco
-  // não tá num input/textarea/select/contenteditable, senão comeria o
-  // backspace/delete de digitação normal (nome do campo, edição inline etc).
+  // Delete/Backspace removes ALL the selected fields — only when focus is not
+  // in an input/textarea/select/contenteditable, otherwise it would eat the
+  // backspace/delete of normal typing (field name, inline editing and so on).
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "Delete" && e.key !== "Backspace") return;
@@ -102,14 +102,14 @@ export function useClipboardAndDelete({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [selectedIds, template.schemas, onChangeTemplate, onChangeBindings, setSelectedIds]);
 
-  // Copiar/colar (Ctrl+C / Ctrl+V) — clipboard próprio guardado num ref
-  // (não usa o clipboard do sistema, sem pedir permissão de navegador).
-  // Colar cria cópia com id/nome novos, deslocada (+8mm) da original, já
-  // selecionada pra dar pra arrastar de cara. Campo membro de seção
-  // mantém o MESMO sectionId da seção original (ela ainda existe, não foi
-  // duplicada) — só remapeia pra seção nova quando ela TAMBÉM tava
-  // selecionada no copiar (grupo copiado inteiro fica junto na cópia, sem
-  // se juntar à seção antiga).
+  // Copy/paste (Ctrl+C / Ctrl+V) — a clipboard of our own kept in a ref (it
+  // does not use the system clipboard, so no browser permission is asked).
+  // Pasting creates a copy with a new id/name, offset (+8mm) from the
+  // original, already selected so it can be dragged right away. A field that
+  // is a section member keeps the SAME sectionId as the original section (it
+  // still exists, it was not duplicated) — it is only remapped to the new
+  // section when that one was ALSO selected at copy time (a whole copied
+  // group stays together in the copy, without joining the old section).
   const clipboardRef = useRef<{ schemas: Schema[]; bindings: Binding[] } | null>(null);
   useEffect(() => {
     function isEditable(target: EventTarget | null): boolean {
@@ -163,9 +163,9 @@ export function useClipboardAndDelete({
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-    // `template.page` inteiro, e não `.width`/`.height` separados: o handler
-    // passa o objeto pra `pastePosition`. Não alarga nada de verdade — todo
-    // caminho que muda a página (setPagePreset/setPageOrientation) troca o
-    // objeto, então a identidade muda exatamente quando os valores mudam.
+    // The whole `template.page`, and not `.width`/`.height` separately: the
+    // handler passes the object to `pastePosition`. It does not really widen
+    // anything — every path that changes the page (setPagePreset/
+    // setPageOrientation) swaps the object, so identity changes with values.
   }, [selectedIds, template.schemas, template.page, bindings, onChangeTemplate, onChangeBindings, t, setSelectedIds, gridSizeMm]);
 }

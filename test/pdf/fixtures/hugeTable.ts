@@ -1,9 +1,10 @@
 import type { Template } from "../../../src/types";
 
-// Tabela com centenas de linhas — precisa quebrar em várias páginas físicas
-// de verdade (não só testar a MATEMÁTICA de paginação, como
-// test/pdf/pagination.test.ts já faz, mas o pipeline `generatePdf` inteiro
-// rodando até o fim sem travar/demorar demais com um volume realista).
+// A table with hundreds of rows — it has to break across several real
+// physical pages (not only testing the pagination ARITHMETIC, as
+// test/pdf/pagination.test.ts already does, but the whole `generatePdf`
+// pipeline running to the end without hanging or taking too long on a
+// realistic volume).
 export function hugeTableTemplate(rows = 600): Template {
   return {
     page: { width: 210, height: 297 },

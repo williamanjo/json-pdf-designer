@@ -1,35 +1,35 @@
 import { dictFor } from "json-pdf-designer";
 import type { Locale } from "json-pdf-designer";
 
-// O DICIONÁRIO DA CASCA — o texto que é DESTE app, não do pacote.
+// THE SHELL'S DICTIONARY — the text that belongs to THIS app, not to the package.
 //
-// O `locale` do estado (App.tsx) alimenta dois dicionários: o do pacote (via
-// prop `locale` do <Designer> e via `dictFor`) e este. Um seletor, duas
-// camadas, zero sincronização manual — é a lição de i18n da lib.
+// The state's `locale` (App.tsx) feeds two dictionaries: the package's
+// (through the <Designer>'s `locale` prop and through `dictFor`) and this one.
+// One picker, two layers, zero manual syncing — it is the lib's i18n lesson.
 //
-// `Locale` vem do pacote de propósito: quando o pacote ganhar um idioma novo,
-// `en: typeof pt` para de compilar até alguém traduzir aqui. Isso é desejável
-// — o alternativo é uma chave faltando virar `undefined` e renderizar vazio em
-// silêncio.
+// `Locale` comes from the package on purpose: when the package gains a new
+// language, `en: typeof pt` stops compiling until someone translates here.
+// That is desirable — the alternative is a missing key becoming `undefined`
+// and rendering empty in silence.
 //
-// Sem `as const`: com ele `typeof pt` seria o tipo LITERAL ("Salvar projeto"),
-// e o `en` só compilaria repetindo as mesmas strings. Sem ele o tipo é
-// `{ chave: string }`, que é exatamente o contrato que se quer — mesma FORMA,
-// texto diferente.
+// No `as const`: with it `typeof pt` would be the LITERAL type ("Salvar
+// projeto"), and `en` would only compile by repeating the same strings.
+// Without it the type is `{ key: string }`, which is exactly the contract that
+// is wanted — the same SHAPE, different text.
 //
-// O que NÃO está aqui, e por quê:
-// - conteúdo dos templates prontos (`data/templates/`) e o JSON de amostra
-//   (`data/samples/`): é o DOCUMENTO do usuário. Um relatório em português
-//   continua em português quando a interface vira inglês;
-// - nome de campo / caminho de dado (`titulo_relatorio`, `rows.total`) e o
-//   nome default de uma fonte (`fonte_2`): são chaves de dado, não rótulo;
-// - o que o pacote já traduz (prévia do PDF, "Fechar" de modal, a palavra
-//   "página", mensagens de expressão/vínculo): sai de `dictFor` — ver
-//   `pageLabel` abaixo e `lib/templateProblems.ts`.
+// What is NOT here, and why:
+// - the content of the ready-made templates (`data/templates/`) and the sample
+//   JSON (`data/samples/`): it is the user's DOCUMENT. A report in Portuguese
+//   stays in Portuguese when the interface turns to English;
+// - a field name / data path (`titulo_relatorio`, `rows.total`) and a source's
+//   default name (`fonte_2`): they are data keys, not labels;
+// - what the package already translates (the PDF preview, a modal's "Close",
+//   the word "page", expression/binding messages): it comes from `dictFor` —
+//   see `pageLabel` below and `lib/templateProblems.ts`.
 const pt = {
   // ------------------------------------------------------------ header
-  // "custom-ui-example" é o NOME do example (identidade, não frase) — só a
-  // aposição depois do travessão é texto de UI.
+  // "custom-ui-example" is the example's NAME (an identity, not a phrase) —
+  // only the apposition after the dash is UI text.
   appTitle: "custom-ui-example — casca 100% própria, sem UI pronta do pacote",
   localeSelectTitle: "Idioma da interface e do editor (não muda o PDF gerado)",
   loadExample: "Carregar exemplo…",
@@ -252,13 +252,13 @@ export function t(locale: Locale): ShellDict {
   return locale === "pt-BR" ? pt : en;
 }
 
-// "Página N" / "Page N" — a palavra sai do dicionário DO PACOTE, não daqui.
-// Uma página é conceito dele (`TemplatePage`, e a aba "Página" do painel de
-// propriedades usa esse mesmo `tabBar.page`), então duplicar a tradução aqui
-// criaria duas cópias pra dessincronizar: a aba da casca diria "Page 2"
-// enquanto a aba do editor ao lado dizia "Página". `dictFor` devolve o
-// dicionário como VALOR — `useT()` só funciona dentro de um <I18nProvider>, e
-// isto é chamado também de fora da árvore React (lib/templateProblems.ts).
+// "Página N" / "Page N" — the word comes from THE PACKAGE's dictionary, not
+// from here. A page is its concept (`TemplatePage`, and the property panel's
+// "Page" tab uses that same `tabBar.page`), so duplicating the translation
+// here would create two copies to fall out of sync: the shell's tab would say
+// "Page 2" while the editor's tab next to it said "Página". `dictFor` returns
+// the dictionary as a VALUE — `useT()` only works inside an <I18nProvider>,
+// and this is also called from outside the React tree (lib/templateProblems.ts).
 export function pageLabel(locale: Locale, oneBasedIndex: number): string {
   return `${dictFor(locale).tabBar.page} ${oneBasedIndex}`;
 }

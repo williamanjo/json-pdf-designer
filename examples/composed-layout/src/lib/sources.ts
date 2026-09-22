@@ -1,15 +1,15 @@
 import type { JsonSource } from "../components/DataSourcePanel";
 
-// Junta N fontes JSON num objeto só, nível superior — em caso de chave
-// repetida, a fonte mais pra baixo na lista vence. Erro de uma fonte
-// (JSON inválido, ou não é objeto) não impede as outras de entrar na
-// mescla; só fica de fora e aparece marcada.
+// It merges N JSON sources into a single object, at the top level — on a
+// repeated key, the source further down the list wins. An error in one source
+// (invalid JSON, or not an object) does not stop the others from entering the
+// merge; it is simply left out and shown marked.
 
-// CÓDIGO de falha, não frase pronta: o resultado de `mergeSources` vai pro
-// ESTADO do App (`errorsById`) e só é recalculado no "Resync"/"Gerar PDF".
-// Se guardasse a mensagem traduzida, trocar de idioma deixaria o aviso
-// antigo na tela até a próxima varredura. A frase sai do dicionário na hora
-// de renderizar (DataSourcePanel), então ela troca junto com o seletor.
+// A failure CODE, not a finished phrase: `mergeSources`'s result goes into
+// the App's STATE (`errorsById`) and is only recomputed on "Resync"/"Generate
+// PDF". If it held the translated message, switching language would leave the
+// old warning on screen until the next scan. The phrase comes from the
+// dictionary at render time (DataSourcePanel), so it switches along with the picker.
 export type SourceErrorCode = "jsonInvalido" | "naoObjeto";
 
 export function mergeSources(sources: JsonSource[]): {
