@@ -6,17 +6,17 @@ import { FormulaModal, type FormulaTarget } from "./FormulaModal";
 type Props = {
   target: FormulaTarget;
   sources: FieldSources | undefined;
-  // Só a fórmula de coluna de tabela tem o seletor "Tipo de dado".
+  // Only a table column formula has the "Data type" picker.
   showDataType?: boolean;
-  // Destaca o botão quando o campo já tem conteúdo — mesmo sinal visual que
-  // o ƒx da lista de colunas já dava.
+  // Highlights the button when the field already has content — the same
+  // visual cue the ƒx in the column list already gave.
   active?: boolean;
 };
 
-// O botão "ƒx" e o modal que ele abre. Um componente só porque o estado de
-// aberto/fechado é do botão, e cada lugar que oferece expressão (coluna,
-// célula de rodapé, campo de KPI, conteúdo de texto) só precisa dizer QUAL é
-// o alvo — não repetir o `useState`.
+// The "ƒx" button and the modal it opens. A component of its own because the
+// open/closed state belongs to the button, and each place that offers an
+// expression (column, footer cell, KPI field, text content) only needs to say
+// WHICH the target is — not repeat the `useState`.
 export function FormulaButton({ target, sources, showDataType, active }: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -28,10 +28,10 @@ export function FormulaButton({ target, sources, showDataType, active }: Props) 
         onClick={() => setOpen(true)}
         aria-label={t.formulaModal.openAria(target.label)}
         title={t.formulaModal.openTitle}
-        // `jpd-iconbtn--accent` + `data-on` é o MESMO par de estados do ƒx da
-        // lista de colunas (PropertyPanelTable) — as duas strings de cor eram
-        // byte-idênticas. O que é só deste botão é o glifo em serifada
-        // itálica, que mora em `jpd-fx`.
+        // `jpd-iconbtn--accent` + `data-on` is the SAME pair of states as the ƒx
+        // in the column list (PropertyPanelTable) — the two color strings were
+        // byte-identical. What belongs to this button alone is the italic
+        // serif glyph, which lives in `jpd-fx`.
         className="jpd-iconbtn jpd-iconbtn--accent jpd-fx"
         data-on={open || active || undefined}
       >

@@ -11,17 +11,17 @@ export type DesignerToolbarProps = {
   className?: string;
   style?: CSSProperties;
   whenTab?: TabGate;
-  // A dica "selecione um campo…" acima dos botões. Ligada por default (é o
-  // que o <Designer> mostra); desligue num layout onde a toolbar não fica
-  // grudada na lista de campos e a frase perde referente.
+  // The "select a field…" hint above the buttons. On by default (it is what
+  // the <Designer> shows); turn it off in a layout where the toolbar is not
+  // glued to the field list and the sentence loses its referent.
   hint?: boolean;
 };
 
-// Peça posicionável: os 6 botões de "adicionar campo", mais o seletor de
-// tipo de seção que o "+ seção" abre.
+// A placeable part: the 6 "add field" buttons, plus the section type picker
+// that "+ section" opens.
 //
-// A raiz é `.jpd-sidebar__footer` — a MESMA que o `Designer.tsx` tinha em
-// volta deste bloco. A peça não adiciona nível de DOM.
+// The root is `.jpd-sidebar__footer` — the SAME one `Designer.tsx` had
+// around this block. The part adds no DOM level.
 export function DesignerToolbar({ whenTab, ...rest }: DesignerToolbarProps) {
   if (!useTabGate(whenTab)) return null;
   return <DesignerToolbarBody {...rest} />;
@@ -35,18 +35,18 @@ function DesignerToolbarBody({ className, style, hint = true }: Omit<DesignerToo
   const actions = useDesignerActions();
   const { addSchema } = actions;
 
-  // "+ seção" não cria na hora — abre este seletor primeiro (vazia, ou já
-  // vinculada a uma fonte de dados conhecida). Estado LOCAL da peça: fechar
-  // o seletor é decisão de quem chama, e `actions.createSection` documenta
-  // isso de propósito (ver o comentário dela em actions.ts).
+  // "+ section" does not create straight away — it opens this picker first
+  // (empty, or already bound to a known data source). State LOCAL to the
+  // part: closing the picker is the caller's decision, and
+  // `actions.createSection` documents that on purpose (see its comment).
   const [showSectionPicker, setShowSectionPicker] = useState(false);
   function createSection(sourcePath?: string) {
     actions.createSection(sourcePath);
     setShowSectionPicker(false);
   }
 
-  // `nextFreeY` recebe o passo da grade da config — sem isso um
-  // `gridSizeMm` customizado alinhava o arrasto mas não o NASCIMENTO.
+  // `nextFreeY` receives the grid step from the config — without it a custom
+  // `gridSizeMm` aligned dragging but not the BIRTH of a field.
   const y = () => nextFreeY(template.schemas, gridSizeMm);
 
   return (

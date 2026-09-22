@@ -4,15 +4,15 @@ import type { Template, Binding } from "json-pdf-designer/server";
 type Snapshot = { template: Template; bindings: Binding[] };
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
-// Undo/redo (Ctrl+Z / Ctrl+Shift+Z ou Ctrl+Y) — template e bindings mudam
-// juntos em várias operações (ex: "Vincular" sincroniza head/content E
-// cria o binding no mesmo clique). Empilhar por SETSTATE individual
-// quebraria essas operações em dois passos de undo, desalinhando de novo
-// head/binding.columns (o mesmo bug já corrigido antes). Em vez disso, um
-// efeito compara o par [template, bindings] contra o último snapshot
-// registrado — como o React batching junta as duas chamadas de setState
-// de uma mesma ação síncrona num único render, o efeito roda uma vez só
-// por AÇÃO, não por setState, e cada entrada do histórico já sai atômica.
+// Undo/redo (Ctrl+Z / Ctrl+Shift+Z or Ctrl+Y) — template and bindings change
+// together in several operations (e.g. "Bind" syncs head/content AND creates
+// the binding in the same click). Stacking per individual SETSTATE would break
+// those operations into two undo steps, throwing head/binding.columns out of
+// alignment again (the same bug fixed before). Instead, an effect compares the
+// pair [template, bindings] against the last recorded snapshot — since React
+// batching joins the two setState calls of the same synchronous action into a
+// single render, the effect runs once per ACTION, not per setState, and each
+// history entry comes out atomic.
 export function useUndoRedo(template: Template, bindings: Binding[], setTemplate: Setter<Template>, setBindings: Setter<Binding[]>) {
   const undoStackRef = useRef<Snapshot[]>([]);
   const redoStackRef = useRef<Snapshot[]>([]);
@@ -60,9 +60,9 @@ export function useUndoRedo(template: Template, bindings: Binding[], setTemplate
     function onKeyDown(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod || (e.key.toLowerCase() !== "z" && e.key.toLowerCase() !== "y")) return;
-      // Campo de texto focado (nome de coluna, fórmula, JSON de exemplo
-      // etc) — deixa o undo NATIVO do input/textarea agir, sem roubar pra
-      // história global do designer.
+      // A focused text field (a column name, a formula, the sample JSON and so
+      // on) — it lets the input/textarea's NATIVE undo act, without stealing it
+      // for the designer's global history.
       if (isEditableTarget(document.activeElement)) return;
       e.preventDefault();
       if (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey)) redo();

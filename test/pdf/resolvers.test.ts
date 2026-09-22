@@ -118,8 +118,8 @@ describe("resolveRowFromItem — precedência célula a célula", () => {
     };
     const item = { nome: "Caneta Azul", qtd: 2, outro: "não deveria aparecer" };
     const row = resolveRowFromItem(tableSchema, item, binding);
-    // col0: content[0][0] = "{nome}" tem token -> renderiza contra o item,
-    // NÃO usa binding.columns[0] ("outro"), mesmo com binding presente.
+    // col0: content[0][0] = "{nome}" has a token -> it renders against the
+    // item, it does NOT use binding.columns[0] ("outro"), even with a binding present.
     expect(row[0]).toBe("Caneta Azul");
   });
 

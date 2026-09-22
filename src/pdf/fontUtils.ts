@@ -4,30 +4,30 @@ import { FontDecompressFailedError, FontDecompressTimeoutError, Woff2SupportMiss
 const WOFF2_SIGNATURE = 0x774f4632; // "wOF2"
 const WOFF1_SIGNATURE = 0x774f4646; // "wOFF"
 
-// Teto de espera pela descompressão WOFF2 (ver withTimeout abaixo). Vive numa
-// constante porque ele vai pro DADO do erro (FontDecompressTimeoutError.
-// timeoutMs) — antes o número aparecia só dentro da frase da mensagem, e
-// quem capturava não tinha como saber quanto foi esperado.
+// The ceiling on waiting for the WOFF2 decompression (see withTimeout below).
+// It lives in a constant because it goes into the error's DATA
+// (FontDecompressTimeoutError.timeoutMs) — the number used to appear only
+// inside the message's sentence, and the catcher had no way to know the wait.
 const WOFF2_TIMEOUT_MS = 8000;
 
 function readUint32(view: DataView): number {
   return view.getUint32(0, false);
 }
 
-// WOFF (v1) é bem mais simples que WOFF2 — cada tabela é comprimida
-// individualmente com zlib puro (RFC 1950), sem WASM nenhum. `tiny-inflate`
-// já vem transitivamente via fontkit (usado pra parsear WOFF2 no editor),
-// promovido aqui a dependência direta por ser usado explicitamente.
+// WOFF (v1) is far simpler than WOFF2 — each table is compressed
+// individually with plain zlib (RFC 1950), with no WASM at all.
+// `tiny-inflate` already comes in transitively through fontkit (used to parse
+// WOFF2 in the editor), promoted here to a direct dependency since it is used
+// explicitly.
 //
-// Layout do arquivo (big-endian), assinatura já checada por quem chama:
+// The file layout (big-endian), signature already checked by the caller:
 //   header (44 bytes): sig(4) flavor(4) length(4) numTables(2) reserved(2)
 //     totalSfntSize(4) majorVersion(2) minorVersion(2) metaOffset(4)
 //     metaLength(4) metaOrigLength(4) privOffset(4) privLength(4)
-//   table directory (20 bytes cada, numTables entradas, JÁ ordenada por
-//     tag — exigência do próprio formato WOFF): tag(4) offset(4)
+//   table directory (20 bytes each, numTables entries, ALREADY sorted by
+//     tag — a requirement of the WOFF format itself): tag(4) offset(4)
 //     compLength(4) origLength(4) origChecksum(4)
-//   dados de cada tabela (compLength bytes) — zlib se compLength <
-//     origLength, bytes crus (sem compressão) se forem iguais
+//   each table's data (compLength bytes) — zlib if compressed, raw if not
 function decompressWoff1(bytes: Uint8Array): Uint8Array {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const flavor = view.getUint32(4, false);
@@ -47,19 +47,19 @@ function decompressWoff1(bytes: Uint8Array): Uint8Array {
   const tables = entries.map((entry) => {
     const compressed = bytes.subarray(entry.offset, entry.offset + entry.compLength);
     if (entry.compLength === entry.origLength) return compressed;
-    // zlib = 2 bytes de header (CMF/FLG) + deflate cru + 4 bytes de
-    // Adler32 no final — tiny-inflate só entende o deflate cru do meio;
-    // pula o header, e o trailer é ignorado (o inflate já para sozinho
-    // no fim do stream deflate).
+    // zlib = a 2-byte header (CMF/FLG) + raw deflate + a 4-byte Adler32 at
+    // the end — tiny-inflate only understands the raw deflate in the middle;
+    // skip the header, and the trailer is ignored (the inflate already stops
+    // by itself at the end of the deflate stream).
     return inflate(compressed.subarray(2), new Uint8Array(entry.origLength)) as Uint8Array;
   });
 
-  // Reconstrói um sfnt (TTF/OTF) de verdade: header (12 bytes) + table
-  // directory (16 bytes/tabela) + dados de cada tabela alinhados em 4
-  // bytes. searchRange/entrySelector/rangeShift seguem a fórmula padrão
-  // do formato sfnt (mesmo cálculo usado por qualquer gerador de fonte).
-  // Reaproveita o `origChecksum` que o próprio WOFF já guarda (calculado
-  // sobre a tabela original) — sem precisar recalcular nada.
+  // It rebuilds a real sfnt (TTF/OTF): the header (12 bytes) + the table
+  // directory (16 bytes/table) + each table's data aligned to 4 bytes.
+  // searchRange/entrySelector/rangeShift follow the sfnt format's standard
+  // formula (the same computation any font generator uses). It reuses the
+  // `origChecksum` the WOFF itself already stores (computed over the original
+  // table) — with no need to recompute anything.
   const entrySelector = numTables > 0 ? Math.floor(Math.log2(numTables)) : 0;
   const searchRange = 2 ** entrySelector * 16;
   const rangeShift = numTables * 16 - searchRange;
@@ -92,40 +92,40 @@ function decompressWoff1(bytes: Uint8Array): Uint8Array {
   return out;
 }
 
-// O decompress() oficial do pacote "wawoff2" (src/decompress.js) tem uma
-// race condition real:
+// The official decompress() of the "wawoff2" package (src/decompress.js) has
+// a real race condition:
 //
 //   const em_module = require('./build/decompress_binding.js')
 //   const runtimeInit = new Promise(resolve => {
-//     em_module.onRuntimeInitialized = resolve   // assina DEPOIS do require
+//     em_module.onRuntimeInitialized = resolve   // subscribes AFTER the require
 //   })
 //
-// O WASM desse binding vem embutido como data URI no próprio JS (sem
-// fetch de rede) — em bundlers/ambientes onde a instanciação acaba
-// terminando de forma síncrona (ou antes dessa linha rodar), o runtime já
-// disparou `onRuntimeInitialized` (o padrão, um no-op) ANTES do pacote
-// assinar o callback — o `resolve` nunca é chamado, e a promise do
-// pacote trava pra sempre (silencioso, sem erro nenhum). Isso bate exatamente
-// com o relato de "às vezes trava indefinidamente, só em certos ambientes,
-// mesmo funcionando certinho em Node" — depende só de UM detalhe de timing.
+// That binding's WASM comes embedded as a data URI in the JS itself (with no
+// network fetch) — in bundlers/environments where the instantiation ends up
+// finishing synchronously (or before that line runs), the runtime has already
+// fired `onRuntimeInitialized` (the default, a no-op) BEFORE the package
+// subscribed its callback — the `resolve` is never called, and the package's
+// promise hangs forever (silently, with no error at all). That matches exactly
+// the report of "sometimes it hangs indefinitely, only in certain
+// environments, even though it works fine in Node" — one timing detail.
 //
-// Corrige checando a flag padrão do emscripten (`calledRun`, true depois
-// que o runtime já inicializou) ANTES de assinar o callback — se já
-// inicializou, roda direto; só assina o callback se realmente ainda não
-// rodou. Fala com o binding direto (em vez do decompress.js do pacote)
-// pra aplicar esse fix sem depender de um patch externo.
-// `wawoff2` é dependência OPCIONAL (peerDependency, não instalada junto por
-// padrão) — só quem embute fonte .woff2 de verdade precisa dela; a maioria
-// dos projetos que usam este pacote nunca chama isso, e forçar wawoff2 como
-// dependência direta pra todo mundo tem 2 custos reais que não valem a pena
-// pra quem não usa: puxa um binário WASM grande sem necessidade, e o
-// `decompress_binding.js` dele tem um caminho de código pra Node (`fs`/
-// `path`) que bundlers tipo Vite avisam como "externalized for browser
-// compatibility" mesmo esse caminho nunca rodando no browser (falso
-// positivo inofensivo, mas foi reportado como confuso). Import dinâmico
-// (não estático) + `@vite-ignore` evita o bundler tentando resolver/
-// empacotar o módulo em build-time — só é carregado (e só FALHA, com
-// mensagem clara, se não instalado) na hora real de descomprimir um WOFF2.
+// It is fixed by checking emscripten's standard flag (`calledRun`, true once
+// the runtime has initialized) BEFORE subscribing the callback — if it has
+// already initialized, run straight away; only subscribe the callback if it
+// really has not run yet. It talks to the binding directly (instead of the
+// package's decompress.js) to apply that fix without an external patch.
+// `wawoff2` is an OPTIONAL dependency (a peerDependency, not installed along
+// by default) — only whoever really embeds a .woff2 font needs it; most
+// projects using this package never call this, and forcing wawoff2 as a
+// direct dependency for everyone has 2 real costs that are not worth it for
+// those who do not use it: it pulls in a large WASM binary needlessly, and its
+// `decompress_binding.js` has a Node code path (`fs`/`path`) that bundlers
+// like Vite warn about as "externalized for browser compatibility" even though
+// that path never runs in the browser (a harmless false positive, but reported
+// as confusing). A dynamic import (not a static one) + `@vite-ignore` avoids
+// the bundler trying to resolve/bundle the module at build time — it is only
+// loaded (and only FAILS, with a clear message, if not installed) when a
+// WOFF2 really has to be decompressed.
 async function loadDecompressBinding(): Promise<{
   decompress(input: Uint8Array): Uint8Array | false;
   calledRun?: boolean;
@@ -154,10 +154,10 @@ function decompressWoff2(input: Uint8Array): Promise<Uint8Array> {
   );
 }
 
-// Rede de segurança pro que SOBRAR de instabilidade do WASM (fora do
-// nosso controle — CSP bloqueando wasm-eval, engine muito antiga etc):
-// sem isso, qualquer outra causa de travamento ainda deixaria quem chamou
-// (generatePdf) esperando pra sempre, sem feedback nenhum pro usuário.
+// A safety net for whatever WASM instability is LEFT (outside our control —
+// a CSP blocking wasm-eval, a very old engine and so on): without it, any
+// other cause of a hang would still leave the caller (generatePdf) waiting
+// forever, with no feedback at all for the user.
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new FontDecompressTimeoutError("woff2", ms)), ms);
@@ -174,17 +174,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-// pdf-lib (e o formato PDF em si) só entende TTF/OTF de verdade — um arquivo
-// WOFF/WOFF2 (o formato que pacotes tipo @fontsource distribuem, otimizado
-// pra web) é só um WRAPPER comprimido em cima do TTF/OTF real. fontkit lê
-// WOFF2 de boa (pra medir/desenhar aqui no editor), mas se você passar os
-// bytes crus do WOFF2 direto pro pdf-lib, ele embute o wrapper comprimido
-// como se já fosse a fonte — o PDF sai com a fonte corrompida (glifo
-// errado nuns caracteres, tipo "." virando "ï", e o Acrobat chega a avisar
-// "não foi possível extrair a fonte incorporada"). Aqui a gente detecta
-// WOFF2 pela assinatura e descomprime pro TTF/OTF de verdade antes de
-// embutir — WOFF (v1) descomprime na hora também (decompressWoff1,
-// síncrono, sem WASM).
+// pdf-lib (and the PDF format itself) only understands real TTF/OTF — a
+// WOFF/WOFF2 file (the format packages like @fontsource distribute, optimized
+// for the web) is only a compressed WRAPPER over the real TTF/OTF. fontkit
+// reads WOFF2 just fine (to measure/draw here in the editor), but if you pass
+// the raw WOFF2 bytes straight to pdf-lib, it embeds the compressed wrapper
+// as though it were already the font — the PDF comes out with a corrupt font
+// (a wrong glyph on some characters, like "." becoming "ï", and Acrobat even
+// warns "could not extract the embedded font"). Here we detect WOFF2 by its
+// signature and decompress it into the real TTF/OTF before embedding — a WOFF
+// (v1) is decompressed on the spot too (decompressWoff1, synchronous, no
+// WASM).
 export async function normalizeFontBytes(bytes: Uint8Array | ArrayBuffer): Promise<Uint8Array> {
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (arr.length < 4) return arr;

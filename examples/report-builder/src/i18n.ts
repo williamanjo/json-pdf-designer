@@ -1,36 +1,36 @@
 import type { Locale } from "json-pdf-designer";
 
-// Dicionário da CASCA deste app — header, painéis, abas de página, avisos.
+// This app's SHELL dictionary — header, panels, page tabs, warnings.
 //
-// O ponto da lição: o `locale` que já existia no estado (e que alimentava o
-// `<I18nProvider>` do editor) alimenta AGORA os dois dicionários — o do
-// pacote e este. Um `<select>`, duas camadas, zero sincronização manual.
+// The lesson's point: the `locale` that already existed in state (and that fed
+// the editor's `<I18nProvider>`) NOW feeds both dictionaries — the package's
+// and this one. One `<select>`, two layers, zero manual syncing.
 //
-// O tipo `Locale` vem do PACOTE de propósito: quando o pacote ganhar um
-// idioma novo, `en: typeof pt` deixa de cobrir o `Record<Locale, …>` e este
-// example para de compilar até alguém traduzir. Isso é desejável.
+// The `Locale` type comes from THE PACKAGE on purpose: when the package gains
+// a new language, `en: typeof pt` stops covering the `Record<Locale, …>` and
+// this example stops compiling until someone translates. That is desirable.
 //
-// O que NÃO está aqui, e por quê:
-//   - conteúdo dos templates prontos (`data/templates/`) e o JSON de amostra
-//     (`data/samples/`): é DOCUMENTO do usuário. Um relatório em português
-//     continua em português quando a UI vira inglês;
-//   - nome de campo / path (`titulo_relatorio`, `rows.total`), nome de fonte
-//     (`fonte_2`, `principal`) e nome de schema (`total_a3f2`): são
-//     IDENTIFICADORES, gerados iguais em qualquer idioma;
-//   - `Português` / `English` no seletor: nome de idioma fica no próprio
-//     idioma, como é convenção;
-//   - rótulo que o PACOTE já traduz (tipo de campo, aviso de vínculo, erro de
-//     expressão, nome da aba "Página"): vem de `useT()`/`dictFor()`, ver
-//     `components/SelectedFieldBar.tsx`;
-//   - título e ação de FALHA do pacote (limite de páginas, glifo fora da
-//     fonte, imagem inválida...): vêm de `describePdfError(err, dictFor(…))`,
-//     ver `lib/generationError.ts`. Reescrever aqui seria manter duas
-//     traduções da mesma frase.
+// What is NOT here, and why:
+//   - the content of the ready-made templates (`data/templates/`) and the
+//     sample JSON (`data/samples/`): it is the user's DOCUMENT. A report in
+//     Portuguese stays in Portuguese when the UI turns to English;
+//   - a field name / path (`titulo_relatorio`, `rows.total`), a source's name
+//     (`fonte_2`, `principal`) and a schema name (`total_a3f2`): they are
+//     IDENTIFIERS, generated the same in any language;
+//   - `Português` / `English` in the picker: a language's name stays in its own
+//     language, as is the convention;
+//   - a label THE PACKAGE already translates (a field type, a binding warning,
+//     an expression error, the "Page" tab's name): it comes from
+//     `useT()`/`dictFor()`, see `components/SelectedFieldBar.tsx`;
+//   - the title and action of a package FAILURE (the page limit, a glyph
+//     outside the font, an invalid image...): they come from
+//     `describePdfError(err, dictFor(…))`, see `lib/generationError.ts`.
+//     Rewriting them here would be keeping two translations of one phrase.
 
-// Sem `as const`: os valores widen pra `string` / `(n: number) => string`, e
-// assim o inglês pode ter TEXTO diferente. O que `en: typeof pt` continua
-// cobrando é a FORMA — chave faltando (ou com aridade errada) não compila.
-// Sem isso, uma tradução esquecida vira `undefined` e renderiza vazio, calada.
+// No `as const`: the values widen to `string` / `(n: number) => string`, and
+// that way English can have DIFFERENT TEXT. What `en: typeof pt` still
+// enforces is the SHAPE — a missing key (or one with the wrong arity) does not
+// compile. Without it, a forgotten translation becomes `undefined` and renders
 const pt = {
   // ---- header ----
   appTitle: "Gerador de Relatórios",

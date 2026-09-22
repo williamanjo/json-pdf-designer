@@ -18,35 +18,35 @@ export type DesignerPropertyPanelProps = {
   className?: string;
   style?: CSSProperties;
   whenTab?: TabGate;
-  // Qual metade do painel desenhar. `"dados"` é conteúdo e vínculo,
-  // `"estilo"` é aparência — a mesma divisão que as abas fazem.
+  // Which half of the panel to draw. `"dados"` is content and binding,
+  // `"estilo"` is appearance — the same split the tabs make.
   //
-  // É PROP, e não leitura de `sidebarTab`, justamente pra dar pra pôr as duas
-  // metades lado a lado num layout sem abas: duas instâncias, uma com cada
-  // `section`. Se isto lesse a aba, a segunda instância desapareceria.
+  // It is a PROP, and not a read of `sidebarTab`, precisely so the two halves
+  // can be put side by side in a layout with no tabs: two instances, one with
+  // each `section`. If this read the tab, the second instance would vanish.
   section?: "dados" | "estilo";
-  // Posição/tamanho (X, Y, largura, altura) e "visível quando". Default: só
-  // em `section="dados"`, que é onde o <Designer> mostra.
+  // Position/size (X, Y, width, height) and "visible when". Default: only in
+  // `section="dados"`, which is where the <Designer> shows them.
   position?: boolean;
-  // Cabeçalho com o nome do campo e o aviso de seleção múltipla.
+  // A header with the field's name and the multiple-selection warning.
   header?: boolean;
   parts?: {
-    // O `<p>` de "N campos selecionados" / "editando N em bloco".
+    // The `<p>` saying "N fields selected" / "bulk editing N".
     banner?: PartStyle;
   };
 };
 
-// Peça posicionável: o painel de propriedades do campo selecionado.
+// A placeable part: the selected field's property panel.
 //
-// Despacha por `schema.type` internamente (texto/tabela/imagem/seção/
-// gráfico/KPI) chamando o `<PropertyPanel>` que já existe. Os
-// `PropertyPanel{Text,Table,…}` individuais NÃO são peças e nunca serão: um
-// `<DesignerTextPanel/>` avulso não tem resposta pra "qual schema?" que não
-// seja "o selecionado" — e aí ele é um DesignerPropertyPanel pior.
+// It dispatches on `schema.type` internally (text/table/image/section/chart/
+// KPI) by calling the `<PropertyPanel>` that already exists. The individual
+// `PropertyPanel{Text,Table,…}` are NOT parts and never will be: a standalone
+// `<DesignerTextPanel/>` has no answer to "which schema?" other than "the
+// selected one" — and then it is a worse DesignerPropertyPanel.
 //
-// A raiz é `.jpd-sidebar__panel`, a MESMA que o `Designer.tsx` tinha, e o
-// cabeçalho vem por dentro — porque no original os dois eram um único
-// `<div>` com gap próprio. Embrulhar num nível extra colapsaria esse gap.
+// The root is `.jpd-sidebar__panel`, the SAME one `Designer.tsx` had, and the
+// header comes inside — because in the original the two were a single `<div>`
+// with a gap of its own. Wrapping in an extra level would collapse that gap.
 export function DesignerPropertyPanel({ whenTab, ...rest }: DesignerPropertyPanelProps) {
   if (!useTabGate(whenTab)) return null;
   return <DesignerPropertyPanelBody {...rest} />;
@@ -95,9 +95,9 @@ function DesignerPropertyPanelBody({
       )}
 
       <PropertyPanel
-        // `key` no id: trocar de campo tem de REMONTAR o painel, senão
-        // estado local dele (aba interna, mini-painel de coluna aberto)
-        // vaza de um campo pro outro.
+        // `key` on the id: switching fields has to REMOUNT the panel, otherwise
+        // its local state (inner tab, an open column mini-panel) leaks from
+        // one field to the other.
         key={selected.id}
         schema={selected}
         binding={selectedBinding}

@@ -4,43 +4,45 @@ import { FontLoadError } from "./font";
 import { t, type AppDict } from "../i18n";
 import { ProjectFileError, type ProjectFileReason } from "./projectFile";
 
-// Tradução de uma falha de `generatePdf` (ou de carregar um projeto) numa
-// mensagem que diz o que FAZER.
+// Translating a failure of `generatePdf` (or of loading a project) into a
+// message that says what to DO.
 //
-// Quem classifica é o PACOTE: `describePdfError(err, dictFor(locale))` recebe
-// o erro cru e devolve `{ code, blame, title, action?, field?, detail }` já
-// localizado — ou `null` se o erro não é dele. Antes este arquivo casava
-// REGEX na mensagem (`/tamanho inválido/`) pra descobrir o que tinha
-// acontecido; a mensagem do pacote é inglês fixo e mudou de frase, as regexes
-// pararam de casar, e TODA falha virou "erro inesperado" em silêncio. É o
-// motivo pelo qual `code` existe: string literal, estável, com o TypeScript
-// cobrando exaustividade. Zero regex aqui, de propósito.
+// THE PACKAGE is what classifies: `describePdfError(err, dictFor(locale))`
+// takes the raw error and returns `{ code, blame, title, action?, field?,
+// detail }` already localized — or `null` if the error is not its own. This
+// file used to match a REGEX on the message (`/tamanho inválido/`) to find out
+// what had happened; the package's message is fixed English and changed
+// wording, the regexes stopped matching, and EVERY failure became "unexpected
+// error", silently. That is why `code` exists: a string literal, stable, with
+// TypeScript enforcing exhaustiveness. Zero regexes here, on purpose.
 //
-// `blame` também vem do pacote — não é derivado aqui. É o que muda o tom da
-// UI (ver components/GenerationErrorBanner.tsx) e, num backend, o status HTTP:
-// `data`/`template` são 4xx, `config` é erro de instalação, `package` é 500.
+// `blame` also comes from the package — it is not derived here. It is what
+// changes the UI's tone (see components/GenerationErrorBanner.tsx) and, in a
+// backend, the HTTP status: `data`/`template` are 4xx, `config` is an
+// installation error, `package` is a 500.
 //
-// O que continua NOSSO: erro de arquivo de projeto (lib/projectFile.ts), JSON
-// inválido de fonte de dados (lib/sources.ts) e o asset de fonte deste example
-// (lib/font.ts). O pacote não sabe nada disso, devolve `null`, e caem no ramo
-// de baixo com o dicionário da casca (`src/i18n.ts`).
+// What is still OURS: a project file error (lib/projectFile.ts), invalid JSON
+// from a data source (lib/sources.ts) and this example's font asset
+// (lib/font.ts). The package knows nothing about those, returns `null`, and
+// they fall into the branch below with the shell's dictionary (`src/i18n.ts`).
 //
-// Duas camadas de idioma, como antes:
-//   - `title`/`action` são a cópia que a pessoa lê e faz — localizadas (pelo
-//     dicionário do PACOTE quando o erro é dele, pelo da CASCA quando é nosso);
-//   - `detail` é a mensagem CRUA do erro, e não passa por dicionário nenhum —
-//     é a camada técnica, e o pacote a lança sempre em inglês de propósito.
+// Two layers of language, as before:
+//   - `title`/`action` are the copy the person reads and acts on — localized
+//     (by THE PACKAGE's dictionary when the error is its own, by the SHELL's
+//     when it is ours);
+//   - `detail` is the error's RAW message, and it goes through no dictionary —
+//     it is the technical layer, and the package always throws it in English.
 
-// Nossos códigos entram na mesma união dos do pacote: assim quem renderiza
-// classifica tudo por `code`, sem ter que saber de onde o erro veio.
+// Our codes join the same union as the package's: that way whoever renders
+// classifies everything by `code`, without having to know where the error came
 export type AppProblemCode = "appFontLoad" | "appProjectFile" | "appUnknown";
 
 export type GenerationProblem = Omit<PdfProblem, "code"> & {
   code: PdfProblem["code"] | AppProblemCode;
 };
 
-// Tabela em vez de `switch`: `Record` sobre a união obriga as três razões a
-// existirem, então uma razão nova em lib/projectFile.ts para de compilar aqui.
+// A table instead of a `switch`: a `Record` over the union forces all three
+// reasons to exist, so a new reason in lib/projectFile.ts stops compiling here.
 const PROJECT_COPY: Record<ProjectFileReason, { title: (tx: AppDict) => string; action: (tx: AppDict) => string }> = {
   shape: { title: (tx) => tx.projectShapeTitle, action: (tx) => tx.projectShapeAction },
   malformed: { title: (tx) => tx.projectMalformedTitle, action: (tx) => tx.projectMalformedAction },
@@ -48,31 +50,31 @@ const PROJECT_COPY: Record<ProjectFileReason, { title: (tx: AppDict) => string; 
 };
 
 export function describeGenerationError(err: unknown, locale: Locale): GenerationProblem {
-  // `dictFor(locale)` é o MESMO dicionário que alimenta o `<I18nProvider>` do
-  // editor — um `locale` no estado, uma tradução. E como isto roda no render
-  // (App.tsx guarda o erro cru), trocar o idioma com o banner aberto
-  // retraduz o que está na tela.
+  // `dictFor(locale)` is the SAME dictionary that feeds the editor's
+  // `<I18nProvider>` — one `locale` in state, one translation. And since this
+  // runs at render time (App.tsx holds the raw error), switching the language
+  // with the banner open retranslates what is on screen.
   const problem = describePdfError(err, dictFor(locale));
   if (problem) return withAppCopy(problem, locale);
 
   const tx = t(locale);
   const detail = err instanceof Error ? err.message : String(err);
 
-  // Asset de fonte deste example — nosso, então a frase é nossa.
+  // This example's font asset — ours, so the phrase is ours.
   if (err instanceof FontLoadError) {
     return { code: "appFontLoad", blame: "config", title: tx.genFontTitle, action: tx.genFontAction, detail };
   }
 
-  // Arquivo de projeto — conceito deste app, o pacote não sabe que existe. A
-  // classe carrega `reason` justamente pra esta classificação não precisar ler
-  // a mensagem.
+  // A project file — this app's concept, the package does not know it
+  // exists. The class carries `reason` precisely so this classification does
+  // not have to read the message.
   if (err instanceof ProjectFileError) {
     const copy = PROJECT_COPY[err.reason];
     return {
       code: "appProjectFile",
-      // Forma quebrada é problema do TEMPLATE que veio no arquivo; ler ou
-      // parsear é problema do arquivo que a pessoa escolheu. Nenhum dos dois
-      // é `package`, que era onde os quatro caíam antes.
+      // A broken shape is a problem with the TEMPLATE that came in the file;
+      // reading or parsing is a problem with the file the person chose. Neither
+      // of the two is `package`, which is where all four used to land.
       blame: err.reason === "shape" ? "template" : "data",
       title: copy.title(tx),
       action: copy.action(tx),
@@ -80,26 +82,27 @@ export function describeGenerationError(err: unknown, locale: Locale): Generatio
     };
   }
 
-  // Sobra: algo de fora do pacote e de fora daqui (um TypeError do pdf-lib,
-  // falha de rede). `blame: "package"` deixa o banner no tom cinza de "não é
-  // culpa sua, reporte" — agora só pra quem merece esse tom.
+  // What is left: something from outside the package and outside here (a
+  // TypeError from pdf-lib, a network failure). `blame: "package"` keeps the
+  // banner in the gray "not your fault, report it" tone — now only for those
+  // that deserve that tone.
   return { code: "appUnknown", blame: "package", title: tx.genUnknownTitle, action: tx.genUnknownAction, detail };
 }
 
-// Onde a cópia deste example sobrescreve a do pacote. Só ramo com MOTIVO —
-// duplicar título/ação que o pacote já entrega localizado é criar duas frases
-// pra mesma falha, prontas pra dessincronizar na próxima tradução.
+// Where this example's copy overrides the package's. Only a branch with a
+// REASON — duplicating a title/action the package already delivers localized
+// is creating two phrases for the same failure, ready to fall out of sync on
 function withAppCopy(problem: PdfProblem, locale: Locale): GenerationProblem {
   const tx = t(locale);
 
-  // `switch` no `code` (não regex na frase): literal, e o TypeScript avisa se
-  // um code deixar de existir.
+  // A `switch` on the `code` (not a regex on the phrase): a literal, and
+  // TypeScript warns if a code stops existing.
   switch (problem.code) {
-    // O pacote manda "corrija a expressão no template" — correto, mas ele não
-    // sabe que ESTE app tem um painel que lista cada expressão quebrada e onde
-    // ela está. O nome do painel sai do mesmo dicionário que o painel usa pro
-    // título dele, então a mensagem nunca aponta pra um painel com outro nome.
-    // O `title` continua vindo do pacote.
+    // The package says "fix the expression in the template" — correct, but it
+    // does not know that THIS app has a panel listing each broken expression
+    // and where it is. The panel's name comes from the same dictionary the
+    // panel uses for its own title, so the message never points at a panel
+    // under another name. The `title` still comes from the package.
     case "expression":
       return { ...problem, action: tx.genExpressionAction(tx.problemsTitle) };
     default:

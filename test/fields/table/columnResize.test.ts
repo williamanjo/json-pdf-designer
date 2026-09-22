@@ -15,11 +15,11 @@ describe("resizeColumnPair", () => {
   });
 
   it("dx empurra a direita abaixo do mínimo: direita trava no mínimo e a esquerda só recebe o quanto sobrou", () => {
-    // direita começa em 20, mínimo 10 -> só há 10mm disponíveis pra ceder,
-    // mesmo pedindo um dx de 25mm.
+    // the right one starts at 20, minimum 10 -> only 10mm are available to
+    // yield, even when a dx of 25mm is asked for.
     const result = resizeColumnPair(50, 20, 25, 10);
     expect(result.right).toBe(10);
-    expect(result.left).toBe(60); // 50 + (20 - 10), não 50 + 25
+    expect(result.left).toBe(60); // 50 + (20 - 10), not 50 + 25
     expect(result.left + result.right).toBe(70); // total preservado (50 + 20)
   });
 

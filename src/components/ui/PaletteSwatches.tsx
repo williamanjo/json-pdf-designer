@@ -4,22 +4,22 @@ import { cx, readPart, type PartStyle } from "./cx";
 export type PaletteSwatchesProps = HTMLAttributes<HTMLDivElement> & {
   colors: readonly string[];
   /**
-   * "md" (padrão, caso do gráfico) | "sm" (caso da tabela: bolinha e gap
-   * menores, e sem `flex-shrink`, pra três bolinhas caberem numa célula de
-   * grade de 2 colunas).
+   * "md" (default, the chart case) | "sm" (the table case: smaller dot and
+   * gap, and no `flex-shrink`, so three dots fit in a cell of a 2-column
+   * grid).
    */
   size?: "sm" | "md";
   parts?: { swatch?: PartStyle };
 };
 
-// Uma fileira de bolinhas com as cores dadas — usado tanto pelo seletor de
-// paleta do gráfico quanto pelo da tabela.
+// A row of dots with the given colors — used both by the chart's palette
+// picker and by the table's.
 //
-// BREAKING em 3.0.0: as props `size`/`gap`/`shrink` recebiam CLASSE TAILWIND
-// como valor (`size="h-4 w-4"`, `gap="gap-1"`) — três strings que existiam
-// só pra reproduzir as pequenas diferenças entre as duas cópias originais, e
-// que eram invisíveis a qualquer busca por `className`. Viraram um `size` de
-// dois valores, que é o que as duas chamadas reais usavam.
+// BREAKING in 3.0.0: the `size`/`gap`/`shrink` props took a TAILWIND CLASS as
+// their value (`size="h-4 w-4"`, `gap="gap-1"`) — three strings that existed
+// only to reproduce the small differences between the two original copies,
+// and that were invisible to any search for `className`. They became a
+// two-valued `size`, which is what the two real calls used.
 export const PaletteSwatches = forwardRef<HTMLDivElement, PaletteSwatchesProps>(function PaletteSwatches(
   { colors, size = "md", className, parts, ...rest },
   ref
@@ -28,8 +28,8 @@ export const PaletteSwatches = forwardRef<HTMLDivElement, PaletteSwatchesProps>(
   return (
     <div ref={ref} {...rest} data-size={size} className={cx("jpd-swatches", className)}>
       {colors.map((c, i) => (
-        // `backgroundColor` inline continua: É a paleta, não decoração — o
-        // valor vem do dado, não do tema.
+        // The inline `backgroundColor` stays: it IS the palette, not decoration —
+        // the value comes from the data, not from the theme.
         <span key={i} className={cx("jpd-swatch", swatch.className)} style={{ ...swatch.style, backgroundColor: c }} />
       ))}
     </div>

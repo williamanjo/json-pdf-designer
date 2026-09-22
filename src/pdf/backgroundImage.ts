@@ -1,11 +1,11 @@
 import { ImageUploadTooLargeError, ImageUploadUnreadableError } from "../errors";
 
-// Mesmo espírito do limite em generate.ts — aqui protege a PRÓPRIA aba do
-// navegador de travar convertendo um arquivo enorme (o generate.ts, do
-// lado do servidor, tem seu próprio limite sobre o data URI já convertido
-// — este aqui é o portão de entrada, antes de gastar CPU/memória
-// processando o arquivo).
-const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB, arquivo original
+// The same spirit as the limit in generate.ts — here it protects the
+// browser's OWN tab from freezing while converting a huge file (generate.ts,
+// on the server side, has its own limit over the already-converted data URI
+// — this one is the entrance gate, before spending CPU/memory processing the
+// file).
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB, the original file
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -33,14 +33,14 @@ function imageToPng(dataUrl: string): Promise<string> {
   });
 }
 
-// Converte uma IMAGEM enviada num PNG data URI pronto pra usar como fundo
-// da página. PNG passa direto; qualquer outro formato que o navegador
-// decodifique (JPEG etc) vira PNG via canvas — garante que o generate.ts
-// sempre recebe PNG (doc.embedPng).
+// Converts an uploaded IMAGE into a PNG data URI ready to use as the page's
+// background. A PNG passes straight through; any other format the browser can
+// decode (JPEG and so on) becomes a PNG through a canvas — it guarantees that
+// generate.ts always receives a PNG (doc.embedPng).
 //
-// Só imagem, de propósito: fundo vindo de PDF exigiria rasterizar a 1ª
-// página com pdf.js, o que puxaria o pdfjs-dist (peer opcional) pra dentro
-// do grafo do <Designer> e portanto da entry principal — ver src/preview.ts.
+// Images only, on purpose: a background coming from a PDF would require
+// rasterizing the 1st page with pdf.js, which would pull pdfjs-dist (an
+// optional peer) into the <Designer>'s graph and therefore the main entry.
 export async function fileToBackgroundImage(file: File): Promise<string> {
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new ImageUploadTooLargeError(file.size, MAX_UPLOAD_BYTES);

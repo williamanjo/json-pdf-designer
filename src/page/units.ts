@@ -1,4 +1,4 @@
-// Conversões de unidade — modelo de dados fica em mm (docs/ARCHITECTURE.md).
+// Unit conversions — the data model stays in mm (docs/ARCHITECTURE.md).
 const PX_PER_MM = 96 / 25.4; // 96dpi
 const PT_PER_MM = 72 / 25.4;
 
@@ -18,18 +18,18 @@ export function ptToMm(pt: number): number {
   return pt / PT_PER_MM;
 }
 
-// Tamanho em pt (mesma unidade do PDF, ver pdf/render/renderKpi.ts, pdf/render/renderChart.ts)
-// convertido pra px do canvas — usado pelo preview de campos com tamanho de
-// fonte/ícone configurável, pra bater com o tamanho real do PDF gerado.
+// A size in pt (the same unit as the PDF, see pdf/render/renderKpi.ts, pdf/render/renderChart.ts)
+// converted to canvas px — used by the preview of fields with a configurable
+// font/icon size, so it matches the real size of the generated PDF.
 export function ptToPx(pt: number): number {
   return mmToPx(ptToMm(pt));
 }
 
-// Tamanho (mm) da grade do canvas (PageCanvas.tsx desenha o quadriculado e
-// trava arrastar/redimensionar nesse passo) — mesmo valor usado aqui pra
-// QUALQUER posição calculada por código (soltar chip de coluna, próximo Y
-// livre, posição padrão de campo novo) também cair na grade, não só o que
-// o mouse arrasta.
+// The canvas grid's size (mm) (PageCanvas.tsx draws the grid and snaps
+// dragging/resizing to that step) — the same value is used here so that ANY
+// position computed by code (dropping a column chip, the next free Y, a new
+// field's default position) also lands on the grid, not only what the mouse
+// drags.
 export const GRID_SIZE_MM = 5;
 
 export function snapToGrid(value: number, gridMm: number = GRID_SIZE_MM): number {

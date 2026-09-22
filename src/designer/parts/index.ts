@@ -1,5 +1,5 @@
-// Barrel das peças posicionáveis. A superfície PÚBLICA disto entra na
-// Fase 7 (src/index.ts); por enquanto quem importa daqui é o Designer.tsx.
+// The barrel of the placeable parts. Its PUBLIC surface lands in Phase 7
+// (src/index.ts); for now the only importer is Designer.tsx.
 export { DesignerBindingEditor, type DesignerBindingEditorProps } from "./DesignerBindingEditor";
 export { DesignerCanvas, type DesignerCanvasProps } from "./DesignerCanvas";
 export { DesignerFieldList, type DesignerFieldListProps } from "./DesignerFieldList";

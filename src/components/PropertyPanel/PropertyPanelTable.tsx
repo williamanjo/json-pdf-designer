@@ -16,9 +16,9 @@ type HAlign = "left" | "center" | "right";
 type VAlign = "top" | "middle" | "bottom";
 type CornerKey = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
 
-// Par de selects (horizontal/vertical) — mesmo par pras 3 linhas
-// (cabeçalho/corpo/rodapé), cada uma com seu próprio par de campos no
-// schema (headAlign/headVerticalAlign etc).
+// A pair of selects (horizontal/vertical) — the same pair for all 3 rows
+// (header/body/footer), each with its own pair of fields in the schema
+// (headAlign/headVerticalAlign and so on).
 function AlignSelects({
   align,
   vAlign,
@@ -48,10 +48,10 @@ function AlignSelects({
   );
 }
 
-// Inputs de arredondamento — só os cantos passados em `corners` (cada
-// bloco só recebe os que fazem sentido pra ELE, ver TableCornerRadii em
-// types/schema.ts): cabeçalho = topo; rodapé = base; corpo = base, só
-// quando NÃO há totais (ver `disabledHint` no caller).
+// Rounding inputs — only the corners passed in `corners` (each block
+// receives only the ones that make sense for IT, see TableCornerRadii in
+// types/schema.ts): header = top; footer = bottom; body = bottom, only
+// when there are NO totals (see `disabledHint` in the caller).
 function CornerInputs({
   radii,
   onChange,
@@ -100,23 +100,23 @@ type Props = {
   onChangeBinding: (b: Binding | null) => void;
   dataSources?: DataSourceOption[];
   tableDataSource?: { path: string; columns: string[] };
-  // MANTIDA por compatibilidade, e este painel não a usa mais: o campo
-  // "Colunas (cabeçalho, vírgula)" saiu, e o título agora se edita por coluna
-  // (`onRenameTableColumn`). Quem renderiza este componente direto e passa
-  // `onSetHeadList` não quebra — só não vê efeito, porque não há mais um
-  // controle que reescreva a lista inteira.
+  // KEPT for compatibility, and this panel no longer uses it: the
+  // "Columns (header, comma)" field is gone, and the title is now edited per
+  // column (`onRenameTableColumn`). Anyone rendering this component directly
+  // and passing `onSetHeadList` does not break — they simply see no effect,
+  // because no control rewrites the whole list any more.
   onSetHeadList?: (heads: string[]) => void;
   onAddTableColumn?: (column: string) => void;
   onRemoveTableColumn?: (index: number) => void;
   onReorderTableColumn?: (fromIndex: number, toIndex: number) => void;
   onSetColumnStyle?: (index: number, patch: Partial<TableColumnStyle>) => void;
   onSetColumnFormula?: (index: number, formula: string) => void;
-  // Renomear UMA coluna (botão de lápis, ou duplo clique no chip). Só o
-  // rótulo muda; a referência de dado fica.
+  // Rename ONE column (the pencil button, or a double click on the chip).
+  // Only the label changes; the data reference stays.
   onRenameTableColumn?: (index: number, label: string) => void;
   onSetColumnWidth?: (index: number, widthMm: number | undefined) => void;
-  // Campos que este schema alcança — a lista da esquerda do modal de
-  // fórmula (ver designer/helpers.ts, fieldSourcesFor).
+  // The fields this schema can reach — the left-hand list of the formula
+  // modal (see designer/helpers.ts, fieldSourcesFor).
   fieldSources?: FieldSources;
 };
 
@@ -140,40 +140,40 @@ export function PropertyPanelTable({
   const t = useT();
   const { Button, Checkbox, ColorInput, Input } = useUiComponents();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  // Qual coluna está com o título em edição (botão de lápis ou duplo clique).
+  // Which column has its title in edit mode (pencil button or double click).
   const [renameIndex, setRenameIndex] = useState<number | null>(null);
-  // Seleciona o texto ao montar, por REF e não por `onFocus`.
-  // Com o botão de lápis como via principal o caret cai no FIM, e digitar
-  // ANEXA ao nome atual ("PNR" + o que se digita) — visto no navegador. E
-  // `onFocus` NÃO resolve: o foco do `autoFocus` acontece no commit, antes do
-  // handler estar resolvível, então ele não dispara (medido: selectionStart e
-  // selectionEnd ficavam os dois no fim). O ref roda na montagem, e precisa ser
-  // estável — uma arrow inline mudaria de identidade a cada render e
-  // re-selecionaria o texto a cada tecla.
+  // Selects the text on mount, by REF and not through `onFocus`.
+  // With the pencil button as the main path the caret lands at the END, and
+  // typing APPENDS to the current name ("PNR" + whatever is typed) — seen in
+  // the browser. And `onFocus` does NOT fix it: the `autoFocus` focus happens
+  // at commit, before the handler is resolvable, so it never fires (measured:
+  // selectionStart and selectionEnd both sat at the end). The ref runs on
+  // mount, and has to be stable — an inline arrow would change identity on
+  // every render and re-select the text on every keystroke.
   const selecionarAoAbrir = useCallback((el: HTMLInputElement | null) => el?.select(), []);
   const [styleColIndex, setStyleColIndex] = useState<number | null>(null);
   const bindingColumns = binding?.type === "array" ? binding.columns : null;
 
-  // Uma célula da linha de totais — escrita pelo campo direto e pelo modal
-  // de fórmula, daí a função em vez do handler inline.
+  // One cell of the totals row — written both by the field itself and by the
+  // formula modal, hence a function instead of an inline handler.
   function setFooterCell(index: number, value: string) {
     const footer = (schema.footer ?? []).slice();
     footer[index] = value;
     onChangeSchema({ footer });
   }
 
-  // Grupos Claro/Médio/Escuro (TABLE_PALETTE_GROUPS) traduzidos pro formato
-  // genérico do PalettePicker — cada preset vira só as 3 cores mostradas nas
-  // bolinhas (cabeçalho/faixa/borda), igual o TablePalettePicker local fazia.
+  // The Light/Medium/Dark groups (TABLE_PALETTE_GROUPS) translated into the
+  // generic PalettePicker format — each preset becomes just the 3 colors shown
+  // in the dots (header/band/border), as the local TablePalettePicker did.
   const tablePaletteGroupLabel: Record<string, string> = {
     light: t.table.paletteGroupLight,
     medium: t.table.paletteGroupMedium,
     dark: t.table.paletteGroupDark,
   };
-  // "custom" não é um preset de TABLE_PALETTES — é o sinal pra usar as cores
-  // manuais de sempre (inputs de Background/Text/Cor da faixa mais abaixo).
-  // Entra como grupo próprio, sem rótulo (mesmo truque do chart: label ""
-  // não desenha cabeçalho de grupo), na frente dos grupos Claro/Médio/Escuro.
+  // "custom" is not a TABLE_PALETTES preset — it is the signal to use the
+  // usual manual colors (the Background/Text/Band color inputs further down).
+  // It comes in as its own group, with no label (same trick as the chart:
+  // a "" label draws no group header), ahead of the Light/Medium/Dark groups.
   const tablePaletteGroups: PaletteGroup[] = [
     {
       label: "",
@@ -195,25 +195,25 @@ export function PropertyPanelTable({
   ];
   const currentTablePreset =
     schema.colorPalette && schema.colorPalette !== "custom" ? TABLE_PALETTES[schema.colorPalette as TableStylePresetName] : undefined;
-  // Zebra é um interruptor à parte do preset — independe de qual paleta (ou
-  // "custom") está ativa, só olha se já tem uma cor de faixa configurada.
+  // Banding is a switch separate from the preset — it does not care which
+  // palette (or "custom") is active, it only looks at whether a band color exists.
   const zebraOn = Boolean(schema.bodyBandColor);
 
   return (
     <>
       {activeTab === "dados" && (
         <>
-          {/* O campo "Colunas (cabeçalho, vírgula)" que existia aqui SAIU.
-              Ele era a causa do bug de renomear: substituía o `head` inteiro a
-              cada tecla, e o `setTableHead` re-derivava todo slot casando nome
-              novo contra head antigo — um nome renomeado não está no head
-              antigo, então a coluna perdia o token, o estilo e a largura. O
-              título agora se edita com duplo clique no chip, que é a operação
-              "mantém a referência, muda só o rótulo".
+          {/* The "Columns (header, comma)" field that used to live here is GONE.
+              It caused the rename bug: it replaced the whole `head` on every
+              keystroke, and `setTableHead` re-derived every slot by matching
+              the new name against the old head — a renamed name is not in the
+              old head, so the column lost its token, its style and its width.
+              The title is now edited with a double click on the chip, which is
+              the "keep the reference, change only the label" operation.
 
-              A ação `setTableHead` e a prop `onSetHeadList` continuam
-              existindo e exportadas (são API pública) — só perderam o call
-              site interno. */}
+              The `setTableHead` action and the `onSetHeadList` prop still
+              exist and are still exported (they are public API) — they merely
+              lost their internal call site. */}
           {schema.head.length > 0 && (
             <div className="jpd-stack jpd-stack--tight">
               <p className="jpd-grouplabel">{t.table.currentColumnsHint}</p>
@@ -221,11 +221,11 @@ export function PropertyPanelTable({
                 {schema.head.map((col, i) => {
                   const colStyle = schema.columnStyles?.[i];
                   const styleOpen = styleColIndex === i;
-                  // MESMA precedência do PDF (ver columnFormulaFor). Antes
-                  // isto lia só `binding.columns[i]`, e só quando era objeto —
-                  // então numa tabela vinculada por fonte de dados, cujo
-                  // `columns[i]` é string crua, o editor abria vazio enquanto
-                  // `content[0][i]` já tinha o token que o PDF usava.
+                  // The SAME precedence as the PDF (see columnFormulaFor). This
+                  // used to read only `binding.columns[i]`, and only when it
+                  // was an object — so in a table bound by data source, whose
+                  // `columns[i]` is a raw string, the editor opened empty
+                  // while `content[0][i]` already held the token the PDF used.
                   const currentFormula = columnFormulaFor(schema.content, bindingColumns, i);
                   const editing = renameIndex === i;
                   return (

@@ -2,10 +2,10 @@ import * as pdfjsLib from "pdfjs-dist";
 
 let workerConfigured = false;
 
-// Sem hook de bundler pra achar o worker do pdf.js dentro de uma lib
-// pré-compilada (tsup não faz o asset-URL handling que o Vite faz em
-// código de app) — usa o CDN oficial casado com a versão instalada.
-// Pra self-host, chame configurePdfWorker(url) antes do primeiro render.
+// There is no bundler hook to find pdf.js's worker inside a precompiled
+// library (tsup does not do the asset-URL handling Vite does in app code) —
+// it uses the official CDN matched to the installed version. To self-host,
+// call configurePdfWorker(url) before the first render.
 export function ensureWorker() {
   if (workerConfigured || pdfjsLib.GlobalWorkerOptions.workerSrc) {
     workerConfigured = true;

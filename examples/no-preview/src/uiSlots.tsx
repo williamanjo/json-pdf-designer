@@ -1,63 +1,65 @@
 import { Checkbox, type CheckboxProps, type SelectProps, type UiComponentsOverride } from "json-pdf-designer";
 
-// TROCANDO OS PRIMITIVOS QUE O EDITOR USA POR DENTRO.
+// SWAPPING THE PRIMITIVES THE EDITOR USES INTERNALLY.
 //
-// Este é o único example que demonstra o registry de slots. Ele existe porque
-// a 3.0.0 abriu os 12 primitivos do editor (`Button`, `Input`, `ColorInput`,
-// `Select`, `Textarea`, `Checkbox`, `Modal`, `Card`, `CardHeader`,
-// `CardTitle`, `Badge`, `TabPanel`) pra substituição — e é a única parte
-// dessa API que nenhum example exercitava.
+// This is the only example that demonstrates the slot registry. It exists
+// because 3.0.0 opened the editor's 12 primitives (`Button`, `Input`,
+// `ColorInput`, `Select`, `Textarea`, `Checkbox`, `Modal`, `Card`,
+// `CardHeader`, `CardTitle`, `Badge`, `TabPanel`) to replacement — and it is
+// the only part of that API no example exercised.
 //
-// Aqui trocamos DOIS de propósito, não os doze: o ponto é mostrar a mecânica
-// e a forma do adapter. Substituir todos é o mesmo gesto, repetido.
+// Here we swap TWO on purpose, not the twelve: the point is to show the
+// mechanics and the adapter's shape. Replacing all of them is the same
+// gesture, repeated.
 //
-// ┌─ POR QUE ESTE EXAMPLE ─────────────────────────────────────────────────┐
-// │ Ele usa o `<Designer>` PRESET, e `<Designer components={...}>` é o     │
-// │ açúcar que monta o `<UiComponentsProvider>` — o caminho que a maioria  │
-// │ dos consumidores toma. Quem renderiza peça avulsa monta o provider na  │
-// │ mão.                                                                   │
-// │                                                                        │
-// │ E por que NÃO no `custom-ui`, que seria o palpite óbvio: lá a          │
-// │ identidade é estilizar as ~190 classes `.jpd-*` que o editor emite.    │
-// │ Trocar os primitivos REMOVE do DOM justamente as `.jpd-btn`/           │
-// │ `.jpd-input`/`.jpd-select` que aquele CSS estiliza. As duas coisas são │
-// │ mutuamente exclusivas.                                                 │
-// └────────────────────────────────────────────────────────────────────────┘
+// +- WHY THIS EXAMPLE --------------------------------------------------+
+// | It uses the `<Designer>` PRESET, and `<Designer components={...}>`  |
+// | is the sugar that assembles the `<UiComponentsProvider>` — the path |
+// | most consumers take. Whoever renders a standalone part assembles    |
+// | the provider by hand.                                               |
+// |                                                                     |
+// | And why NOT in `custom-ui`, which would be the obvious guess: there |
+// | the identity is styling the ~190 `.jpd-*` classes the editor emits. |
+// | Swapping the primitives REMOVES from the DOM precisely the          |
+// | `.jpd-btn`/`.jpd-input`/`.jpd-select` that CSS styles. The two are  |
+// | mutually exclusive.                                                 |
+// +---------------------------------------------------------------------+
 
-// CONSTANTE DE MÓDULO, e isto é load-bearing.
+// A MODULE CONSTANT, and this is load-bearing.
 //
-// Objeto inline (`components={{ Select: ... }}` escrito no JSX) cria um
-// componente NOVO a cada render, e o React desmonta/remonta o que trocou de
-// identidade — o sintoma é o campo perder o foco a cada tecla digitada.
-// Fora de produção o provider avisa no console, uma vez.
+// An inline object (`components={{ Select: ... }}` written in the JSX) creates
+// a NEW component on every render, and React unmounts/remounts whatever
+// changed identity — the symptom is the field losing focus on every keystroke.
+// Outside production the provider warns in the console, once.
 //
-// `satisfies` em vez de `:` pra o TypeScript ainda inferir o tipo exato de
-// cada adapter (com `:` ele alargaria pro tipo do slot e perderia a
-// checagem de que as props batem).
+// `satisfies` instead of `:` so TypeScript still infers each adapter's exact
+// type (with `:` it would widen to the slot's type and lose the check that the
+// props match).
 export const MEUS_PRIMITIVOS = {
   // ---- Select ------------------------------------------------------------
-  // Um `<select>` nativo vestido de widget de terminal: colchetes `[ ]` e
-  // uma seta `▾` verde desenhados em CSS (`.slot-select`, ver index.css),
-  // rótulo em caixa alta verde. É pra dar pra ver na tela, sem DevTools, que
-  // o primitivo é nosso e não do pacote — a demonstração precisa ser visível
-  // pra existir.
+  // A native `<select>` dressed as a terminal widget: `[ ]` brackets and a
+  // green `▾` arrow drawn in CSS (`.slot-select`, see index.css), a green
+  // uppercase label. It is so it can be SEEN on screen, with no DevTools, that
+  // the primitive is ours and not the package's — a demonstration has to be
+  // visible to exist.
   //
-  // As props que são NOSSAS (`label`, `parts`) saem por destructuring; o
-  // resto (`value`, `onChange`, `children`, `aria-*`, ...) é passado
-  // adiante. É a forma canônica do adapter de ~5 linhas.
+  // The props that are OURS (`label`, `parts`) leave through destructuring;
+  // the rest (`value`, `onChange`, `children`, `aria-*`, ...) is passed along.
+  // It is the canonical shape of the ~5-line adapter.
   //
-  // `label` é a prop que MORDE: o editor tem ~16 controles cujo nome
-  // acessível vem daí. Um slot que a descarta deixa leitor de tela sem nada
-  // pra anunciar. Aqui ela é honrada num `<label>` de verdade.
+  // `label` is the prop that BITES: the editor has ~16 controls whose
+  // accessible name comes from it. A slot that discards it leaves a screen
+  // reader with nothing to announce. Here it is honored in a real `<label>`.
   //
-  // E ela chega JÁ TRADUZIDA: quem monta esses ~16 controles é o editor, que
-  // lê o `locale` do `<Designer>` (ver DesignerPanel.tsx). Este adapter não
-  // toca no dicionário da casca (src/i18n.ts) por isso — o texto não é dele,
-  // e traduzir de novo aqui seria uma segunda tradução pra dessincronizar.
-  // Nada mais neste arquivo é texto: se algum dia um placeholder ou
-  // `aria-label` NOSSO nascer aqui, ele entra no dicionário da casca — e aí
-  // o mapa precisa virar função de `locale`, porque constante de módulo não
-  // pode depender de estado (ver o aviso acima).
+  // And it arrives ALREADY TRANSLATED: what assembles those ~16 controls is
+  // the editor, which reads the `<Designer>`'s `locale` (see
+  // DesignerPanel.tsx). This adapter does not touch the shell's dictionary
+  // (src/i18n.ts) for that reason — the text is not its own, and translating
+  // again here would be a second translation to fall out of sync. Nothing else
+  // in this file is text: if one day a placeholder or an `aria-label` of OURS
+  // is born here, it goes into the shell's dictionary — and then the map has
+  // to become a function of `locale`, because a module constant cannot depend
+  // on state (see the warning above).
   Select: ({ label, parts: _parts, children, ...rest }: SelectProps) => (
     <label className="slot-field" data-slot="select">
       {label && <span className="slot-field__label">{label}</span>}
@@ -68,22 +70,22 @@ export const MEUS_PRIMITIVOS = {
   ),
 
   // ---- Checkbox ----------------------------------------------------------
-  // Aqui o adapter EMBRULHA o nosso próprio `<Checkbox>` em vez de
-  // reimplementá-lo — é o caso de uso mais natural que existe ("quero o
-  // comportamento do pacote, com uma casca minha em volta").
+  // Here the adapter WRAPS our own `<Checkbox>` instead of reimplementing it
+  // — it is the most natural use case there is ("I want the package's
+  // behavior, with a shell of mine around it").
   //
-  // Isto só é possível por causa de uma invariante do desenho: primitivo
-  // slotável NUNCA lê o registry. Se o `<Checkbox>` do kit resolvesse a si
-  // mesmo pelo `useUiComponents()`, este adapter recursionaria pra sempre.
-  // Há um teste de fonte no pacote que garante isso (`test/uiSlots.test.tsx`,
-  // describe "invariante anti-recursão").
+  // This is only possible because of an invariant of the design: a slottable
+  // primitive NEVER reads the registry. If the kit's `<Checkbox>` resolved
+  // itself through `useUiComponents()`, this adapter would recurse forever.
+  // There is a source test in the package guaranteeing that
+  // (`test/uiSlots.test.tsx`, the "anti-recursion invariant" describe).
   Checkbox: (props: CheckboxProps) => (
     <span className="slot-check" data-slot="checkbox">
       <Checkbox {...props} />
     </span>
   ),
 
-  // Os outros 10 slots não vêm aqui — e `undefined` numa chave significaria
-  // HERDA (do provider pai), não "volta ao nosso". Simplesmente omitir é o
-  // jeito de dizer "esse aí fica sendo o do pacote".
+  // The other 10 slots do not appear here — and `undefined` on a key would
+  // mean INHERIT (from the parent provider), not "back to ours". Simply
+  // omitting is the way to say "that one stays the package's".
 } satisfies UiComponentsOverride;

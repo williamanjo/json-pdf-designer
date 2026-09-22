@@ -1,27 +1,28 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Sem plugin de Tailwind aqui de propósito — e, diferente dos outros
-// examples, sem NENHUM import de CSS do pacote (ver main.tsx). Este é o
-// example que prova que a folha `json-pdf-designer/theme.css` é OPT-IN: o
-// <Designer> só deixa as classes `.jpd-*` e os atributos `data-*` no DOM, e
-// quem pinta tudo é o src/index.css daqui, em CSS puro.
+// No Tailwind plugin here on purpose — and, unlike the other examples, with
+// NO CSS import from the package at all (see main.tsx). This is the example
+// that proves the `json-pdf-designer/theme.css` stylesheet is OPT-IN: the
+// <Designer> only leaves the `.jpd-*` classes and the `data-*` attributes in
+// the DOM, and what paints everything is this app's src/index.css, in plain CSS.
 export default defineConfig({
-  // Relativo (não "/repo-name/") — funciona em qualquer subpath do GitHub
-  // Pages (site é montado em playground/custom-ui/) sem precisar hardcodar
-  // o nome do repo aqui. Só é seguro porque este app não usa client-side
-  // router (SPA de view única).
+  // Relative (not "/repo-name/") — it works on any GitHub Pages subpath (the
+  // site is mounted at playground/custom-ui/) without having to hardcode the
+  // repo's name here. It is only safe because this app uses no client-side
+  // router (a single-view SPA).
   base: './',
   plugins: [react()],
-  // Porta fixa — sem isso o Vite cai no default 5173, que colide com o
-  // dev server do example "report-builder" se os dois rodarem juntos.
+  // A fixed port — without it Vite falls back to the default 5173, which
+  // collides with the "report-builder" example's dev server if the two run
+  // together.
   server: {
     port: 5174,
   },
-  // json-pdf-designer é uma dependência "file:" linkada (symlink) pro
-  // pacote pai — sem isso o Vite pode resolver "react" a partir do
-  // node_modules dele em vez do node_modules deste app, carregando duas
-  // cópias de React (erro "Invalid hook call").
+  // json-pdf-designer is a "file:" dependency linked (a symlink) to the
+  // parent package — without this Vite may resolve "react" from ITS
+  // node_modules instead of this app's, loading two copies of React (the
+  // "Invalid hook call" error).
   resolve: {
     dedupe: ["react", "react-dom"],
   },

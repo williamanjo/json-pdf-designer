@@ -1,48 +1,48 @@
 import { useEffect, useRef, type MutableRefObject, type Ref } from "react";
 
-// O QUE FAZ UM OVERLAY SER UM DIÁLOGO, num lugar só.
+// WHAT MAKES AN OVERLAY A DIALOG, in one place.
 //
-// Antes desta 3.3.0 os três modais do pacote (Modal/ModalShell, o
-// FormulaModal que usa ele, e o PdfPreviewModal que tem marcação própria)
-// eram `<div>` com fundo escurecido. Isso basta pro olho e não basta pro
-// resto:
+// Before this 3.3.0 the package's three modals (Modal/ModalShell, the
+// FormulaModal that uses it, and the PdfPreviewModal with its own markup)
+// were `<div>`s with a dimmed background. That is enough for the eye and not
+// enough for the rest:
 //
-//   - sem `role="dialog"` + `aria-modal`, leitor de tela não anuncia que
-//     abriu um diálogo, e continua lendo a página INTEIRA atrás do overlay
-//     como se ela estivesse disponível;
-//   - sem prender o Tab, a terceira tecla Tab sai do modal e vai focar
-//     botão que está visualmente atrás de um fundo escuro — o usuário
-//     "perde" o foco numa área que ele não vê;
-//   - sem devolver o foco ao fechar, quem abriu o modal por teclado volta
-//     pro começo do documento em vez de pro botão que apertou.
+//   - with no `role="dialog"` + `aria-modal`, a screen reader does not
+//     announce that a dialog opened, and keeps reading the ENTIRE page behind
+//     the overlay as if it were available;
+//   - without trapping Tab, the third Tab leaves the modal and focuses a
+//     button that is visually behind a dark background — the user "loses"
+//     focus in an area they cannot see;
+//   - without returning focus on close, whoever opened the modal by keyboard
+//     lands back at the start of the document instead of on the button.
 //
-// Os atributos ARIA ficam no JSX de cada casca (são marcação); o
-// COMPORTAMENTO — focar ao abrir, prender o Tab, devolver ao fechar — mora
-// aqui, porque as duas cascas precisam do mesmo e uma delas não passa pela
-// outra.
+// The ARIA attributes live in each shell's JSX (they are markup); the
+// BEHAVIOR — focus on open, trap Tab, return on close — lives here, because
+// both shells need the same one and one of them does not go through the
+// other.
 
-// Ordem de tabulação dentro do painel. `[tabindex="-1"]` fica de fora de
-// propósito: é justamente o que marca "focável por código, não por Tab", e
-// é o que o próprio painel usa como alvo de fallback.
+// Tab order inside the panel. `[tabindex="-1"]` is deliberately left out:
+// that is precisely what marks "focusable by code, not by Tab", and it is
+// what the panel itself uses as its fallback target.
 export const FOCUSABLE_SELECTOR =
   'a[href],area[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled]),iframe,object,embed,[tabindex]:not([tabindex="-1"]),[contenteditable]';
 
 function focusablesIn(panel: HTMLElement): HTMLElement[] {
-  // `offsetParent === null` derruba o que está com `display:none` — item
-  // escondido dentro do painel não deve receber Tab. (Não cobre
-  // `visibility:hidden`, que o kit não usa pra esconder controle.)
+  // `offsetParent === null` drops whatever is `display:none` — a hidden item
+  // inside the panel must not receive Tab. (It does not cover
+  // `visibility:hidden`, which the kit does not use to hide a control.)
   return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
     (el) => el.offsetParent !== null || el === document.activeElement
   );
 }
 
 /**
- * Gerência de foco de um diálogo modal.
+ * Focus management for a modal dialog.
  *
- * Devolve o `ref` pra pôr no PAINEL (não no overlay) e o `onKeyDown` que
- * prende o Tab. Junta o ref interno com o que o consumidor passou, porque
- * `Modal` encaminha o ref dele pro painel e isto não pode roubar esse
- * encaminhamento.
+ * Returns the `ref` to put on the PANEL (not on the overlay) and the
+ * `onKeyDown` that traps Tab. It merges the internal ref with the one the
+ * consumer passed, because `Modal` forwards its ref to the panel and this
+ * must not steal that forwarding.
  */
 export function useDialogFocus<T extends HTMLElement>(forwarded?: Ref<T> | null) {
   const panelRef = useRef<T | null>(null);
@@ -57,16 +57,16 @@ export function useDialogFocus<T extends HTMLElement>(forwarded?: Ref<T> | null)
     const panel = panelRef.current;
     if (!panel) return;
     const anterior = document.activeElement as HTMLElement | null;
-    // Só move o foco se ele ainda não está DENTRO do painel: o FormulaModal
-    // tem input com `autoFocus`, e o autofocus do React já rodou quando este
-    // efeito dispara. Focar "o primeiro focável" aqui sem esta checagem
-    // roubaria o foco do input pro botão de fechar.
+    // It only moves focus if focus is not already INSIDE the panel: the
+    // FormulaModal has an input with `autoFocus`, and React's autofocus has
+    // already run by the time this effect fires. Focusing "the first
+    // focusable" here without this check would steal focus to the close button.
     if (!panel.contains(document.activeElement)) {
       (focusablesIn(panel)[0] ?? panel).focus();
     }
     return () => {
-      // `?.` duplo porque o elemento que tinha foco pode ter saído do DOM
-      // enquanto o modal estava aberto.
+      // A double `?.` because the element that had focus may have left the DOM
+      // while the modal was open.
       anterior?.focus?.();
     };
   }, []);
@@ -77,8 +77,8 @@ export function useDialogFocus<T extends HTMLElement>(forwarded?: Ref<T> | null)
     if (!panel) return;
     const itens = focusablesIn(panel);
     if (itens.length === 0) {
-      // Painel sem nada focável: Tab não tem pra onde ir e deixar vazar é
-      // pior que não fazer nada.
+      // A panel with nothing focusable: Tab has nowhere to go, and letting it
+      // leak out is worse than doing nothing.
       e.preventDefault();
       return;
     }
@@ -98,9 +98,9 @@ export function useDialogFocus<T extends HTMLElement>(forwarded?: Ref<T> | null)
 }
 
 /**
- * Escape fecha. Em hook próprio porque o `PdfPreviewModal` não passa pela
- * casca do `Modal` e não tinha Escape nenhum — era o único modal do pacote
- * que só fechava com clique.
+ * Escape closes. In a hook of its own because `PdfPreviewModal` does not go
+ * through the `Modal` shell and had no Escape at all — it was the only modal
+ * in the package that closed on a click only.
  */
 export function useEscapeToClose(onClose: () => void) {
   useEffect(() => {

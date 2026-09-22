@@ -2,11 +2,11 @@ import Layout from '@theme/Layout';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import styles from './styles.module.css';
 
-// Conteúdo bilíngue à mão (en/pt-BR) — mesma ideia do resto do site, só
-// que sem depender do sistema de tradução de conteúdo do Docusaurus
-// (docusaurus-plugin-content-docs), porque esta é uma página comum
-// (docusaurus-plugin-content-pages), não um doc. useDocusaurusContext()
-// dá o locale ativo (o mesmo que o dropdown do navbar já controla).
+// Bilingual content by hand (en/pt-BR) — the same idea as the rest of the
+// site, only without depending on Docusaurus's content translation system
+// (docusaurus-plugin-content-docs), because this is an ordinary page
+// (docusaurus-plugin-content-pages), not a doc. useDocusaurusContext() gives
+// the active locale (the same one the navbar's dropdown already controls).
 const EXAMPLES = [
   {
     slug: 'report-builder',
@@ -80,10 +80,10 @@ export default function Playground() {
         <p className={styles.lead}>{TEXT.lead[locale]}</p>
         <div className={styles.grid}>
           {EXAMPLES.map((ex) => (
-            // <a> comum, não <Link> — cada exemplo é um bundle estático
-            // separado (fora do grafo de rotas do Docusaurus, montado em
-            // playground/<slug>/ no deploy), sem versão por idioma. Abre
-            // em aba nova de propósito — é um app pesado à parte.
+            // A plain <a>, not a <Link> — each example is a separate static
+            // bundle (outside Docusaurus's route graph, mounted at
+            // playground/<slug>/ on deploy), with no per-language version. It
+            // opens in a new tab on purpose — it is a heavy app of its own.
             <a
               key={ex.slug}
               className={styles.card}

@@ -8,14 +8,14 @@ import { t, type AppDict } from "../i18n";
 export type JsonSource = { id: string; name: string; raw: string };
 
 type Props = {
-  // Mesmo `locale` que vai pro `<I18nProvider>` do editor — a casca e o
-  // pacote leem do mesmo estado, sem sincronização manual.
+  // The same `locale` that goes to the editor's `<I18nProvider>` — the shell
+  // and the package read from the same state, with no manual syncing.
   locale: Locale;
   sources: JsonSource[];
   onChangeSources: (sources: JsonSource[]) => void;
   onResync: () => void;
   fieldCount: number;
-  // MOTIVO do erro de cada fonte, não a frase pronta — ver lib/sources.ts.
+  // The REASON for each source's error, not the finished phrase — see lib/sources.ts.
   errorsById: Record<string, SourceProblem>;
 };
 
@@ -27,17 +27,16 @@ function nameFromFile(file: File): string {
   return file.name.replace(/\.json$/i, "");
 }
 
-// Uma ou mais fontes de JSON — cada arquivo/bloco colado vira uma entrada;
-// na hora de gerar (App.tsx), todas são mescladas (nível superior, último
-// sobrescreve em caso de chave repetida) num objeto só antes de vincular
-// campo. "Resync campos" atualiza a lista de campos disponíveis com base
-// nessa mescla.
+// One or more JSON sources — each file/pasted block becomes an entry; at
+// generation time (App.tsx), all of them are merged (top level, the last one
+// wins on a repeated key) into a single object before binding a field. "Resync
+// fields" updates the list of available fields based on that merge.
 export default function DataSourcePanel({ locale, sources, onChangeSources, onResync, fieldCount, errorsById }: Props) {
   const tx = t(locale);
   const [isDragOver, setIsDragOver] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
-  // Nomes dos arquivos que não deu pra ler — a frase é montada no render, no
-  // idioma atual, em vez de guardada pronta no estado.
+  // The names of the files that could not be read — the phrase is built at
+  // render time, in the current language, instead of stored ready in state.
   const [failedFileNames, setFailedFileNames] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,16 +49,16 @@ export default function DataSourcePanel({ locale, sources, onChangeSources, onRe
     });
   }
 
-  // Lê TODOS os arquivos do lote antes de chamar onChangeSources uma vez só
-  // — disparar um onChangeSources por arquivo dentro do forEach fazia cada
-  // callback de onload capturar o MESMO `sources` (stale closure), então
-  // soltar 2+ arquivos de uma vez só mantinha o último (cada um sobrescrevia
-  // o anterior em vez de acumular).
+  // It reads ALL the files of the batch before calling onChangeSources once
+  // — firing one onChangeSources per file inside the forEach made each onload
+  // callback capture the SAME `sources` (a stale closure), so dropping 2+ files
+  // at once kept only the last one (each overwrote the previous instead of
+  // accumulating).
   async function addFilesAsSources(files: FileList) {
     setFailedFileNames([]);
-    // Cada leitura devolve um resultado MARCADO (ok/falhou) em vez de rejeitar
-    // com texto: assim a falha carrega o ARQUIVO, e a frase de erro é
-    // escolhida no render, no idioma atual.
+    // Each read returns a MARKED result (ok/failed) instead of rejecting with
+    // text: that way the failure carries the FILE, and the error phrase is
+    // chosen at render time, in the current language.
     const results = await Promise.all(
       Array.from(files).map((file) =>
         readFileAsText(file).then(
@@ -89,10 +88,10 @@ export default function DataSourcePanel({ locale, sources, onChangeSources, onRe
     e.target.value = "";
   }
 
-  // `fonte_N` NÃO é traduzido (aqui nem no placeholder abaixo): é o
-  // IDENTIFICADOR da fonte, editável pelo usuário e guardado no autosave —
-  // mesma família de `text_a3f2`, o nome de schema que o app gera. Trocar de
-  // idioma não pode renomear o que o usuário já nomeou.
+  // `fonte_N` is NOT translated (neither here nor in the placeholder below):
+  // it is the source's IDENTIFIER, editable by the user and kept in the
+  // autosave — the same family as `text_a3f2`, the schema name the app
+  // generates. Switching language must not rename what the user already named.
   function addBlankSource() {
     onChangeSources([...sources, { id: uid(), name: `fonte_${sources.length + 1}`, raw: "{}" }]);
   }

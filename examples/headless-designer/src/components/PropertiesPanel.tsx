@@ -4,36 +4,36 @@ import type { ShellDict } from "../i18n";
 
 type Props = {
   schema: Schema;
-  // Vínculo do campo, quando existe — mostrado só pra leitura (este example
-  // não tem editor de vínculo: quem cria vínculo é o drop do explorador de
-  // campos, ver App.tsx::dropFieldAt).
+  // The field's binding, when there is one — shown read-only (this example
+  // has no binding editor: what creates a binding is the field explorer's
+  // drop, see App.tsx::dropFieldAt).
   binding: Binding | undefined;
-  // Dicionário do PACOTE (`dictFor(locale)`). Quase tudo neste painel é
-  // conceito DELE — nome de tipo de campo, geometria (X/Y/largura/altura),
-  // `visibleWhen`, e as propriedades de texto/KPI/gráfico. Duplicar essas
-  // traduções aqui criaria duas versões da mesma frase pra dessincronizar.
+  // The PACKAGE's dictionary (`dictFor(locale)`). Almost everything in this
+  // panel is ITS concept — a field type's name, the geometry
+  // (X/Y/width/height), `visibleWhen`, and the text/KPI/chart properties.
+  // Duplicating those translations here would create two versions of the same
+  // phrase to fall out of sync.
   t: Dict;
-  // Dicionário da CASCA, só pras três coisas que o pacote NÃO tem conceito
-  // equivalente, porque só existem neste example: a lista "rótulo do
-  // cabeçalho + coluna do JSON" (aqui o lado do vínculo é só leitura), o
-  // editor de linhas estáticas, e o aviso de que imagem/seção não são
-  // editáveis por este painel.
+  // The SHELL's dictionary, only for the three things the package has no
+  // equivalent concept for, because they exist only in this example: the
+  // "header label + JSON column" list (here the binding side is read-only),
+  // the static row editor, and the notice that an image/section is not
+  // editable through this panel.
   tt: ShellDict;
   onChange: (patch: Record<string, unknown>) => void;
   onChangeBinding: (next: Binding | undefined) => void;
   onRemove: () => void;
 };
 
-// Rótulo legível de uma coluna vinculada — `columnLabel` é do pacote e
-// resolve os dois formatos de TableColumn (chave crua ou {label, formula}).
+// The readable label of a bound column — `columnLabel` belongs to the
+// package and resolves both TableColumn formats (a raw key or {label, formula}).
 function bindingColumns(binding: Binding | undefined): TableColumn[] {
   return binding && binding.type === "array" ? binding.columns : [];
 }
 
-// Painel de propriedades do campo selecionado — geometria, visibilidade
-// condicional e o que faz sentido editar digitando por tipo. Nenhuma peça
-// `Designer*` aqui: são inputs comuns, estilizados no index.css deste
-// example.
+// The selected field's property panel — geometry, conditional visibility and
+// whatever makes sense to edit by typing, per type. No `Designer*` part here:
+// they are ordinary inputs, styled in this example's index.css.
 export default function PropertiesPanel({ schema, binding, t, tt, onChange, onChangeBinding, onRemove }: Props) {
   const columns = bindingColumns(binding);
 
@@ -42,11 +42,11 @@ export default function PropertiesPanel({ schema, binding, t, tt, onChange, onCh
     onChange({ head: schema.head.map((h, i) => (i === index ? label : h)) });
   }
 
-  // Remove uma coluna do CABEÇALHO e do VÍNCULO no mesmo passo. Mexer só num
-  // dos dois desalinha head[i] de binding.columns[i] e a tabela passa a
-  // mostrar o dado de outra coluna sob o rótulo errado — o bug clássico
-  // dessa dupla (e o motivo de o undo deste app empilhar template+bindings
-  // juntos, ver hooks/useUndoRedo.ts).
+  // It removes a column from the HEADER and from the BINDING in the same
+  // step. Touching only one of the two throws head[i] out of alignment with
+  // binding.columns[i] and the table starts showing another column's data
+  // under the wrong label — the classic bug of that pair (and the reason this
+  // app's undo stacks template+bindings together, see hooks/useUndoRedo.ts).
   function removeColumn(index: number) {
     if (schema.type !== "table") return;
     onChange({

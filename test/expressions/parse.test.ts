@@ -3,9 +3,9 @@ import { parse } from "../../src/expressions/engine/parse";
 import { ExpressionSyntaxError, tokenize } from "../../src/expressions/engine/tokenize";
 
 describe("tokenize — a regra lexical do formato", () => {
-  // A regra central: um operador só é operador quando tem espaço em branco
-  // dos DOIS lados. Fora disso pertence ao identificador. Template salvo em
-  // produção depende disso — chave JSON com hífen ou espaço é comum.
+  // The central rule: an operator is only an operator when it has whitespace
+  // on BOTH sides. Otherwise it belongs to the identifier. Templates saved in
+  // production depend on this — a JSON key with a hyphen or a space is common.
   it("operador cercado de espaço é operador", () => {
     expect(tokenize("a - b").map((t) => t.kind)).toEqual(["ident", "op", "ident"]);
   });
@@ -71,7 +71,7 @@ describe("parse — AST", () => {
   });
 
   it("`*` liga mais forte que `+` — a AST reflete a precedência", () => {
-    // a + (b * c), não (a + b) * c
+    // a + (b * c), not (a + b) * c
     expect(parse("a + b * c")).toEqual({
       kind: "binary",
       op: "+",
@@ -109,16 +109,17 @@ describe("parse — AST", () => {
   });
 
   it("nó de número guarda o texto do autor junto do valor", () => {
-    // Dois campos em vez de um opcional: "número sempre carrega o texto que
-    // foi escrito" passa a ser garantia do tipo, não convenção. É o que faz
-    // {2.50} renderizar "2.50" e ainda valer 2.5 numa conta.
+    // Two fields instead of one optional: "a number always carries the text
+    // that was written" becomes a guarantee of the type, not a convention. It
+    // is what makes {2.50} render "2.50" and still be worth 2.5 in arithmetic.
     expect(parse("2.50")).toEqual({ kind: "number", value: 2.5, text: "2.50" });
     expect(parse("007")).toEqual({ kind: "number", value: 7, text: "007" });
   });
 
   it("argSources guarda o texto cru — SUM precisa do path do array, não do valor", () => {
-    // `itens.total` não é "o valor em itens.total", é "a coluna total do
-    // array itens". Sem o texto cru o agregador perderia essa distinção.
+    // `itens.total` is not "the value at itens.total", it is "the total column
+    // of the itens array". Without the raw text the aggregator would lose that
+    // distinction.
     expect(parse("SUM(itens.total)")).toMatchObject({ argSources: ["itens.total"] });
   });
 

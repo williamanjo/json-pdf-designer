@@ -1,8 +1,8 @@
 import type { Dict } from "./en";
 
-// Mesma forma de en.ts (garantida pelo tipo `Dict` importado) — só troca
-// o texto. Se en.ts ganhar uma chave nova e esta faltar, o TypeScript
-// acusa erro aqui, não em runtime.
+// The same shape as en.ts (guaranteed by the imported `Dict` type) — only
+// the text changes. If en.ts gains a new key and this one lacks it,
+// TypeScript flags an error here, not at runtime.
 export const ptBR: Dict = {
   tabBar: {
     fields: "Campos",

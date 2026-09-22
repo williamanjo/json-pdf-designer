@@ -39,17 +39,17 @@ import {
 import { relativeToSrc, sourceFiles, stringLiterals, stripComments } from "./support/classScan";
 import type { ImageSchema, Template } from "../src/types";
 
-// Os erros do pacote, nas duas metades do desenho:
+// The package's errors, in the two halves of the design:
 //
-//   1. CLASSE com `code` + dados estruturados, lançada pelo caminho REAL (um
-//      template que estoura o limite, uma imagem em formato errado…) — é o que
-//      substitui o `if (/frase em português/.test(err.message))` que os
-//      examples faziam.
-//   2. `describePdfError(err, t)` devolvendo texto de usuário final
-//      localizado, e `null` pra erro que não é nosso.
+//   1. A CLASS with a `code` + structured data, thrown by the REAL path (a
+//      template that goes past the limit, an image in the wrong format…) —
+//      that is what replaces the `if (/a Portuguese phrase/.test(err.message))`
+//      the examples used to do.
+//   2. `describePdfError(err, t)` returning localized end-user text, and
+//      `null` for an error that is not ours.
 //
-// O teste que mais importa aqui é o de EXAUSTIVIDADE, no fim: sem ele, um code
-// novo sem entrada no dicionário renderiza vazio e nada avisa.
+// The test that matters most here is the EXHAUSTIVENESS one, at the end:
+// without it, a new code with no dictionary entry renders empty and nothing warns.
 
 const A4 = { width: 210, height: 297 };
 
@@ -61,9 +61,9 @@ function image(content: string, over: Partial<ImageSchema> = {}): ImageSchema {
   return { id: "i1", name: "logo", type: "image", x: 10, y: 10, width: 40, height: 40, content, ...over };
 }
 
-// O erro com que `promise` rejeita. Afirmar sobre a CLASSE e os campos exige
-// ter o objeto em mão — `rejects.toThrow(/.../)` só olha a frase, que é
-// justamente o acoplamento que este desenho remove.
+// The error `promise` rejects with. Asserting about the CLASS and the fields
+// requires having the object in hand — `rejects.toThrow(/.../)` only looks at
+// the phrase, which is precisely the coupling this design removes.
 async function rejection(promise: Promise<unknown>): Promise<unknown> {
   try {
     await promise;
@@ -83,7 +83,7 @@ function thrown(fn: () => unknown): unknown {
 }
 
 // ---------------------------------------------------------------------------
-// As classes, pelo caminho real
+// The classes, through the real path
 // ---------------------------------------------------------------------------
 
 describe("as classes de erro chegam pelo caminho real, com os dados estruturados", () => {
@@ -93,35 +93,35 @@ describe("as classes de erro chegam pelo caminho real, com os dados estruturados
     const typed = err as InvalidPageSizeError;
     expect(typed.code).toBe("invalidPageSize");
     expect(typed.blame).toBe("template");
-    // O id da página-design. Sem `pages`, é a página implícita.
+    // The design page's id. With no `pages`, it is the implicit page.
     expect(typeof typed.pageId).toBe("string");
     expect(Number.isNaN(typed.width)).toBe(true);
     expect(typed.height).toBe(297);
   });
 
-  // O caso que o guard NÃO pegava, e o motivo de ele ter mudado de lugar.
+  // The case the guard did NOT catch, and the reason it moved.
   //
-  // `assertFinitePageSize` vivia dentro do `renderLayoutPage`, que roda DEPOIS
-  // do `layoutDocument`. E o layout lê o tamanho direto (`bodyLayout.ts` faz
-  // `pageDef.page.height - footerHeight`), então template sem `page` estourava
-  // `TypeError: Cannot read properties of undefined (reading 'height')` lá
-  // dentro, antes de o guard existir na pilha.
+  // `assertFinitePageSize` lived inside `renderLayoutPage`, which runs AFTER
+  // `layoutDocument`. And the layout reads the size directly (`bodyLayout.ts`
+  // does `pageDef.page.height - footerHeight`), so a template with no `page`
+  // threw `TypeError: Cannot read properties of undefined (reading 'height')`
+  // in there, before the guard was on the stack at all.
   //
-  // O que fazia isso valer uma correção não era a mensagem feia: um TypeError
-  // não é erro NOSSO, então `describePdfError` devolve `null` e o consumidor
-  // classifica a falha como `blame: "package"` — "não é culpa sua, reporte" —
-  // quando o problema era o template dele. É exatamente a confusão que a
-  // superfície de erro tipada existe pra acabar, e por isso o último caso
-  // deste bloco checa o consumidor, e não só a classe.
+  // What made this worth fixing was not the ugly message: a TypeError is not
+  // OUR error, so `describePdfError` returns `null` and the consumer
+  // classifies the failure as `blame: "package"` — "not your fault, report it"
+  // — when the problem was their template. It is exactly the confusion the
+  // typed error surface exists to end, and that is why the last case of this
+  // block checks the consumer, and not only the class.
   it("`page` AUSENTE → InvalidPageSizeError, não um TypeError do layout", async () => {
-    // Template sem `page` nenhum: JSON editado à mão, arquivo salvo por outra
-    // ferramenta, formato que a migração não cobriu.
+    // A template with no `page` at all: hand-edited JSON, a file saved by
+    // another tool, a shape the migration did not cover.
     const err = await rejection(generatePdf({ schemas: [text("x")] } as unknown as Template, {}, []));
     expect(err).toBeInstanceOf(InvalidPageSizeError);
     expect((err as Error).constructor.name).not.toBe("TypeError");
     const typed = err as InvalidPageSizeError;
     expect(typed.blame).toBe("template");
-    // Ausente vira NaN nos campos do erro — é o que a mensagem precisa dizer.
+    // Absent becomes NaN in the error's fields — which is what the message has to say.
     expect(Number.isNaN(typed.width)).toBe(true);
     expect(Number.isNaN(typed.height)).toBe(true);
   });
@@ -134,9 +134,9 @@ describe("as classes de erro chegam pelo caminho real, com os dados estruturados
   });
 
   it("uma string numérica continua sendo recusada", async () => {
-    // Guarda contra um "conserto" que coagisse a entrada: `Number("210")` é
-    // 210 e passaria, e aí o valor seguiria como STRING pro resto da
-    // geração. A coerção existe só pra preencher os campos do erro.
+    // A guard against a "fix" that coerced the input: `Number("210")` is 210
+    // and would pass, and then the value would carry on as a STRING through
+    // the rest of generation. The coercion exists only to fill the error's fields.
     const err = await rejection(
       generatePdf({ page: { width: "210", height: 297 }, schemas: [text("x")] } as unknown as Template, {}, [])
     );
@@ -144,18 +144,18 @@ describe("as classes de erro chegam pelo caminho real, com os dados estruturados
   });
 
   it("página torta no meio de `pages` falha ANTES de renderizar as boas", async () => {
-    // Este teste prova ORDEM, e o jeito de provar ordem é dar à página 1 uma
-    // falha PRÓPRIA e ver qual das duas sai.
+    // This test proves ORDER, and the way to prove order is to give page 1 a
+    // failure of its OWN and see which of the two comes out.
     //
-    // Página 1 tem um emoji, que sem `fontBytes` dá UnsupportedGlyphError no
-    // RENDER. Página 2 tem tamanho inválido. Com a validação antecipada, o
-    // tamanho é conferido antes de qualquer render, então sai
-    // InvalidPageSizeError. Sem ela, a página 1 renderiza primeiro e sai o
-    // erro de glifo — a pessoa conserta o emoji, roda de novo, e só então
-    // descobre a página 2.
+    // Page 1 has an emoji, which without `fontBytes` gives an
+    // UnsupportedGlyphError at RENDER time. Page 2 has an invalid size. With
+    // the early validation, the size is checked before any render, so
+    // InvalidPageSizeError comes out. Without it, page 1 renders first and the
+    // glyph error comes out — the person fixes the emoji, runs again, and only
+    // then discovers page 2.
     //
-    // Sem este par de falhas concorrentes o teste passava com e sem o fix,
-    // o que o tornava decoração.
+    // Without this pair of competing failures the test passed with and without
+    // the fix, which made it decoration.
     const err = await rejection(
       generatePdf(
         {
@@ -177,7 +177,7 @@ describe("as classes de erro chegam pelo caminho real, com os dados estruturados
   it("o consumidor recebe blame `template`, e não um genérico de bug do pacote", async () => {
     const err = await rejection(generatePdf({ schemas: [text("x")] } as unknown as Template, {}, []));
     const problem = describePdfError(err, dictFor("pt-BR"));
-    // O ponto inteiro: NÃO é `null`. Com o TypeError cru, era.
+    // The entire point: it is NOT `null`. With the raw TypeError, it was.
     expect(problem).not.toBeNull();
     expect(problem?.code).toBe("invalidPageSize");
     expect(problem?.blame).toBe("template");
@@ -189,8 +189,8 @@ describe("as classes de erro chegam pelo caminho real, com os dados estruturados
     const err = await rejection(generatePdf(t, {}, []));
     expect(err).toBeInstanceOf(BackgroundImageUnreadableError);
     expect((err as BackgroundImageUnreadableError).code).toBe("backgroundImageUnreadable");
-    // O pdf-lib/pako lança `"The input is not a PNG file!"` — uma string, não
-    // um Error. `err.message` de quem chamava dava `undefined`.
+    // pdf-lib/pako throws `"The input is not a PNG file!"` — a string, not an
+    // Error. The caller's `err.message` gave `undefined`.
     expect((err as Error).message.length).toBeGreaterThan(0);
   });
 

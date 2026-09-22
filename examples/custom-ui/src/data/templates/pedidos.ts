@@ -2,12 +2,12 @@ import type { Template, Binding } from "json-pdf-designer";
 import pedidosSample from "../samples/pedidosSample.json";
 import type { ExampleDefinition } from "./types";
 
-// Exemplo: "Pedidos com Itens" — seção (data band) repetindo por pedido,
-// com uma tabela ANINHADA de verdade dentro dela (vínculo "array" relativo
-// ao item, path "itens") — mestre-detalhe. A coluna "Subtotal" usa
-// aritmética por linha com casas decimais controladas
-// ({NUMBER(qtd * preco, 2)}); o total geral soma um campo de verdade do
-// item (SUM(pedidos.valorTotal)) formatado como moeda.
+// Example: "Orders with Items" — a section (data band) repeating per order,
+// with a real NESTED table inside it (an "array" binding relative to the item,
+// path "itens") — real master-detail. The "Subtotal" column uses per-row
+// arithmetic with controlled decimal places ({NUMBER(qtd * preco, 2)}); the
+// grand total sums a real field of the item (SUM(pedidos.valorTotal))
+// formatted as currency.
 const template: Template = {
   version: 1,
   page: { width: 210, height: 297 },

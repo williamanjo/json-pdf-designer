@@ -8,17 +8,17 @@ import { UiComponentsProvider } from "../src/components/ui/UiComponentsProvider"
 import { relativeToSrc, sourceFiles, stripComments } from "./support/classScan";
 import type { ButtonProps, SelectProps } from "../src/components/ui";
 
-// Guards do registry de primitivos (`UiComponentsProvider`).
+// Guards for the primitives registry (`UiComponentsProvider`).
 //
-// Quatro coisas, e três delas quebram em silêncio: a lista de slots é
-// contrato permanente, a recursão só aparece quando um consumidor escreve o
-// adapter mais óbvio que existe, e "o chrome roteia pelo registry" é
-// invisível até alguém trocar um primitivo e nada mudar na tela.
+// Four things, and three of them break in silence: the slot list is a
+// permanent contract, the recursion only appears when a consumer writes the
+// most obvious adapter there is, and "the chrome routes through the registry"
+// is invisible until someone swaps a primitive and nothing changes on screen.
 
 describe("registry — conjunto de slots", () => {
   it("tem exatamente as 12 chaves declaradas", () => {
-    // Adicionar slot passa a ser edição DELIBERADA e revisada: cada chave é
-    // API pública que não se tira mais.
+    // Adding a slot becomes a DELIBERATE and reviewed edit: each key is public
+    // API that cannot be taken back.
     expect(Object.keys(defaultUiComponents).sort()).toEqual(
       ["Badge", "Button", "Card", "CardHeader", "CardTitle", "Checkbox", "ColorInput", "Input", "Modal", "Select", "TabPanel", "Textarea"].sort()
     );
@@ -26,12 +26,12 @@ describe("registry — conjunto de slots", () => {
 });
 
 describe("registry — invariante anti-recursão", () => {
-  // Um primitivo SLOTÁVEL não pode ler o registry. Se lesse, este adapter —
-  // o mais natural que existe, embrulhar o nosso pra ajustar algo —
+  // A SLOTTABLE primitive must not read the registry. If it did, this adapter
+  // — the most natural one there is, wrapping ours to adjust something —
   //
-  //   { Button: (p) => <Button {...p} className={cx("meu", p.className)} /> }
+  //   { Button: (p) => <Button {...p} className={cx("mine", p.className)} /> }
   //
-  // recursionaria pra sempre.
+  // would recurse forever.
   const SLOTAVEIS = [
     "components/ui/Button.tsx",
     "components/ui/Card.tsx",
@@ -42,8 +42,8 @@ describe("registry — invariante anti-recursão", () => {
     "components/ui/TabPanel.tsx",
     "components/ui/Textarea.tsx",
   ];
-  // Compostos LEEM o registry de propósito — é o que faz trocar `Button`
-  // restilizar também os botões que o consumidor não sabe que existem.
+  // The composed ones DO read the registry on purpose — it is what makes
+  // swapping `Button` also restyle the buttons the consumer does not know exist.
   const COMPOSTOS = ["components/ui/ClearFieldButton.tsx"];
 
   const lê = (rel: string) => {

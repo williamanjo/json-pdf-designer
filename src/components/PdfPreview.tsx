@@ -6,15 +6,15 @@ import { useT } from "../i18n";
 
 type Props = {
   bytes: Uint8Array | null;
-  // px por pt do PDF — 1 = tamanho real a 72dpi, ~1.33 ≈ 96dpi (escala de
-  // tela padrão). Default deixa bem legível sem ficar gigante.
+  // px per PDF pt — 1 = real size at 72dpi, ~1.33 ≈ 96dpi (the standard
+  // screen scale). The default keeps it readable without being huge.
   scale?: number;
   className?: string;
 };
 
-// Renderiza o PDF gerado num <canvas> por página, com pdf.js — mostra o
-// tamanho e as margens reais do arquivo exportado (não é o canvas de
-// edição, é o PDF de verdade, byte a byte).
+// Renders the generated PDF into a <canvas> per page, with pdf.js — it
+// shows the real size and margins of the exported file (this is not the
+// editing canvas, it is the actual PDF, byte for byte).
 export function PdfPreview({ bytes, scale = 1.4, className = "" }: Props) {
   const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);

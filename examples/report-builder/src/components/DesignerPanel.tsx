@@ -20,14 +20,14 @@ type Props = {
   fields: FieldNode[];
   template: Template;
   bindings: Binding[];
-  // Aceita a forma funcional do setState do React — evita perder um campo
-  // se dois forem adicionados em sequência rápida (antes do primeiro
-  // re-render), já que cada chamada calcula a posição a partir do estado
-  // mais atual, não de uma closure velha.
+  // It accepts React's functional setState form — it avoids losing a field
+  // if two are added in quick succession (before the first re-render), since
+  // each call computes the position from the most current state, not from a
+  // stale closure.
   onChangeTemplate: React.Dispatch<React.SetStateAction<Template>>;
   onChangeBindings: React.Dispatch<React.SetStateAction<Binding[]>>;
   openFieldPickerRef?: React.MutableRefObject<(() => void) | null>;
-  // Um só `locale`: alimenta o `<I18nProvider>` (editor) e o `t()` da casca.
+  // A single `locale`: it feeds the `<I18nProvider>` (editor) and the shell's `t()`.
   locale?: Locale;
 };
 
@@ -36,10 +36,10 @@ function nextFreeY(schemas: Schema[]): number {
   return Math.max(...schemas.map((s) => s.y + s.height)) + 5;
 }
 
-// Empilha só em cima de campos do CORPO — sem isso, um rodapé (ou
-// cabeçalho/margem) já colocado fazia o próximo campo nascer logo abaixo
-// dele (nextFreeY olhava todo mundo, inclusive faixa vermelha), caindo na
-// própria faixa por acidente (zona é só posição, não intenção).
+// It only stacks on top of BODY fields — without this, a footer (or
+// header/margin) field already placed made the next field be born right below
+// it (nextFreeY looked at everyone, including the red band), landing in that
+// band by accident (a zone is only a position, not an intention).
 function bodyPosition(template: Template, schemas: Schema[]): { x: number; y: number } {
   const { headerHeight = 0, footerHeight = 0, marginLeft = 0, marginRight = 0 } = template;
   const bands = { headerHeight, footerHeight, marginLeft, marginRight };
@@ -63,15 +63,15 @@ export default function DesignerPanel({
     if (openFieldPickerRef) openFieldPickerRef.current = () => setShowFieldPicker(true);
   }, [openFieldPickerRef]);
 
-  // Coluna individual de um DataSource (arrastada/clicada sozinha, não o
-  // grupo inteiro) — só entra se já existir uma seção vinculada a esse
-  // mesmo array (mesmo path); sem seção, não faz nada (confirmado com o
-  // usuário: nada de criar tabela ou campo solto pra uma coluna avulsa).
-  // Posição/nome são calculados uma vez só, fora dos dois callbacks
-  // funcionais, e reaproveitados nos dois — mesmo padrão já usado abaixo
-  // pro `schemaName`/`content` do campo escalar (a única coisa que os dois
-  // setState precisam compartilhar é ESSE valor, não o estado fresco em si;
-  // cada `prev` continua sendo lido de dentro do próprio callback).
+  // An individual column of a DataSource (dragged/clicked on its own, not
+  // the whole group) — it only comes in if a section bound to that same array
+  // (the same path) already exists; with no section, it does nothing
+  // (confirmed with the user: no creating a table or a loose field for a stray
+  // column). The position/name are computed once, outside the two functional
+  // callbacks, and reused in both — the same pattern already used below for
+  // the scalar field's `schemaName`/`content` (the only thing the two
+  // setStates need to share is THAT value, not the fresh state itself; each
+  // `prev` is still read from inside its own callback).
   function addColumnToMatchingSection(field: Extract<FieldNode, { kind: "arrayColumn" }>) {
     const sectionBinding = bindings.find(
       (b): b is Extract<Binding, { type: "section" }> => b.type === "section" && b.path === field.sourcePath
@@ -97,9 +97,9 @@ export default function DesignerPanel({
     onChangeBindings((prev) => [...prev, valueBinding]);
   }
 
-  // Cria o schema (text/table) já vinculado ao path do JSON e joga no
-  // canvas — usado tanto pelo drop do FieldTree (canvas) quanto pelo "+" do
-  // seletor de campos (modal).
+  // It creates the schema (text/table) already bound to the JSON's path and
+  // drops it on the canvas — used both by the FieldTree's drop (the canvas)
+  // and by the "+" of the field picker (the modal).
   function addFieldToCanvas(field: FieldNode) {
     if (field.kind === "arrayColumn") {
       addColumnToMatchingSection(field);

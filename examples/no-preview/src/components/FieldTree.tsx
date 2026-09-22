@@ -8,7 +8,7 @@ type Props = {
   fields: FieldNode[];
   onAdd?: (field: FieldNode) => void;
   onOpenPicker?: () => void;
-  // O MESMO `locale` do <Designer> (ver App.tsx).
+  // The SAME `locale` as the <Designer> (see App.tsx).
   locale: Locale;
 };
 
@@ -26,22 +26,22 @@ function rowClass(field: FieldNode): string {
   return "app-field-row";
 }
 
-// Árvore de campos: uma seção fixa "Variáveis nativas" (tokens sintéticos
-// tipo pageNumber, sempre disponíveis) + os campos do JSON de verdade,
-// agrupados por DataSource (cada array vira um grupo cujas colunas são
-// filhos individuais, arrastáveis/clicáveis cada uma — ver
-// lib/jsonExplorer.ts::buildFieldTree). Grupos "de pasta" comuns (objeto
-// aninhado, ex: "empresa") não têm ação própria, só organizam.
+// The field tree: a fixed "Native variables" section (synthetic tokens such
+// as pageNumber, always available) + the real JSON's fields, grouped by
+// DataSource (each array becomes a group whose columns are individual
+// children, each draggable/clickable — see
+// lib/jsonExplorer.ts::buildFieldTree). Ordinary "folder" groups (a nested
+// object, e.g. "empresa") have no action of their own, they only organize.
 //
-// Cada linha de campo é arrastável (o FieldNode inteiro serializado no
-// dataTransfer, pro DesignerPanel ler no "drop") e, quando `onAdd` é
-// passado (modal "sem arrastar"), tem um botão "+".
+// Each field row is draggable (the whole FieldNode serialized into the
+// dataTransfer, for the DesignerPanel to read on "drop") and, when `onAdd` is
+// passed (the "without dragging" modal), has a "+" button.
 //
-// Cada elemento carrega a PRÓPRIA classe `.app-*`, sem depender de regra
-// herdada do container: este componente é montado nos dois lugares (na
-// barra lateral e dentro do modal, que renderiza no meio do `.app-main`
-// junto do <Designer>), e regra de elemento escopada por container não
-// alcançaria os dois — ver o comentário grande do src/index.css.
+// Each element carries its OWN `.app-*` class, without depending on a rule
+// inherited from the container: this component is mounted in two places (in
+// the sidebar and inside the modal, which renders in the middle of `.app-main`
+// next to the <Designer>), and an element rule scoped by container would not
+// reach both — see the long comment in src/index.css.
 export default function FieldTree({ fields, onAdd, onOpenPicker, locale }: Props) {
   const s = t(locale);
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
@@ -67,9 +67,9 @@ export default function FieldTree({ fields, onAdd, onOpenPicker, locale }: Props
         onDragStart={(e) => onDragStart(e, field)}
         style={{ marginLeft: depth * INDENT_PX }}
         className={rowClass(field)}
-        // O `title` de campo do JSON é o PATH (`rows.total`) — dado, não
-        // interface, então segue igual nos dois idiomas. Só a explicação do
-        // token nativo é frase nossa.
+        // A JSON field's `title` is the PATH (`rows.total`) — data, not
+        // interface, so it stays the same in both languages. Only the native
+        // token's explanation is a phrase of ours.
         title={field.kind === "native" ? s.fields.nativeTitle(field.path) : field.path}
       >
         <span className="app-field-row__icon">{iconFor(field)}</span>
@@ -103,7 +103,7 @@ export default function FieldTree({ fields, onAdd, onOpenPicker, locale }: Props
           <button
             type="button"
             onClick={() => toggleGroup(node.key)}
-            // `node.label` é nome de chave do JSON do usuário — dado.
+            // `node.label` is the name of a key in the user's JSON — data.
             aria-label={collapsed ? s.fields.expand(node.label) : s.fields.collapse(node.label)}
             className="app-tree-toggle"
           >
@@ -134,8 +134,9 @@ export default function FieldTree({ fields, onAdd, onOpenPicker, locale }: Props
         <div className="app-tree-section">
           <p className="app-tree-section__title">{s.fields.nativeSection}</p>
           <ul className="app-tree-list">
-            {/* `nativeFields(locale)` traduz só o RÓTULO; o `path` que vai pro
-                template (`{pageNumber}`) é dado e não muda. */}
+            {/* `nativeFields(locale)` translates only the LABEL; the `path`
+                that goes into the template (`{pageNumber}`) is data and does
+                not change. */}
             {nativeFields(locale).map((f) => (
               <li key={f.path}>{renderFieldRow(f, f.label, 0)}</li>
             ))}

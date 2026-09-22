@@ -153,7 +153,7 @@ describe("buildKpiBinding", () => {
       aggregation: "sum",
       filters: undefined,
     });
-    // count sempre zera valueColumn, mesmo se `value` estiver preenchido
+    // count always zeroes valueColumn, even if `value` is filled in
     expect(buildKpiBinding("k1", "itens", "valor", "count", undefined)).toEqual({
       schemaName: "k1",
       type: "kpi",

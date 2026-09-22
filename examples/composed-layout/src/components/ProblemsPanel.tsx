@@ -5,23 +5,23 @@ import type { TemplateProblem } from "../lib/templateProblems";
 
 type Props = {
   problems: TemplateProblem[];
-  // Clique num problema leva pra PÁGINA do campo — o painel só aponta se
-  // der pra chegar lá.
+  // Clicking a problem takes you to the field's PAGE — the panel only points
+  // at it if it can get there.
   onGoTo: (pageIndex: number, schemaId: string) => void;
   locale: Locale;
 };
 
-// "Problemas do template" — o outro lado da tolerância da geração.
+// "Template problems" — the other side of generation's tolerance.
 //
-// O pacote resolve expressão inválida pra vazio em vez de derrubar o PDF (uma
-// vírgula esquecida não pode custar um relatório de 200 páginas). O preço é que
-// o campo sai em branco sem explicação. Este painel é onde a explicação
-// aparece, antes de gerar — montado com `expressionErrors` e `fieldWarning`,
-// exports públicos do pacote.
+// The package resolves an invalid expression to empty instead of bringing the
+// PDF down (a forgotten comma must not cost a 200-page report). The price is
+// that the field comes out blank with no explanation. This panel is where the
+// explanation appears, before generating — built with `expressionErrors` and
+// `fieldWarning`, public exports of the package.
 //
-// Ele fica no FIM da pilha da direita, depois do Inspetor: é o único cartão
-// que fala do template INTEIRO (todas as páginas), enquanto os cinco de cima
-// falam do campo selecionado ou da página atual.
+// It sits at the END of the right-hand stack, after the Inspector: it is the
+// only card that speaks about the WHOLE template (every page), while the five
+// above speak about the selected field or the current page.
 export default function ProblemsPanel({ problems, onGoTo, locale }: Props) {
   const willRenderEmpty = problems.filter((p) => p.kind === "expressao").length;
   const suspect = problems.filter((p) => p.kind === "suspeita").length;
@@ -38,9 +38,9 @@ export default function ProblemsPanel({ problems, onGoTo, locale }: Props) {
         <p className="app-note">{ui.semProblemas}</p>
       ) : (
         <>
-          {/* Singular/plural mora na ENTRADA do dicionário, não no JSX: a
-              regra de plural muda de idioma pra idioma, e a frase inteira
-              vinha montada em três pedaços concatenados aqui. */}
+          {/* Singular/plural lives in the dictionary ENTRY, not in the JSX:
+              the plural rule changes from language to language, and the whole
+              sentence used to be assembled from three concatenated pieces here. */}
           {suspect > 0 && <p className="app-alert">{ui.suspeitas(suspect)}</p>}
           {willRenderEmpty > 0 && <p className="app-alert">{ui.vaoRenderizarVazio(willRenderEmpty)}</p>}
           <ul className="app-problem-list">

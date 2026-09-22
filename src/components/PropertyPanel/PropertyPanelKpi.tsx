@@ -18,23 +18,23 @@ type Props = {
   binding: Binding | undefined;
   onChangeBinding: (b: Binding | null) => void;
   dataSources?: DataSourceOption[];
-  // Campos que este schema alcança — a lista da esquerda do modal de
-  // fórmula (ver designer/helpers.ts, fieldSourcesFor).
+  // The fields this schema can reach — the left-hand list of the formula
+  // modal (see designer/helpers.ts, fieldSourcesFor).
   fieldSources?: FieldSources;
-  // Sub-elemento focado (ver Designer.tsx/FieldList.tsx/KpiField.tsx) —
-  // null/ausente = Estilo mostra os controles do CARTÃO inteiro
-  // (fundo/texto/arredondamento); definido = mostra só os controles
-  // DAQUELE elemento.
+  // The focused sub-element (see Designer.tsx/FieldList.tsx/KpiField.tsx) —
+  // null/absent means Style shows the controls for the whole CARD
+  // (background/text/rounding); set means it shows only the controls for
+  // THAT element.
   selectedElement?: KpiElementKey | null;
-  // Limpa o foco (botão "← Estilo do card") — mesmo setter que FieldList/
-  // KpiField usam pra FOCAR um elemento (Designer.tsx), só que chamado com
-  // `null` aqui.
+  // Clears the focus (the "← Card style" button) — the same setter FieldList/
+  // KpiField use to FOCUS an element (Designer.tsx), only called with `null`
+  // here.
   onSelectElement?: (el: KpiElementKey | null) => void;
 };
 
-// Busca+seleção de ícone (Material Symbols, ver materialIcons.ts) — filtra
-// pelo nome técnico OU pelo rótulo no idioma ativo (ex: "money" acha
-// attach_money mesmo sem saber o nome técnico).
+// Icon search + picker (Material Symbols, see materialIcons.ts) — it filters
+// by the technical name OR by the label in the active language (e.g. "money"
+// finds attach_money without having to know the technical name).
 function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, noneFoundLabel }: {
   value: string;
   onChange: (icon: string) => void;
@@ -87,10 +87,10 @@ function IconPicker({ value, onChange, locale, removeLabel, searchPlaceholder, n
   );
 }
 
-// Botão "resetar posição" — só aparece quando o elemento tem um offset
-// customizado (arrastado no canvas); volta pro layout padrão (mesmo
-// padrão de "limpar campo opcional pro default" de PropertyPanelText.tsx,
-// backgroundColor/borderColor com IconX).
+// The "reset position" button — it only appears when the element has a
+// custom offset (dragged on the canvas); it returns to the default layout
+// (same "clear an optional field back to the default" pattern as
+// PropertyPanelText.tsx, backgroundColor/borderColor with IconX).
 function ResetPositionButton({ schema, el, label, onChangeSchema }: {
   schema: KpiSchema;
   el: KpiElementKey;
@@ -106,8 +106,8 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
   const { Button, ColorInput, Input, Select } = useUiComponents();
   const locale = useLocale();
 
-  // Os três campos de conteúdo do KPI são templates ({token}/{FUNCAO()}),
-  // então cada um ganha o ƒx do modal de fórmula.
+  // The KPI's three content fields are templates ({token}/{FUNCTION()}), so
+  // each of them gets the ƒx of the formula modal.
   const formulaButton = (key: "title" | "value" | "subtitle", label: string) => (
     <FormulaButton
       active={Boolean(schema[key])}
@@ -117,15 +117,15 @@ export function PropertyPanelKpi({ schema, onChangeSchema, activeTab, bulkEdit, 
   );
   const contentFields = (
     <>
-      {/* SEM `jpd-row--grow` de propósito. Estes três campos tinham
-          `className="flex-1"` no `<Input>`, que o componente repassa pro
-          `<input>` de DENTRO do wrapper de rótulo — um flex column, onde o
-          controle já é largura total por `align-items: stretch`. Medido no
-          navegador: 181.33px com e sem o `flex-1`, ou seja, no-op.
-          Aplicar o grow aqui faria o controle passar a ocupar a linha
-          inteira — melhoria plausível, e provavelmente o que o autor
-          queria, mas é MUDANÇA DE LAYOUT, e esta fase é rename de classe.
-          Fica registrado como dívida, não entra escondido. */}
+      {/* DELIBERATELY without `jpd-row--grow`. These three fields had
+          `className="flex-1"` on the `<Input>`, which the component forwards
+          to the INNER `<input>` of the label wrapper — a flex column, where
+          the control is already full width through `align-items: stretch`.
+          Measured in the browser: 181.33px with and without the `flex-1`,
+          which is to say a no-op. Applying the grow here would make the
+          control take the whole row — a plausible improvement, and probably
+          what the author wanted, but it is a LAYOUT CHANGE, and this phase is
+          a class rename. Recorded as debt, not slipped in. */}
       <div className="jpd-row jpd-row--tight jpd-row--baseline">
         <Input
           label={t.kpi.title}

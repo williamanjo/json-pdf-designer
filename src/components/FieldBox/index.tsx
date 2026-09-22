@@ -11,20 +11,20 @@ type Props = {
   editing?: boolean;
   onUpdate?: (patch: Partial<Schema>) => void;
   onStopEditing?: () => void;
-  // Só usados pro KPI (sub-elementos arrastáveis, ver KpiField.tsx) — o
-  // resto dos tipos ignora.
+  // Only used by the KPI (draggable sub-elements, see KpiField.tsx) — the
+  // remaining types ignore them.
   selected?: boolean;
   zoom?: number;
   selectedKpiElement?: KpiElementKey | null;
   onSelectKpiElement?: (el: KpiElementKey) => void;
 };
 
-// Renderiza o conteúdo de um campo no canvas — texto/tabela/imagem/seção/
-// gráfico/indicador — de acordo com o design-time content do schema (não
-// os dados reais, que só entram na hora de gerar o PDF). Em modo
-// `editing`, texto e tabela viram inputs editáveis direto em cima do
-// campo (duplo clique liga o modo). Um arquivo por tipo (ver ./TextField,
-// ./TableField...) — este arquivo só decide qual usar.
+// Renders a field's content on the canvas — text/table/image/section/
+// chart/kpi — according to the schema's design-time content (not the
+// real data, which only enters when the PDF is generated). In `editing`
+// mode, text and table turn into inputs editable right on top of the
+// field (a double click turns the mode on). One file per type (see
+// ./TextField, ./TableField...) — this file only decides which to use.
 export function FieldBox({
   schema,
   editing = false,
@@ -64,6 +64,6 @@ export function FieldBox({
     );
   }
 
-  // image — duplo clique troca o arquivo direto (não tem "texto" pra editar)
+  // image — a double click swaps the file directly (there is no "text" to edit)
   return <ImageField schema={schema} onUpdate={onUpdate} />;
 }

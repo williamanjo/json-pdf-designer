@@ -7,12 +7,12 @@ import { UnsupportedGlyphError, sanitizeText } from "../../src/pdf/textSafety";
 import { BackgroundImageUnreadableError, ImageUnreadableError, InvalidPageSizeError } from "../../src/errors";
 import type { Binding, Schema, Template } from "../../src/types";
 
-// O que pode e o que NÃO pode derrubar `generatePdf`.
+// What can and what can NOT bring `generatePdf` down.
 //
-// A linha divisória: problema de DADO ou de conteúdo mal formado degrada (campo
-// vazio, caractere trocado, PDF sai); problema ESTRUTURAL, ou perda de conteúdo
-// que alguém assinaria sem saber, falha alto. Um relatório de 200 páginas não
-// pode morrer porque uma linha tinha um `\n`.
+// The dividing line: a DATA problem, or malformed content, degrades (an empty
+// field, a swapped character, the PDF still comes out); a STRUCTURAL problem,
+// or a loss of content someone would sign without knowing, fails loudly. A
+// 200-page report must not die because one row had a `\n`.
 
 const A4 = { width: 210, height: 297 };
 const LF = String.fromCharCode(10);

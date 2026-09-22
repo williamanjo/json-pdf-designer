@@ -1,40 +1,40 @@
 import { en, type Dict } from "../i18n/locales/en";
 import { tokenize } from "./engine/tokenize";
 
-// Operador com espaço de um lado só — o buraco que a regra lexical deste
-// formato deixa aberto.
+// An operator with whitespace on one side only — the hole this format's
+// lexical rule leaves open.
 //
-// A regra é: operador só é operador cercado de espaço dos DOIS lados
-// (tokenize.ts explica por quê — chave JSON chamada "AND", `{my-key}` etc).
-// A consequência é que `{fatura /}` não é erro de sintaxe nenhum: o `/` tem
-// `}` do lado direito, então entra no identificador e o path passa a ser
-// `"fatura /"`. Essa chave não existe no JSON, path inexistente resolve pra
-// vazio, e o campo sai em branco sem que nada acuse — nem o parser (a
-// expressão é válida) nem a geração (dado faltando é degrade, não falha).
+// The rule is: an operator is only an operator when surrounded by whitespace
+// on BOTH sides (tokenize.ts explains why — a JSON key called "AND",
+// `{my-key}` and so on). The consequence is that `{fatura /}` is no syntax
+// error at all: the `/` has a `}` on its right, so it joins the identifier
+// and the path becomes `"fatura /"`. That key does not exist in the JSON, a
+// non-existent path resolves to empty, and the field comes out blank with
+// nothing to flag it — neither the parser (the expression is valid) nor
+// generation (missing data is a degrade, not a failure).
 //
-// Não dá pra virar erro de sintaxe: isso quebraria a garantia de que uma
-// chave com `/` no nome continua acessível. Mas dá pra APONTAR o caso
-// suspeito, e o sinal é preciso: espaço em EXATAMENTE UM lado. Chave com
-// operador encostado (`{fatura/2}`) é plausível e fica quieta; chave com
-// espaço de um lado só (`"fatura /"`, `"a >=b"`) é erro de digitação em
-// praticamente todos os casos reais.
+// It cannot become a syntax error: that would break the guarantee that a key
+// with a `/` in its name stays reachable. But the suspicious case CAN be
+// pointed at, and the signal is precise: whitespace on EXACTLY ONE side. A
+// key with an operator against it (`{fatura/2}`) is plausible and stays
+// quiet; a key with whitespace on one side only (`"fatura /"`, `"a >=b"`) is
+// a typo in practically every real case.
 //
-// Trabalhar sobre os tokens `ident` (não sobre a string crua) é o que faz a
-// checagem não ter falso positivo de graça:
-//   - operador de verdade já virou token `op`/`compare`/`logical`, nunca chega aqui;
-//   - conteúdo de aspas já virou token `string`, então `{CONCAT("a > b", x)}` passa;
-//   - sinal de número negativo (`-1` depois de `,` ou de operador) vira token
-//     `number`, então `{CONCAT("x", -1)}` e `{a + -1}` passam.
+// Working over the `ident` tokens keeps the check free of false positives:
+//   - a real operator is already an `op`/`compare`/`logical` token, it never arrives here;
+//   - quoted content is already a `string` token, so `{CONCAT("a > b", x)}` passes;
+//   - a negative number's sign (`-1` after a `,` or an operator) becomes a
+//     `number` token, so `{CONCAT("x", -1)}` and `{a + -1}` pass.
 
 const SYMBOL_OPERATORS = ["==", "!=", ">=", "<=", ">", "<", "+", "-", "*", "/"] as const;
 const WORD_OPERATORS = ["AND", "NOT", "OR"] as const;
 
 const isSpace = (ch: string | undefined) => ch !== undefined && /\s/.test(ch);
-// Letra/dígito/underscore: se o vizinho de "OR" é um desses, o "OR" é pedaço
-// de palavra ("FORNECEDOR nome"), não um operador escrito errado.
+// Letter/digit/underscore: if the neighbor of "OR" is one of those, the "OR"
+// is part of a word ("FORNECEDOR nome"), not a misspelled operator.
 const isWordChar = (ch: string | undefined) => ch !== undefined && /[A-Za-z0-9_]/.test(ch);
 
-// Qual operador começa em `i` dentro deste identificador, ou null.
+// Which operator starts at `i` inside this identifier, or null.
 function operatorTextAt(ident: string, i: number): string | null {
   for (const op of SYMBOL_OPERATORS) {
     if (ident.startsWith(op, i)) return op;
@@ -47,10 +47,10 @@ function operatorTextAt(ident: string, i: number): string | null {
   return null;
 }
 
-// O primeiro operador com espaço de um lado só dentro de um identificador.
-// Início e fim do identificador contam como "sem espaço" — é a mesma
-// convenção de `isSurroundedBySpace` em tokenize.ts, e é o que faz
-// `{fatura /}` (fim do token à direita) ser pego.
+// The first operator with whitespace on one side only inside an identifier.
+// The start and the end of the identifier count as "no whitespace" — it is
+// the same convention as `isSurroundedBySpace` in tokenize.ts, and it is what
+// makes `{fatura /}` (the end of the token on the right) get caught.
 function oneSidedOperatorIn(ident: string): string | null {
   for (let i = 0; i < ident.length; i++) {
     const op = operatorTextAt(ident, i);
@@ -61,9 +61,9 @@ function oneSidedOperatorIn(ident: string): string | null {
   return null;
 }
 
-// O aviso de UMA expressão, ou null se não há nada suspeito. Nunca estoura:
-// expressão que nem tokeniza é problema do `expressionError`, que já a
-// reporta como erro de sintaxe — dois avisos pro mesmo defeito só confundem.
+// The warning for ONE expression, or null if there is nothing suspicious. It
+// never throws: an expression that does not even tokenize belongs to
+// `expressionError`, which already reports it as a syntax error.
 export function suspiciousOperator(source: string, t: Dict = en): string | null {
   let tokens;
   try {
@@ -80,8 +80,8 @@ export function suspiciousOperator(source: string, t: Dict = en): string | null 
   return null;
 }
 
-// O mesmo para um template inteiro (texto com zero ou mais `{...}`), token a
-// token. Mesmo formato de retorno de `templateExpressionErrors`.
+// The same for a whole template (text with zero or more `{...}`), token by
+// token. Same return shape as `templateExpressionErrors`.
 const TOKEN_RE = /\{([^{}]+)\}/g;
 
 export function templateSuspiciousOperators(template: string, t: Dict = en): { token: string; message: string }[] {

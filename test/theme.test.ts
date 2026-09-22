@@ -3,23 +3,23 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { classLiterals, relativeToSrc, sourceFiles, stripComments, tokensOf } from "./support/classScan";
 
-// Guards do src/css/theme.css.
+// Guards for src/css/theme.css.
 //
-// A folha é escrita à mão, então não tem compilador conferindo nada por trás.
-// Estes testes cobrem as quatro coisas que, quando quebram, quebram EM
-// SILÊNCIO — nenhuma delas dá erro de build nem aparece no console.
+// The stylesheet is written by hand, so there is no compiler checking
+// anything behind it. These tests cover the four things that, when they break,
+// break IN SILENCE — none of them raises a build error or shows in the console.
 const THEME_RAW = readFileSync(join(__dirname, "..", "src", "css", "theme.css"), "utf8");
-// O reset vive em arquivo separado (publicado como `json-pdf-designer/reset.css`
-// pra quem estiliza do zero) e o theme o importa. Os guards valem pra folha
-// EFETIVA, então leem os dois.
+// The reset lives in a separate file (published as
+// `json-pdf-designer/reset.css` for whoever styles from scratch) and the theme
+// imports it. The guards apply to the EFFECTIVE stylesheet, so they read both.
 const RESET_RAW = readFileSync(join(__dirname, "..", "src", "css", "reset.css"), "utf8");
 const RAW = [THEME_RAW, RESET_RAW].join("\n");
 
-// Comentário FORA antes de qualquer varredura. Não é zelo: o cabeçalho deste
-// arquivo documenta a própria sintaxe que os testes procuram — tem um
-// `@layer json-pdf-designer, minhas-utilitarias;` de exemplo e um
-// `*{box-sizing}` citado em prosa. Sem remover, o teste da @layer acha a
-// menção no comentário em vez da regra, e o teste do `*` acusa a prosa.
+// Comments STRIPPED before any scan. It is not fussiness: this file's header
+// documents the very syntax the tests look for — it has an example
+// `@layer json-pdf-designer, my-utilities;` and a `*{box-sizing}` quoted in
+// prose. Without stripping, the @layer test finds the mention in the comment
+// instead of the rule, and the `*` test flags the prose.
 const CSS = RAW.replace(/\/\*[\s\S]*?\*\//g, "");
 
 // Blocos de token: :root (light), o par [data-jpd-theme="dark"]/.dark, e a
@@ -284,30 +284,30 @@ describe("reset.css — autossuficiente", () => {
 // Token que entra em LISTA de sombra é uma armadilha pública.
 //
 // `.jpd-input:focus` compõe `box-shadow: 0 0 0 2px var(--jpd-accent-ring),
-// var(--jpd-shadow-sm)`. Um consumidor que ponha `--jpd-shadow-sm: none` —
-// a coisa óbvia pra "quero sem sombra" — torna a declaração INTEIRA inválida
-// e perde o ANEL DE FOCO junto, sem erro no console.
+// var(--jpd-shadow-sm)`. A consumer who sets `--jpd-shadow-sm: none` — the
+// obvious thing for "I want no shadow" — makes the WHOLE declaration invalid
+// and loses the FOCUS RING along with it, with no console error.
 //
-// Achado retematizando o `examples/composed-layout`. Este guard não impede o
-// consumidor de errar (não dá), mas garante que o aviso continue escrito
-// junto do token — e que ninguém acrescente um token novo a uma lista de
-// sombra sem documentar o mesmo.
+// Found while re-theming `examples/composed-layout`. This guard does not stop
+// the consumer from getting it wrong (it cannot), but it guarantees the
+// warning stays written next to the token — and that nobody adds a new token
+// to a shadow list without documenting the same.
 describe("theme.css — tokens usados dentro de lista de sombra", () => {
   it("todo token em lista de sombra tem o aviso de `none` documentado", () => {
-    // Uma declaração `box-shadow` com vírgula ANTES de um `var(--jpd-...)`
-    // significa que aquele token é um item de lista.
+    // A `box-shadow` declaration with a comma BEFORE a `var(--jpd-...)` means
+    // that token is a list item.
     const emLista = new Set<string>();
     for (const m of CSS.matchAll(/box-shadow:\s*([^;]+);/g)) {
       const valor = m[1];
       if (!valor.includes(",")) continue;
       for (const v of valor.matchAll(/var\((--jpd-[a-z0-9-]+)/g)) emLista.add(v[1]);
     }
-    // O `--jpd-accent-ring` é sempre o primeiro item e é uma COR, não uma
-    // sombra — `none` nele não faz sentido e ninguém tentaria.
+    // `--jpd-accent-ring` is always the first item and is a COLOR, not a
+    // shadow — `none` on it makes no sense and nobody would try.
     const sombras = [...emLista].filter((t) => t.includes("shadow"));
     expect(sombras.length, "controle: nenhum token de sombra em lista — a varredura não guarda nada").toBeGreaterThan(0);
 
-    // O aviso tem de nomear cada um deles.
+    // The warning has to name each one of them.
     const semAviso = sombras.filter((t) => !THEME_RAW.includes(`NÃO USE \`none\` NO \`${t}\``));
     expect(
       semAviso,

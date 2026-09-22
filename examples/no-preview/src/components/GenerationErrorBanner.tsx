@@ -6,14 +6,14 @@ import type { GenerationProblem } from "../lib/generationError";
 type Props = {
   problem: GenerationProblem;
   onDismiss: () => void;
-  // O MESMO `locale` do <Designer> (ver App.tsx).
+  // The SAME `locale` as the <Designer> (see App.tsx).
   locale: Locale;
 };
 
-// A CHAVE (`data`, `template`, `config`, `package`) é o `PdfErrorBlame` do
-// PACOTE — identificador, não texto, e por isso em inglês mesmo com a UI em
-// português. Só a palavra que aparece na tela sai do dicionário.
-// o rótulo que aparece na tela sai do dicionário da casca.
+// The KEY (`data`, `template`, `config`, `package`) is THE PACKAGE's
+// `PdfErrorBlame` — an identifier, not text, and therefore in English even
+// with the UI in Portuguese. Only the word that appears on screen comes from
+// the shell's dictionary.
 function blameLabel(blame: GenerationProblem["blame"], s: ReturnType<typeof t>): string {
   if (blame === "data") return s.banner.blameData;
   if (blame === "template") return s.banner.blameTemplate;
@@ -21,10 +21,10 @@ function blameLabel(blame: GenerationProblem["blame"], s: ReturnType<typeof t>):
   return s.banner.blamePackage;
 }
 
-// Banner de falha de geração. O ponto: a mensagem vem de
-// `describeGenerationError`, que decide o texto por `instanceof` na classe de
-// erro exportada pelo pacote — não por `err.message` cru. É a mesma decisão que
-// um backend toma pra escolher entre 413, 400 e 500.
+// The generation failure banner. The point: the message comes from
+// `describeGenerationError`, which decides the text by `instanceof` on the
+// error class the package exports — not by a raw `err.message`. It is the same
+// decision a backend makes when choosing between 413, 400 and 500.
 export default function GenerationErrorBanner({ problem, onDismiss, locale }: Props) {
   const s = t(locale);
   const [showDetail, setShowDetail] = useState(false);

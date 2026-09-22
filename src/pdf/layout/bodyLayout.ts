@@ -6,11 +6,11 @@ export function boundsOf(item: BodyItem): FlowBounds {
   return item.kind === "row" ? { y: item.y, height: item.height } : { y: item.schema.y, height: item.schema.height };
 }
 
-// Agrupa os schemas do corpo em BodyItem, na ordem em que aparecem na
-// página (por Y) — tabela/seção viram um item cada; qualquer outro campo
-// (texto/imagem/gráfico/indicador) que compartilhe o MESMO y autorado com
-// o item anterior entra na mesma "row" em vez de virar um item à parte
-// (ver comentário do BodyItem em layoutTypes.ts pro motivo).
+// Groups the body's schemas into BodyItems, in the order they appear on the
+// page (by Y) — a table/section becomes one item each; any other field
+// (text/image/chart/kpi) sharing the SAME authored y as the previous item
+// joins the same "row" instead of becoming a separate item (see the BodyItem
+// comment in layoutTypes.ts for the reason).
 export function buildBodyItems(bodySchemas: Schema[]): BodyItem[] {
   const bodyItems: BodyItem[] = [];
   for (const s of bodySchemas.slice().sort((a, b) => a.y - b.y)) {
@@ -33,19 +33,19 @@ export function buildBodyItems(bodySchemas: Schema[]): BodyItem[] {
   return bodyItems;
 }
 
-// Espaço (mm) entre o final de um bloco (tabela ou seção) e o início do
-// próximo — respeita o que foi desenhado no editor (a diferença entre
-// onde o próximo foi posicionado e onde o anterior "deveria" terminar,
-// segundo a altura autorada), nunca um valor fixo. Negativo (blocos
-// sobrepostos no editor) vira 0 — não faz sentido empurrar pra cima.
+// The space (mm) between the end of one block (a table or a section) and the
+// start of the next — it honors what was drawn in the editor (the difference
+// between where the next one was positioned and where the previous one
+// "should" end, according to the authored height), never a fixed value. A
+// negative value (blocks overlapping in the editor) becomes 0.
 export function gapAfter(prev: FlowBounds, next: FlowBounds): number {
   return Math.max(next.y - (prev.y + prev.height), 0);
 }
 
-// Deriva, de UMA página (TemplatePage), tudo que a paginação/desenho
-// precisam — mesma conta de sempre, só que parametrizada por pageDef em vez
-// do Template inteiro (permite rodar uma vez por página quando há mais de
-// uma).
+// Derives, from ONE page (TemplatePage), everything pagination/drawing need
+// — the same arithmetic as always, only parameterized by pageDef instead of
+// the whole Template (which allows running it once per page when there is
+// more than one).
 export function deriveBodyLayout(pageDef: TemplatePage) {
   const headerHeight = pageDef.headerHeight ?? 0;
   const footerHeight = pageDef.footerHeight ?? 0;
@@ -56,8 +56,8 @@ export function deriveBodyLayout(pageDef: TemplatePage) {
     marginLeft: pageDef.marginLeft ?? 0,
     marginRight: pageDef.marginRight ?? 0,
   };
-  // Campo com sectionId nunca desenha por conta própria — só através da
-  // repetição da seção dona dele (ver render/renderSection.ts).
+  // A field with a sectionId never draws on its own — only through the
+  // repetition of the section that owns it (see render/renderSection.ts).
   const ownedBySection = (s: Schema) => Boolean(s.sectionId);
   const repeatingSchemas = pageDef.schemas.filter((s) => !ownedBySection(s) && classifyZone(s, pageDef.page, bands) !== "body");
   const bodySchemas = pageDef.schemas.filter((s) => !ownedBySection(s) && classifyZone(s, pageDef.page, bands) === "body");

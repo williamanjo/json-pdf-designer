@@ -1,40 +1,39 @@
-// Varre um objeto JSON de exemplo (a resposta da sua query) e monta uma lista
-// de "campos" que podem ser arrastados/clicados para o designer do
-// relatório.
+// It scans a sample JSON object (your query's response) and builds a list of
+// "fields" that can be dragged/clicked into the report designer.
 //
-// Regras:
-// - objeto  -> desce recursivamente em cada chave (path com ".")
-// - array de objetos -> vira 1 "arraySource" (o DataSource inteiro — clicar/
-//   arrastar cria uma tabela com TODAS as colunas) + 1 "arrayColumn" por
-//   coluna (arrastar UMA coluna só entra numa tabela já vinculada a esse
-//   mesmo array, se houver uma na página; senão cria uma tabela de uma
-//   coluna — ver App.tsx::dropFieldAt neste example)
-// - array de valores simples -> vira só um "arraySource" sem colunas (sem
-//   coluna nenhuma pra oferecer individualmente)
-// - valor simples (string/number/boolean/null) -> campo "scalar"
+// Rules:
+// - an object -> it descends recursively into each key (a "." path)
+// - an array of objects -> becomes 1 "arraySource" (the whole DataSource —
+//   clicking/dragging creates a table with ALL the columns) + 1 "arrayColumn"
+//   per column (dragging ONE column joins a table already bound to that same
+//   array, if there is one on the page; otherwise it creates a one-column
+//   table — see App.tsx::dropFieldAt in this example)
+// - an array of simple values -> becomes only an "arraySource" with no columns
+//   (there is no column at all to offer individually)
+// - a simple value (string/number/boolean/null) -> a "scalar" field
 
 export type ColumnType = "number" | "string" | "boolean" | "other";
 
 export type FieldNode =
   | { path: string; label: string; kind: "scalar" }
   | { path: string; label: string; kind: "arraySource"; columns?: string[]; columnTypes?: Record<string, ColumnType> }
-  // Coluna individual de um "arraySource" — sourcePath aponta pro array-pai
-  // (pra achar a seção vinculada a ele, se houver).
+  // An individual column of an "arraySource" — sourcePath points at the
+  // parent array (to find the section bound to it, if there is one).
   | { path: string; label: string; kind: "arrayColumn"; sourcePath: string; column: string }
-  // Token sintético do motor de PDF (ver src/pdf/generate.ts pageData) — não
-  // vem do JSON, só existe na hora de gerar. Só resolve de verdade em campo
-  // de texto que caia no cabeçalho/rodapé/margem (docs/USAGE.md); no corpo
-  // do documento resolve vazio, mesma regra de sempre.
+  // A synthetic token of the PDF engine (see src/pdf/generate.ts pageData) —
+  // it does not come from the JSON, it only exists at generation time. It only
+  // really resolves in a text field that falls in the header/footer/margin
+  // (docs/USAGE.md); in the document's body it resolves empty, as always.
   | { path: string; label: string; kind: "native" };
 
-// Campos sintéticos sempre disponíveis, independente do JSON carregado —
-// mostrados numa seção fixa própria na árvore ("Variáveis nativas", ver
+// Synthetic fields always available, regardless of the loaded JSON — shown
+// in a fixed section of their own in the tree ("Native variables", see
 // FieldTree.tsx).
 //
-// O `label` aqui é FALLBACK: como estes dois não vêm do JSON do usuário (são
-// nome de variável do motor, não dado), o rótulo exibido sai do dicionário da
-// casca por `path` (`tt.tree.nativeLabels`, src/i18n.ts) e troca de idioma
-// junto com o resto da tela. O `path` é identificador e não muda.
+// The `label` here is a FALLBACK: since these two do not come from the user's
+// JSON (they are the engine's variable names, not data), the displayed label
+// comes from the shell's dictionary by `path` (`tt.tree.nativeLabels`,
+// src/i18n.ts) and switches language along with the rest of the screen.
 export const NATIVE_FIELDS: FieldNode[] = [
   { path: "pageNumber", label: "Page number", kind: "native" },
   { path: "pageCount", label: "Total pages", kind: "native" },

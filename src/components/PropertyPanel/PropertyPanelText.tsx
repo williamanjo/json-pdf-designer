@@ -11,8 +11,8 @@ type Props = {
   activeTab: "dados" | "estilo";
   bulkEdit?: boolean;
   onChangeSchema: (patch: Partial<TextSchema>) => void;
-  // Campos que este schema alcança — a lista da esquerda do modal de
-  // fórmula (ver designer/helpers.ts, fieldSourcesFor).
+  // The fields this schema can reach — the left-hand list of the formula
+  // modal (see designer/helpers.ts, fieldSourcesFor).
   fieldSources?: FieldSources;
 };
 

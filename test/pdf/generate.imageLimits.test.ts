@@ -4,21 +4,21 @@ import { estimateDataUriBytes, MAX_DISTINCT_IMAGES, MAX_IMAGE_BYTES } from "../.
 import { ImageTooLargeError, TooManyImagesError } from "../../src/errors";
 import type { ImageSchema, Template } from "../../src/types";
 
-// 1x1 PNG real (menor PNG válido possível) — usado como base pra montar data
-// URIs "grandes o bastante" sem precisar de uma imagem de verdade gigante:
-// o limite é checado ANTES do pdf-lib tentar decodificar a imagem (ver
-// assertImageWithinSizeLimit em generate.ts), então um base64 comprido mas
-// com conteúdo lixo (não decodifica de verdade como PNG) ainda serve pra
-// testar o portão de tamanho sem custo de gerar um PNG de dezenas de MB.
+// A real 1x1 PNG (the smallest valid PNG possible) — used as a base to build
+// data URIs "large enough" without needing a genuinely huge image: the limit
+// is checked BEFORE pdf-lib tries to decode the image (see
+// assertImageWithinSizeLimit in generate.ts), so a long base64 with garbage
+// content (which does not really decode as a PNG) still serves to test the
+// size gate without the cost of generating a PNG of tens of MB.
 const TINY_PNG =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
-// Data URI válido (mesmo PNG real, decodifica normal) mas com uma STRING
-// diferente por índice — o parâmetro extra antes de "base64," não afeta a
-// decodificação (pdf-lib só olha o que vem depois da vírgula), só serve pra
-// cada uma virar uma CHAVE diferente no `imageCache` (que dedupe por
-// conteúdo exato da string), sem precisar fabricar 200 PNGs de verdade
-// distintos só pra testar o limite de contagem.
+// A valid data URI (the same real PNG, it decodes normally) but with a
+// different STRING per index — the extra parameter before "base64," does not
+// affect decoding (pdf-lib only looks at what comes after the comma), it only
+// makes each one a different KEY in the `imageCache` (which dedupes by the
+// string's exact content), without having to fabricate 200 genuinely distinct
+// PNGs just to test the count limit.
 function distinctTinyPng(i: number): string {
   return TINY_PNG.replace("image/png;base64,", `image/png;id=${i};base64,`);
 }

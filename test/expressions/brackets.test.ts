@@ -4,17 +4,17 @@ import { parse } from "../../src/expressions/engine/parse";
 import { renderTemplate } from "../../src/bindings/bindings";
 import { tokenize } from "../../src/expressions/engine/tokenize";
 
-// PATH ENTRE BRACKETS.
+// BRACKETED PATH.
 //
-// A forma nua (`{a.b}`) resolve quase toda chave de JSON, mas não toda: chave
-// com ponto LITERAL no nome não tinha forma nenhuma (o ponto sempre separava
-// segmento), nem chave com `(`/`)`/`,`/`"`, nem com operador cercado de
-// espaço. `{[...]}` dá nome a todas.
+// The bare form (`{a.b}`) resolves almost every JSON key, but not all: a key
+// with a LITERAL dot in its name had no form at all (the dot always separated
+// segments), nor did a key with `(`/`)`/`,`/`"`, nor one with an operator
+// surrounded by spaces. `{[...]}` names all of them.
 //
-// O caso que separa as duas semânticas do ponto — e o motivo de o nó `path`
-// da AST carregar `segments: string[]` em vez de uma string — é o par
-// `{[cliente].[nome]}` (caminha) contra `{[cliente.nome]}` (chave literal).
-// Uma string com pontos não consegue representar os dois.
+// The case that separates the dot's two semantics — and the reason the AST's
+// `path` node carries `segments: string[]` instead of a string — is the pair
+// `{[cliente].[nome]}` (it walks) against `{[cliente.nome]}` (a literal key).
+// A dotted string cannot represent both.
 
 const item = {
   id: "A1",
@@ -32,17 +32,17 @@ describe("path entre brackets — a forma nova", () => {
   const casos: [string, string][] = [
     ["{[id]}", "A1"],
     ["{[cliente].[nome]}", "ANINHADO"],
-    // O PAR QUE IMPORTA: o ponto DENTRO do bracket não separa.
+    // THE PAIR THAT MATTERS: the dot INSIDE the bracket does not separate.
     ["{[cliente.nome]}", "LITERAL"],
     ['{["token name"]}', "COM ESPACO"],
-    // Quote simples pra chave que contém quote dupla — troca a quote em vez
-    // de escapar.
+    // A single quote for a key containing a double quote — swap the quote
+    // instead of escaping.
     ["{['a\"b']}", "QUOTE DUPLA"],
-    // A chave cujo NOME tem bracket, que é o único caso de compat que mudou.
+    // The key whose NAME has a bracket, which is the only compat case that changed.
     ['{["[a]"]}', "COM BRACKET"],
-    // Operador FORA do bracket é operador.
+    // An operator OUTSIDE the bracket is an operator.
     ["{[total] + 1}", "11"],
-    // Cauda nua depois de um segmento bracketado.
+    // A bare tail after a bracketed segment.
     ["{[cliente].nome}", "ANINHADO"],
   ];
 

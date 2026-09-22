@@ -5,21 +5,21 @@ import { t } from "../i18n";
 type Props = {
   problems: TemplateProblem[];
   locale: Locale;
-  // Clique num problema leva pra página e seleciona o campo — o painel só
-  // aponta se der pra chegar lá.
+  // Clicking a problem takes you to the page and selects the field — the
+  // panel only points at it if it can get there.
   onGoTo: (pageIndex: number, schemaId: string) => void;
 };
 
-// "Problemas do template" — o outro lado da tolerância da geração.
+// "Template problems" — the other side of generation's tolerance.
 //
-// O pacote resolve expressão inválida pra vazio em vez de derrubar o PDF (uma
-// vírgula esquecida não pode custar um relatório de 200 páginas). O preço é que
-// o campo sai em branco sem explicação. Este painel é onde a explicação
-// aparece, antes de gerar — montado com `expressionErrors` e `fieldWarning`,
-// exports públicos do pacote.
+// The package resolves an invalid expression to empty instead of bringing the
+// PDF down (a forgotten comma must not cost a 200-page report). The price is
+// that the field comes out blank with no explanation. This panel is where the
+// explanation appears, before generating — built with `expressionErrors` and
+// `fieldWarning`, public exports of the package.
 //
-// Marcação em HTML nativo + classes de src/index.css: nenhum Card/Badge/ícone
-// do pacote, que é a premissa deste example.
+// The markup is native HTML + classes from src/index.css: no Card/Badge/icon
+// from the package, which is this example's premise.
 export default function ProblemsPanel({ problems, locale, onGoTo }: Props) {
   const d = t(locale);
   const willRenderEmpty = problems.filter((p) => p.kind === "expressao").length;
@@ -40,11 +40,12 @@ export default function ProblemsPanel({ problems, locale, onGoTo }: Props) {
         <p className="hint">{d.problemsNone}</p>
       ) : (
         <>
-          {/* A frase inteira sai da função do dicionário. A versão anterior
-              concatenava "1 expressão suspeita" + " — compila, mas..." no
-              JSX; isso amarra a ordem das partes ao português e o inglês tem
-              de flexionar o verbo junto com o número ("it compiles" /
-              "they compile"), o que não dá pra fazer costurando pedaços. */}
+          {/* The whole sentence comes from the dictionary's function. The
+              previous version concatenated "1 expressão suspeita" + " —
+              compila, mas..." in the JSX; that ties the order of the parts to
+              Portuguese, and English has to inflect the verb along with the
+              number ("it compiles" / "they compile"), which cannot be done by
+              stitching pieces together. */}
           {suspect > 0 && <p className="problem-note">{d.suspectNote(suspect)}</p>}
           {willRenderEmpty > 0 && <p className="problem-note">{d.willRenderEmptyNote(willRenderEmpty)}</p>}
           <ul className="problem-list">

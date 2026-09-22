@@ -2,18 +2,18 @@ import { readFileSync } from "../support/read";
 import { describe, expect, it } from "vitest";
 import { relativeToSrc, sourceFiles, stripComments } from "../support/classScan";
 
-// Guards das peças posicionáveis (Fase 6).
+// Guards for the placeable parts (Phase 6).
 //
-// O valor da decomposição é que cada peça funciona SOZINHA, dentro de um
-// `<DesignerProvider>` e mais nada. Três coisas destroem isso em silêncio:
+// The value of the decomposition is that each part works ALONE, inside a
+// `<DesignerProvider>` and nothing else. Three things destroy that silently:
 //
-//   - uma peça importar o `Designer.tsx` (o preset), o que puxa o layout
-//     inteiro de volta e cria ciclo de import;
-//   - uma peça importar outra peça, o que faz "posicionar A" arrastar B;
-//   - uma peça ler estado por PROP em vez de contexto, o que a torna
-//     inutilizável fora do preset.
+//   - a part importing `Designer.tsx` (the preset), which pulls the whole
+//     layout back in and creates an import cycle;
+//   - a part importing another part, which makes "place A" drag B along;
+//   - a part reading state from a PROP instead of the context, which makes it
+//     unusable outside the preset.
 //
-// Nada disso dá erro de build. Daí a varredura de fonte.
+// None of that raises a build error. Hence the source scan.
 
 const PARTS_DIR = "designer/parts/";
 
@@ -24,9 +24,9 @@ function partFiles(): Array<{ rel: string; code: string }> {
     .map(({ rel, file }) => ({ rel, code: stripComments(readFileSync(file, "utf8")) }));
 }
 
-// A peça de conveniência é a ÚNICA que pode compor outras — é a razão de ela
-// existir. `SelectedFieldHeader` não é peça: é o pedaço compartilhado entre
-// o painel de propriedades e o de filtro (ver o comentário do arquivo).
+// The convenience part is the ONLY one allowed to compose others — it is the
+// reason it exists. `SelectedFieldHeader` is not a part: it is the piece
+// shared between the property panel and the filter one (see the file's comment).
 const COMPOE_OUTRAS = `${PARTS_DIR}DesignerSidebar.tsx`;
 const NAO_E_PECA = `${PARTS_DIR}SelectedFieldHeader.tsx`;
 

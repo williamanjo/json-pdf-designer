@@ -2,13 +2,12 @@ import type { Binding, Template } from "json-pdf-designer/server";
 import dashboardSample from "../samples/dashboardSample.json";
 import type { ExampleDefinition } from "./types";
 
-// Exemplo: "Painel de Vendas" — 6 cartões de indicador (KPI) em duas
-// linhas (resumoVendas.*, sem vínculo nenhum — só {token}/{FUNÇÃO(...)}
-// direto no título/valor/legenda, resolvido contra o documento inteiro) e
-// dois gráficos de pizza lado a lado sobre o MESMO array
-// (vendasPorAgente), um por valor (R$) e outro por quantidade — mostra
-// como o mesmo array vira duas leituras diferentes só trocando a coluna
-// numérica do vínculo "chart".
+// Example: "Sales Dashboard" — 6 KPI cards in two rows (resumoVendas.*, with
+// no binding at all — only {token}/{FUNCTION(...)} directly in the
+// title/value/subtitle, resolved against the whole document) and two pie
+// charts side by side over the SAME array (vendasPorAgente), one by amount
+// (R$) and the other by quantity — it shows how the same array becomes two
+// different readings just by swapping the "chart" binding's numeric column.
 const template: Template = {
   version: 1,
   page: { width: 297, height: 210 },

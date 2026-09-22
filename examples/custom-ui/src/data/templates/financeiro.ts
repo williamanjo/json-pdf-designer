@@ -2,15 +2,14 @@ import type { Template, Binding } from "json-pdf-designer";
 import financeiroSample from "../samples/financeiroSample.json";
 import type { ExampleDefinition } from "./types";
 
-// Exemplo: "Relatório Financeiro" — duas tabelas soltas (sem seção),
-// empilhadas em sequência (cada uma com sua linha de totais própria via
-// {CURRENCY(SUM(...))}), e um saldo calculado por aritmética sobre dois
-// valores já resolvidos, formatado como moeda de verdade
-// ({CURRENCY(totalReceitas - totalDespesas)}). Sem título de texto solto
-// ENTRE as duas tabelas — texto/imagem posicionado entre dois blocos
-// (tabela/seção) não fica entre eles no PDF final, sempre vai parar depois
-// de todos (limitação documentada em generate.ts); a categoria de cada
-// tabela aqui é o próprio cabeçalho colorido, não um texto à parte.
+// Example: "Financial Report" — two loose tables (no section), stacked in
+// sequence (each with its own totals row through {CURRENCY(SUM(...))}), and a
+// balance computed by arithmetic over two already-resolved values, formatted
+// as real currency ({CURRENCY(totalReceitas - totalDespesas)}). With no loose
+// text title BETWEEN the two tables — text/image positioned between two blocks
+// (table/section) does not end up between them in the final PDF, it always
+// lands after all of them (a limitation documented in generate.ts); each
+// table's category here is its own colored header, not a separate text.
 const template: Template = {
   version: 1,
   page: { width: 210, height: 297 },

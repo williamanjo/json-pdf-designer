@@ -6,10 +6,10 @@ export function useT() {
   return useContext(I18nContext).t;
 }
 
-// Só pra quem precisa do CÓDIGO do idioma ativo, não do dicionário — ex:
-// escolher entre MATERIAL_ICON_LABELS_EN/PT_BR (materialIcons.ts), que não
-// vive dentro do dicionário por ser grande/opcional demais pra carregar
-// sempre.
+// Only for whoever needs the active language's CODE, not the dictionary —
+// e.g. choosing between MATERIAL_ICON_LABELS_EN/PT_BR (materialIcons.ts),
+// which does not live inside the dictionary because it is too large/optional
+// to load every time.
 export function useLocale(): Locale {
   return useContext(I18nContext).locale;
 }

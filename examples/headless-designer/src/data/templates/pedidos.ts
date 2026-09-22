@@ -2,12 +2,12 @@ import type { Template, Binding } from "json-pdf-designer/server";
 import pedidosSample from "../samples/pedidosSample.json";
 import type { ExampleDefinition } from "./types";
 
-// Exemplo: "Pedidos com Itens" — seção (data band) repetindo por pedido,
-// com uma tabela ANINHADA de verdade dentro dela (vínculo "array" relativo
-// ao item, path "itens") — mestre-detalhe. A coluna "Subtotal" usa
-// aritmética por linha com casas decimais controladas
-// ({NUMBER(qtd * preco, 2)}); o total geral soma um campo de verdade do
-// item (SUM(pedidos.valorTotal)) formatado como moeda.
+// Example: "Orders with Items" — a section (data band) repeating per order,
+// with a real NESTED table inside it (an "array" binding relative to the item,
+// path "itens") — real master-detail. The "Subtotal" column uses per-row
+// arithmetic with controlled decimal places ({NUMBER(qtd * preco, 2)}); the
+// grand total sums a real field of the item (SUM(pedidos.valorTotal))
+// formatted as currency.
 const template: Template = {
   version: 1,
   page: { width: 210, height: 297 },
@@ -102,9 +102,9 @@ const template: Template = {
       fontSize: 11,
       fontColor: "#111111",
       alignment: "right",
-      // `visibleWhen` num BLOCO: sem nenhum pedido, a linha de total não faz
-      // sentido — e esconder um bloco devolve a altura dele, então o que vem
-      // depois sobe. Expressão sem chaves, avaliada contra o JSON inteiro.
+      // `visibleWhen` on a BLOCK: with no order at all, the total row makes no
+      // sense — and hiding a block gives its height back, so what comes after
+      // moves up. An expression with no braces, evaluated against the whole JSON.
       visibleWhen: "COUNT(pedidos) > 0",
     },
     {
@@ -119,9 +119,9 @@ const template: Template = {
       fontSize: 11,
       fontColor: "#a16207",
       alignment: "center",
-      // O complemento do de cima: os dois ocupam o MESMO y, e a condição
-      // oposta garante que exatamente um aparece. `NOT` é um dos operadores
-      // lógicos do formato (AND/OR/NOT), sempre cercados de espaço.
+      // The complement of the one above: the two occupy the SAME y, and the
+      // opposite condition guarantees exactly one of them appears. `NOT` is one
+      // of the format's logical operators (AND/OR/NOT), always surrounded by
       visibleWhen: "NOT COUNT(pedidos) > 0",
     },
   ],

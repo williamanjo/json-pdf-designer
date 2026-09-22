@@ -1,25 +1,25 @@
-// Seção repetida (data band/mestre-detalhe) — a peça mais complexa do
-// gerador, isolada num arquivo só: quantas repetições, quanto cada uma
-// cresce (tabela membro mestre-detalhe empurra o resto da seção pra
-// baixo) e o desenho de UMA repetição. generate.ts só chama isto —
-// resolveSectionItems/sectionInstanceHeight pra saber quantas
-// repetições/quanto espaço cada uma ocupa antes de desenhar (paginação),
-// drawSectionInstance pra desenhar de verdade.
+// A repeated section (data band/master-detail) — the generator's most complex
+// piece, isolated in a file of its own: how many repetitions, how much each
+// one grows (a master-detail member table pushes the rest of the section
+// down), and the drawing of ONE repetition. generate.ts only calls this —
+// resolveSectionItems/sectionInstanceHeight to learn how many repetitions and
+// how much space each one takes before drawing (pagination),
+// drawSectionInstance to actually draw.
 import type { PDFFont, PDFPage } from "pdf-lib";
 import type { Binding, Schema, SectionSchema, TemplatePage } from "../../types";
 import { mmToPt } from "../../page/units";
 import { drawTableSlice } from "./renderTable";
-// Medição da seção mora em layout/sectionLayout.ts (matemática pura, precisa
-// rodar antes de desenhar); aqui ficou só o desenho. Reexportadas porque há
-// quem importe por este caminho.
+// The section's measurement lives in layout/sectionLayout.ts (pure math, it
+// has to run before drawing); only the drawing was left here. Re-exported
+// because some code imports it through this path.
 export { resolveSectionItems, sectionInstanceHeight, sectionMembersOf } from "../layout/sectionLayout";
 import { sectionMembersOf, tableGrowth } from "../layout/sectionLayout";
 import { resolveFooterRow, resolveNestedTableRows, resolveTextValue } from "../resolvers";
 
-// O que drawSectionInstance precisa emprestado de generatePdf — só o
-// necessário pra desenhar um membro que NÃO é tabela (drawField já sabe
-// desenhar texto/imagem/gráfico/indicador com doc/imageCache/inputs por
-// dentro do seu próprio closure).
+// What drawSectionInstance needs to borrow from generatePdf — only what is
+// needed to draw a member that is NOT a table (drawField already knows how to
+// draw text/image/chart/kpi with doc/imageCache/inputs inside its own
+// closure).
 export type SectionDrawContext = {
   template: TemplatePage;
   bindings: Binding[];
@@ -28,16 +28,16 @@ export type SectionDrawContext = {
   drawField: (page: PDFPage, schema: Schema, value: string | undefined) => Promise<void>;
 };
 
-// Uma repetição de uma seção: processa os membros em ordem de Y (de cima
-// pra baixo) acumulando um deslocamento — cada tabela que cresce além do
-// próprio placeholder empurra pra baixo TUDO que vem depois dela (outra
-// tabela, texto, imagem), não só o que tá abaixo da ÚLTIMA tabela. Com
-// uma tabela só isso equivale ao comportamento de antes; com duas ou
-// mais, a segunda (e o que vier depois) agora desloca certo em vez de
-// ficar parada na posição desenhada e sobrepor a primeira. Cada membro
-// mantém seu X absoluto (mesma coluna em toda repetição). Vínculo
-// resolve contra o ITEM atual (não o documento todo); {Line} dá o
-// número da repetição (1, 2, 3...).
+// One repetition of a section: it processes the members in order of Y (top to
+// bottom) accumulating an offset — each table that grows beyond its own
+// placeholder pushes down EVERYTHING that comes after it (another table, text,
+// an image), not only what is below the LAST table. With a single table that
+// is equivalent to the previous behavior; with two or more, the second (and
+// whatever comes after) now shifts correctly instead of staying at the drawn
+// position and overlapping the first. Each member keeps its absolute X (the
+// same column in every repetition). The binding resolves against the CURRENT
+// item (not the whole document); {Line} gives the repetition's number
+// (1, 2, 3...).
 export async function drawSectionInstance(
   ctx: SectionDrawContext,
   page: PDFPage,
