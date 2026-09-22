@@ -4,16 +4,16 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Relativo (não "/repo-name/") — funciona em qualquer subpath do GitHub
-  // Pages (site é montado em playground/report-builder/) sem precisar
-  // hardcodar o nome do repo aqui. Só é seguro porque este app não usa
-  // client-side router (SPA de view única).
+  // Relative (not "/repo-name/") — it works on any GitHub Pages subpath (the
+  // site is mounted at playground/report-builder/) without having to hardcode
+  // the repo's name here. It is only safe because this app uses no
+  // client-side router (a single-view SPA).
   base: './',
   plugins: [react(), tailwindcss()],
-  // json-pdf-designer é uma dependência "file:" linkada (symlink) pro
-  // pacote pai — sem isso o Vite pode resolver "react" a partir do
-  // node_modules dele em vez do node_modules deste app, carregando duas
-  // cópias de React (erro "Invalid hook call").
+  // json-pdf-designer is a "file:" dependency linked (a symlink) to the
+  // parent package — without this Vite may resolve "react" from ITS
+  // node_modules instead of this app's, loading two copies of React (the
+  // "Invalid hook call" error).
   resolve: {
     dedupe: ['react', 'react-dom'],
   },

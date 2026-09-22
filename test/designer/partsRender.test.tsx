@@ -16,13 +16,14 @@ import {
   DesignerToolbar,
 } from "../../src/designer/parts";
 
-// Sonda de RENDER das peças. É o teste que prova o mecanismo inteiro da
-// decomposição, e não precisa de DOM: `renderToStaticMarkup` basta porque o
-// que interessa é o markup EMITIDO — se a peça renderiza dentro de um
-// provider e mais nada, e se a classe do consumidor chegou na raiz dela.
+// A RENDER probe for the parts. It is the test that proves the whole
+// decomposition mechanism, and it needs no DOM: `renderToStaticMarkup` is
+// enough because what matters is the EMITTED markup — whether the part renders
+// inside a provider and nothing else, and whether the consumer's class reached
+// its root.
 //
-// (O que ele NÃO cobre, por não ter DOM: arrasto, medição da faixa de abas,
-// animação de colapso. Esses vão no checklist manual do PR.)
+// (What it does NOT cover, having no DOM: dragging, measuring the tab strip,
+// the collapse animation. Those go in the PR's manual checklist.)
 
 const template: Template = {
   page: { width: 210, height: 297 },
@@ -46,7 +47,7 @@ function wrap(node: ReactElement) {
   );
 }
 
-// Peças que renderizam SEM seleção — são as que um layout mostra sempre.
+// Parts that render WITHOUT a selection — the ones a layout always shows.
 const SEM_SELECAO: Array<{ nome: string; raiz: string; render: (p: { className: string }) => ReactElement }> = [
   { nome: "DesignerCanvas", raiz: "jpd-designer__canvas", render: (p) => <DesignerCanvas {...p} /> },
   { nome: "DesignerTabBar", raiz: "jpd-tabs", render: (p) => <DesignerTabBar {...p} /> },

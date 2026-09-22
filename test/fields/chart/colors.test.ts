@@ -24,8 +24,9 @@ describe("resolveChartColors", () => {
   });
 
   it('"custom" com customColors vazio cai pro duplo fallback: resolveChartPalette("custom") -> CHART_PALETTES.default', () => {
-    // "custom" não é chave de CHART_PALETTES, então resolveChartPalette("custom")
-    // já cai sozinho pro default — resolveChartColors precisa preservar isso.
+    // "custom" is not a key of CHART_PALETTES, so resolveChartPalette("custom")
+    // already falls back to the default on its own — resolveChartColors has to
+    // preserve that.
     expect(resolveChartPalette("custom")).toEqual(CHART_PALETTES.default);
     expect(resolveChartColors("custom", [])).toEqual(CHART_PALETTES.default);
   });

@@ -6,26 +6,27 @@ import {
   TemplateVersionTooNewError,
 } from "./errors";
 
-// Versão do FORMATO de documento que este build entende. NÃO é a versão do
-// pacote: o pacote vai de 2.0.0 pra 2.1.0 pra 3.0.0 sem que o formato do
-// Template mude. Sobe só quando o JSON salvo muda de forma.
+// The document FORMAT version this build understands. It is NOT the package
+// version: the package goes from 2.0.0 to 2.1.0 to 3.0.0 without the Template
+// format changing. It only goes up when the saved JSON changes shape.
 export const CURRENT_TEMPLATE_VERSION = 1 satisfies TemplateVersion;
 
-// Template salvo antes do campo `version` existir — todo template criado até
-// a v2.0.0 do pacote. Nenhuma mudança de forma aconteceu desde então, então
-// tratar como 1 é exato, não uma aproximação.
+// A template saved before the `version` field existed — every template created
+// up to the package's v2.0.0. No shape change has happened since then, so
+// treating it as 1 is exact, not an approximation.
 const IMPLICIT_VERSION = 1;
 
-// Cada entrada leva do formato N pro N+1. Uma migração por degrau, aplicada
-// em cadeia — nunca `if (version === 1) ... if (version === 2) ...` espalhado
-// por quem consome, que é como isso vira intratável na terceira versão.
+// Each entry takes format N to N+1. One migration per step, applied in a
+// chain — never `if (version === 1) ... if (version === 2) ...` scattered
+// around the consumers, which is how this becomes unmanageable by the third
+// version.
 //
-// Hoje está vazio de propósito: existe UMA versão. O valor de ter isto agora
-// é que a primeira mudança de formato entra como UMA entrada aqui, sem tocar
-// em nenhum chamador — o custo de introduzir a cadeia depois de já haver
-// template em banco é muito maior.
+// It is deliberately empty today: there is ONE version. The value of having
+// it now is that the first format change lands as ONE entry here, without
+// touching any caller — the cost of introducing the chain after there are
+// already templates in a database is far higher.
 //
-// Exemplo de como a primeira vai ser:
+// An example of what the first one will look like:
 //   1: (t) => ({ ...t, schemas: t.schemas.map(renameTypeToKind) }),
 const MIGRATIONS: Record<number, (template: Record<string, unknown>) => Record<string, unknown>> = {};
 
@@ -38,17 +39,18 @@ function readVersion(input: Record<string, unknown>): number {
   return raw;
 }
 
-// Normaliza um Template vindo de fora (banco, arquivo, API) pro formato que
-// este build entende, aplicando as migrações necessárias em ordem.
+// Normalizes a Template coming from outside (a database, a file, an API) into
+// the format this build understands, applying the necessary migrations in
+// order.
 //
-// Ponto único: `generatePdf` chama isto antes de qualquer outra coisa, então
-// todo template que gera PDF passa por aqui. Quem carrega template pra editar
-// (não pra gerar) deve chamar explicitamente — é export público.
+// A single point: `generatePdf` calls this before anything else, so every
+// template that generates a PDF goes through here. Whoever loads a template to
+// edit (not to generate) should call it explicitly — it is a public export.
 //
-// Versão MAIOR que a corrente é erro, não aviso: significa que o arquivo foi
-// salvo por um build mais novo do pacote e pode conter campos que este build
-// ignoraria em silêncio. Falhar alto é melhor que gerar um PDF faltando
-// pedaço sem ninguém perceber.
+// A version HIGHER than the current one is an error, not a warning: it means
+// the file was saved by a newer build of the package and may contain fields
+// this build would silently ignore. Failing loudly is better than generating a
+// PDF with a piece missing and nobody noticing.
 export function migrateTemplate(input: unknown): Template {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new TemplateNotAnObjectError(Array.isArray(input) ? "array" : typeof input);
@@ -69,8 +71,9 @@ export function migrateTemplate(input: unknown): Template {
     current = step(current);
   }
 
-  // Estampa a versão corrente mesmo quando nada migrou: um template que
-  // entrou sem `version` sai com `version: 1`, então quem salvar de volta
-  // grava explícito e o próximo carregamento não depende mais do default.
+  // It stamps the current version even when nothing was migrated: a template
+  // that came in with no `version` leaves with `version: 1`, so whoever saves
+  // it back writes it explicitly and the next load no longer relies on the
+  // default.
   return { ...current, version: CURRENT_TEMPLATE_VERSION } as unknown as Template;
 }

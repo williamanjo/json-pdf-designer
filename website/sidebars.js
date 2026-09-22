@@ -1,19 +1,19 @@
 // @ts-check
 
-// AGRUPADO EM CATEGORIAS, e não numa lista plana.
+// GROUPED INTO CATEGORIES, and not in a flat list.
 //
-// Eram 23 entradas de mesmo nível: uma coluna que não cabia na tela e não
-// dava pista de onde uma coisa estava. Agora são 1 doc + 6 categorias, todas
-// `collapsed: true`, então a coluna abre curta e o Docusaurus expande sozinho
-// só a categoria que contém a página atual.
+// There were 23 entries at the same level: a column that did not fit on the
+// screen and gave no clue where anything was. Now there are 1 doc + 6
+// categories, all `collapsed: true`, so the column opens short and Docusaurus
+// expands only the category containing the current page by itself.
 //
-// A ordem das categorias segue o caminho de quem chega: instalar → montar um
-// relatório → mexer no editor → consultar → integrar → atualizar de versão.
+// The categories' order follows the path of whoever arrives: install → build a
+// report → work in the editor → look something up → integrate → upgrade.
 //
-// Os rótulos são traduzidos em
-// website/i18n/pt-BR/docusaurus-plugin-content-docs/current.json — categoria
-// nova sem entrada lá aparece em inglês no site pt-BR, sem erro nenhum.
-// `test/docsFreshness.test.ts` falha se isso acontecer.
+// The labels are translated in
+// website/i18n/pt-BR/docusaurus-plugin-content-docs/current.json — a new
+// category with no entry there appears in English on the pt-BR site, with no
+// error at all. `test/docsFreshness.test.ts` fails if that happens.
 
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 const sidebars = {

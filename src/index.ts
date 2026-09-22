@@ -1,7 +1,7 @@
-// server.ts espelha um SUBCONJUNTO destas listas (tudo aqui exceto o que é
-// browser/React-only — downloadPdf, componentes, i18n provider). Mantido à
-// mão em paralelo nos dois arquivos: adicionar um export aqui que também
-// devia existir no server (não-React) precisa da mesma mudança lá.
+// server.ts mirrors a SUBSET of these lists (everything here except what is
+// browser/React-only — downloadPdf, the components, the i18n provider). Kept
+// by hand in parallel in both files: adding an export here that should also
+// exist in the server (non-React) one needs the same change there.
 export type {
   PageSize,
   BaseSchema,
@@ -66,42 +66,42 @@ export {
 export { generatePdf, downloadPdf, type GeneratePdfOptions } from "./pdf/generate";
 export { migrateTemplate, CURRENT_TEMPLATE_VERSION } from "./template";
 // ===========================================================================
-// ERROS — toda falha é uma CLASSE, e `error.message` é INGLÊS
+// ERRORS — every failure is a CLASS, and `error.message` is ENGLISH
 //
-// `error.message` de todo `throw` do pacote está em INGLÊS, sempre, e o
-// `locale` do <Designer> não muda isso — de propósito. Mensagem lançada é
-// diagnóstico de DESENVOLVEDOR: vai pro log, pro stack trace e pro Sentry.
-// Localizá-la deixaria o log multilíngue e impossível de grepar, e a convenção
-// de biblioteca é uma língua só.
+// The `error.message` of every `throw` in the package is in ENGLISH, always,
+// and the <Designer>'s `locale` does not change that — on purpose. A thrown
+// message is a DEVELOPER diagnostic: it goes to the log, the stack trace and
+// Sentry. Localizing it would make the log multilingual and impossible to
+// grep, and the library convention is a single language.
 //
-// NÃO case regex na mensagem. Toda falha carrega:
+// Do NOT regex-match on the message. Every failure carries:
 //
-//   - uma CLASSE, com os dados estruturados daquele sítio (`err.field`,
+//   - a CLASS, with the structured data of that site (`err.field`,
 //     `err.maxPages`, `err.limitBytes`, `err.found`…);
-//   - um `code` de string literal — `switch (err.code)` cobre todos os casos
-//     com checagem exaustiva do TypeScript, e é o que um backend usa pra
-//     escolher entre 413, 400 e 500 (`err.blame` também serve: "data",
-//     "template", "config" ou "package").
+//   - a string-literal `code` — `switch (err.code)` covers every case with
+//     TypeScript's exhaustiveness checking, and it is what a backend uses to
+//     choose between 413, 400 and 500 (`err.blame` also serves: "data",
+//     "template", "config" or "package").
 //
-// E o texto de USUÁRIO FINAL é localizado, por `describePdfError(err, t)` —
-// devolve `{ code, blame, title, action?, field?, detail }` no idioma de `t`
-// (`dictFor("pt-BR")` fora do React, `useT()` dentro), ou `null` se o erro não
-// é nosso. `detail` é o `message` cru: mostre como DETALHE técnico, nunca como
-// a frase principal. Ver docs: "Modos de falha".
+// And the END USER text is localized, by `describePdfError(err, t)` — it
+// returns `{ code, blame, title, action?, field?, detail }` in `t`'s language
+// (`dictFor("pt-BR")` outside React, `useT()` inside), or `null` if the error
+// is not ours. `detail` is the raw `message`: show it as a technical DETAIL,
+// never as the main sentence. See the docs: "Failure modes".
 //
 //   import { describePdfError, dictFor } from "json-pdf-designer/server";
 //   const problem = describePdfError(err, dictFor("pt-BR"));
-//   if (!problem) throw err;                 // não é nosso
+//   if (!problem) throw err;                 // not ours
 //   res.status(problem.blame === "package" ? 500 : 400).json(problem);
 export {
   describePdfError,
   isPdfError,
   PdfGenerationError,
   PDF_ERROR_CODES,
-  // As duas que já existiam antes desta seção virar classe+localizador.
+  // The two that already existed before this section became class+localizer.
   PageLimitError,
   UnsupportedGlyphError,
-  // Paginação e layout.
+  // Pagination and layout.
   PaginationStalledError,
   InvalidPageSizeError,
   // Fonte.
@@ -116,7 +116,7 @@ export {
   UnsupportedImageFormatError,
   ImageUnreadableError,
   BackgroundImageUnreadableError,
-  // Template (migração).
+  // Template (migration).
   TemplateNotAnObjectError,
   TemplateVersionInvalidError,
   TemplateVersionTooNewError,
@@ -131,10 +131,10 @@ export {
 export { DEFAULT_MAX_PAGES } from "./pdf/layout/layoutDocument";
 export { ExpressionError, ExpressionSyntaxError, ExpressionDepthError } from "./expressions/errors";
 
-// Validação de expressão — pra quem monta a própria UI e quer apontar o erro
-// como o <Designer> aponta. A GERAÇÃO é tolerante de propósito (expressão
-// inválida vira campo vazio, não derruba o PDF), então sem isto o problema
-// ficaria invisível. Ver docs: "Visibilidade condicional".
+// Expression validation — for whoever builds their own UI and wants to point
+// at the error the way the <Designer> does. GENERATION is deliberately
+// tolerant (an invalid expression becomes an empty field, it does not bring
+// the PDF down), so without this the problem would be invisible. See the docs.
 export { expressionError, templateExpressionErrors } from "./expressions/resolve";
 export { suspiciousOperator, templateSuspiciousOperators } from "./expressions/suspicious";
 export { ALL_SUGGESTIONS, applySuggestion, insertAtCaret, suggestAt, wordAtCaret } from "./expressions/suggest";
@@ -142,7 +142,7 @@ export type { Suggestion } from "./expressions/suggest";
 export { braceError, tokenAtCaret } from "./expressions/templateText";
 export type { TokenSpan } from "./expressions/templateText";
 export { fieldWarning, expressionErrors, filterIncomplete } from "./fieldWarnings";
-// Dicionário como valor, pra chamar fieldWarning fora de um componente React.
+// The dictionary as a value, to call fieldWarning outside a React component.
 export { dictFor } from "./i18n/dictionaries";
 export type { SchemaExpressionError } from "./expressions/schemaExpressions";
 
@@ -153,25 +153,25 @@ export { PAGE_SIZE_PRESETS, orientationOf, applyOrientation, matchPreset, type O
 export { classifyZone, isRedZone, clampToZone, type Zone, type Bands } from "./page/zones";
 export { normalizeFontBytes } from "./pdf/fontUtils";
 export { default as Designer, type DesignerProps } from "./designer/Designer";
-// PdfPreview/PdfPreviewModal/configurePdfWorker NÃO saem daqui — moram em
-// "json-pdf-designer/preview" (ver src/preview.ts), porque dependem do
-// pdfjs-dist, que é peer OPCIONAL. Re-exportar qualquer um deles aqui faria
-// todo consumidor desta entry precisar do pdf.js instalado outra vez, mesmo
-// quem só usa <Designer>.
+// PdfPreview/PdfPreviewModal/configurePdfWorker do NOT leave from here — they
+// live in "json-pdf-designer/preview" (see src/preview.ts), because they
+// depend on pdfjs-dist, which is an OPTIONAL peer. Re-exporting any of them
+// here would make every consumer of this entry need pdf.js installed all over
+// again, even those who only use <Designer>.
 
 
 // ===========================================================================
-// COMPOSIÇÃO — monte o seu próprio layout de editor (3.0.0)
+// COMPOSITION — build your own editor layout (3.0.0)
 //
-// O <Designer> acima é um PRESET: ele monta os providers e um layout de duas
-// colunas. Se você quer decidir onde cada parte fica, monte o provider na mão
-// e posicione as peças:
+// The <Designer> above is a PRESET: it assembles the providers and a
+// two-column layout. If you want to decide where each part goes, assemble the
+// provider by hand and place the parts:
 //
-//   <UiComponentsProvider components={MEU_KIT}>
+//   <UiComponentsProvider components={MY_KIT}>
 //     <DesignerProvider template={t} onChangeTemplate={setT}
 //                       bindings={b} onChangeBindings={setB}>
-//       <DesignerToolbar className="minha-toolbar" />
-//       <div className="meu-grid">
+//       <DesignerToolbar className="my-toolbar" />
+//       <div className="my-grid">
 //         <DesignerFieldList />
 //         <DesignerCanvas />
 //         <DesignerPropertyPanel section="dados" />
@@ -179,16 +179,16 @@ export { default as Designer, type DesignerProps } from "./designer/Designer";
 //     </DesignerProvider>
 //   </UiComponentsProvider>
 //
-// Sem `whenTab`, cada peça renderiza sempre — é o que deixa pôr duas lado a
-// lado. Passe `whenTab="pagina"` pra reproduzir o comportamento de aba.
+// With no `whenTab`, each part always renders — which is what allows putting
+// two side by side. Pass `whenTab="pagina"` to reproduce the tab behavior.
 // ===========================================================================
 
-// O provider de estado. Toda peça abaixo precisa dele por cima (e só dele —
-// o I18nProvider é opcional, o default é inglês).
+// The state provider. Every part below needs it above them (and only it —
+// the I18nProvider is optional, the default is English).
 export { DesignerProvider, type DesignerProviderProps } from "./designer/context/DesignerProvider";
 
-// As 10 peças posicionáveis. `DesignerSidebar` é conveniência: ela compõe as
-// sete de conteúdo com o gate de aba que o <Designer> usa.
+// The 10 placeable parts. `DesignerSidebar` is a convenience: it composes the
+// seven content ones with the tab gate the <Designer> uses.
 export {
   DesignerBindingEditor,
   DesignerCanvas,
@@ -213,21 +213,21 @@ export {
   type TabGate,
 } from "./designer/parts";
 
-// Hooks de ACESSO ao estado do editor — pra escrever a sua própria peça, ou
-// reagir ao editor de fora dele (ex: um cabeçalho que mostra o nome do campo
-// selecionado). Só funcionam dentro de um <DesignerProvider>.
+// ACCESS hooks for the editor's state — to write your own part, or to react
+// to the editor from outside it (e.g. a header showing the selected field's
+// name). They only work inside a <DesignerProvider>.
 //
-// Os cinco contextos são separados por FREQUÊNCIA de mudança, então leia só o
-// que você usa: `useDesignerActions()` nunca muda de identidade, enquanto
-// `useDesignerData()` muda a cada edição.
+// The five contexts are separated by FREQUENCY of change, so read only what
+// you use: `useDesignerActions()` never changes identity, while
+// `useDesignerData()` changes on every edit.
 export {
   useDesignerActions,
   useDesignerConfig,
   useDesignerData,
   useDesignerSelection,
   useDesignerUi,
-  // Seletores: DERIVAM do estado em vez de morar nele, pra cada peça pagar
-  // só pelo cálculo que ela mesma lê.
+  // Selectors: they DERIVE from the state instead of living in it, so each
+  // part pays only for the computation it reads itself.
   useDesignerBulkEdit,
   useDesignerFieldListSchemas,
   useDesignerFilterColumns,
@@ -235,37 +235,37 @@ export {
   useDesignerTabWarnings,
 } from "./designer/context/hooks";
 
-// O ZOOM tem contexto PRÓPRIO, e o hook mora em arquivo separado por isso.
+// THE ZOOM has a context of its OWN, and that is why the hook is separate.
 //
-// Ele existe porque montar o editor com peças soltas não dava acesso ao zoom
-// de jeito nenhum: o valor era `useState` interno do `<PageCanvas>`, e a
-// `.jpd-zoombar` é `position: sticky` DENTRO do canvas — então CSS só
-// conseguia movê-la dentro daquela caixa, nunca pra outro container React.
+// It exists because assembling the editor from loose parts gave no access to
+// the zoom at all: the value was `useState` internal to `<PageCanvas>`, and
+// the `.jpd-zoombar` is `position: sticky` INSIDE the canvas — so CSS could
+// only move it within that box, never to another React container.
 //
-// Contexto separado é o que deixa isso sair sem custo: quem NÃO chama
-// `useDesignerZoom()` não re-renderiza quando o zoom muda. Combine com
-// `<DesignerCanvas hideZoombar />` pra desenhar a sua própria barra.
+// A separate context is what lets that out at no cost: whoever does NOT call
+// `useDesignerZoom()` does not re-render when the zoom changes. Combine it
+// with `<DesignerCanvas hideZoombar />` to draw your own bar.
 export { useDesignerZoom } from "./designer/context/useDesignerZoom";
 export type { DesignerZoomValue } from "./designer/context/zoomContext";
-// Os limites que o canvas usa, pra uma barra própria não deixar passar valor
-// que o canvas depois recusa. `clampZoom` é o mesmo que o `setZoom` aplica.
+// The limits the canvas uses, so your own bar does not let through a value
+// the canvas later refuses. `clampZoom` is the same one `setZoom` applies.
 export { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "./canvas/zoomScale";
 
-// COLUNA DE TABELA: token sempre, rótulo separado da referência.
+// TABLE COLUMN: always a token, the label separate from the reference.
 //
-// `tokenFor` é a única regra de "como uma chave vira token" — a tabela nova, a
-// normalização e os chips do ƒx passam todos por ela, então não há duas
-// versões pra divergir. `columnFormulaFor` é a MESMA precedência que o PDF usa
-// (célula com `{` vence o vínculo), exposta porque quem desenha o próprio
-// painel precisa dela pra não semear o editor do depósito errado.
+// `tokenFor` is the single rule for "how a key becomes a token" — a new
+// table, the normalization and the ƒx chips all go through it, so there are
+// no two versions to diverge. `columnFormulaFor` is the SAME precedence the
+// PDF uses (a cell with a `{` beats the binding), exposed because whoever
+// draws their own panel needs it to avoid seeding the editor from the wrong place.
 export { columnFormulaFor, segmentFor, tokenFor } from "./fields/table/columnFormula";
-// Tabela já vinculada a um caminho de array, com o token de cada coluna
-// preenchido. Estava fora do pacote, e os cinco examples a reimplementavam —
-// errado do mesmo jeito, com placeholder sem chaves.
+// A table already bound to an array path, with each column's token filled
+// in. It used to live outside the package, and the five examples reimplemented
+// it — wrong in the same way, with a placeholder missing its braces.
 export { makeBoundTable } from "./schemaFactory";
-// Pra dado já salvo: converte coluna de chave crua em `{label, formula}`.
-// Idempotente. Não é chamada automaticamente — reescrever o template do
-// consumidor na montagem seria efeito colateral invisível.
+// For data already saved: it converts a raw-key column into `{label,
+// formula}`. Idempotent. It is not called automatically — rewriting the
+// consumer's template on mount would be an invisible side effect.
 export { normalizeTableColumns } from "./fields/table/normalizeColumns";
 export type {
   DesignerActionsValue,
@@ -276,42 +276,42 @@ export type {
 } from "./designer/context/contexts";
 
 // ===========================================================================
-// PRIMITIVOS — troque os componentes que o editor usa POR DENTRO
+// PRIMITIVES — swap the components the editor uses INTERNALLY
 //
-// Todo botão, input, select e modal do editor resolve por este registry. Um
-// adapter é 5 linhas, e é por isso que todo `*Props` abaixo é exportado:
+// Every button, input, select and modal in the editor resolves through this
+// registry. An adapter is 5 lines, and that is why every `*Props` is exported:
 //
 //   import { UiComponentsProvider, type ButtonProps } from "json-pdf-designer";
 //   import { Button as MuiButton } from "@mui/material";
 //
-//   const MEU_KIT = {
+//   const MY_KIT = {
 //     Button: ({ variant, size, ...rest }: ButtonProps) => <MuiButton {...rest} />,
-//   } satisfies UiComponentsOverride;   // constante de MÓDULO, ver abaixo
+//   } satisfies UiComponentsOverride;   // a MODULE constant, see below
 //
-// IMPORTANTE: hoiste o mapa pra constante de módulo. Objeto inline cria
-// componente novo a cada render e o React remonta o que trocou de identidade
-// — o sintoma é perder o foco do campo a cada tecla. Fora de produção o
-// provider avisa no console.
+// IMPORTANT: hoist the map to a module constant. An inline object creates a
+// new component on every render and React remounts whatever changed identity
+// — the symptom is losing field focus on every keystroke. Outside production
+// the provider warns in the console.
 // ===========================================================================
 export { UiComponentsProvider, type UiComponentsProviderProps } from "./components/ui/UiComponentsProvider";
 export { useUiComponents } from "./components/ui/useUiComponents";
 export { defaultUiComponents, type UiComponents, type UiComponentsOverride } from "./components/ui/registry";
 
 // ===========================================================================
-// KIT DE UI — os blocos prontos, agora sem Tailwind
+// UI KIT — the ready-made blocks, now without Tailwind
 //
-// Todos aceitam `className` (MERGE com a nossa, a sua vem depois), `style`
-// (o seu ganha) e o resto das props do elemento nativo. Os que renderizam
-// mais de um elemento expõem os de dentro em `parts`, por papel.
+// They all accept `className` (MERGED with ours, yours comes last), `style`
+// (yours wins) and the rest of the native element's props. Those that render
+// more than one element expose the inner ones through `parts`, by role.
 //
-// A aparência vem de "json-pdf-designer/theme.css". Sem importar, eles saem
-// pelados e você estiliza as classes `.jpd-*` do zero — ver
-// "json-pdf-designer/reset.css" pro subconjunto sem aparência.
+// The appearance comes from "json-pdf-designer/theme.css". Without importing
+// it they come out bare and you style the `.jpd-*` classes from scratch — see
+// "json-pdf-designer/reset.css" for the subset with no appearance.
 //
-// `BulkLocked` NÃO sai daqui de propósito: ele significa "este campo está
-// travado porque você selecionou vários do mesmo tipo", que é um MODO do
-// <Designer>, não um bloco de UI reusável. Fora daquele contexto o
-// componente não quer dizer nada.
+// `BulkLocked` deliberately does NOT leave from here: it means "this field is
+// locked because you selected several of the same type", which is a MODE of
+// the <Designer>, not a reusable UI block. Outside that context the component
+// does not mean anything.
 // ===========================================================================
 export {
   Badge,
@@ -351,13 +351,13 @@ export {
   type TextareaProps,
 } from "./components/ui";
 
-// Tipos da API de estilo. `parts` de qualquer componente é montado com
-// `PartStyle`; `cx` aceita `ClassValue`. Exportados pra um adapter poder
-// nomeá-los em vez de re-derivar.
+// Types of the styling API. Any component's `parts` is built with
+// `PartStyle`; `cx` accepts `ClassValue`. Exported so an adapter can name
+// them instead of re-deriving them.
 export type { ClassValue, LabeledParts, PartStyle } from "./components/ui";
 
-// Os 20 ícones. `IconProps` é `SVGAttributes` — e de propósito NÃO
-// `SVGProps`, que aceitaria um `ref` que aqui não vai a lugar nenhum.
+// The 20 icons. `IconProps` is `SVGAttributes` — and deliberately NOT
+// `SVGProps`, which would accept a `ref` that goes nowhere here.
 export {
   IconAlertTriangle,
   IconArrowsHorizontal,

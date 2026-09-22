@@ -88,8 +88,8 @@ describe("sectionInstanceHeight", () => {
 
   it("tabela membro cujas linhas resolvidas excedem o placeholder empurra a altura pra baixo", () => {
     const section = makeSection({ id: "sec1", height: 30 });
-    // Sem binding e sem item-objeto, resolveNestedTableRows cai pro
-    // próprio tableMember.content (ver src/pdf/resolvers.ts).
+    // With no binding and no object item, resolveNestedTableRows falls back
+    // to tableMember.content itself (see src/pdf/resolvers.ts).
     const tableMember = makeTable({
       id: "m1",
       sectionId: "sec1",
@@ -104,7 +104,7 @@ describe("sectionInstanceHeight", () => {
     });
     const pageDef = makePage({ schemas: [tableMember] });
 
-    // actualHeight = (rows.length + 1 cabeçalho + 0 footer) * TABLE_ROW_HEIGHT_MM
+    // actualHeight = (rows.length + 1 header + 0 footer) * TABLE_ROW_HEIGHT_MM
     //              = (5 + 1) * 7 = 42
     // growth = max(0, 42 - 20) = 22
     const rows = tableMember.content.length;

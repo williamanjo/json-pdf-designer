@@ -1,14 +1,14 @@
 import type { Dict, PageSize, Schema, TemplatePage } from "json-pdf-designer/server";
-// Geometria mora em lib/ e não aqui: arquivo de componente que também
-// exporta constante quebra o Fast Refresh (oxlint react(only-export-components)).
+// The geometry lives in lib/ and not here: a component file that also
+// exports a constant breaks Fast Refresh (oxlint react(only-export-components)).
 import { GRID_MM, MIN_HEIGHT_MM, MIN_WIDTH_MM, PX_PER_MM, snap } from "../lib/geometry";
 
 
-// Arrasta/redimensiona um campo na mão, sem react-rnd nem qualquer peça do
-// pacote — só mousedown/mousemove/mouseup do DOM, convertendo delta em px
-// pra delta em mm (PX_PER_MM). É exatamente essa lógica (não o componente
-// <Designer>) que este example existe pra provar que dá pra escrever do
-// zero, por cima só do modelo de dados (Schema/Template) do pacote.
+// It drags/resizes a field by hand, with no react-rnd and no piece of the
+// package — only the DOM's mousedown/mousemove/mouseup, converting a delta in
+// px into a delta in mm (PX_PER_MM). It is exactly that logic (not the
+// <Designer> component) that this example exists to prove can be written from
+// scratch, on top of the package's data model (Schema/Template) alone.
 function CanvasField({
   field,
   selected,
@@ -19,9 +19,9 @@ function CanvasField({
 }: {
   field: Schema;
   selected: boolean;
-  // Só o dicionário do PACOTE aqui: a miniatura de um campo sem conteúdo
-  // legível (gráfico, seção, imagem) é o NOME DO TIPO, e tipo de campo é
-  // conceito dele. Nenhum rótulo desta caixa é frase própria deste app.
+  // Only the PACKAGE's dictionary here: the thumbnail of a field with no
+  // readable content (a chart, a section, an image) is the TYPE's NAME, and a
+  // field type is its concept. No label in this box is a phrase of this app's own.
   t: Dict;
   onSelect: () => void;
   onMove: (xMm: number, yMm: number) => void;
@@ -70,10 +70,10 @@ function CanvasField({
     window.addEventListener("mouseup", onMouseUp);
   }
 
-  // Texto/tabela/KPI mostram o CONTEÚDO do campo (dado do documento, no
-  // idioma em que foi escrito). Os outros três não têm conteúdo legível, então
-  // mostram o nome do tipo — e esse vem do dicionário do pacote, incluindo
-  // "Pizza"/"Barra" e o "(seção repetida)" de `t.binding`.
+  // Text/table/KPI show the field's CONTENT (the document's data, in the
+  // language it was written in). The other three have no readable content, so
+  // they show the type's name — and that comes from the package's dictionary,
+  // including "Pie"/"Bar" and the "(repeated section)" of `t.binding`.
   const preview =
     field.type === "text"
       ? field.content

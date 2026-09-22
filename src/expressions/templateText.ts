@@ -1,29 +1,29 @@
 import { en, type Dict } from "../i18n/locales/en";
 
-// O texto de um campo é um TEMPLATE: texto literal com zero ou mais `{...}`
-// no meio (`FAT-{fatura}`). Este módulo é o que o editor precisa saber sobre
-// as CHAVES em si — coisa que o parser de expressão não vê, porque ele só
-// recebe o conteúdo de dentro delas.
+// A field's text is a TEMPLATE: literal text with zero or more `{...}` in the
+// middle (`FAT-{fatura}`). This module is what the editor needs to know about
+// the BRACES themselves — something the expression parser does not see,
+// because it only receives the content inside them.
 //
-// Puro e testado por necessidade: o projeto não tem @testing-library/react
-// (ver o topo de test/i18n/withInlineCode.test.tsx), então lógica de caret e
-// de varredura tem de morar fora do componente pra existir teste.
+// Pure and tested out of necessity: the project has no @testing-library/react
+// (see the top of test/i18n/withInlineCode.test.tsx), so caret and scanning
+// logic has to live outside the component for a test to exist at all.
 
 export type TokenSpan = {
-  // Índice do primeiro caractere DENTRO das chaves.
+  // The index of the first character INSIDE the braces.
   start: number;
-  // Índice do `}` que fecha (ou o fim do trecho, quando não há).
+  // The index of the closing `}` (or the end of the stretch, when there is none).
   end: number;
   inner: string;
 };
 
-// O `{...}` que contém o caret, ou null se o caret está no texto literal.
+// The `{...}` containing the caret, or null if the caret is in literal text.
 //
-// Serve a duas coisas no editor: sugerir função só dentro das chaves (fora
-// delas é texto solto, e uma lista de funções ali só estorva), e saber se o
-// clique num campo da lista insere `total` ou `{total}`.
+// It serves two things in the editor: suggesting a function only inside the
+// braces (outside them it is loose text, and a list of functions there only
+// gets in the way), and knowing whether a click inserts `total` or `{total}`.
 export function tokenAtCaret(template: string, caret: number): TokenSpan | null {
-  // Última `{` antes do caret sem `}` no meio = o caret está dentro dela.
+  // The last `{` before the caret with no `}` in between = the caret is inside it.
   let open = -1;
   for (let i = 0; i < caret; i++) {
     if (template[i] === "{") open = i;
@@ -31,9 +31,9 @@ export function tokenAtCaret(template: string, caret: number): TokenSpan | null 
   }
   if (open === -1) return null;
 
-  // O token termina no `}` seguinte — ou numa `{` nova, quando o autor
-  // esqueceu de fechar: aí o trecho vai só até ali, em vez de engolir o
-  // token de baixo.
+  // The token ends at the next `}` — or at a new `{`, when the author forgot
+  // to close it: then the stretch only goes that far, instead of swallowing
+  // the token below.
   let close = template.indexOf("}", caret);
   if (close === -1) close = template.length;
   const nextOpen = template.indexOf("{", caret);
@@ -41,19 +41,19 @@ export function tokenAtCaret(template: string, caret: number): TokenSpan | null 
   return { start: open + 1, end, inner: template.slice(open + 1, end) };
 }
 
-// Chave desbalanceada, ou null se está tudo fechado.
+// An unbalanced brace, or null if everything is closed.
 //
-// Existe porque nada mais acusa isso: o resolvedor de template casa
-// `/\{([^{}]+)\}/g`, então uma `{` sem fechar simplesmente não casa e o
-// trecho sai como TEXTO LITERAL no PDF — `{CURRENCY(total` impresso na cara.
-// Não é erro de sintaxe de expressão (o parser nunca vê esse trecho) nem
-// falha de geração; era só um campo saindo errado em silêncio.
+// It exists because nothing else flags this: the template resolver matches
+// `/\{([^{}]+)\}/g`, so an unclosed `{` simply does not match and the stretch
+// comes out as LITERAL TEXT in the PDF — `{CURRENCY(total` printed in plain
+// sight. It is not an expression syntax error (the parser never sees that
+// stretch) nor a generation failure; it was just a field coming out wrong.
 export function braceError(template: string, t: Dict = en): string | null {
   let open = -1;
   for (let i = 0; i < template.length; i++) {
     const ch = template[i];
     if (ch === "{") {
-      // `{a {b}` — a de fora nunca fecha, e o resolvedor casa só `{b}`.
+      // `{a {b}` — the outer one never closes, and the resolver matches only `{b}`.
       if (open !== -1) return t.expressionErrors.braceNested(i);
       open = i;
     } else if (ch === "}") {

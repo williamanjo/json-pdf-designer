@@ -1,47 +1,47 @@
 import type { Dict } from "./i18n/locales/en";
 import { ExpressionError } from "./expressions/errors";
 
-// TODA falha que este pacote lança de propósito, como CLASSE, num arquivo só.
+// EVERY failure this package throws on purpose, as a CLASS, in one file.
 //
-// Duas decisões moram aqui, e as duas são deliberadas:
+// Two decisions live here, and both are deliberate:
 //
-// 1. `error.message` é INGLÊS, sempre. Mensagem lançada é diagnóstico de
-//    DESENVOLVEDOR: ela vai pro log, pro stack trace e pro Sentry. Localizá-la
-//    deixa o log multilíngue e impossível de grepar ("qual a frase em turco
-//    disso?"), e a convenção de biblioteca é uma língua só. Várias delas dizem
-//    o que FAZER (`passe generatePdf(..., { maxPages })`, `passe fontBytes`) —
-//    essa é a parte mais valiosa, e é por isso que nenhuma foi encurtada.
+// 1. `error.message` is ENGLISH, always. A thrown message is a DEVELOPER
+//    diagnostic: it goes to the log, the stack trace and Sentry. Localizing
+//    it makes the log multilingual and impossible to grep ("what is the
+//    Turkish phrase for this?"), and the library convention is one language.
+//    Several of them say what to DO (`pass generatePdf(..., { maxPages })`,
+//    `pass fontBytes`) — the most valuable part, so none was shortened.
 //
-// 2. O texto de USUÁRIO FINAL é localizado, e sai daqui por `describePdfError`
-//    (no fim do arquivo) — que recebe o erro e um `Dict` e devolve
-//    título + ação no idioma pedido. Ver a seção `errors` de `i18n/locales/en.ts`.
+// 2. The END USER text is localized, and leaves here through
+//    `describePdfError` (at the end of the file) — which takes the error and
+//    a `Dict` and returns title + action in the language asked for.
 //
-// POR QUE UM ARQUIVO SÓ, e não a classe junto do `throw`:
+// WHY ONE FILE, and not the class next to the `throw`:
 //
-//   - `describePdfError` precisa conhecer TODAS as classes pra fazer o switch
-//     exaustivo. Se cada uma morasse no seu módulo, o localizador importaria
-//     `pdf/generate.ts` (pdf-lib, fontkit) e `template/migrate.ts` — ou seja,
-//     quem só quer traduzir um erro pagaria o grafo inteiro de geração.
-//   - Este arquivo importa `i18n/en` (tipo) e `expressions/errors`. Zero
-//     React, zero pdf-lib, zero DOM — é o que deixa `src/server.ts`
-//     reexportar tudo daqui (ver test/entryBoundaries.test.ts).
+//   - `describePdfError` has to know ALL the classes to make the switch
+//     exhaustive. If each lived in its own module, the localizer would import
+//     `pdf/generate.ts` (pdf-lib, fontkit) and `template/migrate.ts` — that
+//     is, whoever only wants to translate an error pays for the whole graph.
+//   - This file imports `i18n/en` (the type) and `expressions/errors`. Zero
+//     React, zero pdf-lib, zero DOM — which is what lets `src/server.ts`
+//     re-export everything from here (see test/entryBoundaries.test.ts).
 //
-// POR QUE CLASSE, e não dicionário passado pelo pipeline: `drawImageField`
-// está três camadas abaixo de `generatePdf`, e `migrateTemplate` roda ANTES
-// das opções serem lidas. Threading de `locale` por aí (ou pior, um `locale`
-// em estado de módulo) contamina toda assinatura do caminho de render por uma
-// preocupação de apresentação. A classe carrega o DADO; quem apresenta
-// localiza na borda.
+// WHY A CLASS, and not a dictionary threaded through the pipeline:
+// `drawImageField` is three layers below `generatePdf`, and `migrateTemplate`
+// runs BEFORE the options are read. Threading `locale` through all that (or
+// worse, a module-level `locale`) contaminates every signature on the render
+// path with a presentation concern. The class carries the DATA; whoever
+// presents it localizes at the edge.
 
 // ---------------------------------------------------------------------------
 // O discriminante
 // ---------------------------------------------------------------------------
 
-// A lista é a FONTE da verdade, e o tipo é derivado dela (não o contrário):
-// assim existe um array em runtime pro guard de exaustividade
-// (test/errors.test.ts) checar que todo code tem entrada nos dois
-// dicionários. Sem esse array, um code novo renderizaria string vazia e nada
-// avisaria.
+// The list is the SOURCE of truth, and the type is derived from it (not the
+// other way around): that way there is a runtime array for the exhaustiveness
+// guard (test/errors.test.ts) to check that every code has an entry in both
+// dictionaries. Without that array, a new code would render an empty string
+// and nothing would warn.
 export const PDF_ERROR_CODES = [
   "pageLimit",
   "unsupportedGlyph",
@@ -63,19 +63,19 @@ export const PDF_ERROR_CODES = [
   "templateMigrationMissing",
 ] as const;
 
-// `instanceof` funciona pra todas elas (a base comum abaixo), mas `code` é o
-// que deixa o consumidor cobrir TODOS os casos com `switch` e ter o
-// TypeScript reclamando quando aparecer um novo.
+// `instanceof` works for all of them (the common base below), but `code` is
+// what lets the consumer cover ALL the cases with a `switch` and have
+// TypeScript complain when a new one appears.
 export type PdfErrorCode = (typeof PDF_ERROR_CODES)[number];
 
-// De quem é a culpa. Muda o tom da UI e, num backend, o status HTTP: `data` e
-// `template` são 4xx (quem chamou manda dado/template diferente), `config` é
-// erro de instalação/opção, `package` é 500 — bug nosso, pra reportar.
+// Whose fault it is. It changes the UI's tone and, in a backend, the HTTP
+// status: `data` and `template` are 4xx (the caller should send a different
+// data/template), `config` is an install/option error, `package` is a 500.
 export type PdfErrorBlame = "data" | "template" | "config" | "package";
 
-// Base comum de todas elas. Abstrata de propósito: ninguém deve lançar um
-// "erro genérico de PDF" — se não cabe em nenhuma classe abaixo, a resposta
-// certa é classe nova, com os dados daquele sítio.
+// The common base for all of them. Abstract on purpose: nobody should throw a
+// "generic PDF error" — if it does not fit any class below, the right answer
+// is a new class, with the data of that site.
 export abstract class PdfGenerationError extends Error {
   abstract readonly code: PdfErrorCode;
   abstract readonly blame: PdfErrorBlame;
@@ -83,19 +83,19 @@ export abstract class PdfGenerationError extends Error {
 
 const MB = 1024 * 1024;
 
-// Limite em MB pra mensagem — `15728640` não diz nada a ninguém.
+// The limit in MB for the message — `15728640` says nothing to anyone.
 function mb(bytes: number): number {
   return Math.round((bytes / MB) * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
-// Paginação e layout
+// Pagination and layout
 // ---------------------------------------------------------------------------
 
-// Documento passou do teto de páginas. Interrompe em vez de devolver um PDF
-// truncado que parece completo — ver DEFAULT_MAX_PAGES em
-// pdf/layout/layoutDocument.ts pro porquê do teto ser em PÁGINA e não em
-// iteração.
+// The document went past the page ceiling. It stops instead of returning a
+// truncated PDF that looks complete — see DEFAULT_MAX_PAGES in
+// pdf/layout/layoutDocument.ts for why the ceiling is in PAGES and not in
+// iterations.
 export class PageLimitError extends PdfGenerationError {
   readonly code = "pageLimit" as const;
   readonly blame = "data" as const;
@@ -190,8 +190,8 @@ export class UnsupportedGlyphError extends PdfGenerationError {
   }
 }
 
-// `wawoff2` é peer OPCIONAL (ver package.json): só quem embute .woff2 de
-// verdade precisa dela. Quem passa .ttf/.otf/.woff nunca chega aqui.
+// `wawoff2` is an OPTIONAL peer (see package.json): only whoever really
+// embeds a .woff2 needs it. Anyone passing .ttf/.otf/.woff never gets here.
 export class Woff2SupportMissingError extends PdfGenerationError {
   readonly code = "woff2SupportMissing" as const;
   readonly blame = "config" as const;
@@ -206,7 +206,7 @@ export class Woff2SupportMissingError extends PdfGenerationError {
   }
 }
 
-// O descompressor rodou e recusou o arquivo (devolveu `false`).
+// The decompressor ran and refused the file (it returned `false`).
 export class FontDecompressFailedError extends PdfGenerationError {
   readonly code = "fontDecompressFailed" as const;
   readonly blame = "config" as const;

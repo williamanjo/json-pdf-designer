@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import * as kit from "../../../src/components/ui";
 
-// Contrato de ref, como teste — porque é o tipo de coisa que alguém
-// "simplifica" de volta pra função componente meses depois, e nada quebra
-// até um consumidor tentar usar a ref.
+// The ref contract, as a test — because it is the kind of thing someone
+// "simplifies" back into a function component months later, and nothing
+// breaks until a consumer tries to use the ref.
 //
-// `forwardRef` e não a prop `ref` do React 19: o peer aceita React 18
-// (package.json), e ali função componente não recebe `ref` direto.
+// `forwardRef` and not React 19's `ref` prop: the peer accepts React 18
+// (package.json), and there a function component does not receive `ref` directly.
 const FORWARD_REF = Symbol.for("react.forward_ref");
 
-// Componentes que renderizam UM nó de DOM endereçável repassam a ref pra ele.
+// Components that render ONE addressable DOM node forward the ref to it.
 const REPASSAM = [
   "Button",
   "Card",
@@ -30,10 +30,10 @@ const REPASSAM = [
   "ClearFieldButton",
 ] as const;
 
-// Os ícones são a exceção DELIBERADA: 20 wrappers de `forwardRef` pra um caso
-// de uso que ninguém tem. E por isso as props deles são `SVGAttributes` e
-// NÃO `SVGProps` — este último estende `ClassAttributes`, que inclui `ref`, e
-// aí o tipo aceitaria uma ref que não vai a lugar nenhum. O tipo mentiria.
+// The icons are the DELIBERATE exception: 20 `forwardRef` wrappers for a use
+// case nobody has. And that is why their props are `SVGAttributes` and NOT
+// `SVGProps` — the latter extends `ClassAttributes`, which includes `ref`, and
+// then the type would accept a ref that goes nowhere. The type would be lying.
 const NAO_REPASSAM = ["MaterialIcon", "IconPlus", "IconX", "IconTrash", "IconLock", "IconAlertTriangle"] as const;
 
 describe("contrato de ref do kit", () => {

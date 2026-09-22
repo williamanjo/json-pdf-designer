@@ -1,12 +1,12 @@
-// Fonte de dados conhecida (array detectado no JSON de exemplo) — quem
-// consome a lib pode passar essa lista (ver Designer/PropertyPanel) pra
-// trocar o campo de texto livre da tabela por um dropdown de "Data
-// Source", comum em editores de relatório visuais. Sem essa lista, a
-// tabela volta a aceitar path digitado livre (comportamento de sempre).
-// "number" (JS typeof number no JSON de exemplo) — usado pelo "+" de
-// adicionar coluna pra já nascer com formatação de moeda, sem precisar
-// abrir o seletor de tipo depois. Campo ausente/outro tipo = trata como
-// texto puro (comportamento de sempre).
+// A known data source (an array detected in the sample JSON) — whoever
+// consumes the lib may pass this list (see Designer/PropertyPanel) to swap the
+// table's free text field for a "Data Source" dropdown, common in visual
+// report editors. Without that list, the table goes back to accepting a freely
+// typed path (the usual behavior).
+// "number" (JS typeof number in the sample JSON) — used by the "+" that adds a
+// column so it is born with currency formatting, without having to open the
+// type picker afterwards. An absent field/another type = treated as plain
+// text (the usual behavior).
 export type DataSourceColumnType = "number" | "string" | "boolean" | "other";
 
 export type DataSourceOption = {
@@ -16,7 +16,7 @@ export type DataSourceOption = {
   columnTypes?: Record<string, DataSourceColumnType>;
 };
 
-// Payload arrastado de um "chip" de coluna (PropertyPanel, seção vinculada
-// a um array com colunas conhecidas) até o canvas — soltar cria os dois
-// campos (header + valor), ambos já membros da seção (ver PageCanvas.tsx).
+// The payload dragged from a column "chip" (PropertyPanel, a section bound to
+// an array with known columns) onto the canvas — dropping it creates both
+// fields (header + value), both already members of the section (see PageCanvas.tsx).
 export type SectionColumnDragPayload = { sectionId: string; column: string };

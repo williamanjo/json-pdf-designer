@@ -10,20 +10,20 @@ import { truncateToWidth } from "../textLayout";
 
 const SLICE_LABEL_TEXT = rgb(1, 1, 1);
 const SLICE_LABEL_FONT_SIZE = 7;
-// Fatia menor que isso (graus) não recebe rótulo em cima — não cabe texto
-// legível, só polui.
+// A slice smaller than this (in degrees) gets no label on top — legible text
+// does not fit, it would only clutter.
 const SLICE_LABEL_MIN_SWEEP_DEG = 14;
 
-// Fração do raio externo que vira o furo da rosca — mesma proporção usada
-// no preview do canvas (ver components/FieldBox/ChartField.tsx), pra pizza/rosca terem a mesma
-// cara no editor e no PDF gerado.
+// The fraction of the outer radius that becomes the donut's hole — the same
+// proportion used in the canvas preview (see components/FieldBox/ChartField.tsx), so a
+// pie/donut looks the same in the editor and in the generated PDF.
 const DONUT_HOLE_RATIO = 0.55;
 
 const LEGEND_SWATCH_PT = 7;
 const LEGEND_GAP_PT = 4;
-// Altura de linha some no mesmo passo do tamanho de fonte (+4pt de folga,
-// mesma proporção do default 8pt/12pt de sempre) — sem isso, legenda com
-// fonte maior sobrepõe as linhas.
+// The line height rises in step with the font size (+4pt of slack, the same
+// proportion as the usual 8pt/12pt default) — without it, a legend with a
+// larger font overlaps its own lines.
 const LEGEND_ROW_GAP_PT = 4;
 const BAR_FONT_SIZE = 8;
 const BAR_TRACK_HEIGHT = 7;
@@ -34,12 +34,12 @@ const CHART_ITEM_FALLBACK_COLOR = rgb(0.6, 0.6, 0.6);
 
 function formatChartValue(value: number, schema: ChartSchema): string {
   const decimals = schema.decimals ?? 2;
-  // true/ausente (default) = "10.000,00" (comportamento de sempre); false =
-  // "10000,00" (só vírgula decimal, sem pontuar milhar).
+  // true/absent (the default) = "10.000,00" (the long-standing behavior);
+  // false = "10000,00" (a decimal comma only, no thousands separator).
   const useGrouping = schema.thousandsSeparator ?? true;
-  // "currency" sempre fixa as casas (padrão de dinheiro); "number" (default,
-  // sem valueFormat) mantém o comportamento de sempre — só limita casas
-  // quando existem, sem forçar ".00" num valor inteiro.
+  // "currency" always fixes the decimal places (the money standard); "number"
+  // (the default, with no valueFormat) keeps the usual behavior — it only caps
+  // the places when they exist, without forcing ".00" onto an integer.
   if (schema.valueFormat === "currency") {
     const formatted = formatPtBrNumber(value, { decimals, forceDecimals: true, grouping: useGrouping });
     return `${schema.currencySymbol ?? "R$"} ${formatted}`;

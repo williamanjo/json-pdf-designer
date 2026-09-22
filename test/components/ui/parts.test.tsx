@@ -3,17 +3,17 @@ import { describe, expect, it } from "vitest";
 import { BulkLocked, CollapsibleSection, ColorInput, Input, PaletteSwatches, Select, TabPanel, Textarea } from "../../../src/components/ui";
 import { ModalShell } from "../../../src/components/ui/Modal";
 
-// A SEGUNDA metade do contrato de estilo: o que não é o elemento que dá nome
-// ao componente é endereçado por `parts`, por papel.
+// The SECOND half of the styling contract: whatever is not the element that
+// names the component is addressed through `parts`, by role.
 //
-// O que estes testes provam, e que o de passthrough não prova: que a classe
-// cai no elemento CERTO. `<Input className>` tem de ir pro `<input>` e
-// `parts.root` pro `<label>` que o embrulha — se os dois caíssem no mesmo
-// lugar, a API compilaria e estaria errada em silêncio.
+// What these tests prove, and the passthrough one does not: that the class
+// lands on the RIGHT element. `<Input className>` has to go to the `<input>`
+// and `parts.root` to the `<label>` that wraps it — if both landed in the same
+// place, the API would compile and be silently wrong.
 
-// Ordem do markup: no `Labeled`, o `<label>` embrulha o `<span>` do rótulo e
-// só depois o controle. Então a posição da classe no HTML diz em qual
-// elemento ela caiu.
+// Markup order: in `Labeled`, the `<label>` wraps the label's `<span>` and
+// only then the control. So the class's position in the HTML says which
+// element it landed on.
 function positions(html: string, ...needles: string[]): number[] {
   return needles.map((n) => html.indexOf(n));
 }
@@ -25,10 +25,10 @@ describe("parts — a classe cai no elemento certo", () => {
     );
     const [wrapper, rotulo, controle] = positions(html, "no-wrapper", "no-rotulo", "no-controle");
     expect(wrapper).toBeGreaterThanOrEqual(0);
-    // O wrapper abre antes do rótulo, que vem antes do controle.
+    // The wrapper opens before the label, which comes before the control.
     expect(wrapper).toBeLessThan(rotulo);
     expect(rotulo).toBeLessThan(controle);
-    // E o controle é de fato o <input>.
+    // And the control really is the <input>.
     expect(html).toMatch(/<input[^>]*no-controle/);
     expect(html).toMatch(/<label[^>]*no-wrapper/);
   });
@@ -72,7 +72,7 @@ describe("parts — a classe cai no elemento certo", () => {
         conteudo
       </ModalShell>
     );
-    // O fundo abre antes do painel — é ele que embrulha.
+    // The overlay opens before the panel — it is the one that wraps.
     expect(html.indexOf("no-fundo")).toBeLessThan(html.indexOf("no-painel"));
     for (const cls of ["no-header", "no-titulo", "no-body", "no-footer"]) {
       expect(html, `parts.${cls} não chegou`).toContain(cls);

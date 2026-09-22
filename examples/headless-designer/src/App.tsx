@@ -17,9 +17,9 @@ import {
   generatePdf,
   tokenFor,
 } from "json-pdf-designer/server";
-// PdfPreview (canvas do pdf.js) mora no entry "/preview" — peer opcional
-// pdfjs-dist, instalado por este example porque ele usa o preview. É o
-// ÚNICO componente React que este example pega do pacote.
+// PdfPreview (pdf.js's canvas) lives in the "/preview" entry — the optional
+// peer pdfjs-dist, installed by this example because it uses the preview. It
+// is the ONLY React component this example takes from the package.
 import { PdfPreview } from "json-pdf-designer/preview";
 import Canvas from "./components/Canvas";
 import { GRID_MM, snap } from "./lib/geometry";
@@ -56,23 +56,23 @@ function downloadPdf(bytes: Uint8Array, filename: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Fábricas de campo — literais escritos na mão, sem nenhuma peça pronta do
-// pacote (nem os factories internos makeKpiSchema/makeChartSchema, que o
-// <Designer> usa por dentro). É o modelo de dados e nada mais.
+// Field factories — literals written by hand, with no ready-made piece from
+// the package (not even the internal makeKpiSchema/makeChartSchema factories
+// the <Designer> uses inside). It is the data model and nothing else.
 //
-// `stagger` evita nascer em cima do campo anterior quando o campo vem do
-// botão da barra (o drop do explorador usa a posição do mouse, então lá não
-// precisa): cada campo novo desloca mais um passo de grade, e volta pro
-// início depois de 6 — uma escada em vez de uma fila infinita.
+// `stagger` avoids being born on top of the previous field when the field
+// comes from the bar's button (the explorer's drop uses the mouse position, so
+// there it is not needed): each new field shifts one more grid step, and goes
+// back to the start after 6 — a staircase instead of an endless queue.
 //
-// NENHUMA destas fábricas recebe dicionário, e é decisão consciente: o que
-// elas escrevem (`"Indicator"`, `"from JSON"`, `"col_1"`, `"Hello
-// {company.name}"`) é o CONTEÚDO inicial do campo — o que vai sair impresso
-// no PDF. Conteúdo de documento não troca com o idioma da interface (regra
-// que o `<Designer locale>` do pacote documenta): quem gerou um relatório em
-// português não quer o título do KPI virando inglês porque mudou a UI. O
-// pacote traduz os seeds DELE (`t.schemaDefaults`) pro editor dele; aqui as
-// fábricas são deste app e o conteúdo é dado, não rótulo.
+// NONE of these factories receives a dictionary, and that is a conscious
+// decision: what they write (`"Indicator"`, `"from JSON"`, `"col_1"`, `"Hello
+// {company.name}"`) is the field's initial CONTENT — what will come out
+// printed in the PDF. A document's content does not switch with the
+// interface's language (a rule the package's `<Designer locale>` documents):
+// whoever generated a report in Portuguese does not want the KPI's title
+// turning to English because the UI changed. The package translates ITS seeds
+// (`t.schemaDefaults`) for its editor; here the factories belong to this app.
 // ---------------------------------------------------------------------------
 function newTextField(name: string, x: number, y: number, content: string): TextSchema {
   return {
@@ -100,9 +100,9 @@ function newTableField(name: string, x: number, y: number, head: string[]): Tabl
     width: 180,
     height: 30,
     head,
-    // `tokenFor` do pacote: `content[0][i]` é a fórmula da coluna, e um
-    // placeholder sem chaves não conta como template — a tabela nascia sem
-    // token e o editor de fórmula abria vazio.
+    // The package's `tokenFor`: `content[0][i]` is the column's formula, and a
+    // placeholder with no braces does not count as a template — the table was
+    // born with no token and the formula editor opened empty.
     content: [head.map((h) => tokenFor(h))],
   };
 }
@@ -118,8 +118,8 @@ function newKpiField(name: string, x: number, y: number): KpiSchema {
     height: 35,
     icon: "bar_chart",
     title: "Indicator",
-    // Texto puro, sem expressão — um `{}` vazio aqui viraria erro de
-    // expressão e o campo nasceria já no painel de problemas.
+    // Plain text, no expression — an empty `{}` here would become an
+    // expression error and the field would be born already in the problems panel.
     value: "0",
     subtitle: "from JSON",
     backgroundColor: "#0284c7",
@@ -141,8 +141,9 @@ function newChartField(name: string, x: number, y: number): ChartSchema {
   };
 }
 
-// Nome único no Template INTEIRO (não só na página) — é o que o Binding
-// referencia, e o pacote exige unicidade global (ver types/schema.ts).
+// A unique name in the WHOLE Template (not only on the page) — it is what
+// the Binding references, and the package requires global uniqueness (see
+// types/schema.ts).
 function freshName(prefix: string): string {
   return `${sanitizeName(prefix)}_${Math.random().toString(36).slice(2, 6)}`;
 }

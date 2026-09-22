@@ -1,9 +1,9 @@
-// Ícones do Material Symbols (Outlined, Google) — path data oficial baixado
-// de github.com/google/material-design-icons (licença Apache 2.0). Cada
-// path usa o grid 960 padrão do Material Symbols (viewBox "0 -960 960 960"),
-// desenhado tanto no preview do canvas (components/FieldBox/KpiField.tsx,
-// SVG comum) quanto no PDF de verdade (pdf/render/renderKpi.ts, via drawSvgPath) —
-// ver MATERIAL_ICON_GRID pra conta de como ancorar cada um.
+// Material Symbols icons (Outlined, Google) — official path data downloaded
+// from github.com/google/material-design-icons (Apache 2.0 license). Each
+// path uses Material Symbols' standard 960 grid (viewBox "0 -960 960 960"),
+// drawn both in the canvas preview (components/FieldBox/KpiField.tsx, a plain
+// SVG) and in the real PDF (pdf/render/renderKpi.ts, through drawSvgPath) —
+// see MATERIAL_ICON_GRID for the arithmetic of how to anchor each one.
 export const MATERIAL_ICON_GRID = 960;
 
 export const MATERIAL_ICON_PATHS = {
@@ -172,9 +172,9 @@ import type { Locale } from "./i18n";
 
 export type MaterialIconName = keyof typeof MATERIAL_ICON_PATHS;
 
-// Rótulo em inglês pra busca no seletor (ver PropertyPanelKpi.tsx) — o
-// nome técnico (chave acima) é o que fica salvo no schema, alheio a
-// idioma.
+// An English label for searching in the picker (see PropertyPanelKpi.tsx) —
+// the technical name (the key above) is what gets saved in the schema,
+// independent of language.
 export const MATERIAL_ICON_LABELS_EN: Record<MaterialIconName, string> = {
   search: "Search",
   check_circle: "Success / confirmed",
@@ -267,8 +267,8 @@ export const MATERIAL_ICON_LABELS_EN: Record<MaterialIconName, string> = {
   restaurant: "Restaurant",
 };
 
-// Rótulo em PT-BR pra busca no seletor (ver PropertyPanelKpi.tsx) — o nome
-// técnico (chave acima) é o que fica salvo no schema.
+// A PT-BR label for searching in the picker (see PropertyPanelKpi.tsx) — the
+// technical name (the key above) is what gets saved in the schema.
 export const MATERIAL_ICON_LABELS_PT_BR: Record<MaterialIconName, string> = {
   search: "Busca",
   check_circle: "Sucesso / confirmado",
@@ -363,10 +363,10 @@ export const MATERIAL_ICON_LABELS_PT_BR: Record<MaterialIconName, string> = {
 
 export const MATERIAL_ICON_NAMES = Object.keys(MATERIAL_ICON_PATHS) as MaterialIconName[];
 
-// Mantido pra compatibilidade — quem já importava MATERIAL_ICON_LABELS
-// direto (sem passar por materialIconLabels(locale)) continua vendo
-// PT-BR, igual sempre foi.
-/** @deprecated Fixo em PT-BR — use `materialIconLabels(locale)` abaixo, que respeita o idioma ativo. */
+// Kept for compatibility — whoever already imported MATERIAL_ICON_LABELS
+// directly (without going through materialIconLabels(locale)) keeps seeing
+// PT-BR, as it always was.
+/** @deprecated Fixed to PT-BR — use `materialIconLabels(locale)` below, which honors the active language. */
 export const MATERIAL_ICON_LABELS = MATERIAL_ICON_LABELS_PT_BR;
 
 export function materialIconLabels(locale: Locale): Record<MaterialIconName, string> {

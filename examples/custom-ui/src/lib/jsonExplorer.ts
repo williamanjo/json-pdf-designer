@@ -1,17 +1,16 @@
-// Varre um objeto JSON de exemplo (a resposta da sua query) e monta uma lista
-// de "campos" que podem ser arrastados/clicados para o designer do
-// relatório.
+// It scans a sample JSON object (your query's response) and builds a list of
+// "fields" that can be dragged/clicked into the report designer.
 //
-// Regras:
-// - objeto  -> desce recursivamente em cada chave (path com ".")
-// - array de objetos -> vira 1 "arraySource" (o DataSource inteiro — clicar/
-//   arrastar cria uma tabela com TODAS as colunas) + 1 "arrayColumn" por
-//   coluna (clicar/arrastar UMA coluna só adiciona ela numa seção já
-//   vinculada a esse mesmo array, se houver uma; sem seção, não faz nada —
-//   ver DesignerPanel.tsx::addFieldToCanvas)
-// - array de valores simples -> vira só um "arraySource" sem colunas (sem
-//   coluna nenhuma pra oferecer individualmente)
-// - valor simples (string/number/boolean/null) -> campo "scalar"
+// Rules:
+// - an object -> it descends recursively into each key (a "." path)
+// - an array of objects -> becomes 1 "arraySource" (the whole DataSource —
+//   clicking/dragging creates a table with ALL the columns) + 1 "arrayColumn"
+//   per column (clicking/dragging ONE column only adds it to a section already
+//   bound to that same array, if there is one; with no section, it does
+//   nothing — see DesignerPanel.tsx::addFieldToCanvas)
+// - an array of simple values -> becomes only an "arraySource" with no columns
+//   (there is no column at all to offer individually)
+// - a simple value (string/number/boolean/null) -> a "scalar" field
 
 import type { Locale } from "json-pdf-designer";
 import { t } from "../i18n";
@@ -21,23 +20,23 @@ export type ColumnType = "number" | "string" | "boolean" | "other";
 export type FieldNode =
   | { path: string; label: string; kind: "scalar" }
   | { path: string; label: string; kind: "arraySource"; columns?: string[]; columnTypes?: Record<string, ColumnType> }
-  // Coluna individual de um "arraySource" — sourcePath aponta pro array-pai
-  // (pra achar a seção vinculada a ele, se houver).
+  // An individual column of an "arraySource" — sourcePath points at the
+  // parent array (to find the section bound to it, if there is one).
   | { path: string; label: string; kind: "arrayColumn"; sourcePath: string; column: string }
-  // Token sintético do motor de PDF (ver src/pdf/generate.ts pageData) — não
-  // vem do JSON, só existe na hora de gerar. Só resolve de verdade em campo
-  // de texto que caia no cabeçalho/rodapé/margem (docs/USAGE.md); no corpo
-  // do documento resolve vazio, mesma regra de sempre.
+  // A synthetic token of the PDF engine (see src/pdf/generate.ts pageData) —
+  // it does not come from the JSON, it only exists at generation time. It only
+  // really resolves in a text field that falls in the header/footer/margin
+  // (docs/USAGE.md); in the document's body it resolves empty, as always.
   | { path: string; label: string; kind: "native" };
 
-// Campos sintéticos sempre disponíveis, independente do JSON carregado —
-// mostrados numa seção fixa própria na árvore ("Variáveis nativas", ver
+// Synthetic fields always available, regardless of the loaded JSON — shown
+// in a fixed section of their own in the tree ("Native variables", see
 // FieldTree.tsx).
 //
-// Função (e não constante de módulo) porque o RÓTULO é texto de UI e segue o
-// idioma da casca. O `path` é o único lado que não muda: `pageNumber` é o
-// token que o motor de PDF resolve, então ele é dado — traduzi-lo quebraria o
-// template.
+// A function (and not a module constant) because the LABEL is UI text and
+// follows the shell's language. The `path` is the only side that does not
+// change: `pageNumber` is the token the PDF engine resolves, so it is data —
+// translating it would break the template.
 export function nativeFields(locale: Locale): FieldNode[] {
   const d = t(locale);
   return [

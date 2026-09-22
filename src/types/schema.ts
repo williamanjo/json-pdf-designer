@@ -1,4 +1,4 @@
-// Modelo de dados do editor — unidade de medida é sempre mm (ver docs/ARCHITECTURE.md).
+// The editor's data model — the unit of measure is always mm (see docs/ARCHITECTURE.md).
 
 export type PageSize = { width: number; height: number };
 
@@ -9,31 +9,31 @@ export type BaseSchema = {
   y: number;
   width: number;
   height: number;
-  // Trava o campo no canvas — não arrasta nem redimensiona enquanto true
-  // (continua editável pelo painel/edição inline, só a posição/tamanho
-  // via mouse que fica bloqueada).
+  // Locks the field on the canvas — it neither drags nor resizes while true
+  // (it stays editable through the panel/inline editing, only the
+  // position/size by mouse is blocked).
   locked?: boolean;
-  // Se o campo foi largado em cima de uma seção (SectionSchema), guarda o
-  // id dela aqui — vira "membro" do grupo sem sair do array plano de
-  // schemas nem mudar de coordenada (x/y continuam absolutos, iguais a
-  // qualquer outro campo). Arrastar pra fora da seção limpa isso de novo.
+  // If the field was dropped onto a section (SectionSchema), its id is kept
+  // here — it becomes a "member" of the group without leaving the flat array
+  // of schemas and without changing coordinates (x/y stay absolute, like any
+  // other field). Dragging it out of the section clears this again.
   sectionId?: string;
-  // Visibilidade condicional — uma expressão avaliada contra o JSON de
-  // verdade na hora de gerar; o campo só é desenhado quando ela é verdadeira
-  // (regra de verdade/falsidade do formato: vazio, "0" e "false" são falsos).
-  // SEM as chaves — é a expressão nua, ex: `cliente.tipo == "empresa"`,
-  // `total > 1000`, `pago AND NOT cancelado`.
+  // Conditional visibility — an expression evaluated against the real JSON at
+  // generation time; the field is only drawn when it is true (the format's
+  // truthiness rule: empty, "0" and "false" are false). WITHOUT the braces —
+  // it is the bare expression, e.g. `customer.type == "company"`,
+  // `total > 1000`, `paid AND NOT cancelled`.
   //
-  // Ausente = sempre visível (todo template de antes deste campo existir).
-  // Expressão inválida também conta como visível: um erro de digitação não
-  // pode fazer um campo desaparecer do relatório em silêncio — o editor avisa
-  // e o campo continua aparecendo até alguém consertar.
+  // Absent = always visible (every template from before this field existed).
+  // An invalid expression also counts as visible: a typo must not make a field
+  // silently disappear from the report — the editor warns and the field keeps
+  // showing up until someone fixes it.
   //
-  // Efeito no fluxo: esconder um item recupera a ALTURA dele e nada mais — o
-  // que vem depois sobe exatamente essa altura, e o espaçamento autorado nos
-  // dois lados continua valendo. Esconder UM campo de uma linha que tem
-  // vizinhos visíveis deixa o buraco, porque a linha continua existindo pros
-  // outros; escondendo todos, a linha inteira sai. Ver
+  // The effect on the flow: hiding an item reclaims its HEIGHT and nothing
+  // more — what comes after moves up by exactly that height, and the authored
+  // spacing on both sides still holds. Hiding ONE field of a row that has
+  // visible neighbors leaves the hole, because the row still exists for the
+  // others; hiding them all removes the whole row. See
   // pdf/layout/layoutDocument.ts.
   visibleWhen?: string;
 };
@@ -44,18 +44,18 @@ export type TextSchema = BaseSchema & {
   fontSize: number;
   fontColor: string;
   alignment: "left" | "center" | "right";
-  // Fundo/borda opcionais — pra faixa de título colorida, caixa de
-  // destaque etc (sem isso, fica transparente/sem borda, como sempre foi).
+  // An optional background/border — for a colored title band, a highlight
+  // box and so on (without it, transparent/borderless, as it always was).
   backgroundColor?: string;
   borderColor?: string;
-  // Espessura da borda em mm — só desenha borda se borderColor E
-  // borderWidth (> 0) estiverem definidos.
+  // Border thickness in mm — it only draws a border if borderColor AND
+  // borderWidth (> 0) are both set.
   borderWidth?: number;
 };
 
-// Estilo de UMA coluna — header (th) e valor/dado (td do corpo), sem
-// mexer no rodapé (que continua um estilo único pra linha toda). Índice
-// no array bate com o índice em `head`/cada linha de `content`.
+// The style of ONE column — the header (th) and the value/data (the body's
+// td), without touching the footer (which stays a single style for the whole
+// row). The index in the array matches the index in `head`/each row of `content`.
 export type TableColumnStyle = {
   headBackgroundColor?: string;
   headTextColor?: string;
@@ -65,15 +65,15 @@ export type TableColumnStyle = {
   cellFontSize?: number;
 };
 
-// Arredondamento de canto — 4 valores independentes (mm), mesma ideia do
-// border-radius do CSS por canto. Ausente = 0 (reto), igual sempre foi.
-// Cada bloco da tabela (cabeçalho/corpo/rodapé) tem o seu — só os cantos
-// que tocam a borda EXTERNA da tabela fazem sentido visualmente (cabeçalho:
-// só topLeft/topRight, já que o corpo sempre desenha logo abaixo dele;
-// rodapé: só bottomLeft/bottomRight, pela mesma razão ao contrário; corpo:
-// bottomLeft/bottomRight só importam quando NÃO há rodapé — com rodapé, é
-// ELE que fecha o canto de baixo). O editor (PropertyPanelTable.tsx) só
-// mostra os campos que fazem sentido pra cada bloco.
+// Corner rounding — 4 independent values (mm), the same idea as CSS's
+// per-corner border-radius. Absent = 0 (square), as it always was. Each block
+// of the table (header/body/footer) has its own — only the corners touching
+// the table's OUTER edge make visual sense (the header: only topLeft/topRight,
+// since the body always draws right below it; the footer: only bottomLeft/
+// bottomRight, for the mirror reason; the body: bottomLeft/bottomRight only
+// matter when there is NO footer — with one, it is IT that closes the bottom
+// corner). The editor (PropertyPanelTable.tsx) only shows the fields that make
+// sense for each block.
 export type TableCornerRadii = {
   topLeft?: number;
   topRight?: number;
@@ -85,72 +85,72 @@ export type TableSchema = BaseSchema & {
   type: "table";
   head: string[];
   content: string[][];
-  // Largura (mm) de cada coluna — mesmo índice de `head`, sparse (índice
-  // sem entrada, ou array inteiro ausente) igual `columnStyles`. Coluna
-  // sem largura própria divide, em partes iguais, o que sobra de `width`
-  // depois de descontar as colunas COM largura explícita (ver
-  // resolveColumnWidthsMm em pdf/render/renderTable.ts) — sem nenhuma largura
-  // definida, cai na divisão igual de sempre. Mantido em sincronia
-  // (adicionar/remover/reordenar coluna) por tableColumns.ts, igual
-  // `columnStyles` já era.
+  // The width (mm) of each column — the same index as `head`, sparse (an
+  // index with no entry, or the whole array absent) like `columnStyles`. A
+  // column with no width of its own splits, evenly, whatever is left of
+  // `width` after subtracting the columns WITH an explicit width (see
+  // resolveColumnWidthsMm in pdf/render/renderTable.ts) — with no width set at
+  // all, it falls back to the usual even split. Kept in sync
+  // (adding/removing/reordering a column) by tableColumns.ts, as
+  // `columnStyles` already was.
   columnWidths?: (number | undefined)[];
-  // Alinhamento de texto por BLOCO inteiro (cabeçalho/corpo/rodapé) — não
-  // por coluna (columnStyles continua só cor/fundo/tamanho de fonte).
-  // Ausente = "left"/"middle", comportamento de sempre.
+  // Text alignment per whole BLOCK (header/body/footer) — not per column
+  // (columnStyles is still only color/background/font size). Absent =
+  // "left"/"middle", the usual behavior.
   headAlign?: "left" | "center" | "right";
   headVerticalAlign?: "top" | "middle" | "bottom";
   bodyAlign?: "left" | "center" | "right";
   bodyVerticalAlign?: "top" | "middle" | "bottom";
   footerAlign?: "left" | "center" | "right";
   footerVerticalAlign?: "top" | "middle" | "bottom";
-  // Arredondamento por bloco — ver TableCornerRadii acima.
+  // Rounding per block — see TableCornerRadii above.
   headBorderRadius?: TableCornerRadii;
   bodyBorderRadius?: TableCornerRadii;
   footerBorderRadius?: TableCornerRadii;
-  // Quando a tabela pagina (mais linhas do que cabem numa página), repete
-  // o cabeçalho em cada página nova — default true. false = cabeçalho só
-  // na primeira página, o resto é só linhas.
+  // When the table paginates (more rows than fit on one page), it repeats the
+  // header on every new page — default true. false = the header only on the
+  // first page, the rest is rows only.
   repeatHeader?: boolean;
-  // Linha de rodapé (totais) — uma célula por coluna, cada uma um TEMPLATE
-  // de verdade (texto fixo e/ou {token}/{SUM(...)}), igual conteúdo de
-  // texto. Resolvida contra o documento inteiro pra tabela solta (mesmo
-  // dado de {SUM(rows.total)} num texto qualquer), ou contra o ITEM atual
-  // pra tabela membro de seção. Desenha só uma vez — na ÚLTIMA fatia,
-  // se a tabela paginar (nunca repete por página, ao contrário do head).
+  // The footer (totals) row — one cell per column, each a real TEMPLATE
+  // (fixed text and/or {token}/{SUM(...)}), like text content. Resolved
+  // against the whole document for a loose table (the same data as
+  // {SUM(rows.total)} in any text), or against the current ITEM for a table
+  // that is a section member. It draws only once — on the LAST slice, if the
+  // table paginates (it never repeats per page, unlike the head).
   footer?: string[];
-  // Cores/tamanho do cabeçalho — sem isso, cai no azul/branco/9pt de sempre
-  // (não muda PDF já gerado por templates antigos).
+  // The header's colors/size — without this, it falls back to the usual
+  // blue/white/9pt (it does not change a PDF already generated by old templates).
   headBackgroundColor?: string;
   headTextColor?: string;
   headFontSize?: number;
-  // Cores/tamanho da linha de VALOR (corpo, todas as linhas de dado) — sem
-  // isso, transparente/preto/9pt de sempre.
+  // The colors/size of the VALUE row (the body, every data row) — without
+  // this, the usual transparent/black/9pt.
   bodyBackgroundColor?: string;
   bodyTextColor?: string;
   bodyFontSize?: number;
-  // Cor da linha "zebrada" (índice de linha ÍMPAR, 0-based) — ausente =
-  // sem zebra, toda linha usa bodyBackgroundColor de sempre. Escolher um
-  // preset de `colorPalette` (ver tableColors.ts) preenche este campo
-  // automaticamente, mas continua editável à mão depois.
+  // The color of the "banded" row (an ODD row index, 0-based) — absent = no
+  // banding, every row uses the usual bodyBackgroundColor. Choosing a
+  // `colorPalette` preset (see tableColors.ts) fills this field
+  // automatically, but it stays editable by hand afterwards.
   bodyBandColor?: string;
-  // Cor da grade fina (0.5pt) entre células e ao redor da tabela — ausente
-  // = cinza claro de sempre (mesmo default de antes desse campo existir,
-  // não muda PDF já gerado). Um preset de `colorPalette` preenche este
-  // campo também, igual bodyBandColor acima.
+  // The color of the thin grid (0.5pt) between cells and around the table —
+  // absent = the usual light gray (the same default as before this field
+  // existed, it does not change a PDF already generated). A `colorPalette`
+  // preset fills this field too, like bodyBandColor above.
   borderColor?: string;
-  // Cores/tamanho da linha de rodapé — sem isso, cinza claro/preto/9pt.
+  // The footer row's colors/size — without this, light gray/black/9pt.
   footerBackgroundColor?: string;
   footerTextColor?: string;
   footerFontSize?: number;
-  // Override por coluna (cor/fundo/tamanho de fonte do header e do valor)
-  // — mais específico que os campos "linha toda" acima. Sparse — índice
-  // sem entrada cai nos defaults da linha (header/valor) da tabela toda.
+  // A per-column override (the header's and the value's color/background/
+  // font size) — more specific than the "whole row" fields above. Sparse — an
+  // index with no entry falls back to the whole table's row (header/value) defaults.
   columnStyles?: (TableColumnStyle | undefined)[];
-  // Nome de um preset pronto de src/tableColors.ts (ou "custom"/ausente =
-  // campos manuais acima) — mesma ideia de ChartSchema.colorPalette
-  // (ver chartColors.ts). String livre (não união fechada) pelo mesmo
-  // motivo do KpiIcon/colorPalette do chart: preset removido num template
-  // antigo cai pros campos manuais sozinho, sem quebrar.
+  // The name of a ready-made preset from src/tableColors.ts (or
+  // "custom"/absent = the manual fields above) — the same idea as
+  // ChartSchema.colorPalette (see chartColors.ts). A free string (not a closed
+  // union) for the same reason as KpiIcon/the chart's colorPalette: a preset
+  // removed in an old template falls back to the manual fields on its own.
   colorPalette?: string;
 };
 
@@ -159,100 +159,99 @@ export type ImageSchema = BaseSchema & {
   content: string;
 };
 
-// Seção repetida — um "data band": retângulo que
-// repete uma vez por item de um array vinculado, empilhando na vertical e
-// paginando junto com o resto do corpo. Não guarda filhos — é só um grupo:
-// qualquer campo (texto/imagem) largado em cima dela no canvas vira membro
-// (via BaseSchema.sectionId), mantendo posição/tamanho/edição idênticos a
-// um campo normal do corpo. Largura/altura da seção definem o tamanho de
-// UMA repetição (mesmo tamanho pra todas).
+// A repeated section — a "data band": a rectangle that repeats once per item
+// of a bound array, stacking vertically and paginating along with the rest of
+// the body. It does not hold children — it is only a group: any field
+// (text/image) dropped onto it on the canvas becomes a member (through
+// BaseSchema.sectionId), keeping its position/size/editing identical to a
+// normal body field. The section's width/height define the size of ONE
+// repetition (the same size for all of them).
 export type SectionSchema = BaseSchema & {
   type: "section";
 };
 
-// Gráfico pizza/barra sobre um array vinculado (ver Binding "chart") —
-// agrupa o resto em "Outros" a partir de `topN` pra paleta de cor nunca
-// estourar (ver src/chartColors.ts).
+// A pie/bar chart over a bound array (see the "chart" Binding) — it groups
+// the rest into "Others" from `topN` on, so the color palette never overflows
+// (see src/chartColors.ts).
 export type ChartSchema = BaseSchema & {
   type: "chart";
   chartType: "pie" | "bar";
-  // Só importa quando chartType é "pie" — "donut" (rosca, com furo no
-  // meio) ou "full" (pizza cheia, cada fatia vai até o centro). Opcional
-  // pra não quebrar template salvo antes desse campo existir — trata
-  // ausente como "donut" (ver render/renderChart.ts/components/FieldBox/ChartField.tsx).
+  // It only matters when chartType is "pie" — "donut" (with a hole in the
+  // middle) or "full" (a full pie, each slice reaching the center). Optional
+  // so as not to break a template saved before this field existed — an absent
+  // value is treated as "donut" (see render/renderChart.ts/components/FieldBox/ChartField.tsx).
   pieStyle?: "donut" | "full";
-  // Só importa quando chartType é "pie". "right"/"left" (default ausente
-  // é "right") é a legenda em lista ao lado; "top"/"bottom" a mesma lista
-  // acima/abaixo, ocupando a largura toda; "slices" não desenha legenda
-  // nenhuma — o valor/porcentagem de cada fatia é escrito em cima dela
-  // mesma (fatia pequena demais pra caber o texto simplesmente não recebe
-  // rótulo).
+  // It only matters when chartType is "pie". "right"/"left" (the absent
+  // default is "right") is the legend as a list beside it; "top"/"bottom" the
+  // same list above/below, taking the full width; "slices" draws no legend at
+  // all — each slice's value/percentage is written on the slice itself (a
+  // slice too small to fit the text simply gets no label).
   legendPosition?: "right" | "left" | "top" | "bottom" | "slices";
-  // "both" mostra o valor bruto E a porcentagem juntos (ex: "R$ 6.505.479,62
-  // (17,3%)") — a % é sempre sobre a MESMA coluna vinculada (valueColumn do
-  // Binding "chart"): trocar o vínculo pra "quantidade" já muda o que a %
-  // representa, sem precisar de campo à parte pra isso.
+  // "both" shows the raw value AND the percentage together (e.g. "R$
+  // 6.505.479,62 (17,3%)") — the % is always over the SAME bound column (the
+  // "chart" Binding's valueColumn): switching the binding to "quantity"
+  // already changes what the % represents, with no separate field for it.
   displayMode: "number" | "percent" | "both";
-  // Nome de uma paleta pronta (ver CHART_PALETTE_NAMES em chartColors.ts —
-  // "default"/"classic"/"modern"/"vibrant"/"pastel"/"grayscale"/"custom").
-  // String solta (não união fechada) pelo mesmo motivo do KpiIcon: nome de
-  // paleta removida num template antigo cai pra "default" sozinho, sem
-  // quebrar. "custom" usa `customPaletteColors` no lugar de cor fixa.
+  // The name of a ready-made palette (see CHART_PALETTE_NAMES in
+  // chartColors.ts — "default"/"classic"/"modern"/"vibrant"/"pastel"/
+  // "grayscale"/"custom"). A loose string (not a closed union) for the same
+  // reason as KpiIcon: the name of a removed palette in an old template falls
+  // back to "default" on its own. "custom" uses `customPaletteColors` instead.
   colorPalette?: string;
-  // Cores escolhidas à mão — só usadas quando colorPalette === "custom"
-  // (ver resolveChartColors em chartColors.ts). Ausente/vazio com
-  // "custom" selecionado cai pra paleta "default" até o usuário escolher
-  // pelo menos 1 cor.
+  // Hand-picked colors — only used when colorPalette === "custom" (see
+  // resolveChartColors in chartColors.ts). Absent/empty with "custom"
+  // selected falls back to the "default" palette until the user picks at
+  // least 1 color.
   customPaletteColors?: string[];
-  // Formato do valor bruto (não mexe na porcentagem) — "number" (default
-  // ausente) é o de sempre (toLocaleString pt-BR, sem símbolo); "currency"
-  // aplica `currencySymbol` (default "R$" ausente) + `decimals` (default 2
-  // ausente), mesma cara do CURRENCY(...) de texto/tabela (ver render/renderChart.ts).
+  // The raw value's format (it does not touch the percentage) — "number"
+  // (the absent default) is the usual one (toLocaleString pt-BR, no symbol);
+  // "currency" applies `currencySymbol` (absent default "R$") + `decimals`
+  // (absent default 2), the same look as text/table's CURRENCY(...).
   valueFormat?: "number" | "currency";
   currencySymbol?: string;
   decimals?: number;
-  // Separador de milhar no valor bruto — true/ausente (default) = "10.000,00"
-  // (comportamento de sempre), false = "10000,00" (só vírgula decimal, sem
-  // pontuar os milhares). Não mexe na porcentagem (sempre "42,5%").
+  // The thousands separator in the raw value — true/absent (the default) =
+  // "10.000,00" (the usual behavior), false = "10000,00" (a decimal comma
+  // only). It does not touch the percentage (always "42,5%").
   thousandsSeparator?: boolean;
-  // Tamanho de fonte (pt) da legenda (swatch + rótulo + valor) — só usada
-  // quando chartType é "pie" e legendPosition não é "slices". Ausente cai
-  // no default (ver DEFAULT_CHART_LEGEND_FONT_SIZE em pdf/render/renderChart.ts).
+  // The legend's font size (pt) (swatch + label + value) — only used when
+  // chartType is "pie" and legendPosition is not "slices". Absent falls back
+  // to the default (see DEFAULT_CHART_LEGEND_FONT_SIZE in pdf/render/renderChart.ts).
   legendFontSize?: number;
-  // Critério de ordenação ANTES de cortar em topN — default (ausente) é
-  // "value_desc" (maior primeiro), igual sempre foi.
+  // The sort criterion BEFORE cutting at topN — the default (absent) is
+  // "value_desc" (largest first), as it always was.
   sortBy?: "value_desc" | "value_asc" | "label_asc" | "label_desc";
   topN?: number;
 };
 
-// "none" ou o nome de um ícone do Material Symbols (ver materialIcons.ts,
-// MATERIAL_ICON_NAMES) — string solta (não union fechada) pra não acoplar
-// o modelo de dados à lista de ícones disponível, que pode crescer sem
-// quebrar o tipo; ícone desconhecido (nome que não existe mais na lista)
-// simplesmente não desenha nada, tanto no canvas quanto no PDF.
+// "none" or the name of a Material Symbols icon (see materialIcons.ts,
+// MATERIAL_ICON_NAMES) — a loose string (not a closed union) so as not to
+// couple the data model to the available icon list, which may grow without
+// breaking the type; an unknown icon (a name that is no longer in the list)
+// simply draws nothing, both on the canvas and in the PDF.
 export type KpiIcon = string;
 
-// Chave de cada sub-elemento independente do cartão de KPI — usada tanto
-// pra posição/travamento (KpiSchema abaixo) quanto pra seleção na aba
-// Campos/painel de Estilo contextual (ver FieldList.tsx/Designer.tsx/
-// PropertyPanelKpi.tsx). Não é um Schema separado — só um dos 4 papéis
-// fixos dentro de UM KpiSchema.
+// The key of each independent sub-element of the KPI card — used both for
+// position/locking (KpiSchema below) and for selection on the Fields
+// tab/contextual Style panel (see FieldList.tsx/Designer.tsx/
+// PropertyPanelKpi.tsx). It is not a separate Schema — only one of the 4
+// fixed roles inside ONE KpiSchema.
 export type KpiElementKey = "icon" | "title" | "value" | "subtitle";
 
-// Posição (mm) de um sub-elemento, relativa ao canto superior-esquerdo do
-// PRÓPRIO cartão — mesma convenção "distância a partir do topo" que
-// schema.y já usa pra página inteira (ver render/renderKpi.ts/KpiField.tsx).
+// The position (mm) of a sub-element, relative to the top-left corner of the
+// CARD ITSELF — the same "distance from the top" convention schema.y already
+// uses for the whole page (see render/renderKpi.ts/KpiField.tsx).
 export type KpiElementOffset = { x: number; y: number };
 
-// Cartão de indicador (KPI) — fundo colorido sólido, ícone + título +
-// número grande + legenda, tipo os cartões de um dashboard. title/value/
-// subtitle são templates de texto comuns (mesma sintaxe de TextSchema —
-// {path}/{FUNÇÃO(...)}), resolvidos contra o documento inteiro, sem
-// precisar de um Binding à parte (ver generate.ts). Cada um dos 4
-// sub-elementos é opcional (ausente = removido, não desenha) e pode ter
-// posição própria (offset) e trava própria (locked) — ausente em ambos
-// cai no layout fixo de sempre, travado (ver kpi/card.ts/render/renderKpi.ts/
-// KpiField.tsx), retrocompatível com todo template salvo antes disso.
+// A KPI card — a solid colored background, an icon + title + large number +
+// subtitle, like a dashboard's cards. title/value/subtitle are ordinary text
+// templates (the same syntax as TextSchema — {path}/{FUNCTION(...)}), resolved
+// against the whole document, with no separate Binding needed (see
+// generate.ts). Each of the 4 sub-elements is optional (absent = removed, it
+// does not draw) and may have its own position (offset) and its own lock
+// (locked) — absent in both falls back to the usual fixed layout, locked (see
+// kpi/card.ts/render/renderKpi.ts/KpiField.tsx), backward compatible with
+// every template saved before this.
 export type KpiSchema = BaseSchema & {
   type: "kpi";
   icon: KpiIcon;
@@ -261,33 +260,33 @@ export type KpiSchema = BaseSchema & {
   subtitle?: string;
   backgroundColor: string;
   textColor: string;
-  // Tamanho de fonte (pt) de cada texto do cartão — opcional; ausente cai
-  // no default (ver DEFAULT_KPI_*_FONT_SIZE em kpi/card.ts), então schemas
-  // antigos continuam com a mesma aparência de sempre.
+  // The font size (pt) of each of the card's texts — optional; absent falls
+  // back to the default (see DEFAULT_KPI_*_FONT_SIZE in kpi/card.ts), so old
+  // schemas keep the same appearance as always.
   titleFontSize?: number;
   valueFontSize?: number;
   subtitleFontSize?: number;
-  // Tamanho do ícone (pt) — mesmo motivo do fontSize acima.
+  // The icon's size (pt) — the same reason as fontSize above.
   iconSize?: number;
-  // Arredondamento dos cantos do cartão, em % (0 = reto, 100 = "pílula",
-  // ver kpiBorderRadius em kpi/card.ts) — opcional, ausente cai no default
-  // (schemas antigos continuam com a mesma aparência de sempre).
+  // The rounding of the card's corners, in % (0 = square, 100 = a "pill",
+  // see kpiBorderRadius in kpi/card.ts) — optional, absent falls back to the
+  // default (old schemas keep the same appearance as always).
   borderRadius?: number;
-  // Formata `value` como número pt-BR (2 casas) quando ele resolve pra um
-  // número puro — "none"/ausente (default) mantém o texto como está,
-  // "plain" = "10000,00", "grouped" = "10.000,00" (ver formatKpiValue em
-  // kpi/card.ts). Texto com prefixo/sufixo passa direto, sem tocar.
+  // Formats `value` as a pt-BR number (2 places) when it resolves to a plain
+  // number — "none"/absent (the default) keeps the text as it is, "plain" =
+  // "10000,00", "grouped" = "10.000,00" (see formatKpiValue in kpi/card.ts).
+  // Text with a prefix/suffix passes through untouched.
   numberFormat?: "none" | "plain" | "grouped";
-  // Posição própria de cada sub-elemento (mm, relativo ao cartão) —
-  // ausente = posição padrão calculada (ver defaultKpiElementPositions em
+  // Each sub-element's own position (mm, relative to the card) — absent =
+  // the computed default position (see defaultKpiElementPositions in
   // kpi/card.ts).
   iconOffset?: KpiElementOffset;
   titleOffset?: KpiElementOffset;
   valueOffset?: KpiElementOffset;
   subtitleOffset?: KpiElementOffset;
-  // Trava de arrasto por sub-elemento — ausente/true = travado (não
-  // arrasta, mesmo default do cadeado do campo inteiro); false = solto
-  // pra arrastar no canvas (ver FieldList.tsx/KpiField.tsx).
+  // A per-sub-element drag lock — absent/true = locked (it does not drag,
+  // the same default as the whole field's padlock); false = free to drag on
+  // the canvas (see FieldList.tsx/KpiField.tsx).
   iconLocked?: boolean;
   titleLocked?: boolean;
   valueLocked?: boolean;
@@ -296,13 +295,13 @@ export type KpiSchema = BaseSchema & {
 
 export type Schema = TextSchema | TableSchema | ImageSchema | SectionSchema | ChartSchema | KpiSchema;
 
-// Um "design" de página — mesmo formato que Template tinha antes de existir
-// multi-página, usado dentro de Template.pages[] quando há mais de uma.
+// One page "design" — the same shape Template had before multi-page existed,
+// used inside Template.pages[] when there is more than one.
 export type TemplatePage = {
-  // Estável entre edições (chave de aba/undo/<Designer key=...>) — não é
-  // salvo/lido do PDF, só identidade de UI.
+  // Stable across edits (a tab key/undo/<Designer key=...>) — it is not
+  // saved to or read from the PDF, it is only UI identity.
   id: string;
-  // Rótulo de aba; default é o índice+1 ("Página N") quando ausente.
+  // A tab label; the default is the index+1 ("Page N") when absent.
   name?: string;
   page: PageSize;
   headerHeight?: number;
@@ -313,37 +312,37 @@ export type TemplatePage = {
   schemas: Schema[];
 };
 
-// Versão do FORMATO do documento — ver src/template.ts. União de um
-// só membro de propósito: quando existir a versão 2, trocar por `1 | 2` faz o
-// compilador apontar todo lugar que precisa decidir entre as duas, em vez de
-// aceitar `number` em silêncio.
+// The document FORMAT version — see src/template.ts. A single-member union
+// on purpose: when version 2 exists, swapping it for `1 | 2` makes the
+// compiler point at every place that has to decide between the two, instead of
+// silently accepting `number`.
 export type TemplateVersion = 1;
 
 export type Template = {
-  // Ausente = formato 1 (todo template salvo antes deste campo existir).
-  // `migrateTemplate` estampa a versão corrente na saída, então um template
-  // que passou por lá nunca vem sem.
+  // Absent = format 1 (every template saved before this field existed).
+  // `migrateTemplate` stamps the current version onto its output, so a
+  // template that went through it never comes back without one.
   version?: TemplateVersion;
   page: PageSize;
-  // Faixas estáticas (mm) que se repetem em toda página gerada — um campo
-  // do corpo entra automaticamente no cabeçalho/rodapé quando sua posição Y
-  // cai dentro dessa faixa (sem campo extra pra marcar "zona", é só olhar
-  // onde ele tá). Tabela grande no corpo pagina por conta própria; o resto
-  // do corpo só aparece na página 1 (ou logo após a tabela terminar).
+  // Static bands (mm) that repeat on every generated page — a body field
+  // automatically joins the header/footer when its Y position falls inside
+  // that band (with no extra field to mark a "zone", it is only where it
+  // sits). A large table in the body paginates on its own; the rest of the
+  // body only appears on page 1 (or right after the table ends).
   headerHeight?: number;
   footerHeight?: number;
   marginLeft?: number;
   marginRight?: number;
-  // PNG data URI usado como fundo da página no editor e no PDF gerado —
-  // letterhead/modelo pré-impresso por trás dos campos. Sempre PNG: o
-  // upload converte qualquer imagem aceita (ver backgroundImage.ts).
+  // A PNG data URI used as the page background in the editor and in the
+  // generated PDF — a letterhead/pre-printed form behind the fields. Always
+  // PNG: the upload converts any accepted image (see backgroundImage.ts).
   backgroundImage?: string;
   schemas: Schema[];
-  // Multi-página: quando presente e não-vazio, é a fonte da verdade — os
-  // campos flat acima (page/headerHeight/.../schemas) são ignorados por
-  // generatePdf/Designer. Ausente/vazio = comportamento de sempre (os
-  // campos flat viram a única página implícita). Todas as páginas
-  // compartilham o mesmo Binding[]/dado — nome de schema precisa ser único
-  // no Template inteiro, não só dentro de uma página.
+  // Multi-page: when present and non-empty, it is the source of truth — the
+  // flat fields above (page/headerHeight/.../schemas) are ignored by
+  // generatePdf/Designer. Absent/empty = the usual behavior (the flat fields
+  // become the single implicit page). Every page shares the same
+  // Binding[]/data — a schema name has to be unique in the whole Template, not
+  // only within one page.
   pages?: TemplatePage[];
 };

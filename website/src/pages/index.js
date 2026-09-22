@@ -7,9 +7,9 @@ import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
 import styles from './index.module.css';
 
-// Texto bilíngue à mão (en/pt-BR) — a home não é conteúdo de doc, então
-// não ganha tradução automática via i18n/pt-BR/...; `siteConfig.tagline`
-// também é uma string fixa só (não varia por locale sozinha).
+// Bilingual text by hand (en/pt-BR) — the home is not doc content, so it
+// gets no automatic translation through i18n/pt-BR/...; `siteConfig.tagline`
+// is also just a fixed string (it does not vary by locale on its own).
 const TEXT = {
   tagline: {
     en: 'Visual PDF report editor for React — drag/resize canvas + JSON data binding',

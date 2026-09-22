@@ -4,32 +4,32 @@ import { describe, expect, it } from "vitest";
 import * as kit from "../../../src/components/ui";
 import { ModalShell } from "../../../src/components/ui/Modal";
 
-// Contrato de passthrough, componente por componente.
+// The passthrough contract, component by component.
 //
-// A regra da API de estilo do pacote é:
+// The package's styling API rule is:
 //
-//   `className` / `style` / `...rest` vão pro elemento que dá NOME ao
-//   componente. Todo outro elemento que ele renderiza é `parts`.
+//   `className` / `style` / `...rest` go to the element that NAMES the
+//   component. Every other element it renders is `parts`.
 //
-// Este arquivo prova a primeira metade pra TODOS. `renderToStaticMarkup` em
-// vez de inspeção de árvore porque o que interessa aqui é o markup EMITIDO:
-// se o atributo chegou, se a nossa classe base sobreviveu, e se não sobrou
-// `class=""`. Não precisa de jsdom — `react-dom` já é devDep.
+// This file proves the first half for ALL of them. `renderToStaticMarkup`
+// instead of tree inspection because what matters here is the EMITTED markup:
+// whether the attribute arrived, whether our base class survived, and whether
+// no `class=""` was left over. It needs no jsdom — `react-dom` is already a devDep.
 
 const PROBE = { className: "sonda-consumidor", style: { zIndex: 7 }, "data-sonda": "1" } as const;
 
-// Um caso por componente. O `render` recebe as props de sonda e devolve o
-// elemento; cada componente exige as props obrigatórias dele.
+// One case per component. `render` receives the probe props and returns the
+// element; each component requires its own mandatory props.
 const CASES: Array<{ name: string; base: string; render: (p: Record<string, unknown>) => ReactElement }> = [
   { name: "Button", base: "jpd-btn", render: (p) => <kit.Button {...p}>ok</kit.Button> },
   { name: "Card", base: "jpd-card", render: (p) => <kit.Card {...p} /> },
   { name: "CardHeader", base: "jpd-card__header", render: (p) => <kit.CardHeader {...p} /> },
   { name: "CardTitle", base: "jpd-card__title", render: (p) => <kit.CardTitle {...p} /> },
   { name: "Badge", base: "jpd-badge", render: (p) => <kit.Badge {...p} /> },
-  // Entrou na 3.0.0, junto com o export público: antes ele tinha um tipo de
-  // props FECHADO (`{ icon, size }`) e a classe hardcoded. O validador da doc
-  // pegou a inconsistência — o CHANGELOG prometia `className`/`style`/`...rest`
-  // "em todos", e ele era o único que não cumpria.
+  // It came in at 3.0.0, along with the public export: before that it had a
+  // CLOSED props type (`{ icon, size }`) and a hardcoded class. The docs
+  // validator caught the inconsistency — the CHANGELOG promised
+  // `className`/`style`/`...rest` "on all of them", and it was the only one that did not.
   { name: "MaterialIcon", base: "jpd-micon", render: (p) => <kit.MaterialIcon icon="star" size={16} {...p} /> },
   { name: "Input", base: "jpd-input", render: (p) => <kit.Input {...p} /> },
   { name: "ColorInput", base: "jpd-color-input", render: (p) => <kit.ColorInput {...p} /> },
@@ -62,8 +62,9 @@ const CASES: Array<{ name: string; base: string; render: (p: Record<string, unkn
     render: (p) => <kit.PalettePicker currentName="a" currentColors={["#000"]} onSelect={() => {}} groups={[]} {...p} />,
   },
   { name: "ClearFieldButton", base: "jpd-linkbtn", render: (p) => <kit.ClearFieldButton variant="text" label="x" onClick={() => {}} {...p} /> },
-  // O `Modal` inteiro devolve `null` sem DOM (ele porta pro document.body),
-  // então o caso é a casca — que existe separada exatamente por isso.
+  // The whole `Modal` returns `null` with no DOM (it portals to
+  // document.body), so the case is the shell — which exists separately for
+  // exactly that reason.
   {
     name: "Modal",
     base: "jpd-modal__panel",

@@ -1,13 +1,13 @@
 import type { Binding, Template } from "json-pdf-designer/server";
 
-// JSON de amostra do estado inicial, INLINE (não um .json à parte).
+// The initial state's sample JSON, INLINE (not a separate .json).
 //
-// De propósito pequeno mas com forma de verdade: dois níveis de objeto
-// aninhado (`company.address.city`), DOIS arrays de objetos (`sales` e
-// `refunds` — dá pra ver o explorador de campos oferecer duas fontes, e o
-// vínculo de tabela/gráfico escolher entre elas) e um array de valores
-// simples (`tags`), que é o caso em que o explorador mostra a fonte sem
-// nenhuma coluna pra oferecer (ver lib/jsonExplorer.ts).
+// Deliberately small but with a real shape: two levels of nested object
+// (`company.address.city`), TWO arrays of objects (`sales` and `refunds` — so
+// the field explorer can be seen offering two sources, and the table/chart
+// binding choosing between them) and an array of simple values (`tags`), which
+// is the case where the explorer shows the source with no column at all to
+// offer (see lib/jsonExplorer.ts).
 export const initialSample = {
   company: {
     name: "Acme Travel",
@@ -32,17 +32,17 @@ export const initialSample = {
   tags: ["monthly", "internal"],
 };
 
-// Estado inicial do editor — DUAS páginas de saída, pra as abas de página
-// (PageTabs) já terem o que mostrar ao abrir, e pra deixar visível que
-// `pages` é a fonte da verdade quando presente (os campos flat `page`/
-// `schemas` abaixo continuam lá só como fallback pra quem lê este Template
-// sem olhar `pages`).
+// The editor's initial state — TWO output pages, so the page tabs
+// (PageTabs) already have something to show on open, and to make visible that
+// `pages` is the source of truth when present (the flat `page`/`schemas`
+// fields below are still there only as a fallback for whoever reads this
+// Template without looking at `pages`).
 //
-// Página 1: cabeçalho + tabela vinculada a `sales` + rodapé com
-// {pageNumber}/{pageCount} (tokens sintéticos, resolvidos por página na
-// hora de gerar — sem vínculo nenhum).
-// Página 2: um indicador (KPI) com agregação escrita como expressão livre e
-// um gráfico de pizza sobre o MESMO array `sales`.
+// Page 1: a header + a table bound to `sales` + a footer with
+// {pageNumber}/{pageCount} (synthetic tokens, resolved per page at generation
+// time — with no binding at all).
+// Page 2: a KPI with its aggregation written as a free expression and a pie
+// chart over the SAME `sales` array.
 const page1Schemas: Template["schemas"] = [
   {
     id: "init-title",
@@ -134,11 +134,11 @@ export const initialTemplate: Template = {
   ],
 };
 
-// O gráfico PRECISA de vínculo pra desenhar alguma coisa (texto/KPI aceitam
-// {token} direto); a tabela renderiza sem vínculo também (usaria head/content
-// literal), mas vinculada é o caso interessante — cada item de `sales` vira
-// uma linha. Sem o vínculo do gráfico, o painel "Template problems" aponta
-// "Missing JSON binding" na hora, que é o recurso #8 em ação.
+// The chart NEEDS a binding to draw anything (text/KPI accept a {token}
+// directly); the table renders without a binding too (it would use the literal
+// head/content), but bound is the interesting case — each item of `sales`
+// becomes a row. Without the chart's binding, the "Template problems" panel
+// points at it.
 export const initialBindings: Binding[] = [
   {
     schemaName: "sales_table",

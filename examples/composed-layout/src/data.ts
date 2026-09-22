@@ -1,16 +1,15 @@
 import type { Binding, Template } from "json-pdf-designer";
 
-// Template e dado de exemplo, inline e pequenos DE PROPÓSITO: o assunto
-// deste example é LAYOUT, não dado. (O report-builder tem um sample de
-// 111KB, que aqui só serviria pra deixar o bundle grande — os 6 exemplos
-// prontos do dropdown, em data/templates/, já trazem sample próprio cada.)
+// A sample template and data, inline and small ON PURPOSE: this example's
+// subject is LAYOUT, not data. (report-builder has a 111KB sample, which here
+// would only make the bundle large — the 6 ready-made examples of the
+// dropdown, in data/templates/, each bring their own sample.)
 //
-// Ele cresceu de 2 chaves pra esta forma quando o explorador de campos
-// entrou: com um objeto raso a árvore de `lib/jsonExplorer.ts` fica plana e
-// não mostra nada. Agora tem objeto aninhado (`empresa`, `periodo`) e DOIS
-// arrays de objetos (`rows`, `metas`) — que é o que faz aparecer grupo
-// colapsável, coluna individual arrastável e dois "Data Source" no dropdown
-// do editor de vínculo.
+// It grew from 2 keys into this shape when the field explorer landed: with a
+// flat object the `lib/jsonExplorer.ts` tree is flat and shows nothing. Now it
+// has a nested object (`empresa`, `periodo`) and TWO arrays of objects
+// (`rows`, `metas`) — which is what makes a collapsible group, an individually
+// draggable column and two "Data Source" entries appear in the binding
 
 export const sample = {
   empresa: {
@@ -94,8 +93,8 @@ export const bindings: Binding[] = [
   },
 ];
 
-// O dropdown "Data Source" do editor de vínculo era alimentado por uma
-// constante escrita à mão aqui. Agora ele vem do EXPLORADOR DE CAMPOS: cada
-// array de objetos que o `extractFields` acha no JSON carregado vira uma
-// opção (ver App.tsx). Trocar de fonte de dados passa a mudar o dropdown
-// junto, o que a constante nunca fazia.
+// The binding editor's "Data Source" dropdown used to be fed by a constant
+// written by hand here. Now it comes from the FIELD EXPLORER: each array of
+// objects that `extractFields` finds in the loaded JSON becomes an option (see
+// App.tsx). Switching data source now changes the dropdown along with it,
+// which the constant never did.

@@ -8,12 +8,13 @@ type Props = {
   onChangeSources: (sources: JsonSource[]) => void;
   onResync: () => void;
   fieldCount: number;
-  // CÓDIGO, não frase: a tradução acontece aqui embaixo, no render (ver
-  // lib/sources.ts pro porquê).
+  // A CODE, not a phrase: the translation happens down here, at render time
+  // (see lib/sources.ts for why).
   errorsById: Record<string, SourceErrorCode>;
-  // Dicionário da CASCA: "fonte de dados JSON, várias e mescladas" é recurso
-  // DESTE app (ver lib/sources.ts) — o pacote recebe um objeto só e não tem
-  // conceito de fonte, então não há nada dele pra reusar aqui.
+  // The SHELL's dictionary: "a JSON data source, several of them and merged"
+  // is a feature of THIS app (see lib/sources.ts) — the package receives a
+  // single object and has no concept of a source, so there is nothing of its
+  // own to reuse here.
   tt: ShellDict;
 };
 
@@ -21,30 +22,29 @@ function nameFromFile(file: File): string {
   return file.name.replace(/\.json$/i, "");
 }
 
-// Uma ou mais fontes de JSON — cada arquivo/bloco colado vira uma entrada;
-// na hora de gerar (App.tsx), todas são mescladas (nível superior, último
-// sobrescreve em caso de chave repetida) num objeto só antes de vincular
-// campo. "Resync fields" atualiza a lista de campos disponíveis com base
-// nessa mescla.
+// One or more JSON sources — each file/pasted block becomes an entry; at
+// generation time (App.tsx), all of them are merged (top level, the last one
+// wins on a repeated key) into a single object before binding a field. "Resync
+// fields" updates the list of available fields based on that merge.
 //
-// Zero componente do pacote: `Card`/`Input`/`Textarea`/`Icon*` existem e
-// seriam o caminho curto, mas moram no entry com React (`.`) — e este
-// example importa do pacote só `/server` e `<PdfPreview>`. Então a caixa, o
-// input e os ícones (caracteres, não SVG) são daqui.
+// Zero components from the package: `Card`/`Input`/`Textarea`/`Icon*` exist
+// and would be the short path, but they live in the React entry (`.`) — and
+// this example imports only `/server` and `<PdfPreview>` from the package. So
+// the box, the input and the icons (characters, not SVG) belong here.
 export default function DataSourcePanel({ sources, onChangeSources, onResync, fieldCount, errorsById, tt }: Props) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
-  // NOMES de arquivo, não a frase pronta.
+  // File NAMES, not the finished phrase.
   //
-  // Antes isto era `string | null` com a mensagem já traduzida: cada leitura
-  // que falhava virava `"Não deu pra ler \"x.json\"."` na hora do erro, as
-  // frases eram juntadas com espaço e o resultado ia pra estado. Frase
-  // traduzida em estado congela no idioma em que nasceu — trocar o seletor
-  // deixava o aviso na língua antiga. E juntar N frases num parágrafo só
-  // dependia de elas terminarem em ponto.
+  // This used to be a `string | null` with the already-translated message:
+  // each read that failed became `"Não deu pra ler \"x.json\"."` at the moment
+  // of the error, the phrases were joined with a space and the result went
+  // into state. A translated phrase in state freezes in the language it was
+  // born in — switching the picker left the warning in the old language. And
+  // joining N phrases into one paragraph depended on each ending in a period.
   //
-  // Guardando os nomes (que são DADO, e não se traduzem), a frase é montada na
-  // renderização, uma por arquivo.
+  // Holding the names (which are DATA, and are not translated), the phrase is
+  // built at render time, one per file.
   const [failedReads, setFailedReads] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,17 +57,17 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
     });
   }
 
-  // Lê TODOS os arquivos do lote antes de chamar onChangeSources uma vez só
-  // — disparar um onChangeSources por arquivo dentro do forEach fazia cada
-  // callback de onload capturar o MESMO `sources` (stale closure), então
-  // soltar 2+ arquivos de uma vez só mantinha o último (cada um sobrescrevia
-  // o anterior em vez de acumular).
+  // It reads ALL the files of the batch before calling onChangeSources once
+  // — firing one onChangeSources per file inside the forEach made each onload
+  // callback capture the SAME `sources` (a stale closure), so dropping 2+ files
+  // at once kept only the last one (each overwrote the previous instead of
+  // accumulating).
   async function addFilesAsSources(files: FileList) {
     setFailedReads([]);
-    // Materializado numa lista: o índice é o que amarra cada resultado ao
-    // arquivo dele, porque `Promise.allSettled` preserva a ordem mas a
-    // rejeição não carrega a entrada. É assim que o nome chega ao aviso sem
-    // ninguém ter que embutir texto no erro.
+    // Materialized into a list: the index is what ties each result to its own
+    // file, because `Promise.allSettled` preserves the order but the rejection
+    // does not carry the entry. That is how the name reaches the warning
+    // without anyone having to embed text in the error.
     const picked = Array.from(files);
     const results = await Promise.allSettled(picked.map((file) => readFileAsText(file)));
     const newSources: JsonSource[] = [];

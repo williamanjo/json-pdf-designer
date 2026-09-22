@@ -9,15 +9,15 @@ type Props = {
 const MAJOR_EVERY_MM = 10;
 const MID_EVERY_MM = 5;
 
-// Régua em mm (marcas a cada 1mm, número a cada 10mm) — só pra referência
-// visual de tamanho/margem real da página, não é interativa.
+// A ruler in mm (ticks every 1mm, a number every 10mm) — purely a visual
+// reference for the page's real size/margins, it is not interactive.
 //
-// Cor de marca/número vem de CLASSE (`stroke`/`fill` via --jpd-ruler-tick /
-// --jpd-ruler-label), não de atributo de apresentação SVG. Além de tirar o
-// hex fixo, é o que conserta o dark: o fundo da régua tinha `dark:bg-gray-800`
-// mas `stroke="#94a3b8"`/`fill="#64748b"` não tinham contraparte dark, então
-// no escuro ficava marca escura sobre fundo escuro. Atributo de apresentação
-// perde de qualquer regra de autor, então a classe assume sem briga.
+// Tick/number color comes from a CLASS (`stroke`/`fill` via --jpd-ruler-tick /
+// --jpd-ruler-label), not from an SVG presentation attribute. Besides removing
+// the hard-coded hex, that is what fixes dark mode: the ruler background had
+// `dark:bg-gray-800` but `stroke="#94a3b8"`/`fill="#64748b"` had no dark
+// counterpart, so in the dark theme it was a dark tick on a dark background. A
+// presentation attribute loses to any author rule, so the class wins uncontested.
 export function Ruler({ lengthMm, orientation, thickness = 16 }: Props) {
   const pxLength = mmToPx(lengthMm);
   const ticks: React.ReactElement[] = [];

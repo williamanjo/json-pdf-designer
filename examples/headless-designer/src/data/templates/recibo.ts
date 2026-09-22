@@ -2,9 +2,9 @@ import type { Template } from "json-pdf-designer/server";
 import reciboSample from "../samples/reciboSample.json";
 import type { ExampleDefinition } from "./types";
 
-// Exemplo: "Recibo Simples" — só texto, sem tabela nem seção. Cobre
-// {DATE(...)}/{CURRENCY(...)} e a caixa de destaque (fundo+borda) num
-// texto qualquer.
+// Example: "Simple Receipt" — text only, with no table and no section. It
+// covers {DATE(...)}/{CURRENCY(...)} and the highlight box (background+border)
+// on an ordinary text.
 const template: Template = {
   version: 1,
   page: { width: 210, height: 297 },

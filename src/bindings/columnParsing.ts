@@ -1,8 +1,8 @@
 import type { TableColumn } from "../types";
 import { splitDelimited } from "./splitDelimited";
 
-// Sintaxe de coluna: "coluna" (chave crua) ou "Rótulo=FÓRMULA" (calculada,
-// avaliada por linha — ex: "Total (R$)=CURRENCY(total_amount, \"R$\")").
+// Column syntax: "column" (raw key) or "Label=FORMULA" (calculated,
+// evaluated per row — e.g. "Total (R$)=CURRENCY(total_amount, \"R$\")").
 export function parseColumnsInput(raw: string): TableColumn[] {
   return splitDelimited(raw).map((part): TableColumn => {
     const eq = part.indexOf("=");

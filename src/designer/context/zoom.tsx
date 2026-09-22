@@ -4,19 +4,19 @@ import { mmToPx } from "../../page/units";
 import { useDesignerData } from "./hooks";
 import { DesignerZoomContext, type DesignerZoomValue } from "./zoomContext";
 
-// Provider do zoom. O POR QUÊ de ele ter contexto próprio está em
-// zoomContext.ts, junto do tipo.
+// The zoom provider. The WHY of it having a context of its own is in
+// zoomContext.ts, next to the type.
 
 export function DesignerZoomProvider({ children }: { children: ReactNode }) {
   const { template } = useDesignerData();
   const [zoom, setZoomBruto] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
-  // A página que o canvas está desenhando. `DesignerCanvas` usa
-  // `template.page`, e este cálculo tem que usar a MESMA fonte — medir
-  // contra outra página daria um fit que não corresponde ao que está na
-  // tela. Numa ref pra `fitWidth`/`fitHeight` não trocarem de identidade a
-  // cada edição do template.
+  // The page the canvas is drawing. `DesignerCanvas` uses `template.page`,
+  // and this computation has to use the SAME source — measuring against a
+  // different page would give a fit that does not match what is on screen.
+  // In a ref so `fitWidth`/`fitHeight` do not change identity on every
+  // template edit.
   const pagina = useRef(template.page);
   pagina.current = template.page;
 
@@ -26,16 +26,16 @@ export function DesignerZoomProvider({ children }: { children: ReactNode }) {
 
   const ajustar = useCallback((dimensao: "width" | "height") => {
     const el = viewportRef.current;
-    // Sem canvas montado não há o que medir. Antes o fallback era
-    // `window.innerWidth`, e ele foi a causa de "ajustar largura" dar 113%
-    // com 338px de página fora da tela — medir a janela em vez da caixa.
+    // With no canvas mounted there is nothing to measure. The fallback used
+    // to be `window.innerWidth`, and it caused "fit width" to give 113% with
+    // 338px of page off screen — measuring the window instead of the box.
     if (!el) return;
     const disponivel = dimensao === "width" ? el.clientWidth : el.clientHeight;
     const paginaPx = mmToPx(dimensao === "width" ? pagina.current.width : pagina.current.height);
-    // `Number.isFinite` e não `<= 0`: `NaN <= 0` é FALSE, então uma página
-    // com width/height NaN atravessava esta guarda e o `fitWidth` devolvia
-    // NaN. O `clampZoom` hoje absorve isso, mas não fazer a divisão é melhor
-    // que depender de quem recebe.
+    // `Number.isFinite` and not `<= 0`: `NaN <= 0` is FALSE, so a page with a
+    // NaN width/height went straight through this guard and `fitWidth`
+    // returned NaN. `clampZoom` absorbs that today, but not doing the
+    // division is better than depending on the receiver.
     if (!Number.isFinite(paginaPx) || paginaPx <= 0) return;
     setZoom((disponivel - ZOOM_FIT_INSET_PX) / paginaPx);
   }, [setZoom]);

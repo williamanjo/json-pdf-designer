@@ -8,9 +8,9 @@ type Props<S extends Schema> = {
   onChangeSchema: (patch: Partial<S>) => void;
 };
 
-// X/Y/largura/altura — comum a qualquer tipo de campo. Tabela tem aba
-// "Estilo" própria e mostra esses campos lá dentro, junto do resto da
-// aparência, em vez de deixá-los soltos acima das abas (ver PropertyPanel).
+// X/Y/width/height — common to any field type. The table has a "Style" tab
+// of its own and shows these fields inside it, next to the rest of the
+// appearance, instead of leaving them loose above the tabs (see PropertyPanel).
 export function PositionFields<S extends Schema>({ schema, onChangeSchema }: Props<S>) {
   const t = useT();
   const { Input } = useUiComponents();
@@ -44,11 +44,11 @@ export function PositionFields<S extends Schema>({ schema, onChangeSchema }: Pro
   );
 }
 
-// Visibilidade condicional (`schema.visibleWhen`) — comum a qualquer tipo de
-// campo, igual PositionFields. A expressão vai SEM chaves (é a condição nua,
-// não um template), e o erro de sintaxe aparece embaixo do input na hora, em
-// vez de só no ícone da lista de campos: quem está digitando a condição é quem
-// precisa do retorno imediato.
+// Conditional visibility (`schema.visibleWhen`) — common to any field type,
+// like PositionFields. The expression goes in WITHOUT braces (it is the bare
+// condition, not a template), and a syntax error shows up under the input
+// immediately, instead of only on the icon in the field list: whoever is
+// typing the condition is the one who needs the instant feedback.
 export function VisibleWhenField<S extends Schema>({ schema, onChangeSchema }: Props<S>) {
   const t = useT();
   const { Input } = useUiComponents();

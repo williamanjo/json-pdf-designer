@@ -1,11 +1,11 @@
 import type { Binding, Template } from "../../../src/types";
 
-// Seção repetida cuja ALTURA AUTORADA sozinha (antes de qualquer
-// crescimento por tabela mestre-detalhe) já é maior que o corpo disponível
-// de uma página A4 inteira — testa que `generatePdf` não trava/entra em
-// loop infinito de página vazia quando um único item nem cabe fisicamente
-// numa página (o guard de segurança existe em generate.ts, isto testa o
-// pipeline inteiro, não só a função isolada).
+// A repeated section whose AUTHORED HEIGHT alone (before any growth from a
+// master-detail table) is already larger than the available body of a whole A4
+// page — it tests that `generatePdf` does not hang or enter an infinite
+// empty-page loop when a single item does not physically fit on a page (the
+// safety guard lives in generate.ts; this tests the whole pipeline, not only
+// the isolated function).
 export function sectionLargerThanPageTemplate(): { template: Template; data: unknown; bindings: Binding[] } {
   const sectionId = "sec1";
   const template: Template = {
@@ -18,7 +18,7 @@ export function sectionLargerThanPageTemplate(): { template: Template; data: unk
         x: 10,
         y: 10,
         width: 190,
-        // Maior que a folha inteira (297mm) — nem cabe numa página vazia.
+        // Larger than the whole sheet (297mm) — it does not fit even on an empty page.
         height: 400,
       },
       {
@@ -38,6 +38,6 @@ export function sectionLargerThanPageTemplate(): { template: Template; data: unk
     ],
   };
   const bindings: Binding[] = [{ schemaName: "secao_gigante", type: "section", path: "itens" }];
-  const data = { itens: [{}, {}] }; // 2 repetições — cada uma maior que 1 página inteira.
+  const data = { itens: [{}, {}] }; // 2 repetitions — each one larger than a whole page.
   return { template, data, bindings };
 }

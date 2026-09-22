@@ -4,78 +4,81 @@ import { FontAssetError } from "./font";
 import { ProjectFileError } from "./projectFile";
 import { shellDict } from "../i18n";
 
-// CLASSIFICAÇÃO de uma falha de geração — de que erro se trata, de quem é a
-// culpa, e que texto a pessoa lê.
+// The CLASSIFICATION of a generation failure — which error it is, whose
+// fault it is, and what text the person reads.
 //
-// A divisão é a que o pacote passou a oferecer na 3.0.0:
+// The split is the one the package started offering in 3.0.0:
 //
-//   - Erro DELE: `describePdfError(err, dictFor(locale))` devolve
-//     `{ code, blame, title, action?, field?, detail }` com título e ação JÁ
-//     LOCALIZADOS. São 18 códigos + `expression`, e a função é exaustiva —
-//     não existe mais "cai no genérico porque não reconheci".
-//   - Erro NOSSO: `describePdfError` devolve `null` (arquivo de projeto
-//     inválido, asset de fonte que não carregou). Aí, e só aí, o texto sai do
-//     dicionário da casca (`src/i18n.ts`, `failures.*`).
+//   - ITS error: `describePdfError(err, dictFor(locale))` returns
+//     `{ code, blame, title, action?, field?, detail }` with the title and
+//     action ALREADY LOCALIZED. There are 18 codes + `expression`, and the
+//     function is exhaustive — there is no more "it falls into the generic
+//     branch because I did not recognize it".
+//   - OUR error: `describePdfError` returns `null` (an invalid project file,
+//     a font asset that did not load). Then, and only then, the text comes
+//     from the shell's dictionary (`src/i18n.ts`, `failures.*`).
 //
-// O QUE ESTAVA ERRADO ANTES: os erros que o pacote lançava como `Error` comum
-// eram reconhecidos por REGEX na frase em português (`/tamanho inválido/`,
-// `/Paginação travada/`). Na 3.0.0 `error.message` virou inglês, e cada falha
-// virou classe com `code` — então toda regex dessas passou a não casar nunca,
-// em silêncio, e QUALQUER falha caía em "erro inesperado". Zero regex sobrou
-// aqui, e não deve voltar: casar texto de mensagem é acoplar a UI a uma frase
-// que o pacote pode reescrever a qualquer momento sem quebrar tipo nenhum.
+// WHAT WAS WRONG BEFORE: the errors the package threw as a plain `Error` were
+// recognized by a REGEX on the Portuguese phrase (`/tamanho inválido/`,
+// `/Paginação travada/`). In 3.0.0 `error.message` turned to English, and each
+// failure became a class with a `code` — so every one of those regexes stopped
+// matching, silently, and ANY failure landed in "unexpected error". Zero
+// regexes are left here, and none should come back: matching message text
+// couples the UI to a phrase the package may rewrite at any time.
 //
-// `blame` também não é mais derivado à mão. Ele vem do pacote (`data` /
-// `template` / `config` / `package`) — é a mesma informação que um backend usa
-// pra escolher entre 413, 400 e 500, e ela não devia ter duas versões.
+// `blame` is no longer derived by hand either. It comes from the package
+// (`data` / `template` / `config` / `package`) — the same information a
+// backend uses to choose between 413, 400 and 500, and it should not have two
 
-// Códigos que são NOSSOS — o que o pacote não sabe que existe. Ficam ao lado
-// dos códigos dele na união abaixo em vez de num campo separado: pra quem
-// renderiza, "que falha foi" é uma pergunta só.
+// The codes that are OURS — what the package does not know exists. They sit
+// next to its codes in the union below instead of in a separate field: for
+// whoever renders, "which failure was it" is a single question.
 export type ShellFailureCode = "projectFile" | "fontAsset" | "unknown";
 
-// Mesma forma do `PdfProblem` do pacote, com o `code` alargado. Reusar a forma
-// dele (inclusive `blame: PdfErrorBlame`) é o que deixa o banner tratar erro
-// nosso e erro dele pelo mesmo caminho de render.
+// The same shape as the package's `PdfProblem`, with the `code` widened.
+// Reusing its shape (including `blame: PdfErrorBlame`) is what lets the banner
+// handle our error and its error through the same render path.
 export type GenerationProblem = Omit<PdfProblem, "code"> & {
   code: PdfProblemCode | ShellFailureCode;
 };
 
-// Chamada NA RENDERIZAÇÃO, nunca no `catch`: o estado guarda o erro CRU, e o
-// texto é resolvido aqui com o `locale` do momento. É isso que faz trocar o
-// idioma com o banner aberto retraduzir o banner, sem regerar o PDF.
+// Called AT RENDER TIME, never in the `catch`: the state holds the RAW error,
+// and the text is resolved here with the `locale` of the moment. That is what
+// makes switching the language with the banner open retranslate the banner,
+// without regenerating the PDF.
 export function describeGenerationError(err: unknown, locale: Locale): GenerationProblem {
-  // Título e ação já no idioma pedido — o dicionário do pacote é o mesmo
-  // `dictFor(locale)` que este example já usa pros rótulos dele.
+  // The title and action already in the language asked for — the package's
+  // dictionary is the same `dictFor(locale)` this example already uses for its
+  // own labels.
   const tt = shellDict(locale);
   const problem = describePdfError(err, dictFor(locale));
 
   if (problem) {
-    // ÚNICO texto de falha do pacote que este example reescreve, e não é
-    // questão de tom: a ação dele é "corrija a expressão — <mensagem>", e
-    // aqui existe um painel ("Problemas do template") que já lista TODAS as
-    // expressões quebradas com o lugar de cada uma. Mandar a pessoa pra lá é
-    // melhor que repetir uma mensagem só. `code`, `blame` e `title`
-    // continuam vindo do pacote.
+    // The ONLY package failure text this example rewrites, and it is not a
+    // matter of tone: its action is "fix the expression — <message>", and here
+    // there is a panel ("Template problems") that already lists ALL the broken
+    // expressions with each one's location. Sending the person there is better
+    // than repeating a single message. `code`, `blame` and `title` still come
+    // from the package.
     if (problem.code === "expression") {
       return { ...problem, action: tt.failures.expressionAction };
     }
     return problem;
   }
 
-  // Daqui pra baixo: o erro NÃO é do pacote. Ele devolveu `null` de propósito
-  // em vez de inventar um título pra uma falha que não conhece.
+  // From here down: the error is NOT the package's. It returned `null` on
+  // purpose instead of inventing a title for a failure it does not know.
   const detail = err instanceof Error ? err.message : String(err);
 
-  // Arquivo de projeto (o JSON que este example salva/carrega) — conceito
-  // deste app, o pacote nunca ouviu falar. A classe carrega o `reason`
-  // justamente pra esta classificação não precisar ler a mensagem.
+  // A project file (the JSON this example saves/loads) — this app's concept,
+  // the package has never heard of it. The class carries the `reason`
+  // precisely so this classification does not have to read the message.
   if (err instanceof ProjectFileError) {
     const copy = tt.failures.projectFile[err.reason];
     return {
       code: "projectFile",
-      // Forma quebrada é problema do TEMPLATE que veio no arquivo; ler/parsear
-      // é problema do arquivo que a pessoa escolheu.
+      // A broken shape is a problem with the TEMPLATE that came in the file;
+      // reading/parsing is a problem with the file the person chose.
       blame: err.reason === "shape" ? "template" : "data",
       title: copy.title,
       action: copy.action,
@@ -83,9 +86,9 @@ export function describeGenerationError(err: unknown, locale: Locale): Generatio
     };
   }
 
-  // A fonte deste example é um asset embutido (src/assets/inter-regular.ttf).
-  // Falhar em buscá-la é problema de build/instalação — nada a ver com os
-  // erros de fonte DO PACOTE, que são todos sobre .woff2 e `fontBytes`.
+  // This example's font is an embedded asset (src/assets/inter-regular.ttf).
+  // Failing to fetch it is a build/installation problem — nothing to do with
+  // THE PACKAGE's font errors, which are all about .woff2 and `fontBytes`.
   if (err instanceof FontAssetError) {
     return {
       code: "fontAsset",
@@ -96,8 +99,8 @@ export function describeGenerationError(err: unknown, locale: Locale): Generatio
     };
   }
 
-  // Genérico honesto: um TypeError de dentro do pdf-lib, uma falha de rede, o
-  // que for. Antes desta rodada TODA falha classificada chegava aqui.
+  // An honest generic: a TypeError from inside pdf-lib, a network failure,
+  // whatever. Before this round EVERY classified failure arrived here.
   return {
     code: "unknown",
     blame: "package" satisfies PdfErrorBlame,

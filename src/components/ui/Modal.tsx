@@ -8,18 +8,18 @@ import { useT } from "../../i18n";
 export type ModalProps = Omit<HTMLAttributes<HTMLDivElement>, "title" | "children"> & {
   title: string;
   onClose: () => void;
-  // Rodapé opcional (botões de ação). Fica fixo embaixo, fora da área que
-  // rola — em janela baixa, "Salvar" não pode ficar inalcançável.
+  // Optional footer (action buttons). It stays pinned at the bottom, outside
+  // the scrolling area — in a short window, "Save" cannot be unreachable.
   footer?: ReactNode;
   /**
-   * Largura máxima do painel. `"lg"` (48rem) é o default e é exatamente o que
-   * o antigo `maxWidthClass="max-w-3xl"` dava.
+   * Maximum panel width. `"lg"` (48rem) is the default and is exactly what the
+   * old `maxWidthClass="max-w-3xl"` gave.
    *
-   * BREAKING em 3.0.0: substitui `maxWidthClass`, que era uma string de
-   * classe TAILWIND na API pública de um pacote que não envia mais Tailwind.
-   * Largura arbitrária agora é `style={{ maxWidth: 900 }}`, que chega no
-   * painel porque `className`/`style` vão pro elemento que dá nome ao
-   * componente — e o nome aqui é o PAINEL, não o fundo escurecido.
+   * BREAKING in 3.0.0: it replaces `maxWidthClass`, a TAILWIND class string in
+   * the public API of a package that no longer ships Tailwind. An arbitrary
+   * width is now `style={{ maxWidth: 900 }}`, which reaches the panel because
+   * `className`/`style` go to the element that names the component — and the
+   * named element here is the PANEL, not the dimmed background.
    */
   size?: "sm" | "md" | "lg" | "xl" | "full";
   parts?: {
@@ -34,13 +34,13 @@ export type ModalProps = Omit<HTMLAttributes<HTMLDivElement>, "title" | "childre
 
 type ShellProps = ModalProps & { closeLabel: string };
 
-// Só a MARCAÇÃO do modal, sem portal e sem Escape.
+// The modal's MARKUP only, with no portal and no Escape.
 //
-// Existe separado por testabilidade, não por gosto: sob
-// `renderToStaticMarkup` não há `document`, então o `Modal` inteiro devolve
-// `null` e nenhuma asserção sobre o markup dele seria possível. O modal é o
-// componente com mais `parts` do kit (overlay/header/title/body/footer), e
-// era o único cuja superfície de `parts` ficaria sem teste.
+// It exists separately for testability, not for taste: under
+// `renderToStaticMarkup` there is no `document`, so the whole `Modal` returns
+// `null` and no assertion about its markup would be possible. The modal is
+// the component with the most `parts` in the kit (overlay/header/title/body/
+// footer), and it was the only one whose `parts` surface went untested.
 export const ModalShell = forwardRef<HTMLDivElement, ShellProps>(function ModalShell(
   { title, onClose, footer, size = "lg", className, style, parts, closeLabel, children, ...rest },
   ref
@@ -50,8 +50,8 @@ export const ModalShell = forwardRef<HTMLDivElement, ShellProps>(function ModalS
   const titlePart = readPart(parts?.title);
   const body = readPart(parts?.body);
   const footerPart = readPart(parts?.footer);
-  // `aria-labelledby` em vez de `aria-label={title}`: o título já está na
-  // tela no <h3>, e apontar pra ele mantém os dois em sincronia sozinhos.
+  // `aria-labelledby` instead of `aria-label={title}`: the title is already
+  // on screen in the <h3>, and pointing at it keeps the two in sync by itself.
   const titleId = useId();
   const { setPanel, onKeyDown } = useDialogFocus<HTMLDivElement>(ref);
 
@@ -60,25 +60,25 @@ export const ModalShell = forwardRef<HTMLDivElement, ShellProps>(function ModalS
       className={cx("jpd-modal", overlay.className)}
       style={overlay.style}
       onClick={onClose}
-      // O overlay é decoração + atalho de mouse. Não ganha `role="button"`
-      // nem tabIndex de propósito: seria uma parada de Tab invisível, e o
-      // equivalente por teclado já existe em dois lugares melhores — Escape
-      // (ver o hook) e o "×" do cabeçalho.
+      // The overlay is decoration + a mouse shortcut. It deliberately gets no
+      // `role="button"` and no tabIndex: that would be an invisible Tab stop,
+      // and the keyboard equivalent already exists in two better places —
+      // Escape (see the hook) and the "×" in the header.
       role="presentation"
-      // Nada aqui dentro é arrastável. O portal já tira o modal de dentro do
-      // elemento `draggable`, mas evento de React sobe pela árvore de REACT,
-      // não pela do DOM — então o handler do chip ainda receberia um
-      // dragstart daqui. Este preventDefault fecha essa porta.
+      // Nothing in here is draggable. The portal already lifts the modal out of
+      // the `draggable` element, but a React event bubbles up the REACT tree,
+      // not the DOM one — so the chip's handler would still receive a
+      // dragstart from here. This preventDefault closes that door.
       draggable={false}
       onDragStart={(e) => e.preventDefault()}
     >
       <div
         ref={setPanel}
         {...rest}
-        // `role="dialog"` + `aria-modal` é o que faz leitor de tela anunciar
-        // "diálogo" e parar de oferecer a página de trás. `tabIndex={-1}` é
-        // alvo de foco de FALLBACK: painel sem nenhum controle focável ainda
-        // precisa receber o foco, senão ele fica no documento atrás.
+        // `role="dialog"` + `aria-modal` is what makes a screen reader announce
+        // "dialog" and stop offering the page behind it. `tabIndex={-1}` is a
+        // FALLBACK focus target: a panel with no focusable control still has
+        // to receive focus, otherwise it stays on the document behind.
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -87,25 +87,25 @@ export const ModalShell = forwardRef<HTMLDivElement, ShellProps>(function ModalS
         data-size={size}
         className={cx("jpd-modal__panel", className)}
         style={style}
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- ver abaixo
-        // O `stopPropagation` FICA, e o aviso de a11y aqui é aceito de olho
-        // aberto. Trocar por "o overlay decide pelo alvo" parece equivalente e
-        // não é: este modal vive num PORTAL, e evento de React sobe pela
-        // árvore de REACT, não pela do DOM — sem o stopPropagation, clique
-        // dentro do modal chega nos handlers do elemento que ABRIU o modal
-        // (o chip de coluna arrastável, ver o comentário do portal abaixo).
-        // É o mesmo motivo do `onDragStart` no overlay. Um diálogo sem nada
-        // clicável próprio é o espírito da regra; aqui o handler existe só pra
-        // CONTER evento, não pra reagir a clique.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- see below
+        // The `stopPropagation` STAYS, and the a11y warning here is accepted
+        // with eyes open. Swapping it for "the overlay decides by target"
+        // looks equivalent and is not: this modal lives in a PORTAL, and a
+        // React event bubbles up the REACT tree, not the DOM one — without
+        // the stopPropagation, a click inside the modal reaches the handlers
+        // of the element that OPENED it (the draggable column chip, see the
+        // portal comment below). It is the same reason as the `onDragStart`
+        // on the overlay. A dialog with nothing clickable of its own is the
+        // spirit of the rule; here the handler only CONTAINS an event.
         onClick={(e) => e.stopPropagation()}
       >
         <div className={cx("jpd-modal__header", header.className)} style={header.style}>
           <h3 id={titleId} className={cx("jpd-modal__title", titlePart.className)} style={titlePart.style}>
             {title}
           </h3>
-          {/* `aria-label` era o TÍTULO DO DIÁLOGO, então leitor de tela
-              anunciava "Editor de fórmula" como nome do botão que fecha o
-              editor de fórmula. Agora tem nome próprio, traduzido. */}
+          {/* `aria-label` was the DIALOG TITLE, so a screen reader announced
+              "Formula editor" as the name of the button that closes the
+              formula editor. Now it has a name of its own, translated. */}
           <button type="button" onClick={onClose} className="jpd-iconbtn" aria-label={closeLabel}>
             <IconX />
           </button>
@@ -125,35 +125,35 @@ export const ModalShell = forwardRef<HTMLDivElement, ShellProps>(function ModalS
   );
 });
 
-// Casca de modal: fundo escurecido, clique fora fecha, Escape fecha,
-// cabeçalho com título e "×".
+// Modal shell: dimmed background, click outside closes, Escape closes, header.
 //
-// O `stopPropagation` no painel é o que faz "clique fora fecha" funcionar
-// sem fechar a cada clique DENTRO do conteúdo. E o Escape mora aqui, não em
-// cada modal, porque senão cada um implementaria (ou esqueceria) o seu.
+// The `stopPropagation` on the panel is what makes "click outside closes"
+// work without closing on every click INSIDE the content. And Escape lives
+// here, not in each modal, because otherwise each would forget its own.
 //
-// Vai pra um PORTAL em document.body, e não é detalhe de estilo: quem abre o
-// modal costuma estar dentro de um elemento `draggable` (o chip de coluna da
-// tabela é arrastável pra reordenar). Como filho dele, arrastar qualquer ponto
-// do modal iniciava o drag HTML5 do chip — e selecionar texto no editor virava
-// arrasto em vez de seleção. O portal também imuniza contra `overflow:hidden`
-// e `transform` de ancestral, que quebram `position: fixed`.
+// It goes into a PORTAL on document.body, and that is not a styling detail:
+// whoever opens the modal is usually inside a `draggable` element (the table
+// column chip is draggable for reordering). As its child, dragging anywhere
+// in the modal started the chip's HTML5 drag — and selecting text in the
+// editor became a drag instead of a selection. The portal also immunizes
+// against an ancestor's `overflow:hidden` and `transform`, which break
+// `position: fixed`.
 //
-// CUIDADO COM TEMA: por render em portal no body, uma ilha de
-// `data-jpd-theme` escopada num wrapper NÃO alcança este modal. Pra tema
-// escuro valer aqui, o atributo tem de estar no <html>.
+// CAREFUL WITH THEMING: because it renders through a portal on the body, an
+// island of `data-jpd-theme` scoped to a wrapper does NOT reach this modal.
+// For a dark theme to apply here, the attribute has to be on the <html>.
 //
-// O PdfPreviewModal NÃO usa esta casca de propósito: a dele carrega o
-// cálculo de zoom que ajusta a folha à janela. Mas usa as MESMAS classes
-// `jpd-modal*` — três strings dele eram byte-idênticas às daqui.
+// PdfPreviewModal deliberately does NOT use this shell: its own carries the
+// zoom computation that fits the sheet to the window. But it uses the SAME
+// `jpd-modal*` classes — three of its strings were byte-identical to these.
 export const Modal = forwardRef<HTMLDivElement, ModalProps>(function Modal(props, ref) {
   const t = useT();
   const { onClose } = props;
 
   useEscapeToClose(onClose);
 
-  // SSR (ou qualquer ambiente sem DOM): não há onde portar, e um modal não faz
-  // sentido em HTML estático.
+  // SSR (or any environment with no DOM): there is nowhere to portal to, and a
+  // modal makes no sense in static HTML.
   if (typeof document === "undefined") return null;
 
   return createPortal(<ModalShell ref={ref} {...props} closeLabel={t.modal.close} />, document.body);

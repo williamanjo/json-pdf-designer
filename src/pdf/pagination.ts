@@ -1,43 +1,42 @@
 import { tableRowsPerSlice, TABLE_ROW_HEIGHT_MM } from "./tableMetrics";
 
-// Decisões puras de paginação (mm, sem pdf-lib) — as perguntas atômicas
-// ("cabe?", "quantas linhas cabem?") que o layout faz enquanto percorre o
-// corpo.
+// Pure pagination decisions (mm, no pdf-lib) — the atomic questions ("does it
+// fit?", "how many rows fit?") the layout asks while walking the body.
 //
-// Elas nasceram extraídas de generate.ts, quando a paginação ainda era
-// calculada DUAS vezes: um dry-run (countBodyPages) só pra saber {pageCount}
-// antes de desenhar, e o laço de desenho de verdade. Compartilhar estas
-// funções era o que impedia as duas cópias de divergirem. Hoje existe uma
-// travessia só (layout/layoutDocument.ts), então a divergência deixou de ser
-// possível — mas as decisões continuam aqui, puras e testadas à parte.
+// They were born extracted from generate.ts, when pagination was still
+// computed TWICE: a dry run (countBodyPages) only to learn {pageCount} before
+// drawing, and the real drawing loop. Sharing these functions was what kept
+// the two copies from diverging. Today there is a single traversal
+// (layout/layoutDocument.ts), so divergence is no longer possible — but the
+// decisions stay here, pure and tested separately.
 
-// Campo/seção não pagina sozinho: se nem a própria altura cabe no que
-// resta da página (e a página não tá "vazia" ainda, senão nunca ia caber
-// nunca), o item inteiro vai pra página nova.
+// A field/section does not paginate on its own: if not even its own height
+// fits in what is left of the page (and the page is not "empty" yet, otherwise
+// it would never fit anywhere), the whole item goes to a new page.
 export function needsNewPageForItem(itemHeightMm: number, availableMm: number, cursorTopMm: number, headerHeight: number): boolean {
   return itemHeightMm > availableMm && cursorTopMm > headerHeight;
 }
 
 export type TableSliceDecision = {
-  // Quantas linhas de dado essa fatia consome.
+  // How many data rows this slice consumes.
   rowsToTake: number;
-  // Capacidade bruta da fatia (antes de descontar linha de rodapé) — usada
-  // por quem chama só pra detectar "não cabe nem 1 linha" (capacity <= 0).
+  // The slice's raw capacity (before subtracting the footer row) — used by
+  // the caller only to detect "not even 1 row fits" (capacity <= 0).
   capacity: number;
-  // Essa fatia é a ÚLTIMA (todo o restante cabe nela)? Só a última desenha
-  // o rodapé, se houver.
+  // Is this slice the LAST one (does everything remaining fit in it)? Only
+  // the last one draws the footer, if there is one.
   isLastSlice: boolean;
-  // Essa fatia desenha a linha de rodapé (totais)?
+  // Does this slice draw the footer (totals) row?
   consumesFooter: boolean;
-  // Altura (mm) que essa fatia ocupa: cabeçalho (se houver) + linhas + rodapé (se houver).
+  // The height (mm) this slice takes: the header (if any) + rows + the footer (if any).
   heightMm: number;
 };
 
-// Quanto de uma tabela cabe na fatia atual, dado o espaço disponível.
+// How much of a table fits in the current slice, given the space available.
 export function computeTableSlice(remainingRows: number, availableMm: number, includeHead: boolean, hasFooter: boolean): TableSliceDecision {
   const baseCapacity = Math.max(tableRowsPerSlice(availableMm, includeHead), 0);
-  // Footer nunca repete por página — só cabe na conta da fatia que vai
-  // consumir TODO o resto (reserva 1 linha pra ele só aí).
+  // The footer never repeats per page — it only counts in the arithmetic of
+  // the slice that will consume ALL the rest (it reserves 1 row for it only then).
   const capacityWithFooter = hasFooter ? Math.max(0, baseCapacity - 1) : baseCapacity;
   const isLastSlice = remainingRows <= capacityWithFooter;
   const capacity = isLastSlice ? capacityWithFooter : baseCapacity;

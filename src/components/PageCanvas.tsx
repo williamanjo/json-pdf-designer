@@ -14,69 +14,69 @@ import { IconArrowsHorizontal, IconArrowsVertical, IconDots, IconMinus, IconPlus
 type Props = {
   page: PageSize;
   schemas: Schema[];
-  // Faixas estáticas (mm) que se repetem em toda página do PDF gerado — a
-  // paginação/repetição de verdade é responsabilidade do generate.ts; aqui
-  // só marca a região em vermelho e trava os campos dentro dela (campo do
-  // corpo não atravessa pra faixa vermelha, e vice-versa).
+  // Static bands (mm) that repeat on every page of the generated PDF — the
+  // real pagination/repetition is generate.ts's responsibility; here it only
+  // marks the region in red and locks the fields inside it (a body field does
+  // not cross into the red band, and vice versa).
   headerHeight?: number;
   footerHeight?: number;
   marginLeft?: number;
   marginRight?: number;
-  // Modo isolado: some com os campos do corpo, mostra só os da faixa
-  // vermelha — pra editar cabeçalho/rodapé/margem sem o resto atrapalhar.
+  // Isolated mode: it removes the body's fields and shows only those of the
+  // red band — to edit the header/footer/margin without the rest getting in the way.
   isolateBands?: boolean;
-  // PNG data URI de fundo (letterhead/modelo) — fica atrás dos campos
-  // tanto aqui quanto no PDF gerado.
+  // The background PNG data URI (letterhead/form) — it sits behind the fields
+  // both here and in the generated PDF.
   backgroundImage?: string;
-  // Todos os campos selecionados — o último da lista é o "principal"
-  // (quem o PropertyPanel edita). Ctrl/Cmd+clique adiciona/remove da
-  // seleção em vez de substituir.
+  // Every selected field — the last of the list is the "primary" one (the one
+  // the PropertyPanel edits). Ctrl/Cmd+click adds to/removes from the
+  // selection instead of replacing it.
   selectedIds: string[];
   onSelect: (id: string | null, additive?: boolean) => void;
-  // Caixa de seleção (arrastar no fundo vazio do canvas) — substitui (ou
-  // soma, com Ctrl/Cmd) a seleção pelos campos cuja caixa cruza a área
-  // arrastada.
+  // The marquee (dragging on the canvas's empty background) — it replaces (or
+  // adds to, with Ctrl/Cmd) the selection with the fields whose box crosses
+  // the dragged area.
   onSelectMany?: (ids: string[], additive?: boolean) => void;
   onUpdateSchema: (id: string, patch: Partial<Schema>) => void;
-  // Arrastar um campo que faz parte de uma seleção múltipla desloca os
-  // outros selecionados junto, ao vivo (posição absoluta = original + delta
-  // desde o início do arrasto, não incremental — ver drag snapshot abaixo).
+  // Dragging a field that is part of a multiple selection shifts the other
+  // selected ones along with it, live (an absolute position = original +
+  // delta since the start of the drag, not incremental — see the drag snapshot).
   onMoveGroup?: (updates: Array<{ id: string; x: number; y: number }>) => void;
   onCanvasDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
-  // Soltar um "chip" de coluna (arrastado do PropertyPanel de uma seção
-  // vinculada a um array com colunas conhecidas) — cria o par header+valor
-  // na posição solta (ver PropertyPanel.tsx/schemaFactory.ts).
+  // Dropping a column "chip" (dragged from the PropertyPanel of a section
+  // bound to an array with known columns) — it creates the header+value pair
+  // at the dropped position (see PropertyPanel.tsx/schemaFactory.ts).
   onDropSectionColumn?: (payload: SectionColumnDragPayload, xMm: number, yMm: number) => void;
-  // Tamanho (mm) da grade — desenha o quadriculado de fundo e trava
-  // arrastar/redimensionar nesse passo. 0/negativo desliga a grade
-  // (posição livre, sem quadriculado). Default 5mm.
+  // The grid's size (mm) — it draws the background grid and snaps
+  // dragging/resizing to that step. 0/negative turns the grid off (free
+  // positioning, no grid). Default 5mm.
   gridSizeMm?: number;
-  // Sub-elemento de KPI focado (ícone/título/valor/legenda) e seleção —
-  // ver KpiField.tsx/Designer.tsx. Só tem efeito nos campos type "kpi".
+  // The focused KPI sub-element (icon/title/value/subtitle) and the selection
+  // — see KpiField.tsx/Designer.tsx. It only has an effect on "kpi" fields.
   selectedKpiElement?: KpiElementKey | null;
   onSelectKpiElement?: (el: KpiElementKey) => void;
-  // ZOOM CONTROLADO, opcional. Omitido, o componente segue dono do próprio
-  // zoom (estado interno) — que é o que o caminho headless usa, e é o
-  // comportamento de sempre.
+  // CONTROLLED ZOOM, optional. Omitted, the component stays the owner of its
+  // own zoom (internal state) — which is what the headless path uses, and is
+  // the long-standing behavior.
   //
-  // Passado, o valor vem de fora e toda mudança sai por `onChangeZoom`. É
-  // assim que o `<DesignerCanvas>` liga o zoom ao contexto do provider sem
-  // que este componente saiba que existe um provider.
+  // Passed, the value comes from outside and every change leaves through
+  // `onChangeZoom`. That is how the `<DesignerCanvas>` wires the zoom to the
+  // provider's context without this component knowing a provider exists.
   zoom?: number;
   onChangeZoom?: (zoom: number) => void;
-  // Esconde a barra flutuante de zoom, pra quem desenha a própria em outro
-  // lugar da tela. O zoom continua funcionando — só o controle padrão sai.
+  // Hides the floating zoom bar, for whoever draws their own elsewhere on
+  // screen. The zoom keeps working — only the default control goes away.
   hideZoombar?: boolean;
 };
 
 const RULER_THICKNESS = 16;
 
-// A "folha" — tamanho real em mm convertido pra px, com sombra de papel.
-// Cada campo é um <Rnd> (react-rnd) livre pra arrastar/redimensionar.
-// Régua à esquerda/embaixo mostra o tamanho real em mm. Duplo clique num
-// campo de texto/tabela liga edição inline (digita direto em cima do
-// campo); em imagem, abre o seletor de arquivo pra trocar. Barra flutuante
-// no rodapé controla o zoom da visualização (não afeta o PDF gerado).
+// The "sheet" — the real size in mm converted to px, with a paper shadow.
+// Each field is an <Rnd> (react-rnd) free to drag/resize. A ruler on the
+// left/bottom shows the real size in mm. A double click on a text/table field
+// turns on inline editing (typing right on top of the field); on an image, it
+// opens the file picker to swap it. A floating bar at the bottom controls the
+// view's zoom (it does not affect the generated PDF).
 export function PageCanvas({
   page,
   schemas,
@@ -103,22 +103,22 @@ export function PageCanvas({
   const t = useT();
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Controlado ou não, decidido pela PRESENÇA da prop — o padrão React de
-  // sempre. O estado interno continua existindo nos dois casos porque
-  // trocar de um pro outro no meio da vida do componente não é um caso que
-  // valha suportar: `zoomProp` definido manda, e ponto.
+  // Controlled or not, decided by the PRESENCE of the prop — the usual React
+  // pattern. The internal state keeps existing in both cases because
+  // switching from one to the other mid-life is not a case worth supporting:
+  // a defined `zoomProp` rules, full stop.
   const [zoomInterno, setZoomInterno] = useState(1);
   const controlado = zoomProp !== undefined;
   const zoom = controlado ? clampZoom(zoomProp) : zoomInterno;
 
-  // Aceita valor OU updater, igual `setState`, porque os botões daqui usam a
-  // forma de updater (`z => z - STEP`) e ela não pode depender de uma
-  // closure velha do `zoom`.
+  // It accepts a value OR an updater, like `setState`, because the buttons
+  // here use the updater form (`z => z - STEP`) and it must not depend on a
+  // stale closure over `zoom`.
   const setZoom = useCallback(
     (proximo: number | ((anterior: number) => number)) => {
       if (controlado) {
-        // No modo controlado o dono do valor é quem chamou; resolvemos o
-        // updater contra o valor ATUAL da prop e avisamos.
+        // In controlled mode the value's owner is the caller; we resolve the
+        // updater against the prop's CURRENT value and report it.
         const resolvido = typeof proximo === "function" ? proximo(clampZoom(zoomProp)) : proximo;
         onChangeZoom?.(clampZoom(resolvido));
         return;
@@ -130,10 +130,10 @@ export function PageCanvas({
   const bands = { headerHeight, footerHeight, marginLeft, marginRight };
   const gridPx = gridSizeMm > 0 ? mmToPx(gridSizeMm) : 0;
 
-  // Segurar Shift libera do quadriculado — posição/tamanho livre enquanto
-  // durar o arrasto. react-draggable lê o prop de grade de novo a cada
-  // frame do gesto (não só no início), então isso reage em tempo real —
-  // já dá pra soltar o Shift no meio do arrasto que volta a travar.
+  // Holding Shift frees it from the grid — free position/size for as long as
+  // the drag lasts. react-draggable reads the grid prop again on every frame
+  // of the gesture (not only at the start), so this reacts in real time —
+  // releasing Shift mid-drag already snaps it back.
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -160,15 +160,16 @@ export function PageCanvas({
     ? schemas.filter((s) => isRedZone(classifyZone(s, page, bands)))
     : schemas;
 
-  // Posição (mm) de todo selecionado no instante em que o arrasto começou —
-  // permite calcular a posição de cada um (original + delta total desde o
-  // início) em vez de somar deltas incrementais, que divergiriam a cada
-  // frame do onDrag. null = não tá arrastando um grupo agora.
+  // The position (mm) of everything selected at the instant the drag started —
+  // it allows computing each one's position (original + the total delta since
+  // the start) instead of summing incremental deltas, which would diverge on
+  // every onDrag frame. null = not dragging a group right now.
   const dragSnapshotRef = useRef<Map<string, { x: number; y: number }> | null>(null);
 
-  // Caixa de seleção: mousedown no fundo vazio começa a acompanhar o mouse
-  // (janela toda, não só o canvas — senão soltar fora da folha perderia o
-  // "mouseup"), desenha o retângulo, e no soltar seleciona quem cruzar.
+  // The marquee: a mousedown on the empty background starts following the
+  // mouse (the whole window, not only the canvas — otherwise releasing
+  // outside the sheet would lose the "mouseup"), draws the rectangle, and on
+  // release selects whoever it crosses.
   const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const suppressClickRef = useRef(false);
 
@@ -177,15 +178,15 @@ export function PageCanvas({
   }
 
   function handleBackgroundMouseDown(e: React.MouseEvent<HTMLDivElement>) {
-    // Fundo da página OU fundo de uma seção (classe "jpd-section__body")
-    // contam como "vazio" pra começar a caixa — assim dá pra selecionar campos
-    // que estão dentro/por cima de uma seção sem mover ela (só a barra do topo
-    // arrasta a seção — ver dragHandleClassName). Campo de verdade (Rnd
-    // próprio) nunca bate aqui, e a seção só entra na seleção resultante se
-    // a caixa cruzar a faixa do header dela (ver hit-test abaixo).
+    // The page background OR a section's background (the "jpd-section__body"
+    // class) count as "empty" for starting the marquee — that way fields that
+    // are inside/on top of a section can be selected without moving it (only
+    // the top bar drags the section — see dragHandleClassName). A real field
+    // (an <Rnd> of its own) never matches here, and the section only enters the
+    // resulting selection if the box crosses its header band (see the hit-test).
     //
-    // Esta classe é CONTRATO com FieldBox/SectionField.tsx, lida por JS e não
-    // só por CSS: renomear lá sem renomear aqui mata o hit-test em silêncio.
+    // This class is a CONTRACT with FieldBox/SectionField.tsx, read by JS and
+    // not only by CSS: renaming it there without renaming it here silently
     const targetEl = e.target as HTMLElement;
     const isEmptyArea = targetEl === e.currentTarget || targetEl.classList.contains("jpd-section__body");
     if (!isEmptyArea || !onSelectMany) return;
@@ -232,7 +233,7 @@ export function PageCanvas({
       const rect = e.currentTarget.getBoundingClientRect();
       const rawXMm = pxToMm((e.clientX - rect.left) / zoom);
       const rawYMm = pxToMm((e.clientY - rect.top) / zoom);
-      // Segurando Shift ao soltar = posição livre, sem cair na grade.
+      // Holding Shift on release = free position, without snapping to the grid.
       const xMm = e.shiftKey ? rawXMm : snapToGrid(rawXMm, gridSizeMm);
       const yMm = e.shiftKey ? rawYMm : snapToGrid(rawYMm, gridSizeMm);
       onDropSectionColumn(payload, xMm, yMm);
@@ -497,7 +498,7 @@ export function PageCanvas({
                   // `boxSizing: "border-box"` saiu daqui porque o
                   // re-resizable já o força inline DEPOIS do nosso style
                   // (index.js: `{...this.props.style, ...sizeStyle,
-                  // boxSizing: 'border-box'}`) — era declaração morta.
+                  // boxSizing: 'border-box'}`) — it was a dead declaration.
                   style={{ cursor: isEditing ? "text" : isLocked ? "not-allowed" : undefined }}
                 >
                   <FieldBox

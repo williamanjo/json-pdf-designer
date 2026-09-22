@@ -22,7 +22,7 @@ describe("computeTableSlice", () => {
   });
 
   it("fatia parcial quando não cabe tudo — não é a última fatia", () => {
-    // 100mm / 7mm por linha - 1 (cabeçalho) = 13 linhas de capacidade.
+    // 100mm / 7mm per row - 1 (the header) = 13 rows of capacity.
     const decision = computeTableSlice(50, 100, true, false);
     expect(decision.isLastSlice).toBe(false);
     expect(decision.rowsToTake).toBe(decision.capacity);

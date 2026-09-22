@@ -22,12 +22,12 @@ import { loadAutosave, useAutosave } from "./hooks/useAutosave";
 import { initialTemplate, initialBindings, initialSample } from "./data/initialTemplate";
 import { EXAMPLES } from "./data/templates";
 
-// Mesmas features do example "report-builder", só que a casca inteira
-// (header, sidebar, cards, abas de página, painéis, modais, botões) é HTML +
-// CSS escritos à mão em src/index.css — nenhum Button/Card/Input/Badge/
-// ícone/PdfPreviewModal do pacote. Do json-pdf-designer só entram as peças
-// que NÃO são chrome: <Designer>, <PdfPreview>, generatePdf, downloadPdf,
-// I18nProvider, as classes de erro, os helpers de layout/aviso e os tipos.
+// The same features as the "report-builder" example, except that the whole
+// shell (header, sidebar, cards, page tabs, panels, modals, buttons) is HTML +
+// CSS written by hand in src/index.css — no Button/Card/Input/Badge/icon/
+// PdfPreviewModal from the package. From json-pdf-designer only the pieces
+// that are NOT chrome come in: <Designer>, <PdfPreview>, generatePdf,
+// downloadPdf, I18nProvider, the error classes, the layout/warning helpers and
 export default function App() {
   const fieldPickerTriggerRef = useRef<(() => void) | null>(null);
   const [autosaved] = useState(loadAutosave);
@@ -41,45 +41,45 @@ export default function App() {
     if (autosaved?.sources) return extractFields(mergeSources(autosaved.sources).data);
     return extractFields(initialSample);
   });
-  // Código do problema de cada fonte, não a frase — quem traduz é o render,
-  // pra que trocar de idioma não deixe a mensagem antiga na tela.
+  // Each source's problem CODE, not the phrase — what translates is the
+  // render, so that switching language does not leave the old message on screen.
   const [errorsById, setErrorsById] = useState<Record<string, SourceErrorCode>>({});
-  // Guarda o ERRO CRU, não a frase. A tradução acontece no render
-  // (describeGenerationError, ver lib/generationError.ts) — se guardássemos a
-  // frase, um banner aberto ficaria congelado no idioma de quando a falha
-  // aconteceu e trocar o seletor deixaria esse resíduo na tela. O objeto
-  // envolvente existe só porque `null` também é um `unknown` válido.
+  // It holds the RAW ERROR, not the phrase. The translation happens at render
+  // time (describeGenerationError, see lib/generationError.ts) — if we held the
+  // phrase, an open banner would be frozen in the language of when the failure
+  // happened and switching the picker would leave that residue on screen. The
+  // wrapping object exists only because `null` is also a valid `unknown`.
   const [genError, setGenError] = useState<{ err: unknown } | null>(null);
   const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
   const [generating, setGenerating] = useState(false);
-  // UM estado de idioma pra DUAS camadas: vai como prop `locale` pro
-  // <Designer> (botões/abas/avisos do editor) e alimenta `t(locale)`, o
-  // dicionário da casca deste app (src/i18n.ts). Não afeta o PDF gerado nem o
-  // conteúdo dos templates de exemplo — idioma da interface não é idioma do
-  // documento.
+  // ONE language state for TWO layers: it goes as the `locale` prop to the
+  // <Designer> (the editor's buttons/tabs/warnings) and feeds `t(locale)`,
+  // this app's shell dictionary (src/i18n.ts). It affects neither the generated
+  // PDF nor the sample templates' content — the interface's language is not
+  // the document's language.
   const [locale, setLocale] = useState<Locale>("pt-BR");
   const d = t(locale);
 
-  // Recalcula a cada render: é varredura de string sobre o template em memória,
-  // barata o suficiente pra não valer memo — e assim o painel reage na hora em
-  // que alguém digita uma expressão torta.
+  // Recomputed on every render: it is a string scan over the in-memory
+  // template, cheap enough not to be worth a memo — and that way the panel
+  // reacts the moment someone types a crooked expression.
   const problems = templateProblems(template, bindings, locale);
 
   useUndoRedo(template, bindings, setTemplate, setBindings);
   useAutosave(template, bindings, sources);
 
-  // `template.pages` sempre existe e não é vazio (garantido por
-  // ensurePages em todo lugar que troca `template` inteiro) — clampa o
-  // índice pra nunca apontar fora do array (ex: depois de remover a última
-  // aba selecionada, ou carregar um projeto/exemplo com menos páginas).
+  // `template.pages` always exists and is never empty (guaranteed by
+  // ensurePages everywhere the whole `template` is swapped) — it clamps the
+  // index so it never points outside the array (e.g. after removing the last
+  // selected tab, or loading a project/example with fewer pages).
   const pages = template.pages!;
   const safeActivePageIndex = Math.min(activePageIndex, pages.length - 1);
   const activePage = pages[safeActivePageIndex];
 
-  // Repassa pro <Designer> (via DesignerPanel) só a página ATIVA — Designer
-  // não sabe que existem outras páginas, só edita a que recebeu. Grava de
-  // volta em template.pages[safeActivePageIndex], preservando o resto do
-  // Template intacto (inclusive as outras páginas).
+  // It forwards only the ACTIVE page to the <Designer> (through
+  // DesignerPanel) — the Designer does not know other pages exist, it only
+  // edits the one it received. It writes back into
+  // template.pages[safeActivePageIndex], keeping the rest of the Template intact.
   function setActivePageTemplate(update: React.SetStateAction<Template>) {
     setTemplate((prev) => {
       const prevPages = prev.pages!;
@@ -91,7 +91,7 @@ export default function App() {
 
   function handleAddPage() {
     setTemplate((prev) => ({ ...prev, pages: [...prev.pages!, blankPage()] }));
-    setActivePageIndex(pages.length); // nova página vai pro final
+    setActivePageIndex(pages.length); // a new page goes to the end
   }
 
   function handleRemovePage(index: number) {
@@ -100,9 +100,9 @@ export default function App() {
     setActivePageIndex((prevIndex) => Math.max(0, prevIndex >= index ? prevIndex - 1 : prevIndex));
   }
 
-  // Só recalcula a lista de campos quando o usuário clicar em "Resync
-  // campos" — assim ele pode colar um JSON grande sem a lista ficar
-  // piscando a cada tecla digitada.
+  // It only recomputes the field list when the user clicks "Resync fields" —
+  // that way they can paste a large JSON without the list flickering on every
+  // keystroke.
   function handleResync() {
     const { data, errorsById: nextErrors } = mergeSources(sources);
     setFields(extractFields(data));
@@ -116,8 +116,9 @@ export default function App() {
       const { data, errorsById: nextErrors } = mergeSources(sources);
       setErrorsById(nextErrors);
       const fontBytes = await loadDefaultFont();
-      // `maxPages` explícito, no default do pacote: deixa claro que existe um
-      // teto e que estourá-lo dá PageLimitError em vez de um PDF truncado.
+      // An explicit `maxPages`, at the package's default: it makes clear that a
+      // ceiling exists and that going past it gives a PageLimitError instead
+      // of a truncated PDF.
       const bytes = await generatePdf(template, data, bindings, { fontBytes, maxPages: DEFAULT_MAX_PAGES });
       setPreviewBytes(bytes);
     } catch (err) {
@@ -138,15 +139,15 @@ export default function App() {
         setActivePageIndex(0);
         setGenError(null);
       })
-      // parseProjectFile já chama migrateTemplate; um formato mais novo que
-      // este build entende chega aqui como erro, e vira a mesma mensagem
-      // acionável de qualquer outra falha.
+      // parseProjectFile already calls migrateTemplate; a format newer than this
+      // build understands arrives here as an error, and becomes the same
+      // actionable message as any other failure.
       .catch((err: unknown) => setGenError({ err }));
   }
 
-  // Exemplos prontos — cada um troca template/binding E a fonte de dados
-  // pro JSON de exemplo dele, já sincroniza a lista de campos (fields) sem
-  // precisar clicar "Resync".
+  // Ready-made examples — each one swaps template/binding AND the data source
+  // for its own sample JSON, already syncing the field list (fields) without
+  // having to click "Resync".
   function handleLoadExample(key: string) {
     const example = EXAMPLES[key];
     if (!example) return;
@@ -165,9 +166,9 @@ export default function App() {
       <header className="app-header">
         <h1>{d.appTitle}</h1>
         <div className="header-actions">
-          {/* Nome de idioma NÃO se traduz: cada um fica no próprio idioma, que
-              é a convenção — quem procura "Português" não procura por
-              "Portuguese". */}
+          {/* A language's name is NOT translated: each stays in its own
+              language, which is the convention — whoever looks for "Português"
+              does not look for "Portuguese". */}
           <select
             className="select"
             value={locale}
@@ -186,10 +187,10 @@ export default function App() {
             }}
           >
             <option value="">{d.loadExample}</option>
-            {/* `ex.label` NÃO é traduzido: é o nome do documento de exemplo
-                ("Lei Kandir", "Boletim de Turma"), conteúdo, não rótulo de
-                UI. O relatório continua em português com a interface em
-                inglês. */}
+            {/* `ex.label` is NOT translated: it is the sample document's name
+                ("Lei Kandir", "Boletim de Turma"), content, not a UI label.
+                The report stays in Portuguese with the interface in
+                English. */}
             {Object.entries(EXAMPLES).map(([key, ex]) => (
               <option key={key} value={key}>
                 {ex.label}
@@ -230,9 +231,9 @@ export default function App() {
           <ProblemsPanel
             problems={problems}
             locale={locale}
-            // O <Designer> é dono da seleção (não há prop pra dirigi-la de
-            // fora), então o clique navega até a PÁGINA do campo — é o mais
-            // longe que dá pra levar hoje.
+            // The <Designer> owns the selection (there is no prop to drive it from
+            // outside), so the click navigates to the field's PAGE — which is
+            // as far as it can be taken today.
             onGoTo={(pageIndex) => setActivePageIndex(pageIndex)}
           />
           <FieldTree fields={fields} locale={locale} onOpenPicker={() => fieldPickerTriggerRef.current?.()} />
@@ -265,9 +266,9 @@ export default function App() {
       {previewBytes && (
         <PdfPreviewModal
           bytes={previewBytes}
-          // Tamanho da 1ª página só pro cálculo de zoom do modal — páginas
-          // de tamanhos diferentes no mesmo Template continuam gerando
-          // certo, só o "fit" inicial usa a primeira como referência.
+          // The 1st page's size, only for the modal's zoom computation — pages of
+          // different sizes in the same Template still generate correctly, only
+          // the initial "fit" uses the first as its reference.
           page={pages[0].page}
           locale={locale}
           onClose={() => setPreviewBytes(null)}

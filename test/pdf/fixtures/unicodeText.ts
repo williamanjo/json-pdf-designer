@@ -1,11 +1,11 @@
 import type { Template } from "../../../src/types";
 
-// Fronteira REAL de codificação sem fonte customizada: o Helvetica padrão
-// do pdf-lib (WinAnsi) cobre acentuação latina (português) de sobra, mas
-// NÃO cobre emoji/CJK/árabe — isso já é documentado (ver docs/USAGE.md,
-// seção "Custom font": `.woff`/`.woff2`/`fontBytes` resolve). Este par de
-// fixtures existe pra confirmar/travar esse comportamento de propósito
-// (ver test/pdf/generate.torture.test.ts), não pra "consertar" nada.
+// The REAL encoding boundary with no custom font: pdf-lib's standard
+// Helvetica (WinAnsi) covers Latin accents (Portuguese) with room to spare,
+// but does NOT cover emoji/CJK/Arabic — that is already documented (see
+// docs/USAGE.md, the "Custom font" section: `.woff`/`.woff2`/`fontBytes`
+// solves it). This pair of fixtures exists to confirm/pin that behavior on
+// purpose (see test/pdf/generate.torture.test.ts), not to "fix" anything.
 export function ptBrAccentsTemplate(): Template {
   return {
     page: { width: 210, height: 297 },

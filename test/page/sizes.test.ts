@@ -14,7 +14,7 @@ describe("orientationOf", () => {
 
 describe("applyOrientation", () => {
   it("normaliza pra retrato antes de decidir (entrada já landscape, pedindo portrait)", () => {
-    // size chega em landscape (420x297) mas base é o preset a3 (297x420)
+    // size arrives in landscape (420x297) but the base is the a3 preset (297x420)
     expect(applyOrientation({ width: 420, height: 297 }, "portrait")).toEqual({ width: 297, height: 420 });
   });
 
@@ -46,9 +46,9 @@ describe("matchPreset", () => {
   });
 
   it("usa a tolerância numérica exata (< 0.5) pra quase-igualdade", () => {
-    // dentro da tolerância (diff 0.49 < 0.5) -> bate
+    // within tolerance (diff 0.49 < 0.5) -> it matches
     expect(matchPreset({ width: 210.49, height: 297 })).toBe("a4");
-    // exatamente no limite (diff 0.5, não é < 0.5) -> não bate
+    // exactly at the limit (diff 0.5, which is not < 0.5) -> no match
     expect(matchPreset({ width: 210.5, height: 297 })).toBeUndefined();
   });
 

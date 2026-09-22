@@ -10,17 +10,17 @@ type Props = {
   onSelect: (id: string, additive?: boolean) => void;
 };
 
-// Ordem de exibição das zonas — cabeçalho/margens primeiro (fixo em toda
-// página), corpo no meio, rodapé por último. Mesma classificação de
-// src/page/zones.ts usada pelo canvas/generate.ts, sem reimplementar nada aqui.
+// Display order of the zones — header/margins first (fixed on every page),
+// body in the middle, footer last. The same classification as
+// src/page/zones.ts used by the canvas/generate.ts, nothing reimplemented here.
 const ZONE_ORDER: Zone[] = ["header", "marginLeft", "marginRight", "body", "footer"];
 
-// Árvore somente-leitura da página atual, agrupada por zona (Header/Body/
-// Footer/margens) — cada linha mostra tipo, posição, seção-pai (se
-// membro) e um resumo do vínculo. Clicar reaproveita a seleção já
-// existente (useSelection em Designer.tsx) — não seleciona nada por conta
-// própria. Posição no array `schemas` vira o z-index mostrado (mesma
-// ordem que enviar-pra-trás/trazer-pra-frente já usa em PageCanvas.tsx).
+// A read-only tree of the current page, grouped by zone (Header/Body/
+// Footer/margins) — each row shows the type, the position, the parent
+// section (if it is a member) and a summary of the binding. Clicking reuses
+// the selection that already exists (useSelection in Designer.tsx) — it
+// selects nothing on its own. A schema's position in the `schemas` array
+// becomes the z-index shown (the order send-to-back/bring-to-front uses).
 export function TemplateInspector({ template, bindings, selectedIds, onSelect }: Props) {
   const t = useT();
   const bands = {

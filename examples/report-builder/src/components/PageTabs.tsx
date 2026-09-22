@@ -10,10 +10,10 @@ type Props = {
   onRemove: (index: number) => void;
 };
 
-// Abas acima do Designer — cada uma é uma TemplatePage independente dentro
-// do MESMO Template (ver lib/pages.ts). Rótulo é sempre a posição no array
-// ("Página N"), não um nome guardado — evita nome desatualizado depois de
-// reordenar/remover uma aba do meio.
+// Tabs above the Designer — each one is an independent TemplatePage inside
+// the SAME Template (see lib/pages.ts). The label is always the position in
+// the array ("Page N"), not a stored name — which avoids a stale name after
+// reordering/removing a tab from the middle.
 export default function PageTabs({ locale, pages, activeIndex, onSelect, onAdd, onRemove }: Props) {
   const tx = t(locale);
   return (

@@ -33,8 +33,9 @@ function makeTable(overrides: Partial<TableSchema> = {}): TableSchema {
 }
 
 describe("reindexTableForNewHead / reindexArrayBindingForNewHead — bug real de índice vs nome", () => {
-  // Regressão do bug documentado: reduzir de 9 pra 1 coluna ("fatura", que
-  // era a 3ª/índice 2) não podia pegar o índice 0 ("orgao") por engano.
+  // A regression of the documented bug: reducing from 9 columns to 1
+  // ("fatura", which was the 3rd/index 2) must not take index 0 ("orgao") by
+  // mistake.
   it("reduzir de várias colunas pra uma só busca pelo NOME, não pela posição", () => {
     const oldHead = ["orgao", "processo", "fatura", "valor"];
     const table = makeTable({ head: oldHead, content: [["ORG1", "PROC1", "FAT1", "VAL1"]] });
@@ -62,10 +63,10 @@ describe("reindexTableForNewHead / reindexArrayBindingForNewHead — bug real de
 
 describe("addColumnToTable / addColumnToArrayBinding — cliques em sequência não se atropelam", () => {
   it("duas adições em SEQUÊNCIA (cada uma sobre o resultado fresco da anterior) preservam as duas", () => {
-    // Simula exatamente o que o onChangeTemplate/onChangeBindings funcional
-    // do Designer.tsx garante: a 2ª chamada sempre parte do resultado real
-    // da 1ª (nunca de uma cópia velha) — por isso os dois clientes clicando
-    // rápido em "+" (colunas diferentes) nunca perdem um pro outro.
+    // It simulates exactly what Designer.tsx's functional onChangeTemplate/
+    // onChangeBindings guarantees: the 2nd call always starts from the 1st's
+    // real result (never from a stale copy) — which is why two clients
+    // clicking "+" quickly (different columns) never lose one to the other.
     let table = makeTable({ head: ["a"], content: [["1"]] });
     const first = addColumnToTable(table, "b", "{b}");
     expect(first).not.toBeNull();

@@ -1,11 +1,11 @@
 import type { PageSize } from "../types";
 
-// Larguras/alturas em mm, sempre em RETRATO aqui — a orientação (ver
-// applyOrientation) decide se inverte width/height na hora de aplicar.
-// `label` é só fallback — Designer.tsx faz `t.pageSizeLabels[p.name] ?? p.label`,
-// e todo preset abaixo já tem entrada em pageSizeLabels (en.ts/pt-BR.ts),
-// então esse texto (parte em PT) quase nunca aparece de verdade; existe
-// só pra um preset novo/desconhecido não ficar sem rótulo nenhum.
+// Widths/heights in mm, always in PORTRAIT here — the orientation (see
+// applyOrientation) decides whether to swap width/height when applying.
+// `label` is only a fallback — Designer.tsx does `t.pageSizeLabels[p.name] ?? p.label`,
+// and every preset below already has an entry in pageSizeLabels (en.ts/pt-BR.ts),
+// so that text (partly in PT) almost never really shows up; it exists only so
+// a new/unknown preset is not left without a label at all.
 export const PAGE_SIZE_PRESETS: { name: string; label: string; size: PageSize }[] = [
   { name: "a4", label: "A4 (210 x 297mm)", size: { width: 210, height: 297 } },
   { name: "a3", label: "A3 (297 x 420mm)", size: { width: 297, height: 420 } },
@@ -25,9 +25,9 @@ export function applyOrientation(size: PageSize, orientation: Orientation): Page
   return orientation === "landscape" ? { width: portrait.height, height: portrait.width } : portrait;
 }
 
-// Acha o preset cujas dimensões (em qualquer orientação) batem com a
-// página atual — "personalizado" (undefined) se não bater com nenhum
-// (ex: template antigo com tamanho digitado à mão).
+// Finds the preset whose dimensions (in either orientation) match the
+// current page — "custom" (undefined) if none match (e.g. an old template
+// with a hand-typed size).
 export function matchPreset(page: PageSize): string | undefined {
   const preset = PAGE_SIZE_PRESETS.find(
     (p) =>
