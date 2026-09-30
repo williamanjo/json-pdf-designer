@@ -1,39 +1,39 @@
-// O CONTRATO DE ARRASTAR-E-SOLTAR DO EDITOR, num lugar só.
+// THE EDITOR'S DRAG-AND-DROP CONTRACT, in one place.
 //
-// Ele estava partido em dois, e nenhuma das metades tinha casa:
+// It was split in two, and neither half had a home:
 //
-//   - o mime do arrasto INTERNO morava em `schemaFactory.ts`, que é a fábrica
-//     de schemas e não tem nada a ver com drag;
-//   - o payload EXTERNO morava em `components/dragField.ts`, um arquivo sem
-//     componente nenhum dentro de uma pasta chamada `components`, com o mime
-//     `"application/json"` escrito à mão três vezes.
+//   - the INTERNAL drag's mime lived in `schemaFactory.ts`, which is the
+//     schema factory and has nothing to do with dragging;
+//   - the EXTERNAL payload lived in `components/dragField.ts`, a file with no
+//     component at all inside a folder called `components`, with the mime
+//     `"application/json"` written out by hand three times.
 //
-// São dois canais distintos de propósito, e a distinção é o que importa aqui:
+// They are two deliberately distinct channels, and the distinction matters:
 //
-//   EXTERNO (`FIELD_MIME`) — a árvore de campos do app consumidor solta um
-//   campo/caminho num input do painel ou no canvas. É contrato PÚBLICO de
-//   fato: quem monta a própria árvore de campos escreve este payload, e o
-//   `onCanvasDrop` do `<Designer>` recebe o evento cru.
+//   EXTERNAL (`FIELD_MIME`) — the consumer app's field tree drops a
+//   field/path into a panel input or onto the canvas. It is a PUBLIC contract
+//   in practice: whoever builds their own field tree writes this payload, and
+//   the `<Designer>`'s `onCanvasDrop` receives the raw event.
 //
-//   INTERNO (`SECTION_COLUMN_MIME`) — o chip de coluna de seção vai pro
-//   canvas. Mime próprio justamente pra o canvas conseguir distinguir "isto é
-//   meu" de "isto é do app" (ver PageCanvas.tsx: ele testa o interno primeiro
-//   e só então repassa pro `onCanvasDrop`).
+//   INTERNAL (`SECTION_COLUMN_MIME`) — the section's column chip goes to the
+//   canvas. A mime of its own precisely so the canvas can tell "this is mine"
+//   from "this is the app's" (see PageCanvas.tsx: it tests the internal one
+//   first and only then forwards to `onCanvasDrop`).
 
-// Payload externo. `application/json` é genérico de propósito: é o que uma
-// árvore de campos escreve sem precisar conhecer nome de mime nosso.
+// The external payload. `application/json` is generic on purpose: it is what
+// a field tree writes without having to know a mime name of ours.
 export const FIELD_MIME = "application/json";
 
-// Mime do arrasto interno "chip de coluna da seção" -> canvas. Distinto do
-// drop externo (`onCanvasDrop`), que o app consumidor pode usar pra qualquer
-// outra coisa.
+// Mime of the internal "section column chip" -> canvas drag. Distinct from
+// the external drop (`onCanvasDrop`), which the consumer app may use for
+// anything else.
 export const SECTION_COLUMN_MIME = "application/x-json-pdf-designer-section-column";
 
-// Payload arrastado da árvore de campos pro input de um campo/vínculo —
-// compartilhado entre BindingEditor.tsx, PropertyPanelKpi.tsx e
-// PropertyPanelText.tsx (antes cada um tinha sua própria cópia; Kpi/Text
-// usavam um `{ path: string; kind: string }` solto, sem a tipagem real de
-// `kind`, que só o BindingEditor tinha).
+// The payload dragged from the field tree into a field/binding input —
+// shared between BindingEditor.tsx, PropertyPanelKpi.tsx and
+// PropertyPanelText.tsx (each used to have its own copy; Kpi/Text used a
+// loose `{ path: string; kind: string }`, without the real typing of `kind`,
+// which only the BindingEditor had).
 export type DroppedField = {
   path: string;
   kind: "scalar" | "arraySource" | "arrayColumn" | "native";

@@ -2,19 +2,18 @@ import { readFileSync } from "../support/read";
 import { describe, expect, it } from "vitest";
 import { relativeToSrc, sourceFiles, stripComments } from "../support/classScan";
 
-// Guards da divisão de estado (Fases 5 e 6). Cinco invariantes, e todos
-// falham em SILÊNCIO se alguém desfizer:
+// Guards for the state split (Phases 5 and 6). Five invariants, and all of
+// them fail SILENTLY if someone undoes them:
 //
-//   1. `useClipboardAndDelete` é registrado EXATAMENTE uma vez. Em duas
-//      peças, todo Ctrl+V cola dobrado; em nenhuma, Delete/Ctrl+V somem sem
-//      erro nenhum.
-//   2. O `Designer.tsx` não guarda estado. Estado no preset é estado que a
-//      peça avulsa não tem — e ela simplesmente não funciona, sem avisar.
-//   3. As peças que TÊM estado local continuam com ele (controle do item 2).
-//   4. Os contextos não conhecem primitivo do kit. Se `contexts.ts` passasse
-//      a importar de `components/ui`, o grafo de import do `/preview`
-//      (que importa Button) puxaria o designer inteiro.
-//   5. `useSelection` não sabe o que é sidebar.
+//   1. `useClipboardAndDelete` is registered EXACTLY once. In two parts, every
+//      Ctrl+V pastes twice; in none, Delete/Ctrl+V disappear with no error.
+//   2. `Designer.tsx` holds no state. State in the preset is state the
+//      standalone part does not have — and it simply does not work, silently.
+//   3. The parts that DO have local state keep it (the control for item 2).
+//   4. The contexts know nothing about a kit primitive. If `contexts.ts`
+//      started importing from `components/ui`, the `/preview` import graph
+//      (which imports Button) would pull in the whole designer.
+//   5. `useSelection` does not know what a sidebar is.
 
 const lê = (rel: string) => {
   const file = sourceFiles().find((f) => relativeToSrc(f) === rel);

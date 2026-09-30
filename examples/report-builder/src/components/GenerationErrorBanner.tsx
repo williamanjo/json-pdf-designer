@@ -10,10 +10,10 @@ type Props = {
   onDismiss: () => void;
 };
 
-// A CHAVE (`data`, `template`...) é o `blame` que o PACOTE devolve — é
-// discriminante, não texto de tela, então não muda com o idioma. Só o rótulo
-// muda. `Record` completo (e não `labels[blame] ?? ""`): se o pacote ganhar um
-// blame novo, isto para de compilar até alguém escrever o rótulo.
+// The KEY (`data`, `template`...) is the `blame` THE PACKAGE returns — it is
+// a discriminant, not screen text, so it does not change with the language.
+// Only the label changes. A complete `Record` (and not `labels[blame] ?? ""`):
+// if the package gains a new blame, this stops compiling until someone writes
 function blameLabel(blame: GenerationProblem["blame"], tx: AppDict): string {
   const labels: Record<GenerationProblem["blame"], string> = {
     data: tx.blameData,
@@ -24,10 +24,10 @@ function blameLabel(blame: GenerationProblem["blame"], tx: AppDict): string {
   return labels[blame];
 }
 
-// Banner de falha de geração. O ponto: a mensagem vem de `describeGenerationError`,
-// que classifica pelo `code`/`blame` que o pacote devolve em `describePdfError` —
-// não por `err.message` cru, nem por regex na frase. É a mesma decisão que um
-// backend toma pra escolher entre 413, 400 e 500.
+// The generation failure banner. The point: the message comes from
+// `describeGenerationError`, which classifies by the `code`/`blame` the
+// package returns in `describePdfError` — not by a raw `err.message`, and not
+// by a regex on the phrase. It is the same decision a backend makes when
 export default function GenerationErrorBanner({ locale, problem, onDismiss }: Props) {
   const tx = t(locale);
   const [showDetail, setShowDetail] = useState(false);

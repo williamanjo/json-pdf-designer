@@ -1,16 +1,16 @@
-// Funções puras de mutação de coluna de tabela — extraídas do Designer.tsx
+// Pure table column mutation functions — extracted from Designer.tsx
 // (setTableHead/addTableColumn/removeTableColumn/reorderTableColumn/
-// setColumnStyle/setColumnFormula). Cada ação vira um par (metade tabela +
-// metade vínculo array) em vez de uma função só, porque Designer.tsx
-// aplica as duas metades em DUAS chamadas funcionais separadas
-// (onChangeTemplate/onChangeBindings, cada uma com seu próprio `prev`) — os
-// dois setState vivem em slots de estado do React diferentes, então cada
-// metade só pode garantir "leitura fresca" da SUA própria fatia de estado;
-// combinar os dois numa função só reintroduziria a mesma janela de closure
-// velha que já causou um bug real (ver comentário longo em Designer.tsx
-// acima de onde essas funções são chamadas: um "orgao" foi parar sob o
-// rótulo "fatura" porque um clique rápido leu bindings de ANTES do clique
-// anterior aplicar).
+// setColumnStyle/setColumnFormula). Each action becomes a pair (a table half
+// + an array binding half) instead of a single function, because Designer.tsx
+// applies the two halves in TWO separate functional calls
+// (onChangeTemplate/onChangeBindings, each with its own `prev`) — the two
+// setStates live in different React state slots, so each half can only
+// guarantee a "fresh read" of ITS own slice of state; combining the two into
+// one function would reintroduce the same stale closure window that already
+// caused a real bug (see the long comment in Designer.tsx above where these
+// functions are called: an "orgao" ended up under the "fatura" label because
+// a quick click read bindings from BEFORE the previous click had applied its
+// own change).
 import type { Binding, DataSourceColumnType, TableColumn, TableColumnStyle, TableSchema } from "../../types";
 import { columnLabel } from "../../bindings/bindings";
 
@@ -23,7 +23,7 @@ function move<T>(arr: T[], fromIndex: number, toIndex: number): T[] {
   return copy;
 }
 
-// --- setTableHead: reescreve head inteiro, reindexando o resto por NOME (não posição) ---
+// --- setTableHead: rewrites the whole head, reindexing the rest by NAME (not position) ---
 
 export function reindexTableForNewHead(table: TableSchema, newHead: string[]): TableSchema {
   const oldHead = table.head;
@@ -50,21 +50,21 @@ export function reindexArrayBindingForNewHead(binding: ArrayBinding, oldHead: st
   });
 }
 
-// --- renameTableColumn: SÓ o rótulo, a referência fica ---
+// --- renameTableColumn: ONLY the label, the reference stays ---
 //
-// A operação que faltava no modelo, e a causa do bug relatado.
+// The operation the model was missing, and the cause of the reported bug.
 //
-// Até aqui o único jeito de mudar um título era `setTableHead`, que reescreve
-// o head inteiro e re-deriva todo slot casando nome novo contra o head antigo
-// (`reindexTableForNewHead`, acima). Renomear é, por definição, um nome que
-// não existe no head antigo — então caía no fallback e a coluna perdia
-// `content` (o token, que é o que o PDF usa), `columnStyles`, `columnWidths`,
-// e ganhava o TÍTULO NOVO como chave de JSON no vínculo. Renomear era
-// indistinguível de "apaga a coluna X, insere a coluna Y".
+// Until now the only way to change a title was `setTableHead`, which rewrites
+// the whole head and re-derives every slot by matching the new name against
+// the old head (`reindexTableForNewHead`, above). Renaming is, by definition,
+// a name that does not exist in the old head — so it fell into the fallback
+// and the column lost `content` (the token, which is what the PDF uses),
+// `columnStyles`, `columnWidths`, and gained the NEW TITLE as a JSON key in
+// the binding. Renaming was indistinguishable from "delete X, insert Y".
 //
-// Aqui o índice é a identidade e nada mais é tocado. Um rótulo vazio é
-// ignorado de propósito: o campo de texto antigo fazia `filter(Boolean)` na
-// lista inteira, então apagar o nome no meio da digitação colapsava a tabela.
+// Here the index is the identity and nothing else is touched. An empty label
+// is deliberately ignored: the old text field did a `filter(Boolean)` over the
+// whole list, so clearing the name mid-typing collapsed the table.
 export function renameColumnInTable(table: TableSchema, index: number, label: string): TableSchema {
   const trimmed = label.trim();
   if (!trimmed || index < 0 || index >= table.head.length) return table;
@@ -73,10 +73,10 @@ export function renameColumnInTable(table: TableSchema, index: number, label: st
   return { ...table, head };
 }
 
-// A metade do vínculo só existe pra coluna CALCULADA, onde o rótulo é dado
-// dele (`{label, formula}`). Coluna de chave crua não tem rótulo próprio — o
-// título mora no `head` — então não há o que atualizar, e devolver `null`
-// evita um dispatch de bindings que não muda nada.
+// The binding half only exists for a CALCULATED column, where the label is
+// its own data (`{label, formula}`). A raw-key column has no label of its own
+// — the title lives in the `head` — so there is nothing to update, and
+// returning `null` avoids a bindings dispatch that changes nothing.
 export function renameColumnInArrayBinding(binding: ArrayBinding, index: number, label: string): TableColumn[] | null {
   const trimmed = label.trim();
   const current = binding.columns[index];
@@ -89,8 +89,8 @@ export function renameColumnInArrayBinding(binding: ArrayBinding, index: number,
 
 // --- addTableColumn ---
 
-// Coluna já nasce formatada como moeda (2 casas, R$) se o valor de exemplo
-// dessa coluna no JSON é numérico — token cru pra qualquer outro tipo.
+// A column is born formatted as currency (2 decimals, R$) if that column's
+// sample value in the JSON is numeric — a raw token for any other type.
 export function buildColumnCell(column: string, columnType: DataSourceColumnType | undefined): string {
   return columnType === "number" ? `{CURRENCY(${column}, "R$", 2)}` : `{${column}}`;
 }

@@ -5,14 +5,14 @@ import type { ShellDict } from "../i18n";
 
 type Props = {
   fields: FieldNode[];
-  // Dicionário da CASCA: o explorador de campos é peça deste app (o do
-  // pacote é o `<DesignerSidebar>`, que este example não importa). O
-  // `t.tabBar.data` do pacote também diz "Data"/"Dados", mas é o nome de uma
-  // ABA do editor dele — outro conceito; reusá-lo aqui amarraria o título de
-  // uma seção de árvore ao rótulo de uma aba que este app nem tem.
+  // The SHELL's dictionary: the field explorer is a piece of this app (the
+  // package's is `<DesignerSidebar>`, which this example does not import). The
+  // package's `t.tabBar.data` also says "Data"/"Dados", but it is the name of
+  // one of its editor's TABS — another concept; reusing it here would tie a
+  // tree section's title to the label of a tab this app does not even have.
   tt: ShellDict;
-  // Adiciona sem arrastar — usado pelo botão "+" de cada linha (teclado/
-  // touch, onde drag-and-drop não serve).
+  // It adds without dragging — used by the "+" button on each row
+  // (keyboard/touch, where drag-and-drop is of no use).
   onAdd: (field: FieldNode) => void;
 };
 
@@ -24,17 +24,17 @@ function iconFor(field: FieldNode): string {
   return "▤";
 }
 
-// Árvore de campos: uma seção fixa "Native variables" (tokens sintéticos
-// tipo pageNumber, sempre disponíveis) + os campos do JSON de verdade,
-// agrupados por DataSource (cada array vira um grupo cujas colunas são
-// filhos individuais, arrastáveis/clicáveis cada uma — ver
-// lib/jsonExplorer.ts::buildFieldTree). Grupos "de pasta" comuns (objeto
-// aninhado, ex: "company.address") não têm ação própria, só organizam.
+// The field tree: a fixed "Native variables" section (synthetic tokens such
+// as pageNumber, always available) + the real JSON's fields, grouped by
+// DataSource (each array becomes a group whose columns are individual
+// children, each draggable/clickable — see
+// lib/jsonExplorer.ts::buildFieldTree). Ordinary "folder" groups (a nested
+// object, e.g. "company.address") have no action of their own, they only organize.
 //
-// Cada linha é arrastável, e o payload é o FieldNode inteiro serializado no
-// dataTransfer — mesmo contrato do report-builder. A diferença é o outro
-// lado: aqui o "drop" é o NOSSO canvas (components/Canvas.tsx), que converte
-// a posição do mouse em mm e devolve pro App montar o schema.
+// Each row is draggable, and the payload is the whole FieldNode serialized
+// into the dataTransfer — the same contract as report-builder. The difference
+// is the other side: here the "drop" is OUR canvas (components/Canvas.tsx),
+// which converts the mouse position into mm and hands it back to the App.
 export default function FieldTree({ fields, tt, onAdd }: Props) {
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
 

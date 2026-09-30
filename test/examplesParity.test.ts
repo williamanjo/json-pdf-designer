@@ -3,27 +3,28 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// PARIDADE DE RECURSOS entre os examples.
+// FEATURE PARITY between the examples.
 //
-// A regra do repo: os cinco examples têm o MESMO conjunto de recursos, e o
-// que os distingue é só (a) como montam o editor e (b) como estilizam. É isso
-// que faz a comparação entre eles valer alguma coisa — se um tem undo/redo e
-// o outro não, a diferença de estilo deixa de ser a única variável.
+// The repo's rule: the five examples have the SAME set of features, and what
+// distinguishes them is only (a) how they assemble the editor and (b) how they
+// style it. That is what makes comparing them worth anything — if one has
+// undo/redo and the other does not, the difference in style stops being the
+// only variable.
 //
-// Sem este guard nada avisa: um example continua compilando e rodando com
-// metade dos recursos, e a promessa dos READMEs passa a ser falsa. Foi o
-// estado real antes desta rodada — `no-preview` tinha 3 dos 11 e
-// `composed-layout` tinha 2.
+// Without this guard nothing warns: an example keeps compiling and running
+// with half the features, and the READMEs' promise becomes false. That was the
+// real state before this round — `no-preview` had 3 of the 11 and
+// `composed-layout` had 2.
 //
-// A referência é o `report-builder`.
+// The reference is `report-builder`.
 
 const RAIZ = join(__dirname, "..");
 const EX = join(RAIZ, "examples");
 const REFERENCIA = "report-builder";
 
-// Cada recurso é detectado por um SÍMBOLO, não por caminho de arquivo — o
-// example é livre pra organizar as pastas dele como quiser. O que não é
-// negociável é o comportamento existir.
+// Each feature is detected by a SYMBOL, not by a file path — the example is
+// free to organize its folders however it likes. What is not negotiable is
+// that the behavior exists.
 const RECURSOS: Array<{ nome: string; padrao: RegExp; excecoes?: Record<string, string> }> = [
   { nome: "fontes de dados JSON (várias, mescladas)", padrao: /mergeSources/ },
   { nome: "explorador de campos", padrao: /extractFields/ },
@@ -39,9 +40,9 @@ const RECURSOS: Array<{ nome: string; padrao: RegExp; excecoes?: Record<string, 
     nome: "preview de PDF",
     padrao: /PdfPreview/,
     excecoes: {
-      // Este example existe pra provar que o entry principal funciona SEM o
-      // pdfjs-dist instalado. Ter preview aqui destruiria o teste — o próprio
-      // `npm run build` dele falha por `check-no-pdfjs.mjs`.
+      // This example exists to prove that the main entry works WITHOUT
+      // pdfjs-dist installed. Having a preview here would destroy the test —
+      // its own `npm run build` fails through `check-no-pdfjs.mjs`.
       "no-preview": "proibido por design: sem pdfjs-dist, ver o README dele",
     },
   },
@@ -54,11 +55,11 @@ function exampleDirs(): string[] {
     .sort();
 }
 
-// Todo o fonte do example, concatenado. Comentário NÃO é removido de
-// propósito: um example pode legitimamente mencionar um símbolo em prosa, e
-// o custo de um falso positivo aqui (alguém escreve "não temos undo/redo" e
-// o teste acha que tem) é menor que o de um falso negativo silencioso.
-// A checagem de VERDADE é o build de cada example, que roda na CI.
+// The example's whole source, concatenated. Comments are deliberately NOT
+// stripped: an example may legitimately mention a symbol in prose, and the
+// cost of a false positive here (someone writes "we have no undo/redo" and the
+// test thinks there is) is lower than that of a silent false negative.
+// The REAL check is each example's build, which runs in CI.
 function fonteDe(dir: string): string {
   const raiz = join(EX, dir, "src");
   if (!existsSync(raiz)) return "";
@@ -199,8 +200,8 @@ describe("examples — o registry de slots está demonstrado", () => {
   });
 });
 
-// Remove comentário de bloco e de linha. Não precisa preservar offset (nenhum
-// teste daqui reporta linha), então o replace simples serve.
+// Removes block and line comments. There is no need to preserve offsets (no
+// test here reports a line), so the simple replace will do.
 function semComentario(code: string): string {
   return code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }

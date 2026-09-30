@@ -5,15 +5,15 @@ import { nextFreeY } from "../../src/schemaFactory";
 import { GRID_SIZE_MM } from "../../src/page/units";
 import type { Schema, Template } from "../../src/types";
 
-// `gridSizeMm` era honrado por UM caminho só (o arrasto/redimensionamento do
-// PageCanvas, que já recebia a prop). Nascimento de campo e colagem usavam
-// a constante GRID_SIZE_MM direto, então um consumidor com `gridSizeMm={2}`
-// tinha campo nascendo e colando fora da própria grade dele — desalinhado,
-// e sem jeito de "encaixar" a não ser arrastando na mão.
+// `gridSizeMm` was honored by ONE path only (PageCanvas's drag/resize, which
+// already received the prop). A field's birth and pasting used the GRID_SIZE_MM
+// constant directly, so a consumer with `gridSizeMm={2}` had fields being born
+// and pasted off their own grid — misaligned, with no way to "snap" them other
+// than dragging by hand.
 //
-// Os três caminhos agora recebem o passo. Cada teste abaixo tem um par
-// (default vs customizado) porque o modo de falha é justamente "o parâmetro
-// chegou mas foi ignorado": só o caso customizado distingue.
+// All three paths now receive the step. Each test below has a pair (default vs
+// custom) because the failure mode is precisely "the parameter arrived but was
+// ignored": only the custom case tells them apart.
 
 const A4: Template["page"] = { width: 210, height: 297 };
 
@@ -29,8 +29,8 @@ describe("nextFreeY honra o passo da grade", () => {
   });
 
   it("com passo 2, alinha em 2mm", () => {
-    // 38 já é múltiplo de 2, então o valor DIFERE do caso acima — é isso que
-    // prova que o parâmetro foi usado e não engolido.
+    // 38 is already a multiple of 2, so the value DIFFERS from the case above
+    // — that is what proves the parameter was used and not swallowed.
     expect(nextFreeY([box({ y: 23, height: 10 })], 2)).toBe(38);
   });
 
@@ -54,7 +54,7 @@ describe("computeSpawnPosition honra o passo da grade", () => {
     const dois = computeSpawnPosition(template, box({ width: 41, height: 11 }), false, 2);
     expect(dois.x % 2).toBe(0);
     expect(dois.y % 2).toBe(0);
-    // Se o parâmetro fosse ignorado, os dois seriam idênticos.
+    // If the parameter were ignored, the two would be identical.
     expect([dois.x, dois.y]).not.toEqual([cinco.x, cinco.y]);
   });
 });
@@ -66,17 +66,17 @@ describe("pastePosition", () => {
   });
 
   it("posição fora da grade é atraída pra ela, não só somada", () => {
-    // x=11 com passo 5: 11+5=16 → snap 15. O campo colado ENTRA na grade,
-    // que é o ponto (colar sem alinhar deixava o original desalinhado pra
-    // sempre).
+    // x=11 with a step of 5: 11+5=16 → snaps to 15. The pasted field ENTERS
+    // the grid, which is the point (pasting without aligning left the original
+    // misaligned forever).
     expect(pastePosition(box({ x: 11, y: 11 }), A4, 5)).toEqual({ x: 15, y: 15 });
   });
 
   it("trava dentro da página, arredondando o limite pra BAIXO", () => {
-    // width 40 numa página de 210 → maxX = floor(170/5)*5 = 170.
+    // width 40 on a 210 page → maxX = floor(170/5)*5 = 170.
     expect(pastePosition(box({ x: 205, y: 0, width: 40 }), A4, 5).x).toBe(170);
-    // Com passo 3: floor(170/3)*3 = 168, e não 170 — o limite também respeita
-    // a grade, senão o campo travado na borda ficava fora dela.
+    // With a step of 3: floor(170/3)*3 = 168, and not 170 — the limit honors
+    // the grid too, otherwise a field clamped at the edge ended up off it.
     expect(pastePosition(box({ x: 205, y: 0, width: 40 }), A4, 3).x).toBe(168);
   });
 

@@ -1,31 +1,32 @@
 import type { Template, Binding } from "json-pdf-designer/server";
 import { migrateTemplate } from "json-pdf-designer/server";
 
-// POR QUE UMA CLASSE, e não `new Error("texto")`.
+// WHY A CLASS, and not `new Error("text")`.
 //
-// Arquivo de projeto é conceito DESTE app — o pacote nunca ouviu falar dele,
-// então `describePdfError` devolve `null` pra estes erros (ver
-// lib/generationError.ts). Quem traduz é a casca, e pra traduzir ela precisa
-// saber QUAL das quatro falhas foi, sem ler a frase.
+// A project file is THIS app's concept — the package has never heard of it, so
+// `describePdfError` returns `null` for these errors (see
+// lib/generationError.ts). What translates is the shell, and to translate it
+// has to know WHICH of the four failures it was, without reading the phrase.
 //
-// `reason` colapsa as quatro em TRÊS porque as duas primeiras validações
-// ("template" sem "schemas", "bindings" que não é lista) são a MESMA falha
-// pra quem lê: o arquivo abriu, o JSON era válido, e a forma dentro dele está
-// errada. Distinguir as duas na UI não muda o que a pessoa faz.
+// `reason` collapses the four into THREE because the first two validations (a
+// "template" with no "schemas", a "bindings" that is not a list) are the SAME
+// failure for whoever reads: the file opened, the JSON was valid, and the
+// shape inside it is wrong. Telling the two apart in the UI does not change
+// what the person does.
 //
-// Campo `readonly` declarado no corpo, e NÃO parameter property
-// (`constructor(readonly reason: ...)`): o tsconfig destes examples liga
-// `erasableSyntaxOnly`, que proíbe a forma curta — ela emite código, e não
-// só apaga tipo.
+// A `readonly` field declared in the body, and NOT a parameter property
+// (`constructor(readonly reason: ...)`): these examples' tsconfig turns on
+// `erasableSyntaxOnly`, which forbids the short form — it emits code, rather
+// than only erasing a type.
 export type ProjectFileReason = "shape" | "malformed" | "unreadable";
 
 export class ProjectFileError extends Error {
   readonly reason: ProjectFileReason;
 
   constructor(reason: ProjectFileReason, detail: string) {
-    // Mensagem em INGLÊS, igual às do pacote: ela vai pro console e pro
-    // `problem.detail` do banner, que é texto de diagnóstico pra quem
-    // desenvolve. O texto que o USUÁRIO lê sai do dicionário.
+    // The message is in ENGLISH, like the package's: it goes to the console
+    // and to the banner's `problem.detail`, which is diagnostic text for
+    // whoever develops. The text the USER reads comes from the dictionary.
     super(`Invalid project file (${reason}): ${detail}`);
     this.name = "ProjectFileError";
     this.reason = reason;

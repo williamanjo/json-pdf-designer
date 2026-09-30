@@ -4,20 +4,20 @@ import type { TemplateProblem } from "../lib/templateProblems";
 
 type Props = {
   problems: TemplateProblem[];
-  // Clique num problema leva pra página do campo — o painel só aponta se
-  // der pra chegar lá.
+  // Clicking a problem takes you to the field's page — the panel only points
+  // at it if it can get there.
   onGoTo: (pageIndex: number, schemaId: string) => void;
-  // O MESMO `locale` do <Designer> (ver App.tsx).
+  // The SAME `locale` as the <Designer> (see App.tsx).
   locale: Locale;
 };
 
-// "Problemas do template" — o outro lado da tolerância da geração.
+// "Template problems" — the other side of generation's tolerance.
 //
-// O pacote resolve expressão inválida pra vazio em vez de derrubar o PDF (uma
-// vírgula esquecida não pode custar um relatório de 200 páginas). O preço é que
-// o campo sai em branco sem explicação. Este painel é onde a explicação
-// aparece, antes de gerar — montado com `expressionErrors` e `fieldWarning`,
-// exports públicos do pacote (ver lib/templateProblems.ts).
+// The package resolves an invalid expression to empty instead of bringing the
+// PDF down (a forgotten comma must not cost a 200-page report). The price is
+// that the field comes out blank with no explanation. This panel is where the
+// explanation appears, before generating — built with `expressionErrors` and
+// `fieldWarning`, public exports of the package (see lib/templateProblems.ts).
 export default function ProblemsPanel({ problems, onGoTo, locale }: Props) {
   const s = t(locale);
   const willRenderEmpty = problems.filter((p) => p.kind === "expressao").length;

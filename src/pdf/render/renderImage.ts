@@ -2,32 +2,33 @@ import type { PDFDocument, PDFImage, PDFPage } from "pdf-lib";
 import type { ImageSchema } from "../../types";
 import { ImageTooLargeError, ImageUnreadableError, TooManyImagesError, UnsupportedImageFormatError } from "../../errors";
 
-// Um template pode vir de fonte não confiável (multi-tenant: salvo num
-// banco, editado por outro usuário) — sem limite nenhum, um `ImageSchema.
-// content`/`Template.backgroundImage` gigante (base64 de dezenas/centenas de
-// MB, ou centenas de imagens distintas repetidas por uma seção) vira um
-// jeito fácil de derrubar/travar quem gera o PDF (não é mais "problema de
-// PDF", vira "alguém consegue travar meu worker de geração"). Os dois
-// limites abaixo protegem sem afetar nenhum uso normal (logo de
-// letterhead, foto de produto etc — na faixa de KB a poucos MB).
+// A template may come from an untrusted source (multi-tenant: saved in a
+// database, edited by another user) — with no limit at all, a giant
+// `ImageSchema.content`/`Template.backgroundImage` (a base64 of tens/hundreds
+// of MB, or hundreds of distinct images repeated by a section) becomes an easy
+// way to bring down/freeze whoever generates the PDF (it stops being a "PDF
+// problem" and becomes "someone can freeze my generation worker"). The two
+// limits below protect without affecting any normal use (a letterhead logo, a
+// product photo and so on — in the KB to a few MB range).
 export const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15MB decodificado, por imagem
-export const MAX_DISTINCT_IMAGES = 200; // imagens ÚNICAS por documento (imageCache já dedupe por conteúdo)
+export const MAX_DISTINCT_IMAGES = 200; // UNIQUE images per document (imageCache already dedupes by content)
 
-// Tamanho decodificado aproximado de um data URI base64 — não precisa
-// decodificar de verdade só pra medir, a fórmula (len*3/4, descontando o
-// prefixo "data:...;base64,") já é suficiente pra um limite de segurança.
+// The approximate decoded size of a base64 data URI — there is no need to
+// really decode it just to measure, the formula (len*3/4, minus the
+// "data:...;base64," prefix) is already enough for a safety limit.
 export function estimateDataUriBytes(dataUri: string): number {
   const base64 = dataUri.slice(dataUri.indexOf(",") + 1);
   return Math.floor((base64.length * 3) / 4);
 }
 
-// Exportada — generate.ts também usa pro fundo de página (Template.backgroundImage),
-// não só pro campo de imagem abaixo.
+// Exported — generate.ts also uses it for the page background
+// (Template.backgroundImage), not only for the image field below.
 //
-// `field` é o nome do campo de imagem, ou `null` pro fundo da página (que não
-// tem campo). Antes isto recebia um `label` JÁ FORMATADO (`Campo "logo"`), e
-// era ele que ia pra mensagem — ou seja, o texto do erro nascia no chamador e
-// não havia como o consumidor saber QUAL campo era sem parsear a frase.
+// `field` is the image field's name, or `null` for the page background (which
+// has no field). This used to receive an ALREADY FORMATTED `label` (`Field
+// "logo"`), and it was that which went into the message — that is, the error's
+// text was born in the caller and the consumer had no way to know WHICH field
+// it was without parsing the sentence.
 export function assertImageWithinSizeLimit(dataUri: string, field: string | null): void {
   const bytes = estimateDataUriBytes(dataUri);
   if (bytes > MAX_IMAGE_BYTES) {
@@ -44,17 +45,17 @@ export async function drawImageField(
   yPt: number,
   widthPt: number,
   heightPt: number,
-  // Valor do vínculo já resolvido (um data URI vindo do JSON). Tem prioridade
-  // sobre `schema.content`, que é a imagem escolhida em tempo de design.
-  // Vazio/ausente cai no content — é o que faz um campo sem vínculo continuar
-  // desenhando o que foi colocado no editor.
+  // The already-resolved binding value (a data URI coming from the JSON). It
+  // takes priority over `schema.content`, which is the image chosen at design
+  // time. Empty/absent falls back to content — that is what keeps a field
+  // with no binding drawing what was placed in the editor.
   boundValue?: string
 ): Promise<void> {
   const dataUri = boundValue?.trim() ? boundValue : schema.content;
   if (!dataUri) return;
-  // Vínculo que resolveu pra algo que não é data URI (path errado, URL http,
-  // texto solto) não é motivo pra derrubar o documento — o campo fica vazio,
-  // igual a um vínculo de texto que não resolve.
+  // A binding that resolved to something that is not a data URI (a wrong path,
+  // an http URL, loose text) is no reason to bring the document down — the
+  // field is left empty, like a text binding that does not resolve.
   if (!dataUri.startsWith("data:")) return;
   let embedded = imageCache.get(dataUri);
   if (!embedded) {

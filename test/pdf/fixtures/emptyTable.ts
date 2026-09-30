@@ -1,7 +1,7 @@
 import type { Template } from "../../../src/types";
 
-// Tabela sem NENHUMA linha de dado — só o cabeçalho. Caso de borda comum
-// (fonte de dados retornou array vazio) que não deveria travar/lançar.
+// A table with NO data rows at all — only the header. A common edge case (the
+// data source returned an empty array) that should not hang or throw.
 export function emptyTableTemplate(): Template {
   return {
     page: { width: 210, height: 297 },

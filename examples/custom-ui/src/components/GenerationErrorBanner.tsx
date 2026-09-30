@@ -9,11 +9,11 @@ type Props = {
   onDismiss: () => void;
 };
 
-// `blame` é o `PdfErrorBlame` do PACOTE — identificador, não texto, e por isso
-// em inglês mesmo com a UI em português. Aqui ele vira rótulo. O `Record`
-// mapeado é de propósito: uma culpa nova no tipo não compila até ganhar
-// entrada aqui — e a entrada só pode ser uma chave do dicionário, que por sua
-// vez existe nos dois idiomas.
+// `blame` is the PACKAGE's `PdfErrorBlame` — an identifier, not text, and
+// therefore in English even with the UI in Portuguese. Here it becomes a
+// label. The mapped `Record` is deliberate: a new blame in the type does not
+// compile until it gains an entry here — and the entry can only be a key of
+// the dictionary, which in turn exists in both languages.
 const BLAME_LABEL: Record<GenerationProblem["blame"], (d: ShellDict) => string> = {
   data: (d) => d.blameData,
   template: (d) => d.blameTemplate,
@@ -21,14 +21,15 @@ const BLAME_LABEL: Record<GenerationProblem["blame"], (d: ShellDict) => string> 
   package: (d) => d.blamePackage,
 };
 
-// Banner de falha de geração. O ponto: a mensagem vem de `describeGenerationError`,
-// que delega a classificação pro `describePdfError` do pacote — não casa
-// `err.message` cru. É a mesma decisão que um backend toma pra escolher entre
-// 413, 400 e 500, e é o `blame` que a informa.
+// The generation failure banner. The point: the message comes from
+// `describeGenerationError`, which delegates the classification to the
+// package's `describePdfError` — it does not match a raw `err.message`. It is
+// the same decision a backend makes when choosing between 413, 400 and 500,
+// and it is `blame` that informs it.
 //
-// "Culpa do pacote" muda a cor: vermelho é "você pode consertar", cinza é
-// "reporte". Os dois tons e os dois botões são classes de src/index.css —
-// nenhum Button/IconX do pacote.
+// "The package's fault" changes the color: red is "you can fix this", gray is
+// "report it". Both tones and both buttons are classes from src/index.css — no
+// Button/IconX from the package.
 export default function GenerationErrorBanner({ problem, locale, onDismiss }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const isBug = problem.blame === "package";
@@ -42,15 +43,15 @@ export default function GenerationErrorBanner({ problem, locale, onDismiss }: Pr
           <span className="gen-error-tag">({BLAME_LABEL[problem.blame](d)})</span>
           {problem.field && (
             <span className="gen-error-tag">
-              {/* `problem.field` é o NOME do campo no template — dado. Só a
-                  palavra que o rotula é traduzida. */}
+              {/* `problem.field` is the field's NAME in the template — data. Only
+                  the word labeling it is translated. */}
               {d.errorFieldTag} <code>{problem.field}</code>
             </span>
           )}
         </span>
         <span className="gen-error-action">{problem.action}</span>
-        {/* `detail` é a mensagem CRUA do erro, como o pacote a lançou — fica
-            como está de propósito: é o que se copia num relato de bug. */}
+        {/* `detail` is the error's RAW message, as the package threw it — it
+            stays as it is on purpose: it is what gets copied into a bug report. */}
         {showDetail && <code className="gen-error-detail">{problem.detail}</code>}
       </div>
       <div className="gen-error-actions">

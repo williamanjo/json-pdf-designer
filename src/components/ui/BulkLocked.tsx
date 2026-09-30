@@ -8,10 +8,10 @@ export type BulkLockedProps = Omit<HTMLAttributes<HTMLDivElement>, "children"> &
   parts?: { hint?: PartStyle; content?: PartStyle };
 };
 
-// Envolve campos travados durante edição em bloco (vários campos do MESMO
-// tipo selecionados juntos, ver Designer.tsx `bulkEditActive`) — visual de
-// cadeado + pointer-events-none, pra não duplicar esse bloco em cada
-// PropertyPanelXxx (Kpi/Chart/Text) que precisa disso.
+// Wraps fields locked during bulk editing (several fields of the SAME type
+// selected together, see Designer.tsx `bulkEditActive`) — a padlock visual
+// plus pointer-events-none, so that block is not duplicated in every
+// PropertyPanelXxx (Kpi/Chart/Text) that needs it.
 export const BulkLocked = forwardRef<HTMLDivElement, BulkLockedProps>(function BulkLocked(
   { hint, children, className, parts, ...rest },
   ref

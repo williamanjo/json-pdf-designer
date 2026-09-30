@@ -3,10 +3,10 @@ import { makeDesignerActions, type DesignerLatest } from "../../src/designer/act
 import { dictFor } from "../../src/i18n/dictionaries";
 import type { Binding, Schema, TableSchema, Template, TextSchema } from "../../src/types";
 
-// Esta suíte cobre a lógica que, enquanto vivia dentro do Designer.tsx, não
-// tinha teste NENHUM — precisaria montar o componente. Como as ações são uma
-// fábrica que só despacha updaters funcionais, dá pra capturar os updaters e
-// aplicá-los num template de mentira: é o estado que o React produziria.
+// This suite covers the logic that, while it lived inside Designer.tsx, had
+// NO test at all — it would have required mounting the component. Since the
+// actions are a factory that only dispatches functional updaters, the updaters
+// can be captured and applied to a fake template: it is the state React would produce.
 
 function makeText(overrides: Partial<TextSchema> = {}): TextSchema {
   return {
@@ -40,8 +40,8 @@ function makeTable(overrides: Partial<TableSchema> = {}): TableSchema {
   };
 }
 
-// Banco de testes: aplica cada updater despachado por cima do estado atual,
-// na ordem, exatamente como o React faria. Devolve o estado final.
+// A test harness: it applies each dispatched updater on top of the current
+// state, in order, exactly as React would. It returns the final state.
 function harness(initial: { template: Template; bindings?: Binding[]; selectedId?: string | null; isolateBands?: boolean; gridSizeMm?: number }) {
   const state = {
     template: initial.template,
@@ -62,7 +62,7 @@ function harness(initial: { template: Template; bindings?: Binding[]; selectedId
       gridSizeMm: initial.gridSizeMm,
       onChangeTemplate: (update) => {
         state.template = typeof update === "function" ? update(state.template) : update;
-        // A ref é reatribuída durante o render; aqui o "render" é síncrono.
+        // The ref is reassigned during render; here the "render" is synchronous.
         latest.current.template = state.template;
       },
       onChangeBindings: (update) => {
@@ -85,12 +85,12 @@ function harness(initial: { template: Template; bindings?: Binding[]; selectedId
   return { actions: makeDesignerActions(latest), state, latest };
 }
 
-// Variante que NÃO aplica os updaters na hora: enfileira e só aplica no
-// flush(), deixando `latest.current` congelado no valor inicial. É o cenário
-// real de "dois cliques em sequência rápida, antes do 1º re-render" — o que
-// deu origem ao bug do "orgao" no índice de "tarKandir". Um handler que
-// voltasse a ler CONTEÚDO do closure/ref em vez do `prev` passaria no
-// harness síncrono acima e falharia aqui.
+// A variant that does NOT apply the updaters right away: it queues them and
+// only applies them on flush(), leaving `latest.current` frozen at the initial
+// value. It is the real scenario of "two clicks in quick succession, before
+// the 1st re-render" — the one that gave rise to the "orgao" at the index of
+// "tarKandir" bug. A handler that went back to reading CONTENT from the
+// closure/ref instead of `prev` would pass the synchronous harness above and
 function deferredHarness(initial: { template: Template; bindings?: Binding[]; selectedId?: string | null }) {
   const queued: Array<() => void> = [];
   const state = { template: initial.template, bindings: initial.bindings ?? [] };
@@ -115,10 +115,10 @@ function deferredHarness(initial: { template: Template; bindings?: Binding[]; se
         });
       },
       setSelectedIds: () => {},
-      // O harness diferido só existe pra provar que a ESCRITA sai do `prev`.
-      // Nenhum teste dele mexe em estado de casca, então os dois setters são
-      // no-op — declarados pra não haver `as unknown as DesignerLatest`
-      // escondendo um campo novo que deveria ter sido considerado.
+      // The deferred harness only exists to prove that the WRITE comes out of
+      // `prev`. None of its tests touches shell state, so both setters are
+      // no-ops — declared so there is no `as unknown as DesignerLatest` hiding
+      // a new field that should have been considered.
       setIsolateBands: () => {},
       setBackgroundUploadError: () => {},
     },
@@ -134,9 +134,9 @@ function deferredHarness(initial: { template: Template; bindings?: Binding[]; se
 
 describe("updateSchema", () => {
   it("espelha célula de tabela editada no canvas pra fórmula do vínculo", () => {
-    // A célula É a fórmula da coluna (generate.ts resolve a linha a partir
-    // de `content`). Sem espelhar, o painel ƒx segue mostrando a fórmula
-    // velha e o que aparece no painel não é o que sai no PDF.
+    // The cell IS the column's formula (generate.ts resolves the row from
+    // `content`). Without mirroring, the ƒx panel keeps showing the old
+    // formula and what appears in the panel is not what comes out in the PDF.
     const table = makeTable({ head: ["valor"], content: [["{valor}"]] });
     const { actions, state } = harness({
       template: { page: { width: 210, height: 297 }, schemas: [table] },
@@ -165,8 +165,9 @@ describe("updateSchema", () => {
 
 describe("renameSchema", () => {
   it("remapeia bindings.schemaName junto com o nome do schema", () => {
-    // generate.ts resolve vínculo por NOME — sem o remap, o vínculo aponta
-    // pro nome antigo, para de bater, e o campo some do PDF em silêncio.
+    // generate.ts resolves a binding by NAME — without the remap, the binding
+    // points at the old name, stops matching, and the field silently
+    // disappears from the PDF.
     const { actions, state } = harness({
       template: { page: { width: 210, height: 297 }, schemas: [makeText({ name: "antigo" })] },
       bindings: [{ schemaName: "antigo", type: "scalar", path: "cliente.nome" }],
@@ -195,8 +196,9 @@ describe("renameSchema", () => {
 
 describe("removeSchema", () => {
   it("limpa sectionId órfão dos filhos da seção apagada", () => {
-    // Sem isso o filho fica com um id apontando pra seção que não existe
-    // mais e sai do PDF gerado, silenciosamente, ainda visível no canvas.
+    // Without this the child keeps an id pointing at a section that no longer
+    // exists and leaves the generated PDF, silently, while still visible on
+    // the canvas.
     const { actions, state } = harness({
       template: {
         page: { width: 210, height: 297 },
@@ -218,8 +220,9 @@ describe("removeSchema", () => {
 
 describe("setTableHead", () => {
   it("reindexa por NOME, não por posição — o bug do 'orgao' sob o rótulo 'fatura'", () => {
-    // Reduzir de 3 pra 1 coluna ("fatura") por POSIÇÃO pegava o índice 0 de
-    // tudo, que era "orgao": o PDF saía com órgão sob o rótulo fatura.
+    // Reducing from 3 columns to 1 ("fatura") by POSITION took index 0 of
+    // everything, which was "orgao": the PDF came out with the agency under
+    // the invoice label.
     const { actions, state } = harness({
       template: { page: { width: 210, height: 297 }, schemas: [makeTable()] },
       bindings: [{ schemaName: "tabela", type: "array", path: "rows", columns: ["orgao", "fatura", "tarKandir"] }],
@@ -235,19 +238,19 @@ describe("setTableHead", () => {
     expect(binding.type === "array" && binding.columns).toEqual(["fatura"]);
   });
 
-  // A CLASSE ORIGINAL DO BUG, AINDA VIVA — marcado de propósito.
+  // THE ORIGINAL CLASS OF THE BUG, STILL ALIVE — marked on purpose.
   //
-  // `setTableHead` lê `oldHead` de fora do updater e usa como mapa
-  // nome→índice pra reindexar `binding.columns`. Com duas edições de head em
-  // sequência rápida, a segunda casa nomes contra um head que a primeira já
-  // reindexou, e escreve valor de coluna errado sob um rótulo — exatamente o
-  // "orgao" sob "fatura".
+  // `setTableHead` reads `oldHead` from outside the updater and uses it as a
+  // name→index map to reindex `binding.columns`. With two head edits in quick
+  // succession, the second matches names against a head the first has already
+  // reindexed, and writes the wrong column value under a label — exactly the
+  // "orgao" under "fatura".
   //
-  // Não está consertado porque o conserto muda semântica: casar por
-  // `columnLabel(binding.columns[i])` em vez de por `oldHead` altera o
-  // resultado no caso de head e columns dessincronizados, que
-  // test/table/columns.test.ts fixa. Fica como dívida VISÍVEL: quem
-  // consertar, tira o .skip e o teste passa a valer.
+  // It is not fixed because the fix changes semantics: matching by
+  // `columnLabel(binding.columns[i])` instead of by `oldHead` alters the
+  // result when head and columns are out of sync, which
+  // test/table/columns.test.ts pins. It stays as VISIBLE debt: whoever fixes
+  // it removes the .skip and the test starts counting.
   it.skip("duas edições de head com estado congelado não embaralham valor sob rótulo", () => {
     const { actions, state, flush } = deferredHarness({
       template: { page: { width: 210, height: 297 }, schemas: [makeTable()] },
@@ -266,9 +269,9 @@ describe("setTableHead", () => {
 
 describe("addTableColumn / removeTableColumn", () => {
   it("dois '+' em sequência, antes de qualquer re-render, somam as duas colunas", () => {
-    // É a corrida que colocou um "orgao" no índice de "tarKandir": o 2º
-    // clique lia head/columns de ANTES do 1º aplicar e reescrevia o array
-    // inteiro por cima, derrubando a adição alheia.
+    // It is the race that put an "orgao" at the index of "tarKandir": the 2nd
+    // click read head/columns from BEFORE the 1st applied and rewrote the
+    // whole array on top, knocking out the other addition.
     const { actions, state } = harness({
       template: { page: { width: 210, height: 297 }, schemas: [makeTable({ head: ["a"], content: [["{a}"]] })] },
       bindings: [{ schemaName: "tabela", type: "array", path: "rows", columns: ["a"] }],
@@ -319,8 +322,9 @@ describe("addTableColumn / removeTableColumn", () => {
 
 describe("handleChangeBinding", () => {
   it("vínculo array NOVO numa tabela sincroniza head/content com as colunas", () => {
-    // Sem isso a tabela recém-criada ficava com head de 2 placeholders e
-    // binding.columns cheio — desalinhado desde o clique em "Vincular".
+    // Without this a freshly created table was left with a head of 2
+    // placeholders and a full binding.columns — out of alignment from the
+    // click on "Bind".
     const { actions, state } = harness({
       template: {
         page: { width: 210, height: 297 },
@@ -333,12 +337,12 @@ describe("handleChangeBinding", () => {
 
     const table = state.template.schemas[0] as TableSchema;
     expect(table.head).toEqual(["a", "b", "c"]);
-    // Forma BRACKETADA: a chave pode ter ponto, espaço, parêntese ou quote, e
-    // a forma nua daria um path errado ou erro de sintaxe. É a mesma regra
-    // (`tokenFor`) que a tabela nova e a normalização usam.
+    // The BRACKETED form: the key may have a dot, a space, a parenthesis or a
+    // quote, and the bare form would give a wrong path or a syntax error. It
+    // is the same rule (`tokenFor`) the new table and the normalization use.
     expect(table.content).toEqual([["{[a]}", "{[b]}", "{[c]}"]]);
-    // E nenhuma coluna de chave crua sobrevive a este caminho: o rótulo e a
-    // referência viram campos separados, então renomear um não mexe no outro.
+    // And no raw-key column survives this path: the label and the reference
+    // become separate fields, so renaming one does not touch the other.
     expect(state.bindings[0]).toMatchObject({
       columns: [
         { label: "a", formula: "{[a]}" },
@@ -399,13 +403,13 @@ describe("z-order", () => {
 });
 
 describe("leitura em tempo de chamada", () => {
-  // O que sustenta a identidade estável do objeto de actions não é o objeto —
-  // é o fato de NADA reativo entrar por parâmetro. Testar "as closures são
-  // iguais a si mesmas" seria tautologia: elas são criadas uma vez, então não
-  // podem diferir. O teste que PODE falhar é este: a mesma instância de ação,
-  // depois de o estado mudar por fora, tem de enxergar o estado NOVO. Se
-  // alguém voltar a passar template/bindings/seleção/dicionário por
-  // parâmetro da fábrica, isto fica vermelho.
+  // What sustains the actions object's stable identity is not the object —
+  // it is the fact that NOTHING reactive comes in as a parameter. Testing "the
+  // closures equal themselves" would be a tautology: they are created once, so
+  // they cannot differ. The test that CAN fail is this one: the same action
+  // instance, after the state changes from outside, has to see the NEW state.
+  // If someone goes back to passing template/bindings/selection/dictionary as
+  // a parameter of the factory, this goes red.
   it("a mesma instância de ação enxerga seleção trocada por fora", () => {
     const { actions, state, latest } = harness({
       template: {
@@ -419,14 +423,14 @@ describe("leitura em tempo de chamada", () => {
     latest.current.selectedId = "tb2";
     actions.addTableColumn("b");
 
-    // Cada "+" foi na tabela que estava selecionada NA HORA da chamada.
+    // Each "+" went to the table that was selected AT THE TIME of the call.
     expect((state.template.schemas[0] as TableSchema).head).toEqual(["a", "b"]);
     expect((state.template.schemas[1] as TableSchema).head).toEqual(["z", "b"]);
   });
 
   it("a mesma instância enxerga o dicionário trocado por fora", () => {
-    // `t` (i18n) também mora na ref. Uma seção criada depois de trocar o
-    // idioma nasce com o nome do dicionário NOVO.
+    // `t` (i18n) lives in the ref too. A section created after switching
+    // language is born with the NEW dictionary's name.
     const { actions, state, latest } = harness({ template: { page: { width: 210, height: 297 }, schemas: [] } });
 
     actions.createSection();
@@ -436,8 +440,8 @@ describe("leitura em tempo de chamada", () => {
     actions.createSection();
     const enName = state.template.schemas[1].name;
 
-    // O nome leva sufixo aleatório (makeBase em schemaFactory.ts), então o
-    // que se afirma é o PREFIXO, que é o que vem do dicionário.
+    // The name carries a random suffix (makeBase in schemaFactory.ts), so what
+    // is asserted is the PREFIX, which is what comes from the dictionary.
     expect(ptName.startsWith(dictFor("pt-BR").schemaDefaults.sectionNamePrefix)).toBe(true);
     expect(enName.startsWith(dictFor("en").schemaDefaults.sectionNamePrefix)).toBe(true);
     expect(dictFor("pt-BR").schemaDefaults.sectionNamePrefix).not.toBe(dictFor("en").schemaDefaults.sectionNamePrefix);
@@ -446,10 +450,10 @@ describe("leitura em tempo de chamada", () => {
 
 describe("toggleIsolateBands", () => {
   it("limpa a seleção ANTES de virar a chave", () => {
-    // Os dois conjuntos de campo são disjuntos (ver fieldListSchemasOf): no
-    // modo isolado só a faixa vermelha aparece, fora dele só o corpo. Manter
-    // a seleção deixaria o painel de propriedades editando um campo que o
-    // canvas não mostra mais — e o usuário vendo mudança nenhuma ao digitar.
+    // The two sets of fields are disjoint (see fieldListSchemasOf): in
+    // isolated mode only the red band appears, outside it only the body.
+    // Keeping the selection would leave the property panel editing a field the
+    // canvas no longer shows — and the user seeing no change as they type.
     const { actions, state } = harness({ template: { page: { width: 210, height: 297 }, schemas: [makeTable()] } });
     state.selectedIds = ["t1"];
 
@@ -464,9 +468,9 @@ describe("toggleIsolateBands", () => {
     actions.toggleIsolateBands();
     actions.toggleIsolateBands();
     expect(state.isolateBands).toBe(false);
-    // Dois toggles em sequência, sem re-render entre eles: se o handler
-    // lesse `isolateBands` de closure/snapshot em vez do updater funcional,
-    // o segundo escreveria `true` de novo e o modo ficaria preso ligado.
+    // Two toggles in a row, with no re-render between them: if the handler
+    // read `isolateBands` from a closure/snapshot instead of the functional
+    // updater, the second would write `true` again and the mode would get stuck on.
     actions.toggleIsolateBands();
     actions.toggleIsolateBands();
     actions.toggleIsolateBands();
@@ -476,9 +480,9 @@ describe("toggleIsolateBands", () => {
 
 describe("gridSizeMm chega nas ações", () => {
   it("campo novo nasce alinhado no passo da CONFIG, não no default de 5", () => {
-    // O bug que isto guarda: `computeSpawnPosition` usava snapToGrid com o
-    // default, então `gridSizeMm={3}` alinhava o arrasto em 3 e o
-    // nascimento em 5 — campo novo já nascia fora da grade do consumidor.
+    // The bug this guards: `computeSpawnPosition` used snapToGrid with the
+    // default, so `gridSizeMm={3}` aligned dragging to 3 and birth to 5 — a
+    // new field was born off the consumer's grid.
     const template = {
       page: { width: 210, height: 297 },
       schemas: [],
@@ -500,7 +504,7 @@ describe("gridSizeMm chega nas ações", () => {
     expect(posCinco.y % 5).toBe(0);
     expect(posTres.x % 3).toBe(0);
     expect(posTres.y % 3).toBe(0);
-    // Se a config fosse ignorada, os dois cairiam no mesmo ponto.
+    // If the config were ignored, the two would land at the same point.
     expect([posTres.x, posTres.y]).not.toEqual([posCinco.x, posCinco.y]);
   });
 
@@ -515,9 +519,9 @@ describe("gridSizeMm chega nas ações", () => {
     dois.actions.createSection();
     const yDois = dois.state.template.schemas[1].y;
 
-    // Seção nasce esticada, e computeSpawnPosition re-alinha o y — o que
-    // importa é que os dois passos dão respostas diferentes e cada uma cai
-    // na própria grade.
+    // A section is born stretched, and computeSpawnPosition re-aligns the y —
+    // what matters is that the two steps give different answers and each one
+    // lands on its own grid.
     expect(yCinco % 5).toBe(0);
     expect(yDois % 2).toBe(0);
   });

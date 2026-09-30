@@ -4,10 +4,10 @@ import { en } from "./i18n/locales/en";
 import type { Dict } from "./i18n";
 import { tokenFor } from "./fields/table/columnFormula";
 
-// O mime do arrasto interno mudou de casa pra `src/drag.ts`, junto do payload
-// externo — os dois são o mesmo contrato visto de lados diferentes, e um deles
-// morando na fábrica de schemas era só onde sobrou espaço. Reexportado aqui
-// porque vários call sites importam daqui.
+// The internal drag's mime moved house to `src/drag.ts`, next to the external
+// payload — the two are the same contract seen from different sides, and one
+// of them living in the schema factory was only where there was room left.
+// Re-exported here because several call sites import it from this path.
 export { SECTION_COLUMN_MIME } from "./drag";
 
 export function uid(): string {
@@ -16,11 +16,11 @@ export function uid(): string {
     : Math.random().toString(36).slice(2);
 }
 
-// Preâmbulo repetido de todo make*Schema abaixo — id novo, nome com
-// sufixo aleatório (evita colisão entre campos do mesmo tipo), sempre
-// nasce em x=10 (só y varia, empilhado abaixo do último campo — ver
-// nextFreeY). width/height/type/resto ficam a cargo de cada função,
-// que são específicos por tipo de campo.
+// The preamble repeated by every make*Schema below — a new id, a name with a
+// random suffix (it avoids collisions between fields of the same type),
+// always born at x=10 (only y varies, stacked below the last field — see
+// nextFreeY). width/height/type/the rest are up to each function, since they
+// are specific per field type.
 function makeBase(namePrefix: string, nextY: number): { id: string; name: string; x: number; y: number } {
   return { id: uid(), name: `${namePrefix}_${Math.random().toString(36).slice(2, 6)}`, x: 10, y: nextY };
 }

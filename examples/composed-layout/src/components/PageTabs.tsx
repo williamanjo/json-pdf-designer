@@ -7,24 +7,24 @@ type Props = {
   onSelect: (index: number) => void;
   onAdd: () => void;
   onRemove: (index: number) => void;
-  // `locale` chega por prop, e não de `useLocale()`, porque a casca deste app
-  // não pode depender de estar dentro do `<I18nProvider>` — o header e o
-  // banner de erro ficam FORA dele (ver App.tsx). O valor é o mesmo estado
-  // que alimenta o provider; é um seletor só.
+  // `locale` arrives as a prop, and not from `useLocale()`, because this app's
+  // shell cannot depend on being inside the `<I18nProvider>` — the header and
+  // the error banner sit OUTSIDE it (see App.tsx). The value is the same state
+  // that feeds the provider; there is only one picker.
   locale: Locale;
 };
 
-// Abas de PÁGINA, acima do canvas — cada uma é uma TemplatePage
-// independente dentro do MESMO Template (ver lib/pages.ts). Rótulo é
-// sempre a posição no array ("Página N"), não um nome guardado — evita
-// nome desatualizado depois de remover uma aba do meio.
+// PAGE tabs, above the canvas — each one is an independent TemplatePage
+// inside the SAME Template (see lib/pages.ts). The label is always the
+// position in the array ("Page N"), not a stored name — which avoids a stale
+// name after removing a tab from the middle.
 //
-// ATENÇÃO, e é o ponto deste example: isto NÃO é a barra de abas do
-// editor. A `<DesignerTabBar>` do pacote troca qual PAINEL da sidebar
-// aparece, e este example não a usa (é o que faz os cinco painéis da
-// direita renderizarem juntos). Estas abas aqui trocam qual PÁGINA do
-// documento está sendo editada — outra dimensão, estado deste app, e a
-// única coisa parecida com aba que existe na tela.
+// CAREFUL, and this is this example's point: this is NOT the editor's tab
+// bar. The package's `<DesignerTabBar>` swaps which PANEL of the sidebar
+// appears, and this example does not use it (which is what makes the five
+// right-hand panels render together). These tabs here swap which PAGE of the
+// document is being edited — another dimension, this app's state, and the only
+// tab-like thing on screen.
 export default function PageTabs({ pages, activeIndex, onSelect, onAdd, onRemove, locale }: Props) {
   const ui = t(locale);
 

@@ -2,13 +2,13 @@ import type { Binding, KpiAggregation } from "../types";
 import { parseColumnsInput } from "./columnParsing";
 import { splitDelimited } from "./splitDelimited";
 
-// Lógica pura de applyBinding (ver BindingEditor.tsx), uma função por
-// schema.type — cada uma só valida seu próprio conjunto de campos e
-// devolve o Binding novo (ou undefined quando a validação não passa,
-// caso em que o chamador não atualiza o vínculo salvo). Extraídas pra um
-// módulo próprio (em vez de dentro de BindingEditor.tsx) pra serem
-// testáveis sem montar o componente React e pra não quebrar o Fast
-// Refresh (que exige que um arquivo .tsx só exporte componentes).
+// Pure applyBinding logic (see BindingEditor.tsx), one function per
+// schema.type — each one validates only its own set of fields and
+// returns the new Binding (or undefined when validation fails, in which
+// case the caller does not update the saved binding). Extracted into a
+// module of their own (instead of living inside BindingEditor.tsx) so they
+// are testable without mounting the React component, and so Fast Refresh
+// does not break (it requires a .tsx file to export components only).
 
 export function buildSectionBinding(schemaName: string, draft: string): Binding | undefined {
   if (!draft.trim()) return undefined;
@@ -23,9 +23,9 @@ export function buildChartBinding(
   existingBinding: Binding | undefined
 ): Binding | undefined {
   if (!draft.trim() || !label || !value) return undefined;
-  // Filtro (aba própria "Filtro" no painel do gráfico, ver
-  // PropertyPanelChart.tsx) não é editado aqui — só preserva o que já
-  // tava salvo quando o resto do vínculo muda (fonte/coluna).
+  // The filter (its own "Filter" tab in the chart panel, see
+  // PropertyPanelChart.tsx) is not edited here — this only preserves what
+  // was already saved when the rest of the binding changes (source/column).
   return {
     schemaName,
     type: "chart",
@@ -41,9 +41,9 @@ export function buildTableBinding(schemaName: string, draft: string, cols: strin
   if (path) {
     const columns = parseColumnsInput(cols);
     if (columns.length === 0) return undefined;
-    // Filtro (aba própria "Filtro", ver Designer.tsx) não é editado
-    // aqui — só preserva o que já tava salvo quando o resto do
-    // vínculo muda (fonte/colunas), mesma regra do chart acima.
+    // The filter (its own "Filter" tab, see Designer.tsx) is not edited
+    // here — this only preserves what was already saved when the rest
+    // of the binding changes (source/columns), same rule as the chart above.
     return {
       schemaName,
       type: "array",

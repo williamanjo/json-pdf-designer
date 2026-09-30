@@ -25,19 +25,19 @@ function rowClass(field: FieldNode): string {
   return "field-row";
 }
 
-// Árvore de campos: uma seção fixa "Variáveis nativas" (tokens sintéticos
-// tipo pageNumber, sempre disponíveis) + os campos do JSON de verdade,
-// agrupados por DataSource (cada array vira um grupo cujas colunas são
-// filhos individuais, arrastáveis/clicáveis cada uma — ver
-// lib/jsonExplorer.ts::buildFieldTree). Grupos "de pasta" comuns (objeto
-// aninhado, ex: "carta") não têm ação própria, só organizam.
+// The field tree: a fixed "Native variables" section (synthetic tokens such
+// as pageNumber, always available) + the real JSON's fields, grouped by
+// DataSource (each array becomes a group whose columns are individual
+// children, each draggable/clickable — see
+// lib/jsonExplorer.ts::buildFieldTree). Ordinary "folder" groups (a nested
+// object, e.g. "carta") have no action of their own, they only organize.
 //
-// Cada linha de campo é arrastável (o FieldNode inteiro serializado no
-// dataTransfer, pro DesignerPanel ler no "drop") e, quando `onAdd` é
-// passado (modal "sem arrastar"), tem um botão "+".
+// Each field row is draggable (the whole FieldNode serialized into the
+// dataTransfer, for the DesignerPanel to read on "drop") and, when `onAdd` is
+// passed (the "without dragging" modal), has a "+" button.
 //
-// Toda a marcação aqui é HTML nativo + classes de src/index.css — nenhum
-// Card/Button/ícone importado do pacote (é a premissa deste example).
+// All the markup here is native HTML + classes from src/index.css — no
+// Card/Button/icon imported from the package (that is this example's premise).
 export default function FieldTree({ fields, locale, onAdd, onOpenPicker }: Props) {
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
   const d = t(locale);
@@ -63,13 +63,13 @@ export default function FieldTree({ fields, locale, onAdd, onOpenPicker }: Props
         onDragStart={(e) => onDragStart(e, field)}
         style={{ marginLeft: depth * INDENT_PX }}
         className={rowClass(field)}
-        // O `title` de um campo do JSON é o PATH cru (`rows.total`) — dado, e
-        // é justamente o que a pessoa precisa ler. Só o aviso do campo nativo
-        // é frase, e essa sim vem do dicionário.
+        // A JSON field's `title` is the raw PATH (`rows.total`) — data, and it is
+        // exactly what the person needs to read. Only the native field's
+        // warning is a phrase, and that one does come from the dictionary.
         title={field.kind === "native" ? d.nativeOnlyInBands(field.path) : field.path}
       >
         <span className="field-row-icon">{iconFor(field)}</span>
-        {/* `label` é dado: nome da chave do JSON ou da coluna do array. */}
+        {/* `label` is data: the name of the JSON key or of the array's column. */}
         <span className="field-row-label">{label}</span>
         {onAdd && (
           <button
@@ -130,8 +130,9 @@ export default function FieldTree({ fields, locale, onAdd, onOpenPicker }: Props
         <div className="tree-section">
           <p className="tree-section-title">{d.nativeSection}</p>
           <ul className="tree-list">
-            {/* O PATH do campo nativo (`pageNumber`) é token do motor e não
-                muda; só o RÓTULO exibido sai do dicionário. */}
+            {/* The native field's PATH (`pageNumber`) is an engine token and
+                does not change; only the displayed LABEL comes from the
+                dictionary. */}
             {nativeFields(locale).map((f) => (
               <li key={f.path}>{renderFieldRow(f, f.label, 0)}</li>
             ))}

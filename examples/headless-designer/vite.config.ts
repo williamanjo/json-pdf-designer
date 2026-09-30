@@ -1,27 +1,27 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Sem plugin de Tailwind aqui — e desde a 3.0.0 não há Tailwind nenhum pra
-// plugar: o pacote não usa mais. Este example prova que dá pra montar um
-// editor PRÓPRIO (sem o componente <Designer> e sem nenhuma peça
-// `Designer*`) só com as peças de baixo nível do pacote (generatePdf/tipos
-// de "json-pdf-designer/server" + <PdfPreview> de
-// "json-pdf-designer/preview"). E ele importa SÓ o "json-pdf-designer/
-// reset.css" (main.tsx), não o tema — então até a aparência do
-// <PdfPreview> é escrita à mão, no src/index.css.
+// No Tailwind plugin here — and since 3.0.0 there is no Tailwind at all to
+// plug in: the package no longer uses it. This example proves that an editor
+// of your OWN can be assembled (without the <Designer> component and without
+// any `Designer*` part) using only the package's low-level pieces
+// (generatePdf/types from "json-pdf-designer/server" + <PdfPreview> from
+// "json-pdf-designer/preview"). And it imports ONLY "json-pdf-designer/
+// reset.css" (main.tsx), not the theme — so even `<PdfPreview>`'s appearance
+// is written by hand, in src/index.css.
 export default defineConfig({
-  // Relativo — funciona em qualquer subpath do GitHub Pages
-  // (playground/headless-designer/) sem hardcodar o nome do repo. Seguro
-  // aqui porque este app não usa client-side router.
+  // Relative — it works on any GitHub Pages subpath
+  // (playground/headless-designer/) without hardcoding the repo's name. Safe
+  // here because this app uses no client-side router.
   base: "./",
   plugins: [react()],
   server: {
     port: 5175,
   },
-  // json-pdf-designer é uma dependência "file:" linkada (symlink) pro
-  // pacote pai — sem isso o Vite pode resolver "react" a partir do
-  // node_modules dele em vez do node_modules deste app, carregando duas
-  // cópias de React (erro "Invalid hook call").
+  // json-pdf-designer is a "file:" dependency linked (a symlink) to the
+  // parent package — without this Vite may resolve "react" from ITS
+  // node_modules instead of this app's, loading two copies of React (the
+  // "Invalid hook call" error).
   resolve: {
     dedupe: ["react", "react-dom"],
   },

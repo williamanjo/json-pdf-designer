@@ -21,9 +21,9 @@ import {
   type Template,
   type TemplatePage,
 } from "json-pdf-designer";
-// Preview (pdf.js) mora no entry "/preview" — peer OPCIONAL pdfjs-dist,
-// instalado por este example justamente porque ele usa o preview. (O
-// examples/no-preview é o oposto: proíbe o pacote e tem um check no build.)
+// The preview (pdf.js) lives in the "/preview" entry — the OPTIONAL peer
+// pdfjs-dist, installed by this example precisely because it uses the preview.
+// (examples/no-preview is the opposite: it forbids the package and has a build check.)
 import { PdfPreviewModal } from "json-pdf-designer/preview";
 import DataSourcePanel, { type JsonSource } from "./components/DataSourcePanel";
 import FieldTree from "./components/FieldTree";
@@ -46,35 +46,34 @@ import { templateProblems } from "./lib/templateProblems";
 import { uid } from "./lib/uid";
 import { bindings as initialBindings, sample as initialSample, template as initialTemplate } from "./data";
 
-// Editor montado PEÇA POR PEÇA, sem o componente <Designer>.
+// The editor assembled PART BY PART, without the <Designer> component.
 //
-// O layout aqui é impossível com o preset: toolbar full-width em cima,
-// coluna de dados à esquerda, canvas no meio (com as abas de página em
-// cima dele), e uma coluna à direita com SEIS painéis empilhados — que
-// dentro do <Designer> seriam cinco abas diferentes (Dados, Estilo,
-// Filtro, Vínculo, Página, Inspetor), com "Dados" e "Estilo" sendo DUAS
-// instâncias da mesma peça.
+// The layout here is impossible with the preset: a full-width toolbar on
+// top, a data column on the left, the canvas in the middle (with the page
+// tabs above it), and a right-hand column with SIX stacked panels — which
+// inside the <Designer> would be five different tabs (Data, Style, Filter,
+// Binding, Page, Inspector), with "Data" and "Style" being TWO instances of
+// the same part.
 //
-// É por isso que o gate de aba é opt-in: NENHUMA peça aqui recebe
-// `whenTab`, então todas renderizam ao mesmo tempo. Se `whenTab` fosse o
-// default, esta coluna da direita mostraria um painel e apagaria os
-// outros cinco. E não há `<DesignerSidebar>` nem `<DesignerTabBar>` em
-// lugar nenhum — as únicas abas na tela são as de PÁGINA, que são estado
-// deste app, não do editor.
+// That is why the tab gate is opt-in: NO part here receives `whenTab`, so
+// they all render at the same time. If `whenTab` were the default, this
+// right-hand column would show one panel and erase the other five. And there
+// is no `<DesignerSidebar>` or `<DesignerTabBar>` anywhere — the only tabs on
+// screen are the PAGE ones, which are this app's state, not the editor's.
 //
-// `expandOnSelect={false}` porque não existe sidebar pra reabrir — o
-// provider não deve tentar.
+// `expandOnSelect={false}` because there is no sidebar to reopen — the
+// provider should not try.
 export default function App() {
-  // Autosave lido UMA vez, no primeiro render (`useState(fn)` como
-  // inicializador preguiçoso) — não a cada render.
+  // The autosave is read ONCE, on the first render (`useState(fn)` as a lazy
+  // initializer) — not on every render.
   const [autosaved] = useState(loadAutosave);
   const [template, setTemplate] = useState<Template>(() => ensurePages(autosaved?.template ?? initialTemplate));
   const [bindings, setBindings] = useState<Binding[]>(() => autosaved?.bindings ?? initialBindings);
   const [activePageIndex, setActivePageIndex] = useState(0);
   const [sources, setSources] = useState<JsonSource[]>(
-    // "principal" NÃO sai do dicionário: nome de fonte de dados é DADO — vai
-    // pro autosave e pro projeto salvo, e mudar de identidade porque alguém
-    // trocou o idioma da UI seria errado.
+    // "principal" does NOT come from the dictionary: a data source's name is
+    // DATA — it goes into the autosave and the saved project, and changing
+    // identity because someone switched the UI language would be wrong.
     () => autosaved?.sources ?? [{ id: uid(), name: "principal", raw: JSON.stringify(initialSample, null, 2) }]
   );
   const [fields, setFields] = useState<FieldNode[]>(() => {
@@ -82,50 +81,50 @@ export default function App() {
     return extractFields(initialSample);
   });
   const [errorsById, setErrorsById] = useState<Record<string, SourceErrorCode>>({});
-  // O erro CRU, não a frase pronta: `describeGenerationError` roda no render
-  // (logo abaixo), então trocar de idioma com o banner aberto retraduz o
-  // banner em vez de deixar a mensagem antiga na tela. Caixa (`{ err }`) em
-  // vez do valor solto porque `null` é um erro possível.
+  // The RAW error, not the finished phrase: `describeGenerationError` runs at
+  // render time (just below), so switching language with the banner open
+  // retranslates the banner instead of leaving the old message on screen. A box
+  // (`{ err }`) instead of the loose value because `null` is a possible error.
   const [genErrorBox, setGenErrorBox] = useState<{ err: unknown } | null>(null);
   const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
   const [generating, setGenerating] = useState(false);
-  // UM estado de idioma, DUAS camadas de texto: a casca deste app (via
-  // `t(locale)`, ver src/i18n.ts) e a UI do editor. No <Designer> a segunda
-  // seria a prop `locale`; montando na mão, ela vem do <I18nProvider> por
-  // fora do <DesignerProvider> — é responsabilidade de quem monta. Nenhuma
-  // das duas afeta o PDF gerado.
+  // ONE language state, TWO layers of text: this app's shell (through
+  // `t(locale)`, see src/i18n.ts) and the editor's UI. In the <Designer> the
+  // second would be the `locale` prop; assembling by hand, it comes from the
+  // <I18nProvider> outside the <DesignerProvider> — the responsibility of
+  // whoever assembles. Neither of the two affects the generated PDF.
   const [locale, setLocale] = useState<Locale>("pt-BR");
 
   const ui = t(locale);
-  // O dicionário do PACOTE como VALOR (`useT()` só funciona dentro do
-  // provider, e este componente está por fora dele). Os rótulos dos cartões
-  // da direita saem daqui porque o CONCEITO é do pacote: são as abas do
-  // <Designer> ("Dados", "Estilo", "Filtro", "Página", "Inspetor") e o
-  // título do editor de vínculo. Duplicar a tradução criaria dois textos pra
-  // dessincronizar; só o qualificador ("do campo", "de linhas") é nosso.
+  // The PACKAGE's dictionary as a VALUE (`useT()` only works inside the
+  // provider, and this component is outside it). The labels of the right-hand
+  // cards come from here because the CONCEPT belongs to the package: they are
+  // the <Designer>'s tabs ("Data", "Style", "Filter", "Page", "Inspector") and
+  // the binding editor's title. Duplicating the translation would create two
+  // texts to fall out of sync; only the qualifier ("of the field", "of rows")
   const pacote = dictFor(locale);
 
-  // Recalcula a cada render: é varredura de string sobre o template em
-  // memória, barata o suficiente pra não valer memo — e assim o painel reage
-  // na hora em que alguém digita uma expressão torta.
+  // Recomputed on every render: it is a string scan over the in-memory
+  // template, cheap enough not to be worth a memo — and that way the panel
+  // reacts the moment someone types a crooked expression.
   const problems = templateProblems(template, bindings, locale);
   const genError: GenerationProblem | null = genErrorBox ? describeGenerationError(genErrorBox.err, locale) : null;
 
   useUndoRedo(template, bindings, setTemplate, setBindings);
   useAutosave(template, bindings, sources);
 
-  // `template.pages` sempre existe e não é vazio (garantido por ensurePages
-  // em todo lugar que troca `template` inteiro) — clampa o índice pra nunca
-  // apontar fora do array (ex: depois de remover a última aba selecionada, ou
-  // carregar um projeto/exemplo com menos páginas).
+  // `template.pages` always exists and is never empty (guaranteed by
+  // ensurePages everywhere the whole `template` is swapped) — it clamps the
+  // index so it never points outside the array (e.g. after removing the last
+  // selected tab, or loading a project/example with fewer pages).
   const pages = template.pages!;
   const safeActivePageIndex = Math.min(activePageIndex, pages.length - 1);
   const activePage = pages[safeActivePageIndex];
 
-  // Repassa pro <DesignerProvider> só a página ATIVA — as peças não sabem
-  // que existem outras páginas, só editam a que receberam. Grava de volta em
-  // template.pages[safeActivePageIndex], preservando o resto do Template
-  // intacto (inclusive as outras páginas).
+  // It forwards only the ACTIVE page to the <DesignerProvider> — the parts do
+  // not know other pages exist, they only edit the one they received. It
+  // writes back into template.pages[safeActivePageIndex], keeping the rest of
+  // the Template intact (including the other pages).
   function setActivePageTemplate(update: React.SetStateAction<Template>) {
     setTemplate((prev) => {
       const prevPages = prev.pages!;
@@ -137,7 +136,7 @@ export default function App() {
 
   function handleAddPage() {
     setTemplate((prev) => ({ ...prev, pages: [...prev.pages!, blankPage()] }));
-    setActivePageIndex(pages.length); // nova página vai pro final
+    setActivePageIndex(pages.length); // a new page goes to the end
   }
 
   function handleRemovePage(index: number) {
@@ -146,8 +145,8 @@ export default function App() {
     setActivePageIndex((prevIndex) => Math.max(0, prevIndex >= index ? prevIndex - 1 : prevIndex));
   }
 
-  // Só recalcula a lista de campos quando alguém clicar em "Resync campos" —
-  // assim dá pra colar um JSON grande sem a árvore piscar a cada tecla.
+  // It only recomputes the field list when someone clicks "Resync fields" —
+  // that way a large JSON can be pasted without the tree flickering on every keystroke.
   function handleResync() {
     const { data, errorsById: nextErrors } = mergeSources(sources);
     setFields(extractFields(data));
@@ -173,21 +172,21 @@ export default function App() {
       const { data, errorsById: nextErrors } = mergeSources(sources);
       setErrorsById(nextErrors);
       const fontBytes = await loadDefaultFont();
-      // `maxPages` explícito, no default do pacote: deixa claro que existe um
-      // teto e que estourá-lo dá PageLimitError em vez de um PDF truncado.
+      // An explicit `maxPages`, at the package's default: it makes clear that a
+      // ceiling exists and that going past it gives a PageLimitError instead
+      // of a truncated PDF.
       const bytes = await generatePdf(template, data, bindings, { fontBytes, maxPages: DEFAULT_MAX_PAGES });
       setPreviewBytes(bytes);
     } catch (err) {
-      // A geração LANÇA em alguns casos (glifo fora da fonte, teto de páginas,
-      // tamanho de página inválido). Sem este catch a promise rejeita sem
-      // tratamento e o botão fica preso em "Gerando…".
+      // Generation THROWS in some cases (a glyph outside the font, the page
+      // ceiling, an invalid page size). Without this catch the promise rejects
+      // unhandled and the button stays stuck on "Generating…".
       //
-      // Sem `err.message` cru: describeGenerationError delega a
-      // `describePdfError` do pacote, que devolve `code`/`blame` estruturados
-      // + título e ação já localizados. Ver "Modos de falha" na doc. Ele é
-      // chamado no RENDER, não
-      // aqui, pra que a frase acompanhe o seletor de idioma — o estado
-      // guarda só o erro.
+      // No raw `err.message`: describeGenerationError delegates to the
+      // package's `describePdfError`, which returns a structured `code`/`blame`
+      // plus an already-localized title and action. See "Failure modes" in the
+      // docs. It is called at RENDER time, not here, so the phrase follows the
+      // language picker — the state holds only the error.
       setGenErrorBox({ err });
     } finally {
       setGenerating(false);
@@ -205,15 +204,15 @@ export default function App() {
         setActivePageIndex(0);
         setGenErrorBox(null);
       })
-      // parseProjectFile já chama migrateTemplate; um formato mais novo que
-      // este build entende chega aqui como erro, e vira a mesma mensagem
-      // acionável de qualquer outra falha.
+      // parseProjectFile already calls migrateTemplate; a format newer than this
+      // build understands arrives here as an error, and becomes the same
+      // actionable message as any other failure.
       .catch((err: unknown) => setGenErrorBox({ err }));
   }
 
-  // Exemplos prontos — cada um troca template/binding E a fonte de dados pro
-  // JSON de exemplo dele, já sincronizando a árvore de campos sem precisar
-  // clicar em "Resync".
+  // Ready-made examples — each one swaps template/binding AND the data source
+  // for its own sample JSON, already syncing the field tree without having to
+  // click "Resync".
   function handleLoadExample(key: string) {
     const example = EXAMPLES[key];
     if (!example) return;
@@ -228,12 +227,12 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* O header fica FORA do provider: nada nele lê o estado do editor, e
-          assim a troca de página (que remonta o provider, ver `key` abaixo)
-          não mexe nos controles daqui. */}
+      {/* The header sits OUTSIDE the provider: nothing in it reads the
+          editor's state, so switching pages (which remounts the provider, see
+          `key` below) does not disturb the controls here. */}
       <header className="app-top">
         <h1>
-          {/* O nome do example não se traduz — é o nome da pasta. */}
+          {/* The example's name is not translated — it is the folder's name. */}
           composed-layout
           <small>{ui.subtitulo}</small>
           <span className="app-version" title={ui.formatoTitle}>
@@ -242,22 +241,22 @@ export default function App() {
         </h1>
 
         <div className="app-top__actions">
-          {/* Undo/redo é o hook useUndoRedo: atalho global de teclado, sem
-              botão. Fica escrito aqui porque atalho invisível é atalho que
-              ninguém usa. */}
+          {/* Undo/redo is the useUndoRedo hook: a global keyboard shortcut, no
+              button. It is written here because an invisible shortcut is a
+              shortcut nobody uses. */}
           <span className="app-chip" title={ui.undoRedoTitle}>
-            {/* Atalho de teclado: notação, não texto — igual nos dois idiomas. */}
+            {/* A keyboard shortcut: notation, not text — the same in both languages. */}
             ⌃Z / ⌃Y
           </span>
-          {/* Autosave é o hook useAutosave: localStorage, debounce de 500ms. */}
+          {/* Autosave is the useAutosave hook: localStorage, a 500ms debounce. */}
           <span className="app-chip" title={ui.autosaveTitle}>
             {ui.autosaveChip}
           </span>
 
-          {/* O ÚNICO seletor de idioma: o mesmo `locale` alimenta `t(locale)`
-              (a casca) e o <I18nProvider> (a UI do editor). Os nomes dos
-              idiomas ficam cada um no PRÓPRIO idioma, como é convenção — não
-              se traduzem. */}
+          {/* The ONLY language picker: the same `locale` feeds `t(locale)`
+              (the shell) and the <I18nProvider> (the editor's UI). The
+              language names each stay in their OWN language, as is the
+              convention — they are not translated. */}
           <select className="app-select" value={locale} onChange={(e) => setLocale(e.target.value as Locale)} title={ui.idiomaTitle}>
             <option value="pt-BR">Português</option>
             <option value="en">English</option>
@@ -272,10 +271,10 @@ export default function App() {
             }}
           >
             <option value="">{ui.carregarExemplo}</option>
-            {/* `ex.label` NÃO é traduzido: é o nome do template de exemplo
-                (data/templates/), ou seja conteúdo — "Recibo de pagamento"
-                continua em português com a UI em inglês, do mesmo jeito que o
-                PDF que ele gera. */}
+            {/* `ex.label` is NOT translated: it is the sample template's name
+                (data/templates/), that is, content — "Recibo de pagamento"
+                stays in Portuguese with the UI in English, in the same way as
+                the PDF it generates. */}
             {Object.entries(EXAMPLES).map(([key, ex]) => (
               <option key={key} value={key}>
                 {ex.label}
@@ -297,36 +296,36 @@ export default function App() {
         </div>
       </header>
 
-      {/* Fica FORA do <I18nProvider> — é um dos dois motivos pelos quais a
-          casca recebe `locale` por prop em vez de chamar `useLocale()`. */}
+      {/* It sits OUTSIDE the <I18nProvider> — one of the two reasons the
+          shell receives `locale` as a prop instead of calling `useLocale()`. */}
       {genError && <GenerationErrorBanner problem={genError} onDismiss={() => setGenErrorBox(null)} locale={locale} />}
 
-      {/* O <I18nProvider> fica explícito porque a prop `locale` era do
-          preset; montando na mão, o idioma é responsabilidade de quem monta.
-          Ele vai POR FORA do DesignerProvider — as peças leem o dicionário
-          por `useT()`.
-          É o MESMO `locale` do estado que a casca usa: um seletor, dois
-          dicionários (o nosso e o do pacote), zero sincronização manual. */}
+      {/* The <I18nProvider> is explicit because the `locale` prop belonged
+          to the preset; assembling by hand, the language is the
+          responsibility of whoever assembles. It goes OUTSIDE the
+          DesignerProvider — the parts read the dictionary through `useT()`.
+          It is the SAME `locale` from state that the shell uses: one picker,
+          two dictionaries (ours and the package's), zero manual syncing. */}
       <I18nProvider locale={locale}>
         <DesignerProvider
-          // Trocar de página é trocar de documento: sem o `key`, a seleção
-          // interna do editor continuaria apontando pra um schema que não
-          // existe mais na página nova.
+          // Switching page is switching document: without the `key`, the
+          // editor's internal selection would keep pointing at a schema that
+          // no longer exists on the new page.
           key={activePage.id}
           template={activePage}
           onChangeTemplate={setActivePageTemplate}
           bindings={bindings}
           onChangeBindings={setBindings}
           onCanvasDrop={handleFieldDrop}
-          // Dropdown "Data Source" do editor de vínculo, montado a partir do
-          // que o explorador achou no JSON carregado.
+          // The binding editor's "Data Source" dropdown, built from what the
+          // explorer found in the loaded JSON.
           dataSources={dataSourcesFromFields(fields)}
           expandOnSelect={false}
         >
-          {/* A toolbar ocupa a largura toda, o que o preset nunca faz (lá ela
-              vive no pé da sidebar). `hint={false}` porque a frase "selecione
-              um campo na lista" não tem referente aqui — a lista está na
-              outra coluna. */}
+          {/* The toolbar takes the full width, which the preset never does
+              (there it lives at the foot of the sidebar). `hint={false}`
+              because the sentence "select a field in the list" has no referent
+              here — the list is in the other column. */}
           <DesignerToolbar className="app-toolbar" hint={false} />
 
           <div className="app-body">
@@ -353,12 +352,13 @@ export default function App() {
               />
               <section className="app-card">
                 <h2 className="app-h2">{ui.noCanvas(pacote.fieldsPanel.heading)}</h2>
-                {/* Peça do pacote — lista os schemas JÁ colocados (o
-                    FieldTree acima lista os caminhos do JSON, que é outra
-                    coisa). `heading={false}`: o título já está acima, em CSS
-                    próprio. `parts.scroll` sobrescreve a altura máxima da
-                    lista — dentro do <Designer> ela é curta porque divide a
-                    sidebar com a toolbar; aqui a coluna é só dela. */}
+                {/* A part of the package — it lists the schemas ALREADY placed
+                    (the FieldTree above lists the JSON's paths, which is
+                    another thing). `heading={false}`: the title is already
+                    above, in its own CSS. `parts.scroll` overrides the list's
+                    maximum height — inside the <Designer> it is short because
+                    it shares the sidebar with the toolbar; here the column is
+                    all its own. */}
                 <DesignerFieldList heading={false} parts={{ scroll: "app-list-scroll" }} />
               </section>
             </aside>
@@ -372,23 +372,23 @@ export default function App() {
                 onRemove={handleRemovePage}
                 locale={locale}
               />
-              {/* A BARRA DE ZOOM DESTE APP, fora do canvas — o caso que a
-                  3.1.0 destravou. `hideZoombar` esconde a do pacote, que é
-                  `position: sticky` dentro do canvas e por isso não tinha
-                  como sair de lá por CSS. Ver components/ZoomBar.tsx. */}
+              {/* THIS APP'S ZOOM BAR, outside the canvas — the case 3.1.0
+                  unlocked. `hideZoombar` hides the package's, which is
+                  `position: sticky` inside the canvas and therefore had no way
+                  out of it through CSS. See components/ZoomBar.tsx. */}
               <ZoomBar locale={locale} />
-              {/* O canvas é dono da geometria da folha; ESTA caixa é o
-                  viewport que rola, e ela é nossa. */}
+              {/* The canvas owns the sheet's geometry; THIS box is the
+                  viewport that scrolls, and it is ours. */}
               <DesignerCanvas className="app-canvas" hideZoombar />
             </div>
 
             <aside className="app-right">
-              {/* As duas metades do painel de propriedades, EMPILHADAS — é o
-                  que a prop `section` existe pra permitir. Dentro do
-                  <Designer> são as abas "Dados" e "Estilo". */}
-              {/* Os SETE rótulos desta coluna: o substantivo vem do
-                  dicionário do PACOTE (`pacote.*`) porque é o nome que o
-                  <Designer> dá à mesma peça; o qualificador vem do nosso. */}
+              {/* The two halves of the property panel, STACKED — which is what
+                  the `section` prop exists to allow. Inside the <Designer>
+                  they are the "Data" and "Style" tabs. */}
+              {/* The SEVEN labels of this column: the noun comes from the
+                  PACKAGE's dictionary (`pacote.*`) because it is the name the
+                  <Designer> gives the same part; the qualifier comes from ours. */}
               <section className="app-card">
                 <h2 className="app-h2">{ui.doCampo(pacote.tabBar.data)}</h2>
                 <DesignerPropertyPanel section="dados" />
@@ -396,33 +396,33 @@ export default function App() {
 
               <section className="app-card">
                 <h2 className="app-h2">{ui.doCampo(pacote.tabBar.style)}</h2>
-                {/* `header={false}` pra não repetir o nome do campo, que já
-                    aparece no cartão de cima. */}
+                {/* `header={false}` so as not to repeat the field's name, which
+                    already appears on the card above. */}
                 <DesignerPropertyPanel section="estilo" header={false} />
               </section>
 
               <section className="app-card">
-                {/* Este vem INTEIRO do pacote: é o título que a própria peça
-                    usa quando `heading` está ligado. */}
+                {/* This one comes WHOLE from the package: it is the title the
+                    part itself uses when `heading` is on. */}
                 <h2 className="app-h2">{pacote.bindingEditor.title}</h2>
-                {/* Esta peça NÃO existe dentro do <Designer> como bloco
-                    próprio: lá o editor de vínculo aparece aninhado no painel
-                    de cada tipo de campo. É uma das duas que o
-                    examples/headless-designer dizia ter tido de abrir mão. */}
+                {/* This part does NOT exist inside the <Designer> as a block of
+                    its own: there the binding editor appears nested in each
+                    field type's panel. It is one of the two that
+                    examples/headless-designer said it had to give up. */}
                 <DesignerBindingEditor />
               </section>
 
               <section className="app-card">
                 <h2 className="app-h2">{ui.deLinhas(pacote.tabBar.filter)}</h2>
-                {/* A outra das duas. Dentro do <Designer> é a aba "Filtro",
-                    que só existe enquanto um campo com vínculo de array está
-                    selecionado. */}
+                {/* The other of the two. Inside the <Designer> it is the
+                    "Filter" tab, which only exists while a field with an array
+                    binding is selected. */}
                 <DesignerFilterPanel />
               </section>
 
               <section className="app-card">
-                {/* Sem qualificador nenhum: é a aba "Página"/"Page" do
-                    <Designer>, palavra por palavra. */}
+                {/* With no qualifier at all: it is the <Designer>'s "Page" tab,
+                    word for word. */}
                 <h2 className="app-h2">{pacote.tabBar.page}</h2>
                 <DesignerPageSettings />
               </section>
@@ -432,14 +432,14 @@ export default function App() {
                 <DesignerInspector />
               </section>
 
-              {/* Fecha a pilha: é o único cartão que fala do template
-                  INTEIRO (todas as páginas), enquanto os seis de cima falam
-                  do campo selecionado ou da página atual. */}
+              {/* It closes the stack: it is the only card that speaks about the
+                  WHOLE template (every page), while the six above speak about
+                  the selected field or the current page. */}
               <ProblemsPanel
                 problems={problems}
-                // As peças são donas da seleção (não há prop pra dirigi-la de
-                // fora), então o clique navega até a PÁGINA do campo — é o
-                // mais longe que dá pra levar hoje.
+                // The parts own the selection (there is no prop to drive it from
+                // outside), so the click navigates to the field's PAGE — which
+                // is as far as it can be taken today.
                 onGoTo={(pageIndex) => setActivePageIndex(pageIndex)}
                 locale={locale}
               />

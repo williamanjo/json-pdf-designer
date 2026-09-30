@@ -15,9 +15,9 @@ type Props = {
   dataSources?: DataSourceOption[];
 };
 
-// "Fonte conhecida -> <Select> de dataSources, senão <Input> livre com
-// drop" — mesmo par de branches repetido nos vínculos chart/table/kpi
-// abaixo, só mudava o placeholder livre e o que acontecia ao escolher.
+// "Known source -> <Select> of dataSources, otherwise a free <Input> with
+// drop" — the same pair of branches repeated in the chart/table/kpi
+// bindings below, only the free placeholder and the on-pick effect differed.
 function DataSourcePicker({
   knownSources,
   value,
@@ -56,10 +56,10 @@ function DataSourcePicker({
   return <Input placeholder={freePlaceholder} value={value} onChange={(e) => onFreeChange(e.target.value)} onDragOver={allowDrop} onDrop={onDropFree} />;
 }
 
-// "Colunas conhecidas -> <Select>, senão <Input> livre com drop próprio" —
-// mesmo par repetido pro rótulo/valor do chart e pro valor do kpi.
-// `showNumericHint` liga o sufixo "(não-numérica)" só onde já aparecia
-// antes (coluna de VALOR) — não no rótulo do chart.
+// "Known columns -> <Select>, otherwise a free <Input> with its own drop" —
+// the same pair repeated for the chart label/value and for the kpi value.
+// `showNumericHint` turns on the "(non-numeric)" suffix only where it
+// already appeared before (the VALUE column) — not on the chart label.
 function ColumnPicker({
   columns,
   columnTypes,

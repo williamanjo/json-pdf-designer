@@ -1,36 +1,36 @@
 import type { Binding, Template } from "json-pdf-designer";
 import { migrateTemplate } from "json-pdf-designer";
 
-// Exporta template + vínculos como um JSON pra baixar — "projeto" no
-// sentido de "dá pra recarregar depois" (ver parseProjectFile).
+// It exports the template + bindings as a JSON to download — a "project" in
+// the sense of "it can be loaded back later" (see parseProjectFile).
 export function downloadProjectFile(template: Template, bindings: Binding[]) {
   const payload = { template, bindings };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  // Nome do arquivo NÃO traduzido: é dado que a pessoa vai guardar em disco e
-  // recarregar depois, não texto de interface.
+  // The file name is NOT translated: it is data the person will keep on disk
+  // and load back later, not interface text.
   a.download = "projeto-composed-layout.json";
   a.click();
   URL.revokeObjectURL(url);
 }
 
-// As quatro maneiras de um arquivo de projeto ser recusado. É CÓDIGO e não
-// frase, pelo mesmo motivo do `SourceErrorCode` em lib/sources.ts: a mensagem
-// é montada por `describeGenerationError` no render, então o banner retraduz
-// quando o seletor de idioma muda. Uma frase congelada no `throw` ficaria pra
-// sempre no idioma de quando o arquivo foi aberto.
+// The four ways a project file can be refused. It is a CODE and not a
+// phrase, for the same reason as `SourceErrorCode` in lib/sources.ts: the
+// message is built by `describeGenerationError` at render time, so the banner
+// retranslates when the language picker changes. A phrase frozen in the
+// `throw` would stay forever in the language of when the file was opened.
 export type ProjectFileProblem = "semTemplate" | "bindingsNaoLista" | "jsonMalformado" | "naoLeu";
 
-// Classe própria em vez de `Error` com mensagem: é a mesma decisão que o
-// pacote toma ao exportar `PageLimitError`/`UnsupportedGlyphError`, e permite
-// a `lib/generationError.ts` reconhecer a falha por `instanceof` em vez de
-// casar texto.
+// A class of its own instead of an `Error` with a message: it is the same
+// decision the package makes when exporting `PageLimitError`/
+// `UnsupportedGlyphError`, and it lets `lib/generationError.ts` recognize the
+// failure by `instanceof` instead of matching text.
 export class ProjectFileError extends Error {
-  // Campo declarado à mão, e não parameter property (`constructor(readonly
-  // problem: ...)`): o tsconfig deste example liga `erasableSyntaxOnly`, que
-  // proíbe sintaxe de TS que emite código.
+  // The field is declared by hand, and not as a parameter property
+  // (`constructor(readonly problem: ...)`): this example's tsconfig turns on
+  // `erasableSyntaxOnly`, which forbids TS syntax that emits code.
   problem: ProjectFileProblem;
 
   constructor(problem: ProjectFileProblem) {

@@ -2,37 +2,37 @@ import { useEffect, useState } from "react";
 import type { Dict } from "../i18n";
 import type { Schema } from "../types";
 
-// Estado/lógica da barra de abas do painel lateral (Campos/Dados/Estilo/
-// Filtro/Página) — extraído de DesignerInner (Designer.tsx) pra um hook
-// próprio. Fica num arquivo .ts (não .tsx) porque só exporta hook/tipos/
-// função pura, nunca componente — um .tsx só pode exportar componente
-// (regra oxlint react(only-export-components), quebra o Fast Refresh
-// senão), mesmo motivo de src/bindings/builders.ts e src/canvas/geometry.ts.
+// State/logic of the side panel's tab bar (Fields/Data/Style/Filter/Page) —
+// extracted from DesignerInner (Designer.tsx) into a hook of its own. It
+// lives in a .ts file (not .tsx) because it only exports a hook/types/a pure
+// function, never a component — a .tsx may only export components (the oxlint
+// react(only-export-components) rule, otherwise Fast Refresh breaks), same
+// reason as src/bindings/builders.ts and src/canvas/geometry.ts.
 
-// Tipo do campo selecionado tem aba "Estilo" própria? Texto/tabela/
-// gráfico/KPI têm conteúdo visual pra separar de "Dados" — imagem (só um
-// data URI) e seção (só um grupo + vínculo) não têm nada pra pôr lá.
+// Does the selected field's type have a "Style" tab of its own? Text/table/
+// chart/KPI have visual content to separate from "Data" — an image (just a
+// data URI) and a section (just a group + binding) have nothing to put there.
 function hasEstiloTab(type: Schema["type"]): boolean {
   return type === "text" || type === "table" || type === "chart" || type === "kpi";
 }
 
-// Tipos de campo que podem ganhar a aba "Filtro" — todos com vínculo de
-// array por trás (chart/table diretos, kpi quando vinculado). Exportado:
-// Designer.tsx também usa pra calcular filtroWarning/filterColumns e pra
-// decidir se mostra a aba "Filtro" no JSX, fora do escopo deste hook.
+// Field types that can get the "Filter" tab — all of them with an array
+// binding behind (chart/table directly, kpi when bound). Exported:
+// Designer.tsx also uses it to compute filtroWarning/filterColumns and to
+// decide whether to show the "Filter" tab in the JSX, outside this hook.
 export const FILTERABLE_TYPES = ["chart", "table", "kpi"] as const;
 
 export type OptionalTab = "dados" | "estilo" | "filtro";
 export type TabKey = "campos" | OptionalTab | "pagina" | "inspetor";
-// Abas fixáveis/escondíveis no "×" — as três de edição de campo mais
-// "Página"/"Inspetor". "Campos" fica de fora (sempre precisa de um jeito de
-// selecionar/adicionar campo, senão não tem como reabrir nada).
+// Tabs that can be pinned/hidden on the "×" — the three field-editing ones
+// plus "Page"/"Inspector". "Fields" is left out (there always has to be a way
+// to select/add a field, otherwise nothing can be reopened).
 export type HideableTab = OptionalTab | "pagina" | "inspetor";
 
-// Ordem das abas e quais estão fixadas/escondidas — preferência do
-// usuário, sobrevive a reload (localStorage). Tenta ler; se o navegador
-// bloquear (modo privado) ou não existir `localStorage` (SSR), cai pro
-// padrão sem quebrar — é só uma preferência de UI, não dado do relatório.
+// The tab order and which ones are pinned/hidden — a user preference, it
+// survives a reload (localStorage). It tries to read; if the browser blocks
+// (private mode) or there is no `localStorage` (SSR), it falls back to the
+// default without breaking — it is only a UI preference, not report data.
 const ALL_TAB_KEYS: TabKey[] = ["campos", "dados", "estilo", "filtro", "pagina", "inspetor"];
 const TAB_ORDER_STORAGE_KEY = "json-pdf-designer:tab-order";
 const HIDDEN_TABS_STORAGE_KEY = "json-pdf-designer:hidden-tabs";
@@ -43,8 +43,8 @@ function loadTabOrder(): TabKey[] {
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     if (!Array.isArray(parsed)) return [...ALL_TAB_KEYS];
     const valid = parsed.filter((k): k is TabKey => ALL_TAB_KEYS.includes(k));
-    // Chave nova que uma versão futura adicione entra no fim, em vez de
-    // sumir porque a ordem salva é de antes dela existir.
+    // A new key that a future version adds goes at the end, instead of
+    // vanishing because the saved order predates it.
     const missing = ALL_TAB_KEYS.filter((k) => !valid.includes(k));
     return [...valid, ...missing];
   } catch {
@@ -66,23 +66,23 @@ function loadHiddenTabs(): ReadonlySet<HideableTab> {
 }
 
 export type UseTabBarParams = {
-  // Dicionário i18n (useT()) — só pros rótulos das abas.
+  // The i18n dictionary (useT()) — only for the tab labels.
   t: Dict;
-  // Campo selecionado atual (null = nenhum) — decide elegibilidade de
-  // Dados/Estilo/Filtro.
+  // The currently selected field (null = none) — it decides eligibility for
+  // Data/Style/Filter.
   selected: Schema | null;
-  // Ícone de alerta da aba "Dados"/"Filtro" — calculado em Designer.tsx
-  // (depende de selectedBinding/dataSources, fora do escopo deste hook).
+  // The warning icon for the "Data"/"Filter" tab — computed in Designer.tsx
+  // (it depends on selectedBinding/dataSources, outside this hook's scope).
   dadosWarning: boolean;
   filtroWarning: boolean;
-  // Aba ativa do painel lateral — o estado em si mora em DesignerInner
-  // (é lido/setado por bem mais coisa que só a barra de abas: TabPanel,
-  // JSX de cada painel etc), este hook só lê/escreve nele.
+  // The side panel's active tab — the state itself lives in DesignerInner (it
+  // is read/set by much more than the tab bar: TabPanel, each panel's JSX and
+  // so on), this hook only reads/writes it.
   sidebarTab: TabKey;
   setSidebarTab: (tab: TabKey) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  // Menu "+" (lista de abas escondidas) — estado também mora em
-  // DesignerInner, fechado por este hook ao reabrir/restaurar uma aba.
+  // The "+" menu (the list of hidden tabs) — its state also lives in
+  // DesignerInner, closed by this hook when reopening/restoring a tab.
   setTabMenuOpen: (open: boolean) => void;
 };
 
@@ -96,20 +96,20 @@ export function useTabBar({
   setSidebarCollapsed,
   setTabMenuOpen,
 }: UseTabBarParams) {
-  // Abas "Dados"/"Estilo"/"Filtro" que o usuário fechou no "×" (ver botão
-  // na própria aba) — fica fora da barra até ele reabrir pelo "+", mesmo
-  // pra outros campos cujo tipo normalmente mostraria essa aba. É um
-  // "fixar/desafixar" simples: não é por campo, é global pro designer
-  // inteiro (uma preferência de "eu não uso a aba Estilo", não uma
-  // memória por campo).
+  // "Data"/"Style"/"Filter" tabs the user closed on the "×" (see the button
+  // on the tab itself) — it stays off the bar until they reopen it through
+  // the "+", even for other fields whose type would normally show that tab.
+  // It is a simple "pin/unpin": it is not per field, it is global to the
+  // whole designer (a preference of "I do not use the Style tab", not a
+  // per-field memory).
   const [hiddenOptionalTabs, setHiddenOptionalTabs] = useState<ReadonlySet<HideableTab>>(loadHiddenTabs);
-  // Ordem de exibição das 5 abas — arrastar uma em cima da outra troca de
-  // posição (ver reorderTabs), independente de estar visível ou não no
-  // momento (uma aba escondida guarda o lugar dela pra quando reaparecer).
+  // Display order of the 5 tabs — dragging one onto another swaps their
+  // positions (see reorderTabs), whether or not it is visible at the moment
+  // (a hidden tab keeps its place for when it reappears).
   const [tabOrder, setTabOrder] = useState<TabKey[]>(loadTabOrder);
   const [draggedTab, setDraggedTab] = useState<TabKey | null>(null);
-  // Aba sobrevoada durante o arraste — mostra a barrinha indicadora (a
-  // arrastada vai parar ANTES dela, ver reorderTabs).
+  // The tab hovered during a drag — it shows the indicator bar (the dragged
+  // one will land BEFORE it, see reorderTabs).
   const [dragOverTab, setDragOverTab] = useState<TabKey | null>(null);
 
   function reorderTabs(from: TabKey, to: TabKey) {
@@ -125,8 +125,8 @@ export function useTabBar({
     try {
       localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(tabOrder));
     } catch {
-      // Modo privado, storage cheio, ou sem localStorage (SSR) — a
-      // preferência simplesmente não persiste, sem quebrar o designer.
+      // Private mode, full storage, or no localStorage (SSR) — the preference
+      // simply does not persist, without breaking the designer.
     }
   }, [tabOrder]);
   useEffect(() => {
@@ -137,9 +137,9 @@ export function useTabBar({
     }
   }, [hiddenOptionalTabs]);
 
-  // "×" na própria aba — fixa ela como escondida (guarda abaixo tira o
-  // usuário de cima dela se for a ativa). "+" reabre chamando de volta
-  // com o mesmo nome.
+  // The "×" on the tab itself — it pins it as hidden (the guard below moves
+  // the user off it if it was the active one). The "+" reopens it by calling
+  // back with the same name.
   function hideOptionalTab(tab: HideableTab) {
     setHiddenOptionalTabs((prev) => new Set(prev).add(tab));
   }
@@ -154,12 +154,12 @@ export function useTabBar({
     setTabMenuOpen(false);
   }
 
-  // Guarda contra aba órfã — "Campos" sempre existe, nunca precisa de
-  // guarda; "Página" só precisa checar se o usuário não a escondeu;
-  // "Dados"/"Estilo"/"Filtro" também dependem de ter campo selecionado
-  // do tipo certo. Qualquer aba que deixe de valer pra situação atual
-  // (seleção sumiu, mudou de tipo, ou o usuário fechou a ativa no "×")
-  // cai pra "Campos" — nunca fica sem nenhuma aba marcada.
+  // A guard against an orphan tab — "Fields" always exists and never needs a
+  // guard; "Page" only has to check that the user has not hidden it;
+  // "Data"/"Style"/"Filter" also depend on having a selected field of the
+  // right type. Any tab that stops being valid for the current situation (the
+  // selection is gone, the type changed, or the user closed the active one on
+  // the "×") falls back to "Fields" — it is never left with no tab marked.
   useEffect(() => {
     if (sidebarTab === "campos") return;
     if (sidebarTab === "pagina") {
@@ -181,11 +181,11 @@ export function useTabBar({
     if (!stillEligible) setSidebarTab("campos");
   }, [selected, sidebarTab, hiddenOptionalTabs, setSidebarTab]);
 
-  // "Campos" é a única fixa de verdade (sem "×") — precisa de um jeito
-  // sempre disponível de selecionar/adicionar campo. As outras quatro
-  // entram e saem conforme o tipo do campo selecionado (Dados/Estilo/
-  // Filtro) e o que o usuário já escondeu (hiddenOptionalTabs, inclui
-  // "Página"). "removable" só marca quem pode ganhar o "×" quando ativa.
+  // "Fields" is the only genuinely fixed one (no "×") — there has to be an
+  // always-available way to select/add a field. The other four come and go
+  // according to the selected field's type (Data/Style/Filter) and what the
+  // user has already hidden (hiddenOptionalTabs, which includes "Page").
+  // "removable" only marks which ones can get the "×" while active.
   const tabDefs: Record<TabKey, { label: string; eligible: boolean; warning: boolean; removable: boolean }> = {
     campos: { label: t.tabBar.fields, eligible: true, warning: false, removable: false },
     dados: { label: t.tabBar.data, eligible: !!selected, warning: dadosWarning, removable: true },

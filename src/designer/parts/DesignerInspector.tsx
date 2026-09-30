@@ -5,31 +5,31 @@ import { useDesignerData, useDesignerSelection } from "../context/hooks";
 import { useTabGate, type TabGate } from "./useTabGate";
 
 export type DesignerInspectorProps = {
-  // Vão pro elemento raiz da peça. `className` faz MERGE com a nossa
-  // (a sua vem depois); `style` seu ganha do nosso.
+  // They go to the part's root element. `className` MERGES with ours
+  // (yours comes last); your `style` beats ours.
   className?: string;
   style?: CSSProperties;
-  // Só renderiza nesta(s) aba(s). Omitido = renderiza sempre — ver
-  // useTabGate.ts pro porquê do default ser esse.
+  // Render only on this tab (or tabs). Omitted = always render — see
+  // useTabGate.ts for why that is the default.
   whenTab?: TabGate;
 };
 
-// Peça posicionável: o inspetor de template (campos por zona, avisos de
-// vínculo/expressão).
+// A placeable part: the template inspector (fields by zone, binding/
+// expression warnings).
 //
-// A peça é um ADAPTADOR, não um substituto: `<TemplateInspector>` continua
-// exportado com as props de hoje, e isto aqui é "lê contexto, chama o que já
-// existe". Assim o caminho headless por props continua funcionando sem
-// provider nenhum, e o diff desta extração lê como MOVE.
+// The part is an ADAPTER, not a replacement: `<TemplateInspector>` is still
+// exported with today's props, and this here is "read the context, call what
+// already exists". That way the headless path through props keeps working
+// with no provider at all, and this extraction's diff reads as a MOVE.
 //
-// Esta é uma das três peças que EMBRULHAM (`.jpd-part`) em vez de reproduzir
-// a raiz de dentro: `TemplateInspector` tem DUAS raízes possíveis (a lista, e
-// um `<p>` de estado vazio), então não há um elemento estável pra receber o
-// `className` do consumidor. As outras peças não embrulham — elas renderizam
-// a mesma raiz que o `Designer.tsx` tinha, e o DOM não ganha nível nenhum.
+// This is one of the three parts that WRAP (`.jpd-part`) instead of
+// reproducing the inner root: `TemplateInspector` has TWO possible roots (the
+// list, and an empty-state `<p>`), so there is no stable element to receive
+// the consumer's `className`. The other parts do not wrap — they render the
+// same root `Designer.tsx` had, and the DOM gains no level at all.
 export function DesignerInspector({ whenTab, ...rest }: DesignerInspectorProps) {
-  // Gate primeiro, e NENHUM hook depois do return — por isso o corpo mora
-  // num componente separado. Ver useTabGate.ts.
+  // The gate first, and NO hook after the return — which is why the body
+  // lives in a separate component. See useTabGate.ts.
   if (!useTabGate(whenTab)) return null;
   return <DesignerInspectorBody {...rest} />;
 }

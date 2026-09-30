@@ -1,22 +1,23 @@
 import type { JsonSource } from "../components/DataSourcePanel";
 
-// Junta N fontes JSON num objeto só, nível superior — em caso de chave
-// repetida, a fonte mais pra baixo na lista vence. Erro de uma fonte
-// (JSON inválido, ou não é objeto) não impede as outras de entrar na
-// mescla; só fica de fora e aparece marcada.
+// It merges N JSON sources into a single object, at the top level — on a
+// repeated key, the source further down the list wins. An error in one source
+// (invalid JSON, or not an object) does not stop the others from entering the
+// merge; it is simply left out and shown marked.
 //
-// POR QUE UM CÓDIGO, e não a frase pronta.
+// WHY A CODE, and not the finished phrase.
 //
-// Esta função ANTES recebia `locale` e devolvia a mensagem já traduzida. O
-// resultado ia pra estado (`errorsById` no App), e frase traduzida guardada em
-// estado CONGELA no idioma em que foi criada: trocar o seletor de idioma
-// deixava os erros das fontes na língua antiga até a próxima mescla. O init
-// preguiçoso do estado piorava, porque ele mesclava com um `LOCALE_INICIAL`
-// fixo — a frase nascia num idioma que o usuário podia nem estar usando.
+// This function USED to take a `locale` and return the already-translated
+// message. The result went into state (`errorsById` in the App), and a
+// translated phrase held in state FREEZES in the language it was created in:
+// switching the language picker left the sources' errors in the old language
+// until the next merge. The state's lazy init made it worse, because it merged
+// with a fixed `LOCALE_INICIAL` — the phrase was born in a language the user
+// might not even be using.
 //
-// Com o código, o estado guarda O QUE FALHOU e o painel traduz na
-// renderização. Bônus: mesclar JSON volta a ser função de dado, sem
-// dependência do dicionário.
+// With the code, the state holds WHAT FAILED and the panel translates at
+// render time. A bonus: merging JSON goes back to being a data function, with
+// no dependency on the dictionary.
 export type SourceErrorCode = "invalidJson" | "notAnObject";
 
 export function mergeSources(

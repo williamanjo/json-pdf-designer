@@ -4,17 +4,18 @@ import { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "../../src/canvas/zoomS
 import { PageCanvas } from "../../src/components/PageCanvas";
 import type { Template } from "../../src/types";
 
-// O ZOOM COMO API PÚBLICA.
+// THE ZOOM AS PUBLIC API.
 //
-// O pedido que originou isto: montando o editor com `DesignerProvider` +
-// peças soltas, não havia como ler o zoom, disparar fit/reset de fora, nem
-// mover a barra pra outro container React — a `.jpd-zoombar` é
-// `position: sticky` DENTRO do canvas, então CSS só a movia ali dentro.
+// The request that started this: assembling the editor with
+// `DesignerProvider` + loose parts, there was no way to read the zoom, fire
+// fit/reset from outside, or move the bar into another React container — the
+// `.jpd-zoombar` is `position: sticky` INSIDE the canvas, so CSS could only
+// move it in there.
 //
-// Estes testes cobrem as três partes que dá pra verificar sem DOM de
-// verdade: a escala compartilhada, o modo controlado do `<PageCanvas>` e o
-// `hideZoombar`. A fiação com o contexto é verificada em
-// test/designer/partsRender.test.tsx (que monta as peças) e no navegador.
+// These tests cover the three parts that can be checked without a real DOM:
+// the shared scale, `<PageCanvas>`'s controlled mode and `hideZoombar`. The
+// wiring with the context is checked in test/designer/partsRender.test.tsx
+// (which mounts the parts) and in the browser.
 
 const pagina = { width: 210, height: 297 };
 
@@ -36,20 +37,20 @@ describe("escala de zoom — uma fonte só", () => {
   });
 
   it("clampZoom não deixa NaN passar, e devolve 100%", () => {
-    // Este caso ACHOU BUG. `Math.max(0.25, NaN)` é NaN e o NaN sobrevive ao
-    // `Math.min`, então o clamp devolvia NaN — que chegava em
-    // `transform: scale(NaN)` e fazia a folha desaparecer, sem erro nenhum.
+    // This case FOUND A BUG. `Math.max(0.25, NaN)` is NaN and the NaN survives
+    // `Math.min`, so the clamp returned NaN — which reached
+    // `transform: scale(NaN)` and made the sheet disappear, with no error.
     //
-    // Volta 1 (e não o mínimo) porque NaN é "não há valor", e 100% é o
-    // resultado menos surpreendente. Alcançável por `fitWidth()` sobre
-    // página com width NaN e por `Number(campoVazio)` numa barra própria.
+    // It falls back to 1 (and not to the minimum) because NaN is "there is no
+    // value", and 100% is the least surprising result. Reachable through
+    // `fitWidth()` over a page with a NaN width and through `Number(empty)`.
     expect(Number.isNaN(clampZoom(Number.NaN))).toBe(false);
     expect(clampZoom(Number.NaN)).toBe(1);
   });
 
   it("Infinity continua clampando pro extremo, não pra 100%", () => {
-    // A distinção importa: em Infinity EXISTE valor, ele só é grande. Tratar
-    // os dois igual esconderia um slider quebrado.
+    // The distinction matters: with Infinity a value DOES exist, it is merely
+    // large. Treating the two the same would hide a broken slider.
     expect(clampZoom(Number.POSITIVE_INFINITY)).toBe(ZOOM_MAX);
     expect(clampZoom(Number.NEGATIVE_INFINITY)).toBe(ZOOM_MIN);
   });
@@ -67,7 +68,7 @@ describe("PageCanvas — zoom controlado e não controlado", () => {
   };
 
   it("sem a prop `zoom`, desenha em 100% (estado interno)", () => {
-    // É o caminho headless: `<PageCanvas>` usado direto, sem provider.
+    // It is the headless path: `<PageCanvas>` used directly, with no provider.
     const html = renderToStaticMarkup(<PageCanvas {...comuns} />);
     expect(html).toContain("scale(1)");
     expect(html).toContain("100%");
@@ -80,7 +81,7 @@ describe("PageCanvas — zoom controlado e não controlado", () => {
   });
 
   it("a prop `zoom` também é clampada", () => {
-    // Consumidor passando 9 não faz a folha sair da tela.
+    // A consumer passing 9 does not push the sheet off the screen.
     const html = renderToStaticMarkup(<PageCanvas {...comuns} zoom={9} />);
     expect(html).toContain(`scale(${ZOOM_MAX})`);
   });

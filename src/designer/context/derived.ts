@@ -3,13 +3,13 @@ import { classifyZone, isRedZone } from "../../page/zones";
 import type { Binding, Schema, Template } from "../../types";
 import { FILTERABLE_TYPES } from "../useTabBar";
 
-// Derivações puras do estado do editor. Ficam separadas dos hooks porque o
-// provider TAMBÉM precisa de algumas (pra alimentar `useTabBar`), e um
-// arquivo de hook não pode ser chamado de dentro de outro hook sem virar
-// regra de hook. Aqui é só função de `(estado) => derivado`.
+// Pure derivations of the editor state. They are kept apart from the hooks
+// because the provider ALSO needs some of them (to feed `useTabBar`), and a
+// hook file cannot be called from inside another hook without becoming a hook
+// rule. Here it is only `(state) => derived` functions.
 
-// A faixa "vermelha" da página (cabeçalho/rodapé/margem esquerda/direita),
-// com os `undefined` do template já normalizados pra 0.
+// The page's "red" band (header/footer/left/right margin), with the
+// template's `undefined` already normalized to 0.
 export function bandsOf(template: Template) {
   return {
     headerHeight: template.headerHeight ?? 0,
@@ -19,9 +19,9 @@ export function bandsOf(template: Template) {
   };
 }
 
-// A lista espelha o que o canvas mostra: no modo isolado só a faixa
-// vermelha; fora dele, só o corpo. Senão a lista mostraria campo escondido
-// no canvas, sem jeito de clicar nele.
+// The list mirrors what the canvas shows: in isolated mode only the red
+// band; outside it, only the body. Otherwise the list would show a field
+// hidden on the canvas, with no way to click it.
 export function fieldListSchemasOf(template: Template, isolateBands: boolean): Schema[] {
   const bands = bandsOf(template);
   return template.schemas.filter((s) => {
@@ -30,12 +30,12 @@ export function fieldListSchemasOf(template: Template, isolateBands: boolean): S
   });
 }
 
-// Edição em bloco: vários campos do MESMO tipo selecionados juntos (texto
-// com texto, KPI com KPI, gráfico com gráfico) — só pra esses 3 tipos, que
-// já têm uma separação clara de que campo é "estilo" (aplica em todos sem
-// problema) e o que é "dados" (cada um tem o próprio conteúdo/vínculo,
-// trava pra edição individual). Tipo misto ou tabela/imagem/seção continua
-// no comportamento de sempre (só o último selecionado edita).
+// Bulk editing: several fields of the SAME type selected together (text with
+// text, KPI with KPI, chart with chart) — only for those 3 types, which
+// already have a clear separation between what is a "style" field (applies to
+// all with no problem) and what is "data" (each has its own content/binding,
+// locked for individual editing). A mixed type, or table/image/section, keeps
+// the usual behavior (only the last selected one is edited).
 const BULK_EDIT_TYPES = ["text", "kpi", "chart"] as const;
 
 export function bulkEditOf(template: Template, selectedIds: string[]) {
@@ -48,9 +48,9 @@ export function bulkEditOf(template: Template, selectedIds: string[]) {
   return { selectedSchemas, bulkEditActive };
 }
 
-// Ícone de alerta na própria aba — mesma regra de FieldList.tsx
-// (fieldWarnings.ts), só que dividida por aba: falta vínculo aparece em
-// "Dados", filtro incompleto aparece em "Filtro".
+// A warning icon on the tab itself — the same rule as FieldList.tsx
+// (fieldWarnings.ts), only split per tab: a missing binding shows up in
+// "Data", an incomplete filter shows up in "Filter".
 export function tabWarningsOf(selected: Schema | null, selectedBinding: Binding | undefined) {
   return {
     dadosWarning: !!selected && (selected.type === "section" || selected.type === "chart") && !selectedBinding,

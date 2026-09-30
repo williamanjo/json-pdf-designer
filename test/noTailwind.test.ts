@@ -2,19 +2,19 @@ import { readFileSync } from "./support/read";
 import { describe, expect, it } from "vitest";
 import { classLiterals, JPD_CLASS, looksTailwind, relativeToSrc, sourceFiles, stringLiterals, stripComments, tokensOf } from "./support/classScan";
 
-// Guard da migração "Tailwind fora do pacote" (3.0.0).
+// A guard for the "Tailwind out of the package" migration (3.0.0).
 //
-// O risco que ele existe pra cobrir não é estético: uma migração de ~285
-// sites de classe feita arquivo por arquivo pode ser publicada pela METADE, e
-// meio migrada é o pior estado possível — o `theme.css` não estiliza as
-// utilitárias que sobraram, e o Tailwind não existe mais pra gerá-las, então
-// o pedaço não migrado fica sem estilo nenhum, sem erro nenhum.
+// The risk it exists to cover is not aesthetic: a migration of ~285 class
+// sites done file by file may be published HALF WAY, and half migrated is the
+// worst possible state — `theme.css` does not style the leftover utilities,
+// and Tailwind no longer exists to generate them, so the unmigrated piece is
+// left with no style at all, and no error at all.
 //
-// Mecânica: `PENDING` lista os arquivos que ainda não foram migrados. Cada
-// commit da migração remove um; o último commit apaga a lista e liga o teste
-// (c). O teste (b) impede a lista de mentir: arquivo já limpo que continua
-// listado FALHA, o que força a lista a só encurtar (mesma proteção contra
-// aprovação vazia que test/entryBoundaries.test.ts usa).
+// Mechanics: `PENDING` lists the files not yet migrated. Each commit of the
+// migration removes one; the last commit deletes the list and turns test (c)
+// on. Test (b) stops the list from lying: a file already clean that is still
+// listed FAILS, which forces the list only to shrink (the same protection
+// against empty approval that test/entryBoundaries.test.ts uses).
 const PENDING: string[] = [];
 
 type Offence = { file: string; line: number; token: string };
@@ -23,11 +23,11 @@ function scan(file: string) {
   const code = stripComments(readFileSync(file, "utf8"));
   const rel = relativeToSrc(file);
 
-  // (a) allowlist — todo token em posição de CLASSE tem de ser `jpd-*`.
-  // Pega utilitária Tailwind E, o que o blacklist não pegaria, classe SEM
-  // namespace: foi exatamente assim que `section-body` e
-  // `section-drag-handle` entraram num pacote de biblioteca, onde colidem
-  // com o CSS do consumidor.
+  // (a) allowlist — every token in CLASS position has to be `jpd-*`. It
+  // catches a Tailwind utility AND, which the blacklist would not, a class
+  // with NO namespace: that is exactly how `section-body` and
+  // `section-drag-handle` got into a library package, where they collide with
+  // the consumer's CSS.
   const notNamespaced: Offence[] = [];
   for (const lit of classLiterals(code)) {
     for (const token of tokensOf(lit.value)) {
@@ -35,10 +35,10 @@ function scan(file: string) {
     }
   }
 
-  // (b) blacklist — forma de utilitária Tailwind em QUALQUER string literal.
-  // Cobre o que o allowlist não alcança: mapa de variante (`sizeCls`/
-  // `variantCls`), default de prop cujo VALOR é classe (PaletteSwatches
-  // recebia `size = "h-4 w-4"`), e classe montada longe do `className`.
+  // (b) blacklist — the shape of a Tailwind utility in ANY string literal.
+  // It covers what the allowlist cannot reach: a variant map (`sizeCls`/
+  // `variantCls`), a prop default whose VALUE is a class (PaletteSwatches
+  // took `size = "h-4 w-4"`), and a class assembled far from the `className`.
   const tailwindish: Offence[] = [];
   for (const lit of stringLiterals(code)) {
     for (const token of tokensOf(lit.value)) {

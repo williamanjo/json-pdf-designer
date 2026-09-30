@@ -105,10 +105,10 @@ describe("defaultKpiElementPositions", () => {
   });
 });
 
-// Tabela única cobrindo os 4 sub-elementos (icon/title/value/subtitle) pros
-// helpers de leitura/escrita compartilhados entre KpiField.tsx, FieldList.tsx
-// e PropertyPanelKpi.tsx — cada helper só lê/escreve o campo certo por
-// elemento (ver kpi/card.ts).
+// A single table covering the 4 sub-elements (icon/title/value/subtitle) for
+// the read/write helpers shared between KpiField.tsx, FieldList.tsx and
+// PropertyPanelKpi.tsx — each helper only reads/writes the right field per
+// element (see kpi/card.ts).
 const ELEMENTS: KpiElementKey[] = ["icon", "title", "value", "subtitle"];
 
 describe.each(ELEMENTS)("helpers de sub-elemento KPI — %s", (el) => {

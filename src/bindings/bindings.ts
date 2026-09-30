@@ -5,20 +5,20 @@ import type { Dict } from "../i18n";
 import { renderTemplateLenient, resolveTokenLenient } from "../expressions/resolve";
 import { asRecord, compareValues, getCaseInsensitive, stringifyOrEmpty } from "../expressions/dataAccess";
 
-// getCaseInsensitive mora em expressions/dataAccess.ts desde a AST (o motor
-// de expressões não pode importar deste arquivo — seria ciclo). Continua
-// exportado daqui porque é API pública e há quem já importe deste caminho
-// (ex: pdf/render/renderSection.ts).
+// getCaseInsensitive lives in expressions/dataAccess.ts as of the AST (the
+// expression engine cannot import from this file — it would be a cycle). Still
+// exported from here because it is public API and some consumers already
+// import it from this path (e.g. pdf/render/renderSection.ts).
 export { getCaseInsensitive };
 
 export function columnLabel(col: TableColumn): string {
   return typeof col === "string" ? col : col.label;
 }
 
-// Sem uso interno no repo hoje (só columnLabel é consumida aqui dentro) —
-// mantida como parte da API pública (reexportada em index.ts/server.ts)
-// pra quem consome o pacote precisar de uma chave estável por coluna
-// (rótulo sozinho não serve pra coluna calculada, que pode repetir label).
+// No internal use in the repo today (only columnLabel is consumed in here) —
+// kept as part of the public API (re-exported in index.ts/server.ts) for
+// consumers of the package that need a stable key per column (the label
+// alone will not do for a calculated column, which may repeat its label).
 export function columnKey(col: TableColumn): string {
   return typeof col === "string" ? col : `formula:${col.label}`;
 }

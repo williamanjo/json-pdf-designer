@@ -19,19 +19,19 @@ type Props = {
 export function PropertyPanelChart({ schema, activeTab, bulkEdit, onChangeSchema, binding, onChangeBinding, dataSources }: Props) {
   const t = useT();
   const { ColorInput, Input, Select } = useUiComponents();
-  // Paleta de cores do gráfico: mesma lógica que o PalettePicker local
-  // deste arquivo tinha antes de virar o componente genérico em
-  // ./ui/PalettePicker — só que agora calculada aqui pra alimentar as
-  // props dele (currentName/currentColors/currentLabel/groups) e pro
-  // bloco de cores customizadas abaixo (que fica fora do componente
-  // genérico, pois é comportamento específico do gráfico).
+  // The chart's color palette: the same logic the local PalettePicker in
+  // this file had before it became the generic component in
+  // ./ui/PalettePicker — except it is now computed here to feed that
+  // component's props (currentName/currentColors/currentLabel/groups) and
+  // the custom color block below (which stays outside the generic
+  // component, since it is chart-specific behavior).
   const paletteValue = schema.colorPalette ?? "default";
   const currentPalette = CHART_PALETTE_NAMES.includes(paletteValue as (typeof CHART_PALETTE_NAMES)[number]) ? paletteValue : "default";
   const isCustomPalette = currentPalette === "custom";
   const currentPaletteColors = resolveChartColors(currentPalette, schema.customPaletteColors);
-  // Cores editáveis de verdade — sempre CHART_PALETTE_SIZE posições, mesmo
-  // que o usuário ainda não tenha escolhido nenhuma (começa do "default"
-  // como ponto de partida, não de uma cor cinza sem graça repetida 7x).
+  // Genuinely editable colors — always CHART_PALETTE_SIZE slots, even if the
+  // user has not chosen any yet (it starts from "default" as a point of
+  // departure, not from a dull gray repeated 7x).
   const editablePaletteColors =
     schema.customPaletteColors && schema.customPaletteColors.length > 0 ? schema.customPaletteColors : resolveChartPalette("default").slice();
 

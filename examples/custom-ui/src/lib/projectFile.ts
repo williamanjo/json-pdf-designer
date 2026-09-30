@@ -1,39 +1,40 @@
 import type { Template, Binding } from "json-pdf-designer";
 import { migrateTemplate } from "json-pdf-designer";
 
-// Exporta template + vínculos como um JSON pra baixar — "projeto" no
-// sentido de "dá pra recarregar depois" (ver parseProjectFile).
+// It exports the template + bindings as a JSON to download — a "project" in
+// the sense of "it can be loaded back later" (see parseProjectFile).
 export function downloadProjectFile(template: Template, bindings: Binding[]) {
   const payload = { template, bindings };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  // Nome do arquivo NÃO segue o idioma da UI: é o nome do DOCUMENTO que a
-  // pessoa vai guardar em disco e reabrir. Trocar o seletor pra inglês não
-  // pode fazer o mesmo projeto ser salvo com outro nome.
+  // The file name does NOT follow the UI's language: it is the name of the
+  // DOCUMENT the person will keep on disk and reopen. Switching the picker to
+  // English must not make the same project be saved under another name.
   a.download = "projeto-relatorio.json";
   a.click();
   URL.revokeObjectURL(url);
 }
 
-// A RECUSA DE ARQUIVO DE PROJETO É ERRO **NOSSO**.
+// REFUSING A PROJECT FILE IS **OUR** ERROR.
 //
-// O formato `{ template, bindings }` é invenção deste example — o pacote não
-// sabe que ele existe, então `describePdfError` devolve `null` pra estas
-// falhas (de propósito: ele não inventa título pro que não é dele). Por isso
-// elas viram CLASSE aqui, com um `problem` discriminante, e o
-// `lib/generationError.ts` as trata no ramo próprio dele.
+// The `{ template, bindings }` format is this example's invention — the
+// package does not know it exists, so `describePdfError` returns `null` for
+// these failures (on purpose: it does not invent a title for what is not its
+// own). That is why they become a CLASS here, with a discriminating `problem`,
+// and `lib/generationError.ts` handles them in a branch of its own.
 //
-// Duas decisões copiadas do pacote de propósito, porque as duas são boas:
+// Two decisions deliberately copied from the package, because both are good:
 //
-//   - o discriminante é um CÓDIGO, não a frase. Antes desta rodada o `reject`
-//     levava `new Error(d.projetoJsonMalformado)`, ou seja: frase JÁ traduzida
-//     indo pro estado do App. Um banner aberto ficava congelado no idioma de
-//     quando a falha aconteceu, e trocar o seletor deixava o resíduo na tela;
-//   - o `message` é INGLÊS, e é diagnóstico de desenvolvedor — é ele que sai
-//     no `detail` do banner e é o que se cola num relato de bug. O texto de
-//     usuário final sai do dicionário, no render.
+//   - the discriminant is a CODE, not the phrase. Before this round the
+//     `reject` carried `new Error(d.projetoJsonMalformado)`, that is: an
+//     ALREADY translated phrase going into the App's state. An open banner was
+//     frozen in the language of when the failure happened, and switching the
+//     picker left the residue on screen;
+//   - the `message` is ENGLISH, and it is a developer diagnostic — it is what
+//     comes out in the banner's `detail` and what gets pasted into a bug
+//     report. The end-user text comes from the dictionary, at render time.
 export type ProjectFileProblem = "missingTemplate" | "badBindings" | "malformed" | "unreadable";
 
 const PROBLEM_DETAIL: Record<ProjectFileProblem, string> = {
@@ -44,8 +45,9 @@ const PROBLEM_DETAIL: Record<ProjectFileProblem, string> = {
 };
 
 export class ProjectFileError extends Error {
-  // Campo declarado e atribuído no corpo, e não `constructor(readonly ...)`:
-  // `erasableSyntaxOnly` (tsconfig.app.json) recusa parameter property.
+  // The field is declared and assigned in the body, and not
+  // `constructor(readonly ...)`: `erasableSyntaxOnly` (tsconfig.app.json)
+  // refuses a parameter property.
   readonly problem: ProjectFileProblem;
 
   constructor(problem: ProjectFileProblem) {

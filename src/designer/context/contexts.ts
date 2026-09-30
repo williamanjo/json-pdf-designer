@@ -5,43 +5,43 @@ import type { DesignerActions } from "../actions";
 import type { useSelection } from "../useSelection";
 import type { useTabBar, TabKey } from "../useTabBar";
 
-// Os cinco contextos do editor. Ficam num .ts (não .tsx) porque o arquivo
-// não exporta componente nenhum — regra oxlint react(only-export-components),
-// mesmo split de três arquivos que src/i18n/ usa (context.tsx /
-// contextValue.ts / hooks.ts).
+// The editor's five contexts. They live in a .ts (not .tsx) because the file
+// exports no component — the oxlint react(only-export-components) rule, the
+// same three-file split src/i18n/ uses (context.tsx / contextValue.ts /
+// hooks.ts).
 //
-// POR QUE CINCO, e não um: cada peça posicionável assina só o que lê, e o
-// React re-renderiza um consumidor quando o VALUE do contexto que ele lê
-// troca de identidade — não quando o provider re-renderiza. Um contexto só
-// faria toda peça re-renderizar a cada tecla digitada num campo de texto.
+// WHY FIVE, and not one: each placeable part subscribes only to what it
+// reads, and React re-renders a consumer when the VALUE of the context it
+// reads changes identity — not when the provider re-renders. A single context
+// would make every part re-render on every keystroke in a text field.
 //
-// A divisão é por FREQUÊNCIA DE MUDANÇA, medida no que cada coisa é:
+// The split is by FREQUENCY OF CHANGE, measured by what each thing is:
 //
-//   data      — muda a cada edição do template/vínculo (o mais quente)
-//   actions   — NUNCA muda; identidade estável pela vida do provider
-//   selection — muda a cada clique no canvas
-//   ui        — muda a cada troca de aba / colapso / modo isolado
-//   config    — muda quando as props do <Designer> mudam (quase nunca)
+//   data      — changes on every template/binding edit (the hottest)
+//   actions   — NEVER changes; stable identity for the provider's lifetime
+//   selection — changes on every click on the canvas
+//   ui        — changes on every tab switch / collapse / isolated mode
+//   config    — changes when the <Designer> props change (almost never)
 //
-// `actions` é o load-bearing: é o que permite uma peça memoizada consumir
-// mutador sem re-renderizar quando o template muda. Ele só é estável porque
-// a Fase 0 reescreveu todo mutador pra ler do `prev` do updater em vez de
-// closure — ver o comentário de abertura de designer/actions.ts.
+// `actions` is the load-bearing one: it is what lets a memoized part consume
+// a mutator without re-rendering when the template changes. It is only stable
+// because Phase 0 rewrote every mutator to read from the updater's `prev`
+// instead of a closure — see the opening comment of designer/actions.ts.
 //
-// O default é `null` em todos, e os hooks de acesso lançam com mensagem
-// nomeando o provider. Diferente do I18nContext (cujo default é o
-// dicionário inglês, pra um componente do kit funcionar avulso): peça do
-// designer sem template não tem comportamento de fallback nenhum — sem
-// estado ela não renderiza nada, e um `null` silencioso viraria "a peça não
-// aparece e não diz por quê".
+// The default is `null` on all of them, and the access hooks throw with a
+// message naming the provider. Unlike I18nContext (whose default is the
+// English dictionary, so a kit component works standalone): a designer part
+// with no template has no fallback behavior at all — with no state it renders
+// nothing, and a silent `null` would become "the part does not show up and
+// does not say why".
 
 export type DesignerDataValue = {
   template: Template;
   bindings: Binding[];
 };
 
-// Todo mutador. `DesignerActions` já é o `ReturnType` da fábrica, então
-// adicionar ação lá aparece aqui sem edição.
+// Every mutator. `DesignerActions` is already the factory's `ReturnType`, so
+// adding an action there shows up here with no edit.
 export type DesignerActionsValue = DesignerActions;
 
 export type DesignerSelectionValue = ReturnType<typeof useSelection>;
@@ -53,23 +53,23 @@ export type DesignerUiValue = ReturnType<typeof useTabBar> & {
   setSidebarCollapsed: Dispatch<SetStateAction<boolean>>;
   tabMenuOpen: boolean;
   setTabMenuOpen: Dispatch<SetStateAction<boolean>>;
-  // Modo isolado é UI (o que o canvas MOSTRA); virar a chave é ação
-  // (`actions.toggleIsolateBands`, que limpa a seleção junto).
+  // Isolated mode is UI (what the canvas SHOWS); flipping the switch is an
+  // action (`actions.toggleIsolateBands`, which clears the selection too).
   isolateBands: boolean;
-  // Erro do último upload de imagem de fundo — `null` quando não houve.
-  // Escrito pelo mutador, lido pelas configurações de página.
+  // The error from the last background image upload — `null` when there was
+  // none. Written by the mutator, read by the page settings.
   backgroundUploadError: string | null;
 };
 
 export type DesignerConfigValue = {
   dataSources: DataSourceOption[] | undefined;
   onCanvasDrop: ((e: DragEvent<HTMLDivElement>) => void) | undefined;
-  // Passo da grade em mm. Alinha arrasto, redimensionamento, nascimento de
-  // campo novo e colagem — os quatro, desde a 3.0.0.
+  // Grid step in mm. It aligns dragging, resizing, the birth of a new field
+  // and pasting — all four, since 3.0.0.
   gridSizeMm: number | undefined;
-  // Selecionar um campo reabre a sidebar colapsada. Default `true` (é o
-  // comportamento do 2.x); `false` pra layout onde a sidebar não é a
-  // resposta a "cliquei num campo".
+  // Selecting a field reopens a collapsed sidebar. Default `true` (it is the
+  // 2.x behavior); `false` for a layout where the sidebar is not the answer
+  // to "I clicked a field".
   expandOnSelect: boolean;
 };
 

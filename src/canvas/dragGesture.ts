@@ -1,13 +1,13 @@
-// Wiring compartilhado do padrão "arrasta com o mouse" usado por
-// KpiField.tsx (mover sub-elemento) e TableField.tsx (redimensionar
-// coluna) — ambos faziam a MESMA coisa: stopPropagation síncrono no
-// mousedown, registra mousemove/mouseup no `window` (não no elemento nem
-// no `document` — o cursor sai do campo/handle facilmente durante o
-// arrasto), chama um callback com o delta (dx, dy) em px de TELA a cada
-// mousemove, e remove os listeners no mouseup (chamando `onEnd`, se
-// houver). Só a fiação do gesto é compartilhada — cada chamador guarda
-// seu PRÓPRIO estado de "valor no início do arrasto" (offset do
-// elemento, largura da coluna) e decide o que fazer com o delta.
+// Shared wiring for the "drag with the mouse" pattern used by
+// KpiField.tsx (move a sub-element) and TableField.tsx (resize a
+// column) — both did the SAME thing: synchronous stopPropagation on
+// mousedown, register mousemove/mouseup on `window` (not on the element
+// nor on `document` — the cursor leaves the field/handle easily during
+// the drag), call a callback with the delta (dx, dy) in SCREEN px on
+// every mousemove, and remove the listeners on mouseup (calling `onEnd`,
+// if there is one). Only the gesture wiring is shared — each caller keeps
+// its OWN "value at the start of the drag" state (element offset, column
+// width) and decides what to do with the delta.
 export function startDragGesture(
   e: React.MouseEvent,
   onMove: (dx: number, dy: number) => void,

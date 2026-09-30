@@ -55,8 +55,8 @@ describe("classifyZone", () => {
   });
 
   it("campo que só sobrepõe PARCIALMENTE uma faixa (ex: header) não conta — vira 'body'", () => {
-    // y=15, height=10 -> y + height = 25, ultrapassa headerHeight (20): não está
-    // totalmente contido no header, então não conta como faixa vermelha.
+    // y=15, height=10 -> y + height = 25, which goes past headerHeight (20): it
+    // is not fully contained in the header, so it does not count as a red band.
     const field = makeField({ x: 50, y: 15, width: 30, height: 10 });
     expect(classifyZone(field, page, bands)).toBe("body");
   });

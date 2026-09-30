@@ -1,49 +1,50 @@
 import type { Locale } from "json-pdf-designer";
 
-// O DICIONÁRIO DA CASCA — só o que este app fala, nada do que o editor fala.
+// THE SHELL'S DICTIONARY — only what this app says, nothing of what the
+// editor says.
 //
-// A lição de i18n da lib mora aqui: o `locale` do estado (App.tsx) alimenta
-// DOIS dicionários. O do pacote (`<Designer locale>`, e `dictFor(locale)` pra
-// quem precisa do texto fora da árvore React) traduz o que é DELE — abas,
-// toolbar, avisos de vínculo, erro de expressão. Este traduz o que é NOSSO —
-// título de painel, botão do header, dica, `aria-label`. Um switch, duas
-// responsabilidades, zero sincronização manual.
+// The lib's i18n lesson lives here: the state's `locale` (App.tsx) feeds TWO
+// dictionaries. The package's (`<Designer locale>`, and `dictFor(locale)` for
+// whoever needs the text outside the React tree) translates what is ITS OWN —
+// tabs, toolbar, binding warnings, expression errors. This one translates what
+// is OURS — a panel's title, a header button, a hint, an `aria-label`. One
+// switch, two responsibilities, zero manual syncing.
 //
-// `Locale` vem do PACOTE de propósito: quando ele ganhar um idioma novo, este
-// example para de compilar até alguém traduzir. Isso é desejável.
+// `Locale` comes from THE PACKAGE on purpose: when it gains a new language,
+// this example stops compiling until someone translates. That is desirable.
 //
-// O QUE NÃO ESTÁ AQUI, e não por esquecimento:
+// WHAT IS NOT HERE, and not by oversight:
 //
-// - Rótulo que o pacote já traduz. O `label` do `<Select>` slotado
-//   (src/uiSlots.tsx) chega pronto do dicionário do editor; o `message` de cada
-//   problema do template vem de `expressionErrors`/`fieldWarning` com
-//   `dictFor(locale)` (src/lib/templateProblems.ts); o `aria-label` do "×" do
-//   modal do explorador de campos sai de `dictFor(locale).modal.close`
-//   (src/components/DesignerPanel.tsx). Duplicar qualquer um deles seria criar
-//   duas traduções pra dessincronizar.
+// - A label the package already translates. The slotted `<Select>`'s `label`
+//   (src/uiSlots.tsx) arrives ready from the editor's dictionary; each
+//   template problem's `message` comes from `expressionErrors`/`fieldWarning`
+//   with `dictFor(locale)` (src/lib/templateProblems.ts); the `aria-label` of
+//   the field explorer modal's "×" comes from `dictFor(locale).modal.close`
+//   (src/components/DesignerPanel.tsx). Duplicating any of them would create
+//   two translations to fall out of sync.
 //
-// - DADO. Conteúdo de template (`data/templates/`), JSON de amostra, nome de
-//   campo (`titulo_relatorio`), caminho de dado (`rows.total`), nome de fonte
-//   (`principal`, `fonte_2`), nome do arquivo baixado (`relatorio.pdf`) e o
-//   texto que sai NO PDF continuam como estão nos dois idiomas: o idioma da
-//   INTERFACE não é o idioma do DOCUMENTO. Um relatório em português segue em
-//   português com a UI em inglês.
+// - DATA. Template content (`data/templates/`), the sample JSON, a field name
+//   (`titulo_relatorio`), a data path (`rows.total`), a source's name
+//   (`principal`, `fonte_2`), the downloaded file's name (`relatorio.pdf`) and
+//   the text that comes out IN THE PDF stay as they are in both languages: the
+//   INTERFACE's language is not the DOCUMENT's language. A report in
+//   Portuguese stays in Portuguese with the UI in English.
 //
-// - Nome de idioma no seletor. `Português` e `English` ficam cada um no
-//   próprio idioma, como é convenção.
+// - A language's name in the picker. `Português` and `English` each stay in
+//   their own language, as is the convention.
 //
-// Mensagem com número ou nome dentro é FUNÇÃO na entrada, nunca concatenação
-// no JSX: a ordem das palavras muda de idioma pra idioma, e concatenar
-// congela a ordem do português.
+// A message with a number or a name inside is a FUNCTION in the entry, never
+// concatenation in the JSX: word order changes from language to language, and
+// concatenating freezes Portuguese's order.
 //
-// Sem `as const`: com ele o tipo de cada valor viraria o literal em
-// português, e `en: typeof pt` passaria a exigir o MESMO texto (não compila
-// traduzir nada). Sem ele, `typeof pt` é `{ header: { save: string, ... } }` —
-// que é exatamente a checagem que se quer: chave faltando no `en` não
-// compila, em vez de renderizar vazio em silêncio.
+// No `as const`: with it each value's type would become the Portuguese
+// literal, and `en: typeof pt` would start requiring the SAME text (nothing
+// would compile translated). Without it, `typeof pt` is
+// `{ header: { save: string, ... } }` — which is exactly the check that is
+// wanted: a key missing from `en` does not compile, instead of rendering empty.
 const pt = {
   header: {
-    // "no-preview-example" é o nome da pasta, não frase — fica igual nos dois.
+    // "no-preview-example" is the folder's name, not a phrase — it stays the same
     title: "no-preview-example — gera o PDF sem pdf.js instalado",
     formatBadgeTitle: "Versão do formato de template",
     formatBadge: (version: number, maxPages: number) => `formato v${version} · até ${maxPages} páginas`,

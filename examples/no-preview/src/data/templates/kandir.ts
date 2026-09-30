@@ -2,12 +2,12 @@ import type { Template, Binding } from "json-pdf-designer";
 import kandirSample from "../samples/kandirSample.json";
 import type { ExampleDefinition } from "./types";
 
-// Exemplo real: "Demonstrativo de Retenções - Lei 9.430/96" (carta Kandir) —
-// mesma estrutura de um documento de verdade (letterhead, faixa de
-// referência com fundo+borda, título de tabela com fundo, tabela com
-// cabeçalho cinza (cor configurável) + linha de totais/rodapé com
-// {SUM(...)}, fechamento). Cobre os 3 recursos: fundo/borda em texto,
-// cor de cabeçalho de tabela, e rodapé nativo com agregação.
+// A real example: "Demonstrativo de Retenções - Lei 9.430/96" (the Kandir
+// letter) — the same structure as a real document (a letterhead, a reference
+// band with a background+border, a table title with a background, a table with
+// a gray header (a configurable color) + a totals/footer row with {SUM(...)},
+// and a closing). It covers the 3 features: background/border on text, a table
+// header color, and a native footer with aggregation.
 const template: Template = {
   version: 1,
   page: { width: 210, height: 297 },

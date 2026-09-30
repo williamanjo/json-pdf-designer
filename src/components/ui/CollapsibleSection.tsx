@@ -8,13 +8,13 @@ export type CollapsibleSectionProps = Omit<HTMLAttributes<HTMLDetailsElement>, "
   parts?: { summary?: PartStyle; content?: PartStyle };
 };
 
-// Shell repetido 3x em PropertyPanelTable.tsx (Cabeçalho/Valor/Totais,
-// dentro da aba "estilo") — um <details>/<summary> nativo, sem estado React,
-// porque o navegador já cuida do expandir/colapsar sozinho.
+// A shell repeated 3x in PropertyPanelTable.tsx (Header/Value/Totals, inside
+// the "style" tab) — a native <details>/<summary>, with no React state,
+// because the browser already handles expand/collapse on its own.
 //
-// O estado aberto/fechado NÃO tem `data-*`: `<details>` já expõe o atributo
-// `open` nativo, e o CSS mira nele. Regra da migração: onde existe
-// pseudo-classe ou atributo nativo, usa o nativo.
+// The open/closed state has NO `data-*`: `<details>` already exposes the
+// native `open` attribute, and the CSS targets it. The migration rule: where
+// a native pseudo-class or attribute exists, use the native one.
 export const CollapsibleSection = forwardRef<HTMLDetailsElement, CollapsibleSectionProps>(function CollapsibleSection(
   { title, defaultOpen, children, className, parts, ...rest },
   ref

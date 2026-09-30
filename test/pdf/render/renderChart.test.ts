@@ -4,10 +4,10 @@ import { drawChart } from "../../../src/pdf/render/renderChart";
 import type { ChartSchema } from "../../../src/types";
 import type { ChartItem } from "../../../src/bindings/bindings";
 
-// drawChart só chama drawText/drawRectangle/drawSvgPath no `page` recebido
-// — mesma técnica de fake-page-spy já usada em renderKpi.test.ts/
-// renderTable.test.ts: um objeto falso que só grava as chamadas, sem montar
-// um PDFDocument de verdade.
+// drawChart only calls drawText/drawRectangle/drawSvgPath on the `page` it
+// receives — the same fake-page-spy technique already used in
+// renderKpi.test.ts/renderTable.test.ts: a fake object that only records the
+// calls, without assembling a real PDFDocument.
 function makeFakePage() {
   const texts: { text: string; x: number; y: number; size: number }[] = [];
   const rects: { x: number; y: number; width: number; height: number }[] = [];
@@ -26,8 +26,8 @@ function makeFakePage() {
   return { page: page as unknown as PDFPage, texts, rects, paths };
 }
 
-// Largura 0 pra qualquer texto — simplifica a conta de posição (não é o
-// texto exato desenhado que estes testes verificam, só presença/posição).
+// Width 0 for any text — it simplifies the position arithmetic (it is not the
+// exact text drawn that these tests check, only presence/position).
 const fakeFont = { widthOfTextAtSize: () => 0 } as unknown as PDFFont;
 
 function baseSchema(overrides: Partial<ChartSchema> = {}): ChartSchema {

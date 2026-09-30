@@ -11,55 +11,55 @@ import { PropertyPanelText } from "./PropertyPanelText";
 type Props = {
   schema: Schema;
   binding: Binding | undefined;
-  // Qual das abas de nível superior (Designer.tsx) tá ativa — este
-  // componente só desenha o CONTEÚDO certo pro tipo de campo, a barra de
-  // abas em si (e a aba "Filtro", só de gráfico) vive no Designer.
+  // Which of the top-level tabs (Designer.tsx) is active — this component
+  // only draws the right CONTENT for the field type, the tab bar itself
+  // (and the "Filter" tab, chart-only) lives in the Designer.
   activeTab: "dados" | "estilo";
-  // Vários campos do MESMO tipo selecionados juntos (ver Designer.tsx
-  // `bulkEditActive`) — só texto/KPI/gráfico suportam; os outros tipos
-  // ignoram esse prop e continuam editando só o `schema` recebido (o
-  // último selecionado).
+  // Several fields of the SAME type selected together (see Designer.tsx
+  // `bulkEditActive`) — only text/KPI/chart support it; the other types
+  // ignore that prop and keep editing only the `schema` they received (the
+  // last one selected).
   bulkEdit?: boolean;
   onChangeSchema: (patch: Partial<Schema>) => void;
   onChangeBinding: (b: Binding | null) => void;
   dataSources?: DataSourceOption[];
-  // Fonte de dados conhecida da tabela (membro de seção OU vínculo próprio
-  // batendo com um dataSources) — lista de colunas pra adicionar com "+"
-  // (ver Designer.tsx `findTableDataSource`).
+  // The table's known data source (a section member OR its own binding
+  // matching one of dataSources) — the column list to add with "+"
+  // (see Designer.tsx `findTableDataSource`).
   tableDataSource?: { path: string; columns: string[] };
-  // Reescreve a lista de colunas inteira (input "Colunas, vírgula") —
-  // mantém content/footer/columnStyles/binding.columns no mesmo tamanho.
+  // Rewrites the whole column list (the "Columns, comma" input) — it keeps
+  // content/footer/columnStyles/binding.columns at the same length.
   onSetHeadList?: (heads: string[]) => void;
   onAddTableColumn?: (column: string) => void;
   onRemoveTableColumn?: (index: number) => void;
-  // Arrastar um item da lista "Colunas atuais da tabela" pra outra posição.
+  // Dragging an item of the "Current table columns" list to another position.
   onReorderTableColumn?: (fromIndex: number, toIndex: number) => void;
-  // Estilo (cor/fundo/tamanho) de UMA coluna — cabeçalho e valor
-  // separados. Botão "estilo" na lista de colunas abre o mini-painel.
+  // Style (color/background/size) of ONE column — header and value kept
+  // separate. The "style" button in the column list opens the mini panel.
   onSetColumnStyle?: (index: number, patch: Partial<TableColumnStyle>) => void;
   onSetColumnWidth?: (index: number, widthMm: number | undefined) => void;
-  // Fórmula de UMA coluna do vínculo "array" — botão "ƒx" na lista de
-  // colunas. Só faz sentido pra tabela com vínculo array de verdade (sem
-  // vínculo, o template já é editável direto na célula).
+  // Formula for ONE column of the "array" binding — the "ƒx" button in the
+  // column list. It only makes sense for a table with a real array binding
+  // (with no binding, the template is already editable in the cell itself).
   onSetColumnFormula?: (index: number, formula: string) => void;
   onRenameTableColumn?: (index: number, label: string) => void;
-  // Campos que o schema selecionado alcança (ver designer/helpers.ts,
-  // fieldSourcesFor) — a lista da esquerda do modal de fórmula, o mesmo
-  // conjunto pra qualquer tipo de campo.
+  // The fields the selected schema can reach (see designer/helpers.ts,
+  // fieldSourcesFor) — the left-hand list of the formula modal, the same
+  // set for any field type.
   fieldSources?: FieldSources;
-  // Sub-elemento de KPI focado (ver Designer.tsx) — só o painel de KPI usa.
+  // The focused KPI sub-element (see Designer.tsx) — only the KPI panel uses it.
   selectedKpiElement?: KpiElementKey | null;
   onSelectKpiElement?: (el: KpiElementKey | null) => void;
 };
 
-// Conteúdo do campo selecionado pra aba "Dados"/"Estilo" ativa — cada tipo
-// no seu próprio componente (texto/tabela/imagem/seção/gráfico/KPI), sem
-// propPanel declarativo, React normal. Image/Section não têm divisão
-// Dados/Estilo própria (conteúdo simples demais pra precisar) — tudo delas
-// aparece em "Dados"; o vínculo genérico (BindingEditor) só serve a esses
-// dois tipos direto aqui, os outros já embutem o vínculo certo dentro do
-// próprio componente (chart, kpi) ou nem precisam de um (texto usa
-// template direto no campo, tabela tem o próprio dentro de "Dados").
+// The selected field's content for the active "Data"/"Style" tab — each
+// type in its own component (text/table/image/section/chart/KPI), with no
+// declarative propPanel, plain React. Image/Section have no Data/Style
+// split of their own (their content is too simple to need one) — all of it
+// shows under "Data"; the generic binding (BindingEditor) serves only those
+// two types directly here, the others already embed the right binding inside
+// their own component (chart, kpi) or do not need one at all (text uses the
+// template right on the field, table has its own inside "Data").
 export function PropertyPanel({
   schema,
   binding,

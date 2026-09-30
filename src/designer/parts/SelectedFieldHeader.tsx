@@ -3,17 +3,17 @@ import { useUiComponents } from "../../components/ui/useUiComponents";
 import { useT } from "../../i18n";
 import { useDesignerBulkEdit, useDesignerSelectedSchema, useDesignerSelection } from "../context/hooks";
 
-// Cabeçalho do campo selecionado: o nome num `<Badge>`, mais o aviso de
-// seleção múltipla ("N selecionados" ou "editando N em bloco").
+// The selected field's header: the name in a `<Badge>`, plus the multiple
+// selection warning ("N selected" or "bulk editing N").
 //
-// NÃO é peça posicionável, de propósito — é o pedaço compartilhado entre
-// `DesignerPropertyPanel` e `DesignerFilterPanel`, que no `Designer.tsx`
-// eram um só `<div className="jpd-sidebar__panel">` com este topo em comum.
-// Duplicá-lo nas duas peças faria as duas divergirem; exportá-lo como peça
-// daria ao consumidor um "cabeçalho" que só tem sentido grudado num painel.
+// It is deliberately NOT a placeable part — it is the piece shared between
+// `DesignerPropertyPanel` and `DesignerFilterPanel`, which in `Designer.tsx`
+// were a single `<div className="jpd-sidebar__panel">` with this common top.
+// Duplicating it in both parts would make the two diverge; exporting it as a
+// part would give the consumer a "header" that only makes sense glued to a panel.
 //
-// Fica num arquivo próprio (e não dentro de um dos dois) pra nenhuma peça
-// importar a outra — invariante guardado por partBoundaries.test.ts.
+// It lives in a file of its own (and not inside one of the two) so that no
+// part imports another — an invariant guarded by partBoundaries.test.ts.
 export function SelectedFieldHeader({ banner: bannerPart }: { banner?: PartStyle }) {
   const t = useT();
   const { Badge, CardHeader } = useUiComponents();
@@ -24,8 +24,8 @@ export function SelectedFieldHeader({ banner: bannerPart }: { banner?: PartStyle
   const banner = readPart(bannerPart);
   return (
     <>
-      {/* Enviar/trazer e remover já vivem na linha selecionada da lista de
-          campos (aba "Campos") — sem duplicar aqui. */}
+      {/* Send/bring and remove already live on the selected row of the field
+          list (the "Fields" tab) — not duplicated here. */}
       <CardHeader>
         <Badge>{selected.name}</Badge>
       </CardHeader>

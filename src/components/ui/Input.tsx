@@ -13,15 +13,15 @@ export type ColorInputProps = InputHTMLAttributes<HTMLInputElement> & {
   parts?: LabeledParts;
 };
 
-// A ref vai pro `<input>`, não pro `<label>` que o embrulha. É a mesma regra
-// do `className`: os dois endereçam o elemento que dá NOME ao componente, e o
-// wrapper é `parts.root`.
+// The ref goes to the `<input>`, not to the `<label>` wrapping it. Same rule
+// as `className`: both address the element that NAMES the component, and the
+// wrapper is `parts.root`.
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ label, className, mono, parts, ...rest }, ref) {
   return (
     <Labeled label={label} parts={parts}>
-      {/* `mono` era a classe `font-mono`; virou atributo, igual variant/size
-          do Button. `|| undefined` porque o React serializa `data-x={false}`
-          como a string "false", que ainda casaria `[data-mono]`. */}
+      {/* `mono` was the `font-mono` class; it became an attribute, like the
+          Button's variant/size. `|| undefined` because React serializes
+          `data-x={false}` as the string "false", which would match `[data-mono]`. */}
       <input ref={ref} {...rest} data-mono={mono || undefined} className={cx("jpd-input", className)} />
     </Labeled>
   );

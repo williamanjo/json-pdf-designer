@@ -1,16 +1,15 @@
 import type { Binding, Template } from "json-pdf-designer";
 
-// Estado inicial do app — o que aparece antes de escolher qualquer exemplo
-// do dropdown (esses moram em ./templates/). Não faz parte do EXAMPLES.
+// The app's initial state — what appears before choosing any example from the
+// dropdown (those live in ./templates/). It is not part of EXAMPLES.
 //
-// O sample fica INLINE, como objeto TypeScript, de propósito: o
-// report-builder carrega um `samples/initialSample.json` de 111KB e este
-// example não copia esse arquivo. O JSON inicial daqui tem de caber na
-// leitura de quem abre o repo — mas grande o bastante pra o explorador de
-// campos ter o que mostrar: dois níveis de objeto aninhado (`empresa`,
-// `periodo`) e DOIS arrays (`vendas`, `metas`), que é o mínimo pra provar
-// que a árvore agrupa por DataSource e que uma coluna avulsa é arrastável
-// separada do grupo.
+// The sample stays INLINE, as a TypeScript object, on purpose: report-builder
+// loads a 111KB `samples/initialSample.json` and this example does not copy
+// that file. The initial JSON here has to fit in the reading of whoever opens
+// the repo — but be large enough for the field explorer to have something to
+// show: two levels of nested object (`empresa`, `periodo`) and TWO arrays
+// (`vendas`, `metas`), which is the minimum to prove that the tree groups by
+// DataSource and that a lone column is draggable apart from its group.
 
 export const initialSample = {
   empresa: {
@@ -35,11 +34,11 @@ export const initialSample = {
   ],
 };
 
-// Template mínimo: um título com {token} vindo de objeto ANINHADO
-// (`{periodo.mes}` — texto sem vínculo cai no template livre, resolvido
-// contra o documento inteiro), uma tabela vinculada a `vendas` e um rodapé
-// com a numeração nativa. Suficiente pra provar que a geração completa
-// (texto + tabela + paginação) funciona sem pdf.js.
+// A minimal template: a title with a {token} coming from a NESTED object
+// (`{periodo.mes}` — text with no binding falls back to the free template,
+// resolved against the whole document), a table bound to `vendas` and a footer
+// with the native numbering. Enough to prove that full generation (text +
+// table + pagination) works without pdf.js.
 export const initialTemplate: Template = {
   version: 1,
   page: { width: 210, height: 297 }, // A4 em mm
@@ -78,9 +77,10 @@ export const initialTemplate: Template = {
       y: 285,
       width: 180,
       height: 8,
-      // {pageNumber}/{pageCount} são tokens NATIVOS do motor: resolvem por
-      // página na hora de gerar, sem vínculo, e só valem em campo que caia
-      // no cabeçalho/rodapé/margem (este cai no rodapé, footerHeight=15).
+      // {pageNumber}/{pageCount} are the engine's NATIVE tokens: they resolve
+      // per page at generation time, with no binding, and only count in a field
+      // that falls in the header/footer/margin (this one falls in the footer,
+      // footerHeight=15).
       content: "Página {pageNumber} de {pageCount}",
       fontSize: 9,
       fontColor: "#64748b",
@@ -89,7 +89,7 @@ export const initialTemplate: Template = {
   ],
 };
 
-// A tabela puxa de `vendas`; o título e o rodapé não precisam de vínculo.
+// The table pulls from `vendas`; the title and the footer need no binding.
 export const initialBindings: Binding[] = [
   { schemaName: "tabela", type: "array", path: "vendas", columns: ["regiao", "bilhetes", "total"] },
 ];

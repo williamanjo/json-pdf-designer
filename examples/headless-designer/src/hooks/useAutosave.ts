@@ -2,15 +2,15 @@ import { useEffect } from "react";
 import type { Template, Binding } from "json-pdf-designer/server";
 import type { JsonSource } from "../lib/sources";
 
-// Autosave no navegador — F5/fechar aba sem querer não perde o que tava
-// sendo editado. Só template/bindings/sources (o resto é derivado). Falha
-// silenciosa se localStorage não existir/estiver cheio (aba anônima etc) —
-// é conveniência, não deve travar o app.
+// Autosave in the browser — an accidental F5/tab close does not lose what was
+// being edited. Only template/bindings/sources (the rest is derived). It fails
+// silently if localStorage does not exist/is full (a private tab and so on) —
+// it is a convenience, it must not break the app.
 //
-// Chave própria deste example: os cinco examples rodam em portas diferentes
-// do MESMO localhost, e localStorage é por origem (host+porta), então na
-// prática não colidem — mas o prefixo deixa explícito de quem é a entrada
-// pra quem for olhar o DevTools.
+// A key of this example's own: the five examples run on different ports of the
+// SAME localhost, and localStorage is per origin (host+port), so in practice
+// they do not collide — but the prefix makes it explicit whose entry it is for
+// whoever looks at the DevTools.
 const AUTOSAVE_KEY = "headless-designer:autosave-v1";
 
 export type AutosavedState = { template: Template; bindings: Binding[]; sources: JsonSource[] };
@@ -27,27 +27,27 @@ export function loadAutosave(): AutosavedState | null {
   }
 }
 
-// Salva a cada mudança (debounced) — cobre F5 sem querer, aba fechada sem
-// clicar em "Save project" etc.
+// It saves on every change (debounced) — it covers an accidental F5, a tab
+// closed without clicking "Save project" and so on.
 export function useAutosave(template: Template, bindings: Binding[], sources: JsonSource[]) {
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
         localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ template, bindings, sources }));
       } catch {
-        // localStorage cheio/bloqueado — autosave é conveniência, não trava o app.
+        // localStorage full/blocked — autosave is a convenience, it does not break the app.
       }
     }, 500);
     return () => clearTimeout(timer);
   }, [template, bindings, sources]);
 }
 
-// Apaga o autosave — usado pelo botão "Reset" (senão o estado gravado volta
-// no próximo F5 e parece que o reset não funcionou).
+// It deletes the autosave — used by the "Reset" button (otherwise the saved
+// state comes back on the next F5 and it looks as though the reset did not work).
 export function clearAutosave() {
   try {
     localStorage.removeItem(AUTOSAVE_KEY);
   } catch {
-    // idem: bloqueado/cheio não é motivo pra travar nada.
+    // likewise: blocked/full is no reason to break anything.
   }
 }

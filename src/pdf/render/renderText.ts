@@ -6,7 +6,7 @@ import { colorOrDefault } from "../color";
 import { alignX } from "../textLayout";
 import { finiteOr, sanitizeText } from "../textSafety";
 
-// Fallback pra `fontSize` ausente/NaN — ver finiteOr em textSafety.ts.
+// A fallback for an absent/NaN `fontSize` — see finiteOr in textSafety.ts.
 const DEFAULT_FONT_SIZE = 10;
 
 export function drawTextField(
@@ -35,14 +35,14 @@ export function drawTextField(
     });
   }
   const textColor = colorOrDefault(schema.fontColor || "#000000", rgb(0, 0, 0));
-  // Sanitiza aqui porque este é o único caminho de texto que não passa pelo
-  // truncateToWidth (campo de texto não trunca, o excedente simplesmente
-  // transborda a caixa).
+  // It sanitizes here because this is the only text path that does not go
+  // through truncateToWidth (a text field does not truncate, the excess simply
+  // overflows the box).
   const text = sanitizeText(value ?? schema.content);
   const fontSize = finiteOr(schema.fontSize, DEFAULT_FONT_SIZE);
   const textWidth = font.widthOfTextAtSize(text, fontSize);
-  // Mesma fórmula de alignX (render/renderTable.ts usa a mesma), aqui sem
-  // padding nenhum (paddingPt = 0) — igual ao ternário que isto substituiu.
+  // The same formula as alignX (render/renderTable.ts uses the same one), here
+  // with no padding at all (paddingPt = 0) — like the ternary this replaced.
   const alignOffset = alignX(schema.alignment, widthPt, textWidth, 0);
   page.drawText(text, {
     x: xPt + alignOffset,

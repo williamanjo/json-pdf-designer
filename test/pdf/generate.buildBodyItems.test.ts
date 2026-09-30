@@ -4,9 +4,9 @@ import { buildBodyItems } from "../../src/pdf/layout/bodyLayout";
 import { drawFieldOfType, type DrawFieldContext } from "../../src/pdf/render";
 import type { TableSchema, TextSchema } from "../../src/types";
 
-// buildBodyItems é pura (sem pdf-lib) — cobre só o agrupamento em BodyItem,
-// não redesenha nada. Ver generate.pagination.test.ts/generate.multipage.
-// test.ts pra paginação/render de ponta a ponta (não duplicado aqui).
+// buildBodyItems is pure (no pdf-lib) — it covers only the grouping into
+// BodyItems, it redraws nothing. See generate.pagination.test.ts/generate.
+// multipage.test.ts for end-to-end pagination/rendering (not duplicated here).
 function textField(overrides: Partial<TextSchema> = {}): TextSchema {
   return {
     id: overrides.id ?? "t",
@@ -50,7 +50,7 @@ describe("buildBodyItems", () => {
     expect(items[0]).toMatchObject({ kind: "row", y: 10 });
     if (items[0].kind !== "row") throw new Error("esperava row");
     expect(items[0].schemas).toEqual([a, b]);
-    // Altura da row é o máximo entre os membros, não a soma.
+    // The row's height is the maximum of its members, not their sum.
     expect(items[0].height).toBe(8);
   });
 
@@ -80,12 +80,12 @@ describe("buildBodyItems", () => {
   });
 });
 
-// drawFieldOfType — mesma técnica de fake-page-spy de render/renderTable.test.ts/
-// render/renderKpi.test.ts, sem montar um PDFDocument de verdade. Cobre só o caso
-// "text": os outros tipos (image/table/chart/kpi) já dependem de mais peça
-// (pdf-lib de verdade pra embedPng/embedJpg, ou funções de bindings.ts) —
-// exercitados de ponta a ponta pelos testes de generate.*.test.ts
-// existentes, não duplicado aqui.
+// drawFieldOfType — the same fake-page-spy technique as render/renderTable.test.ts/
+// render/renderKpi.test.ts, without assembling a real PDFDocument. It covers only
+// the "text" case: the other types (image/table/chart/kpi) already depend on
+// more machinery (real pdf-lib for embedPng/embedJpg, or functions from
+// bindings.ts) — exercised end to end by the existing generate.*.test.ts
+// tests, not duplicated here.
 function makeFakePage() {
   const texts: { text: string; x: number; y: number; size: number }[] = [];
   const rects: { x: number; y: number; width: number; height: number }[] = [];
@@ -104,8 +104,8 @@ const fakeFont = { widthOfTextAtSize: (text: string) => text.length * 5 } as unk
 
 function makeFieldCtx(overrides: Partial<DrawFieldContext> = {}): DrawFieldContext {
   return {
-    // Nunca chamado pro schema.type "text" (só usado por drawImageField) —
-    // um objeto vazio basta, cast pro tipo esperado.
+    // Never called for schema.type "text" (only used by drawImageField) — an
+    // empty object is enough, cast to the expected type.
     doc: {} as PDFDocument,
     font: fakeFont,
     pageHeightPt: 297 * (72 / 25.4),
@@ -127,7 +127,7 @@ describe("drawFieldOfType", () => {
 
     expect(texts).toHaveLength(1);
     expect(texts[0].text).toBe("Olá");
-    // Sem fundo/borda no schema => nenhum retângulo desenhado.
+    // With no background/border in the schema => no rectangle drawn.
     expect(rects).toHaveLength(0);
   });
 

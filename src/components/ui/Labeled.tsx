@@ -1,22 +1,22 @@
 import type { ReactNode } from "react";
 import { cx, readPart, type PartStyle } from "./cx";
 
-// Wrapper de rótulo compartilhado por Input/ColorInput/Select/Textarea — os
-// quatro repetiam o mesmo <label><span>{label}</span>{controle}</label>.
+// A label wrapper shared by Input/ColorInput/Select/Textarea — all four
+// repeated the same <label><span>{label}</span>{control}</label>.
 //
-// NOME: `jpd-labeled`, e não `jpd-field`. A palavra "field" descreveria as
-// duas coisas, mas `jpd-field` é a caixa de campo do CANVAS (o <Rnd> do
-// PageCanvas) — colidir os nomes faria o CSS de uma vazar na outra.
+// NAME: `jpd-labeled`, and not `jpd-field`. The word "field" would describe
+// both, but `jpd-field` is the CANVAS field box (PageCanvas's <Rnd>) —
+// colliding the names would let one's CSS leak into the other.
 //
-// `parts` é o que endereça o que não é o elemento que dá nome ao componente:
-// `className` vai pro controle, `parts.root` pro <label> e `parts.label` pro
-// <span>. Só className/style, sem handler nem ref — quem precisa disso omite
-// `label` e compõe o próprio wrapper, que é o caminho que já existia.
+// `parts` addresses everything that is not the element naming the component:
+// `className` goes to the control, `parts.root` to the <label> and
+// `parts.label` to the <span>. Only className/style, no handler and no ref —
+// whoever needs those omits `label` and composes their own wrapper.
 export type LabeledParts = { root?: PartStyle; label?: PartStyle };
 
 export function Labeled({ label, parts, children }: { label?: string; parts?: LabeledParts; children: ReactNode }) {
-  // Sem rótulo, devolve o controle NU — mesmo comportamento de 2.x, e é a
-  // saída de quem quer montar o próprio wrapper.
+  // With no label, it returns the BARE control — same behavior as 2.x, and it
+  // is the way out for anyone who wants to build their own wrapper.
   if (!label) return <>{children}</>;
 
   const root = readPart(parts?.root);

@@ -8,22 +8,23 @@ import type { FieldNode } from "./jsonExplorer";
 import { sanitizeName } from "./jsonExplorer";
 import { uid } from "./uid";
 
-// Traduz um campo do explorador de JSON (FieldNode) num schema já vinculado,
-// e joga no canvas. Usado pelo drop do FieldTree (via `onCanvasDrop` do
-// DesignerProvider) e pelo botão "+" de cada linha da árvore.
+// It translates a field from the JSON explorer (a FieldNode) into an
+// already-bound schema, and drops it on the canvas. Used by the FieldTree's
+// drop (through the DesignerProvider's `onCanvasDrop`) and by the "+" button
+// on each row of the tree.
 //
-// Mora numa lib, e não no componente, porque o App.tsx deste example é sobre
-// LAYOUT — enfiar 80 linhas de cálculo de posição no meio dele esconderia o
-// assunto. (No report-builder isto vive dentro do DesignerPanel.tsx.)
+// It lives in a lib, and not in the component, because this example's App.tsx
+// is about LAYOUT — stuffing 80 lines of position arithmetic into the middle
+// of it would hide the subject. (In report-builder this lives inside DesignerPanel.tsx.)
 
 type Ctx = {
-  // Página ATIVA (é o que o DesignerProvider está editando).
+  // The ACTIVE page (it is what the DesignerProvider is editing).
   template: Template;
   bindings: Binding[];
-  // Forma funcional do setState: evita perder um campo se dois forem
-  // adicionados em sequência rápida (antes do primeiro re-render), já que
-  // cada chamada calcula a posição a partir do estado mais atual, não de uma
-  // closure velha.
+  // The functional form of setState: it avoids losing a field if two are
+  // added in quick succession (before the first re-render), since each call
+  // computes the position from the most current state, not from a stale
+  // closure.
   setTemplate: React.Dispatch<React.SetStateAction<Template>>;
   setBindings: React.Dispatch<React.SetStateAction<Binding[]>>;
 };
@@ -33,10 +34,10 @@ function nextFreeY(schemas: Schema[]): number {
   return Math.max(...schemas.map((s) => s.y + s.height)) + 5;
 }
 
-// Empilha só em cima de campos do CORPO — sem isso, um rodapé (ou
-// cabeçalho/margem) já colocado fazia o próximo campo nascer logo abaixo
-// dele (nextFreeY olhava todo mundo, inclusive faixa vermelha), caindo na
-// própria faixa por acidente (zona é só posição, não intenção).
+// It only stacks on top of BODY fields — without this, a footer (or
+// header/margin) field already placed made the next field be born right below
+// it (nextFreeY looked at everyone, including the red band), landing in that
+// band by accident (a zone is only a position, not an intention).
 function bodyPosition(template: Template, schemas: Schema[]): { x: number; y: number } {
   const { headerHeight = 0, footerHeight = 0, marginLeft = 0, marginRight = 0 } = template;
   const bands = { headerHeight, footerHeight, marginLeft, marginRight };
@@ -44,13 +45,13 @@ function bodyPosition(template: Template, schemas: Schema[]): { x: number; y: nu
   return { x: Math.max(10, marginLeft + 2), y: Math.max(nextFreeY(bodySchemas), headerHeight + 2) };
 }
 
-// Coluna individual de um DataSource (arrastada/clicada sozinha, não o grupo
-// inteiro) — só entra se já existir uma seção vinculada a esse mesmo array
-// (mesmo path); sem seção, não faz nada (nada de criar tabela ou campo solto
-// pra uma coluna avulsa). Posição/nome são calculados uma vez só, fora dos
-// dois callbacks funcionais, e reaproveitados nos dois — a única coisa que os
-// dois setState precisam compartilhar é ESSE valor, não o estado fresco em
-// si; cada `prev` continua sendo lido de dentro do próprio callback.
+// An individual column of a DataSource (dragged/clicked on its own, not the
+// whole group) — it only comes in if a section bound to that same array (the
+// same path) already exists; with no section, it does nothing (no creating a
+// table or a loose field for a stray column). The position/name are computed
+// once, outside the two functional callbacks, and reused in both — the only
+// thing the two setStates need to share is THAT value, not the fresh state
+// itself; each `prev` is still read from inside its own callback.
 function addColumnToMatchingSection(field: Extract<FieldNode, { kind: "arrayColumn" }>, ctx: Ctx) {
   const sectionBinding = ctx.bindings.find(
     (b): b is Extract<Binding, { type: "section" }> => b.type === "section" && b.path === field.sourcePath

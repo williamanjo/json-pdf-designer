@@ -3,9 +3,9 @@ import { CURRENT_TEMPLATE_VERSION, migrateTemplate } from "../src/template";
 import { TemplateNotAnObjectError, TemplateVersionInvalidError, TemplateVersionTooNewError } from "../src/errors";
 import type { Template } from "../src/types";
 
-// Colhe o erro que `fn` lança, pra afirmar sobre a CLASSE e os campos
-// estruturados em vez de casar a frase. `toThrow(/texto/)` era o que os
-// examples faziam, e é exatamente o acoplamento que as classes removem.
+// It collects the error `fn` throws, to assert about the CLASS and the
+// structured fields instead of matching the phrase. `toThrow(/text/)` was what
+// the examples did, and it is exactly the coupling the classes remove.
 function thrownBy(fn: () => unknown): unknown {
   try {
     fn();
@@ -45,7 +45,7 @@ describe("migrateTemplate", () => {
   it("não perde nem altera nenhum outro campo ao estampar a versão", () => {
     const input = baseTemplate();
     const out = migrateTemplate(input);
-    // Compara tudo menos `version` — o resto tem de ser idêntico à entrada.
+    // It compares everything but `version` — the rest has to be identical to the input.
     const { version, ...rest } = out as Template & Record<string, unknown>;
     expect(version).toBe(CURRENT_TEMPLATE_VERSION);
     expect(rest).toEqual(input);
@@ -69,8 +69,8 @@ describe("migrateTemplate", () => {
   });
 
   it("versão MAIOR que a corrente falha alto, em vez de gerar PDF faltando pedaço", () => {
-    // Arquivo salvo por um build mais novo do pacote: pode ter campos que
-    // este build ignoraria em silêncio. Erro é melhor que PDF errado.
+    // A file saved by a newer build of the package: it may have fields this
+    // build would silently ignore. An error is better than a wrong PDF.
     const input = { ...baseTemplate(), version: 99 };
     const err = thrownBy(() => migrateTemplate(input));
     expect(err).toBeInstanceOf(TemplateVersionTooNewError);
@@ -87,8 +87,8 @@ describe("migrateTemplate", () => {
       expect(err, JSON.stringify(bad)).toBeInstanceOf(TemplateVersionInvalidError);
       const typed = err as TemplateVersionInvalidError;
       expect(typed.code).toBe("templateVersionInvalid");
-      // O valor CRU, não a frase: é o que deixa quem chama logar/decidir sem
-      // parsear a mensagem.
+      // The RAW value, not the phrase: it is what lets the caller log/decide
+      // without parsing the message.
       expect(typed.received).toEqual(bad);
       expect(typed.implicitVersion).toBe(1);
     }

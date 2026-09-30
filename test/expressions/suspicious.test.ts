@@ -5,9 +5,10 @@ import { schemaExpressionErrors } from "../../src/expressions/schemaExpressions"
 import { fieldWarning } from "../../src/fieldWarnings";
 import type { Schema } from "../../src/types";
 
-// O buraco que estes testes fecham: operador só é operador cercado de espaço
-// dos dois lados, então `{fatura /}` é uma expressão VÁLIDA que busca a chave
-// "fatura /". Ela não existe, o campo sai vazio, e nada acusava.
+// The hole these tests close: an operator is only an operator surrounded by
+// whitespace on both sides, so `{fatura /}` is a VALID expression looking up
+// the key "fatura /". It does not exist, the field comes out empty, and
+// nothing flagged it.
 
 describe("suspiciousOperator", () => {
   it("aponta operador com espaço de um lado só", () => {
@@ -29,16 +30,16 @@ describe("suspiciousOperator", () => {
   });
 
   it("cala em chave de JSON com operador encostado", () => {
-    // A garantia que impede isto de ser erro de sintaxe: `{my-key}`,
-    // `{fatura/2}` e `{a==2}` são paths legítimos.
+    // The guarantee that stops this from being a syntax error: `{my-key}`,
+    // `{fatura/2}` and `{a==2}` are legitimate paths.
     for (const source of ["my-key", "fatura/2", "a==2", "IF(a==2,1,2)"]) {
       expect(suspiciousOperator(source), source).toBeNull();
     }
   });
 
   it("cala em sinal de número negativo", () => {
-    // `-1` depois de `,` ou de operador é literal negativo, não operador
-    // pela metade — e vira token `number`, então nem chega na checagem.
+    // `-1` after a `,` or an operator is a negative literal, not half an
+    // operator — and it becomes a `number` token, so it never reaches the check.
     for (const source of ['CONCAT("x", -1)', "a + -1", "-1", "-5 + 2", "a - -b", "IF(a > 5, -1, 1)"]) {
       expect(suspiciousOperator(source), source).toBeNull();
     }
@@ -56,8 +57,8 @@ describe("suspiciousOperator", () => {
   });
 
   it("não duplica aviso de expressão que já é erro de sintaxe", () => {
-    // `fatura / ` (espaço dos dois lados) já é "Expressão incompleta" — o
-    // aviso de suspeita não tem o que acrescentar.
+    // `fatura / ` (whitespace on both sides) is already "Incomplete
+    // expression" — the suspicion warning has nothing to add.
     expect(suspiciousOperator("fatura / ")).toBeNull();
     expect(suspiciousOperator('CONCAT("aspas abertas')).toBeNull();
   });
@@ -72,7 +73,7 @@ describe("o caso concreto, ponta a ponta", () => {
   const data = { fatura: "01226385" };
 
   it("renderiza vazio, como antes", () => {
-    // O comportamento de RENDER não muda — só passa a ter aviso.
+    // The RENDER behavior does not change — it only gains a warning.
     expect(renderTemplate("FAT-{fatura /}", data)).toBe("FAT-");
     expect(renderTemplate("FAT-{fatura}", data)).toBe("FAT-01226385");
   });

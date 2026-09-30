@@ -2,29 +2,29 @@ import { clampZoom, useDesignerZoom, type Locale } from "json-pdf-designer";
 import { t } from "../i18n";
 
 type Props = {
-  // Mesmo motivo do PageTabs: `locale` por prop, porque esta barra vive na
-  // casca do app, ao lado das abas de página, e não dentro do editor.
+  // The same reason as PageTabs: `locale` as a prop, because this bar lives
+  // in the app's shell, next to the page tabs, and not inside the editor.
   locale: Locale;
 };
 
-// A BARRA DE ZOOM DESTE APP — o caso que a 3.1.0 destravou.
+// THIS APP'S ZOOM BAR — the case 3.1.0 unlocked.
 //
-// Antes dela o zoom era `useState` interno do `<PageCanvas>`, e a
-// `.jpd-zoombar` do pacote é `position: sticky` DENTRO do
-// `.jpd-designer__canvas`. Ou seja: CSS movia a barra pelos cantos daquela
-// caixa, e nada mais. Ler o valor pra mostrar em outro lugar, ou disparar
-// "ajustar largura" de um botão da barra de abas, era impossível sem
-// reimplementar zoom por fora — com uma segunda cópia do valor pra
-// dessincronizar da folha que o canvas realmente renderiza.
+// Before it the zoom was `useState` internal to `<PageCanvas>`, and the
+// package's `.jpd-zoombar` is `position: sticky` INSIDE the
+// `.jpd-designer__canvas`. That is: CSS moved the bar around the corners of
+// that box, and nothing more. Reading the value to show it elsewhere, or
+// firing "fit width" from a button on the tab bar, was impossible without
+// reimplementing zoom from outside — with a second copy of the value to fall
+// out of sync with the sheet the canvas actually renders.
 //
-// Aqui a barra mora ao lado das ABAS DE PÁGINA, que são componente deste app,
-// fora do canvas. O `<DesignerCanvas hideZoombar />` esconde a padrão, e este
-// componente é a única fonte de controle — sem cópia de estado, porque
-// `useDesignerZoom()` devolve o valor de verdade.
+// Here the bar lives next to the PAGE TABS, which are this app's component,
+// outside the canvas. `<DesignerCanvas hideZoombar />` hides the default one,
+// and this component is the only source of control — with no copy of the
+// state, because `useDesignerZoom()` returns the real value.
 //
-// E é isto que o contexto separado compra: arrastar o slider re-renderiza
-// ESTA barra e o canvas, e mais nada. A lista de campos e os painéis à
-// direita ficam parados.
+// And this is what the separate context buys: dragging the slider re-renders
+// THIS bar and the canvas, and nothing else. The field list and the panels on
+// the right stay put.
 export default function ZoomBar({ locale }: Props) {
   const { zoom, min, max, setZoom, zoomIn, zoomOut, reset, fitWidth, fitHeight } = useDesignerZoom();
   const ui = t(locale);
@@ -36,26 +36,26 @@ export default function ZoomBar({ locale }: Props) {
         −
       </button>
 
-      {/* Slider de verdade, que a barra do pacote não tem — a prova de que o
-          valor é gravável de fora, e não só legível. */}
+      {/* A real slider, which the package's bar does not have — the proof
+          that the value is writable from outside, and not only readable. */}
       <input
         type="range"
         className="app-zoombar__slider"
         min={min}
         max={max}
-        // `step="any"`, e NÃO `step={step}`. Medido: com `min=0.25` e
-        // `step=0.1` um `<input type="range">` só aceita a grade
-        // 0,25 / 0,35 / … / 1,05 — então pedir 1 dava 105% e o slider nunca
-        // encostava em 100% exato, enquanto o botão "100%" ao lado chegava.
-        // O `ZOOM_STEP` do pacote é o incremento dos BOTÕES (+/−); a escala em
-        // si é contínua dentro de [min, max], e é o `setZoom` que garante o
-        // limite.
+        // `step="any"`, and NOT `step={step}`. Measured: with `min=0.25` and
+        // `step=0.1` an `<input type="range">` only accepts the grid
+        // 0.25 / 0.35 / … / 1.05 — so asking for 1 gave 105% and the slider
+        // never touched exactly 100%, while the "100%" button next to it did.
+        // The package's `ZOOM_STEP` is the BUTTONS' increment (+/−); the scale
+        // itself is continuous within [min, max], and it is `setZoom` that
+        // guarantees the limit.
         step="any"
         value={zoom}
         aria-label={ui.zoomNivel}
-        // `clampZoom` do pacote, e não um clamp nosso: os limites do canvas
-        // são os mesmos que este input usa, então um valor daqui nunca é
-        // recusado depois. `Number("")` é NaN, e o clamp resolve pra 100%.
+        // The package's `clampZoom`, and not a clamp of ours: the canvas's
+        // limits are the same ones this input uses, so a value from here is
+        // never refused later. `Number("")` is NaN, and the clamp resolves to 100%.
         onChange={(e) => setZoom(clampZoom(Number(e.target.value)))}
       />
 
@@ -63,14 +63,14 @@ export default function ZoomBar({ locale }: Props) {
         +
       </button>
 
-      {/* O VALOR, lido do contexto. Antes não havia como mostrar isto aqui. */}
+      {/* THE VALUE, read from the context. There used to be no way to show this here. */}
       <span className="app-zoombar__valor">{pct}%</span>
 
       <span className="app-zoombar__sep" />
 
-      {/* `fitWidth`/`fitHeight` medem o viewport do canvas, que o
-          `<DesignerCanvas>` registra — então funcionam mesmo sendo chamados
-          de um botão que não está dentro dele. */}
+      {/* `fitWidth`/`fitHeight` measure the canvas's viewport, which the
+          `<DesignerCanvas>` registers — so they work even when called from a
+          button that is not inside it. */}
       <button type="button" className="app-zoombar__btn" onClick={fitWidth}>
         {ui.zoomLargura}
       </button>

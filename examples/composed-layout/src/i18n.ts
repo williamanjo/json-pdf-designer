@@ -1,40 +1,41 @@
 import type { Locale } from "json-pdf-designer";
 
-// Dicionário da CASCA deste app — o texto que é NOSSO, não do pacote.
+// This app's SHELL dictionary — the text that is OURS, not the package's.
 //
-// O `locale` do estado do App alimenta os dois dicionários: este e o do
-// pacote (via `<I18nProvider locale>`, ver App.tsx). Um seletor, duas
-// camadas, zero sincronização manual.
+// The App state's `locale` feeds both dictionaries: this one and the
+// package's (through `<I18nProvider locale>`, see App.tsx). One picker, two
+// layers, zero manual syncing.
 //
-// O que NÃO mora aqui, de propósito:
+// What deliberately does NOT live here:
 //
-// - Rótulo cujo CONCEITO é do pacote. As abas do `<Designer>` ("Dados",
-//   "Estilo", "Filtro", "Página", "Inspetor") e o título do editor de
-//   vínculo vêm de `dictFor(locale)` — duplicar seria criar duas traduções
-//   pra dessincronizar. Só o QUALIFICADOR é nosso, e ele mora nas funções
-//   de composição abaixo (`doCampo`, `deLinhas`, `noCanvas`, `doJson`).
-// - Qualquer coisa que seja DADO: o conteúdo dos templates de
-//   `data/templates/`, o sample de `data.ts`, o nome das fontes de dados
-//   (`principal`, `fonte_2`), nome de campo, caminho de dado e o texto que
-//   sai no PDF. Um relatório em português continua em português quando a
-//   UI vira inglês — o idioma da interface não é o idioma do documento.
-// - Título e "o que fazer" das falhas de GERAÇÃO. Isso o pacote entrega já
-//   localizado, por `describePdfError(err, dictFor(locale))` — entrada
-//   própria aqui seria uma segunda tradução da mesma frase, pra
-//   dessincronizar. Ver `lib/generationError.ts`.
-// - O `message` cru que o PACOTE lança. É INGLÊS de propósito (diagnóstico
-//   de desenvolvedor: vai pro log, pro stack e pro Sentry) e aparece só no
-//   "ver detalhe" do banner, que é justamente "a mensagem crua".
+// - A label whose CONCEPT belongs to the package. The `<Designer>`'s tabs
+//   ("Data", "Style", "Filter", "Page", "Inspector") and the binding editor's
+//   title come from `dictFor(locale)` — duplicating would create two
+//   translations to fall out of sync. Only the QUALIFIER is ours, and it lives
+//   in the composition functions below (`doCampo`, `deLinhas`, `noCanvas`, `doJson`).
+// - Anything that is DATA: the content of the templates in `data/templates/`,
+//   the sample in `data.ts`, the data source names (`principal`, `fonte_2`), a
+//   field name, a data path and the text that comes out in the PDF. A report
+//   in Portuguese stays in Portuguese when the UI turns to English — the
+//   interface's language is not the document's language.
+// - The title and the "what to do" of GENERATION failures. The package
+//   delivers those already localized, through
+//   `describePdfError(err, dictFor(locale))` — an entry of our own here would
+//   be a second translation of the same phrase, to fall out of sync. See
+//   `lib/generationError.ts`.
+// - The raw `message` the PACKAGE throws. It is ENGLISH on purpose (a
+//   developer diagnostic: it goes to the log, the stack and Sentry) and
+//   appears only in the banner's "see detail", which is precisely "the raw message".
 //
-// `Locale` vem do pacote: quando ele ganhar um idioma novo, este arquivo
-// para de compilar até alguém traduzir. É de propósito.
+// `Locale` comes from the package: when it gains a new language, this file
+// stops compiling until someone translates. That is on purpose.
 
 const pt = {
   // ---- header ------------------------------------------------------------
   subtitulo: "— editor montado peça por peça, sem barra de abas",
   formatoTitle: "Versão do formato de template",
-  // Número no meio da frase => função, não concatenação no JSX: a ordem das
-  // palavras muda de idioma pra idioma.
+  // A number in the middle of a sentence => a function, not concatenation in
+  // the JSX: word order changes from language to language.
   formato: (versao: number, maxPaginas: number) => `formato v${versao} · até ${maxPaginas} páginas`,
   undoRedoTitle: "Undo/redo do template e dos vínculos, juntos",
   autosaveTitle: "Autosalvo no navegador (localStorage) a cada mudança",
@@ -129,26 +130,26 @@ const pt = {
     `${n === 1 ? "1 campo vai renderizar VAZIO no PDF." : `${n} campos vão renderizar VAZIOS no PDF.`} ` +
     "A geração não falha por isso — por isso este aviso existe.",
 
-  // ---- falhas de geração (lib/generationError.ts) ------------------------
-  // Sobraram TRÊS entradas. As outras quinze (páginas, glifo, expressão,
-  // imagem, fonte, versão de template, paginação travada) foram apagadas
-  // nesta rodada: `describePdfError` do pacote devolve título e ação já
-  // localizados, e manter cópia aqui era garantir duas frases divergentes
-  // pra mesma falha.
+  // ---- generation failures (lib/generationError.ts) ----------------------
+  // THREE entries are left. The other fifteen (pages, glyph, expression,
+  // image, font, template version, stuck pagination) were deleted in this
+  // round: the package's `describePdfError` returns an already-localized title
+  // and action, and keeping a copy here was guaranteeing two divergent phrases
+  // for the same failure.
   //
-  // Esta primeira fica por ESTRUTURA, não por falta de API: a ação do pacote
-  // pra `invalidPageSize` manda definir largura/altura "na aba Página", e
-  // este example não tem barra de abas — a peça é um cartão na coluna da
-  // direita. A classificação (`code`, `blame`, título, campo) continua vindo
-  // do pacote; só esta orientação de navegação é nossa.
+  // This first one stays for STRUCTURE, not for a missing API: the package's
+  // action for `invalidPageSize` says to set the width/height "on the Page
+  // tab", and this example has no tab bar — the part is a card in the
+  // right-hand column. The classification (`code`, `blame`, title, field)
+  // still comes from the package; only this navigation hint is ours.
   erroTamanhoAcao:
     'Confira largura/altura no cartão "Página" da coluna da direita — precisam ser dois números maiores que zero, em mm.',
-  // As duas do genérico: o que sobra quando o erro não é nosso NEM do pacote
-  // (fetch da fonte que falhou, TypeError de dentro do pdf-lib).
+  // The two generic ones: what is left when the error is neither ours NOR the
+  // package's (a failed fetch of the font, a TypeError from inside pdf-lib).
   erroGenericoTitulo: "Não deu pra gerar o PDF",
   erroGenericoAcao: "Confira o detalhe abaixo. Se não fizer sentido, salve o projeto e reporte.",
 
-  // ---- leitura de arquivo de projeto (lib/projectFile.ts) ----------------
+  // ---- reading a project file (lib/projectFile.ts) -----------------------
   projetoTitulo: "Arquivo de projeto inválido",
   projetoAcao: 'Carregue um arquivo salvo pelo botão "Salvar projeto" deste example. O detalhe abaixo diz o que faltou.',
   projetoSemTemplate: 'Falta "template" com "schemas".',
@@ -157,10 +158,10 @@ const pt = {
   projetoNaoLeu: "Não deu pra ler o arquivo — tente de novo.",
 };
 
-// `typeof pt` é o detalhe que importa: chave faltando NÃO COMPILA. Sem isso,
-// uma tradução esquecida viraria `undefined` renderizado como vazio na tela,
-// em silêncio. (E sem `as const` no `pt` de propósito — com ele o tipo seria
-// o literal em português e nada aqui poderia ser diferente.)
+// `typeof pt` is the detail that matters: a missing key DOES NOT COMPILE.
+// Without it, a forgotten translation would become `undefined` rendered as
+// empty on screen, silently. (And deliberately no `as const` on `pt` — with
+// it the type would be the Portuguese literal and nothing here could differ.)
 const en: typeof pt = {
   // ---- header ------------------------------------------------------------
   subtitulo: "— editor assembled piece by piece, no tab bar",
@@ -242,13 +243,13 @@ const en: typeof pt = {
     `${n === 1 ? "1 field will render EMPTY in the PDF." : `${n} fields will render EMPTY in the PDF.`} ` +
     "Generation does not fail because of it — which is exactly why this warning exists.",
 
-  // ---- falhas de geração -------------------------------------------------
+  // ---- generation failures -----------------------------------------------
   erroTamanhoAcao:
     'Check width/height in the "Page" card of the right column — they must be two numbers greater than zero, in mm.',
   erroGenericoTitulo: "Could not generate the PDF",
   erroGenericoAcao: "Check the detail below. If it makes no sense, save the project and report it.",
 
-  // ---- leitura de arquivo de projeto -------------------------------------
+  // ---- reading a project file --------------------------------------------
   projetoTitulo: "Invalid project file",
   projetoAcao: 'Load a file saved by this example\'s "Save project" button. The detail below says what was missing.',
   projetoSemTemplate: 'Missing "template" with "schemas".',

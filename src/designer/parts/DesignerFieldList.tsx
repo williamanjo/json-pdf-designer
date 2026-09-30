@@ -9,23 +9,23 @@ export type DesignerFieldListProps = {
   className?: string;
   style?: CSSProperties;
   whenTab?: TabGate;
-  // O título "Campos" acima da lista. Ligado por default; desligue quando o
-  // seu layout já rotula a região por fora.
+  // The "Fields" title above the list. On by default; turn it off when your
+  // layout already labels the region from outside.
   heading?: boolean;
   parts?: {
-    // O `<h3>` do título.
+    // The title's `<h3>`.
     heading?: PartStyle;
-    // A caixa que ROLA em volta da lista. É onde mora a altura máxima —
-    // sobrescreva aqui pra dar mais (ou nenhuma) rolagem.
+    // The box that SCROLLS around the list. That is where the maximum height
+    // lives — override it here to give more (or no) scrolling.
     scroll?: PartStyle;
   };
 };
 
-// Peça posicionável: a lista de campos (selecionar, renomear, travar,
-// reordenar z, remover).
+// A placeable part: the field list (select, rename, lock, reorder z,
+// remove).
 //
-// A raiz é `.jpd-stack`, a MESMA que o `Designer.tsx` tinha. Sem nível novo
-// de DOM.
+// The root is `.jpd-stack`, the SAME one `Designer.tsx` had. No new DOM
+// level.
 export function DesignerFieldList({ whenTab, ...rest }: DesignerFieldListProps) {
   if (!useTabGate(whenTab)) return null;
   return <DesignerFieldListBody {...rest} />;
@@ -36,8 +36,8 @@ function DesignerFieldListBody({ className, style, heading = true, parts }: Omit
   const { template, bindings } = useDesignerData();
   const { selectedIds, selectedKpiElement, setSelectedKpiElement, handleSelect } = useDesignerSelection();
   const { updateSchema, removeSchema, bringToFront, sendToBack, renameSchema } = useDesignerActions();
-  // A lista espelha o que o canvas mostra (modo isolado troca o conjunto) —
-  // ver fieldListSchemasOf em context/derived.ts.
+  // The list mirrors what the canvas shows (isolated mode swaps the set) —
+  // see fieldListSchemasOf in context/derived.ts.
   const schemas = useDesignerFieldListSchemas();
 
   const h = readPart(parts?.heading);
@@ -45,9 +45,9 @@ function DesignerFieldListBody({ className, style, heading = true, parts }: Omit
 
   return (
     <div className={cx("jpd-stack", className)} data-part="field-list" style={style}>
-      {/* `jpd-stack` (gap 8px) faz o papel do `mb-2` que estava no <h3>:
-          `.jpd-sectionhead` carrega `margin: 0` do grupo de reset, então a
-          margem tinha de sair do título de qualquer forma. */}
+      {/* `jpd-stack` (8px gap) plays the role of the `mb-2` that was on the
+          <h3>: `.jpd-sectionhead` carries `margin: 0` from the reset group, so
+          the margin had to leave the title one way or another. */}
       {heading && (
         <h3 className={cx("jpd-sectionhead", h.className)} style={h.style}>
           {t.fieldsPanel.heading}

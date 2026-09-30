@@ -9,10 +9,10 @@ type Props = {
 };
 
 export function TextField({ schema, editing, onUpdate, onStopEditing }: Props) {
-  // Só o que vem do TEMPLATE do usuário fica inline. Tamanho/cor/alinhamento/
-  // fundo/borda são DADO do schema, não tema — nenhum deles pode virar regra
-  // de folha de estilo. O resto (100%x100%, padding 2, box-sizing, pre-wrap,
-  // resize/outline/font-family) é fixo e mora no CSS.
+  // Only what comes from the user's TEMPLATE stays inline. Size/color/alignment/
+  // background/border are schema DATA, not theme — none of them can become a
+  // stylesheet rule. The rest (100%x100%, padding 2, box-sizing, pre-wrap,
+  // resize/outline/font-family) is fixed and lives in the CSS.
   const baseStyle: React.CSSProperties = {
     fontSize: mmToPx(schema.fontSize * 0.3528),
     color: schema.fontColor,
@@ -21,10 +21,10 @@ export function TextField({ schema, editing, onUpdate, onStopEditing }: Props) {
   };
 
   if (editing) {
-    // A borda do schema NÃO entra aqui de propósito: no modo de edição ela
-    // sempre foi anulada (era `border: "none"` depois do spread). Como agora o
-    // `border: 0 solid` mora na classe, passar a borda inline a faria
-    // reaparecer — inline vence classe.
+    // The schema border deliberately does NOT come in here: in editing mode it
+    // was always cancelled (it was `border: "none"` after the spread). Since
+    // `border: 0 solid` now lives in the class, passing the border inline
+    // would bring it back — inline beats class.
     return (
       <textarea
         autoFocus

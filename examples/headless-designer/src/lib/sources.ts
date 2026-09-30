@@ -1,22 +1,23 @@
-// Uma fonte de dados JSON. O tipo mora AQUI (e não no painel que o edita)
-// porque quem depende dele é o motor de mescla abaixo, o autosave e o
-// próprio App — o painel é só uma das telas que o mostram.
+// One JSON data source. The type lives HERE (and not in the panel that edits
+// it) because what depends on it is the merge engine below, the autosave and
+// the App itself — the panel is only one of the screens that show it.
 export type JsonSource = { id: string; name: string; raw: string };
 
-// Junta N fontes JSON num objeto só, nível superior — em caso de chave
-// repetida, a fonte mais pra baixo na lista vence. Erro de uma fonte
-// (JSON inválido, ou não é objeto) não impede as outras de entrar na
-// mescla; só fica de fora e aparece marcada.
-// POR QUE UM CÓDIGO, e não a frase pronta.
+// It merges N JSON sources into a single object, at the top level — on a
+// repeated key, the source further down the list wins. An error in one source
+// (invalid JSON, or not an object) does not stop the others from entering the
+// merge; it is simply left out and shown marked.
+// WHY A CODE, and not the finished phrase.
 //
-// Estas duas mensagens eram STRING INGLESA cravada aqui, e iam pra estado
-// (`errorsById` no App). O painel embrulhava num prefixo traduzido
-// (`tt.sources.parseError`), então o resultado era meio traduzido: "Erro:
-// Invalid JSON." — o rótulo em português e a razão em inglês, em toda sessão
-// pt-BR. Trocar o idioma não mudava nada, porque a frase já estava em estado.
+// These two messages used to be an ENGLISH STRING hardcoded here, and they
+// went into state (`errorsById` in the App). The panel wrapped them in a
+// translated prefix (`tt.sources.parseError`), so the result was half
+// translated: "Erro: Invalid JSON." — the label in Portuguese and the reason
+// in English, in every pt-BR session. Switching the language changed nothing,
+// because the phrase was already in state.
 //
-// Com o código, o estado guarda O QUE FALHOU e o painel resolve o texto na
-// renderização, no idioma daquele render.
+// With the code, the state holds WHAT FAILED and the panel resolves the text
+// at render time, in the language of that render.
 export type SourceErrorCode = "invalidJson" | "notAnObject";
 
 export function mergeSources(sources: JsonSource[]): { data: Record<string, unknown>; errorsById: Record<string, SourceErrorCode> } {

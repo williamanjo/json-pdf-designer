@@ -11,11 +11,11 @@ type Props = {
   onChangeSources: (sources: JsonSource[]) => void;
   onResync: () => void;
   fieldCount: number;
-  // CÓDIGO, não frase: a tradução acontece aqui embaixo, no render (ver
-  // lib/sources.ts pro porquê).
+  // A CODE, not a phrase: the translation happens down here, at render time
+  // (see lib/sources.ts for why).
   errorsById: Record<string, SourceErrorCode>;
-  // O MESMO `locale` do <Designer> (ver App.tsx) — aqui ele escolhe o
-  // dicionário da casca.
+  // The SAME `locale` as the <Designer> (see App.tsx) — here it picks the
+  // shell's dictionary.
   locale: Locale;
 };
 
@@ -23,31 +23,30 @@ function nameFromFile(file: File): string {
   return file.name.replace(/\.json$/i, "");
 }
 
-// Uma ou mais fontes de JSON — cada arquivo/bloco colado vira uma entrada;
-// na hora de gerar (App.tsx), todas são mescladas (nível superior, último
-// sobrescreve em caso de chave repetida) num objeto só antes de vincular
-// campo. "Resync campos" atualiza a lista de campos disponíveis com base
-// nessa mescla.
+// One or more JSON sources — each file/pasted block becomes an entry; at
+// generation time (App.tsx), all of them are merged (top level, the last one
+// wins on a repeated key) into a single object before binding a field. "Resync
+// fields" updates the list of available fields based on that merge.
 //
-// Input/textarea/ícones são HTML nativo + classes `.app-*` de
-// src/index.css — nenhum Card/Input/Textarea/ícone do pacote. Não por
-// pureza: é que os primitivos do pacote são estilizados pelo `theme.css`,
-// e este example precisa que a CASCA prove o dark mode dela por conta.
+// The input/textarea/icons are native HTML + `.app-*` classes from
+// src/index.css — no Card/Input/Textarea/icon from the package. Not out of
+// purity: it is that the package's primitives are styled by `theme.css`, and
+// this example needs the SHELL to prove its dark mode on its own.
 export default function DataSourcePanel({ sources, onChangeSources, onResync, fieldCount, errorsById, locale }: Props) {
   const s = t(locale);
   const [isDragOver, setIsDragOver] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
-  // NOMES de arquivo, não a frase pronta.
+  // File NAMES, not the finished phrase.
   //
-  // Antes isto era `string | null` com a mensagem já traduzida: cada leitura
-  // que falhava virava `"Não deu pra ler \"x.json\"."` na hora do erro, as
-  // frases eram juntadas com espaço e o resultado ia pra estado. Frase
-  // traduzida em estado congela no idioma em que nasceu — trocar o seletor
-  // deixava o aviso na língua antiga. E juntar N frases num parágrafo só
-  // dependia de elas terminarem em ponto.
+  // This used to be a `string | null` with the already-translated message:
+  // each read that failed became `"Não deu pra ler \"x.json\"."` at the moment
+  // of the error, the phrases were joined with a space and the result went
+  // into state. A translated phrase in state freezes in the language it was
+  // born in — switching the picker left the warning in the old language. And
+  // joining N phrases into one paragraph depended on each ending in a period.
   //
-  // Guardando os nomes (que são DADO, e não se traduzem), a frase é montada na
-  // renderização, uma por arquivo.
+  // Holding the names (which are DATA, and are not translated), the phrase is
+  // built at render time, one per file.
   const [failedReads, setFailedReads] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,17 +59,17 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
     });
   }
 
-  // Lê TODOS os arquivos do lote antes de chamar onChangeSources uma vez só
-  // — disparar um onChangeSources por arquivo dentro do forEach fazia cada
-  // callback de onload capturar o MESMO `sources` (stale closure), então
-  // soltar 2+ arquivos de uma vez só mantinha o último (cada um sobrescrevia
-  // o anterior em vez de acumular).
+  // It reads ALL the files of the batch before calling onChangeSources once
+  // — firing one onChangeSources per file inside the forEach made each onload
+  // callback capture the SAME `sources` (a stale closure), so dropping 2+ files
+  // at once kept only the last one (each overwrote the previous instead of
+  // accumulating).
   async function addFilesAsSources(files: FileList) {
     setFailedReads([]);
-    // Materializado numa lista: o índice é o que amarra cada resultado ao
-    // arquivo dele, porque `Promise.allSettled` preserva a ordem mas a
-    // rejeição não carrega a entrada. É assim que o nome chega ao aviso sem
-    // ninguém ter que embutir texto no erro.
+    // Materialized into a list: the index is what ties each result to its own
+    // file, because `Promise.allSettled` preserves the order but the rejection
+    // does not carry the entry. That is how the name reaches the warning
+    // without anyone having to embed text in the error.
     const picked = Array.from(files);
     const results = await Promise.allSettled(picked.map((file) => readFileAsText(file)));
     const newSources: JsonSource[] = [];
@@ -98,10 +97,10 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
     e.target.value = "";
   }
 
-  // `fonte_N` NÃO passa pelo dicionário, e o placeholder abaixo acompanha:
-  // o nome da fonte é DADO (a pessoa edita, e ele vai pro autosave junto do
-  // resto do projeto), do mesmo jeito que o "principal" da fonte inicial em
-  // App.tsx. Traduzir aqui renomearia o dado de quem trocasse de idioma.
+  // `fonte_N` does NOT go through the dictionary, and the placeholder below
+  // follows: the source's name is DATA (the person edits it, and it goes into
+  // the autosave along with the rest of the project), just like the "principal"
+  // of the initial source in App.tsx. Translating here would rename the data.
   function addBlankSource() {
     onChangeSources([...sources, { id: uid(), name: `fonte_${sources.length + 1}`, raw: "{}" }]);
   }

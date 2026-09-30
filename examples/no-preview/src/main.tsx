@@ -1,13 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-// CSS pronto do pacote — o <Designer> inteiro (toolbar, painel de
-// propriedades, editor de vínculo) depende dele. Não tem nada de pdf.js
-// aqui: o theme.css é o MESMO arquivo pra qualquer entry.
+// The package's ready-made CSS — the whole <Designer> (toolbar, property
+// panel, binding editor) depends on it. There is nothing of pdf.js here: the
+// theme.css is the SAME file for any entry.
 //
-// Este exemplo é o smoke test do editor SEM pipeline de Tailwind nenhum
-// (nem o do app, nem o do pacote — ver vite.config.ts). Se o theme.css
-// deixar de carregar algo que o Preflight dava de graça, aparece aqui
-// antes de aparecer no report-builder.
+// This example is the smoke test of the editor with NO Tailwind pipeline at
+// all (neither the app's nor the package's — see vite.config.ts). If the
+// theme.css stops loading something Preflight gave for free, it shows up here
+// before it shows up in report-builder.
 import "json-pdf-designer/theme.css";
 import "./index.css";
 import App from "./App.tsx";

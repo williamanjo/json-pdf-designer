@@ -1,9 +1,9 @@
-// Formatação pt-BR compartilhada — antes cada consumidor (CURRENCY dentro
-// de template, ver bindings.ts; KPI, ver kpi/format.ts; gráfico, ver
-// pdf/render/renderChart.ts) reimplementava seu próprio `toLocaleString("pt-BR", ...)`.
-// Só 2 eixos variam de verdade entre eles: casas decimais fixas (moeda,
-// sempre ".00") ou só-teto (KPI/número solto, inteiro fica sem casa), e
-// separador de milhar ligado/desligado.
+// Shared pt-BR formatting — each consumer used to reimplement its own
+// `toLocaleString("pt-BR", ...)` (CURRENCY inside a template, see bindings.ts;
+// the KPI, see kpi/format.ts; the chart, see pdf/render/renderChart.ts).
+// Only 2 axes really vary between them: fixed decimal places (currency, always
+// ".00") or a ceiling only (a KPI/loose number, an integer keeps no places),
+// and the thousands separator on or off.
 export function formatPtBrNumber(
   value: number,
   opts: { decimals?: number; forceDecimals?: boolean; grouping?: boolean } = {}

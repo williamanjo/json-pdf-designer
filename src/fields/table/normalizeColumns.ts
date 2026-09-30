@@ -1,30 +1,30 @@
 import type { Binding, Template, TableSchema, TableColumn } from "../../types";
 import { tokenFor } from "./columnFormula";
 
-// NORMALIZAR COLUNA DE CHAVE CRUA PRA TOKEN.
+// NORMALIZING A RAW-KEY COLUMN INTO A TOKEN.
 //
-// O modelo tinha duas formas pra "de onde vem o valor desta coluna":
+// The model had two forms for "where does this column's value come from":
 //
-//   binding.columns[i] = "fatura"                      // chave crua
-//   binding.columns[i] = { label, formula: "{fatura}" } // calculada
+//   binding.columns[i] = "fatura"                      // a raw key
+//   binding.columns[i] = { label, formula: "{fatura}" } // calculated
 //
-// e a chave crua era a fonte de três problemas de uma vez: o `ƒx` abria vazio
-// (o painel só mostrava a forma de objeto), renomear o título reescrevia a
-// chave crua com o título novo, e o resolver tinha três níveis de fallback
-// pra decidir a célula. Com o token, a referência mora na fórmula e nada mais
-// depende do rótulo.
+// and the raw key was the source of three problems at once: the `ƒx` opened
+// empty (the panel only showed the object form), renaming the title rewrote
+// the raw key with the new title, and the resolver had three levels of
+// fallback to decide the cell. With the token, the reference lives in the
+// formula and nothing else depends on the label.
 //
-// NÃO tem bump de `TemplateVersion` de propósito: a chave da coluna vive nos
-// BINDINGS, que não fazem parte do `Template` — `migrateTemplate` não
-// conseguiria fazer isto sozinho, e um migrador que só olha o template
-// deixaria metade do trabalho pela metade.
+// There is deliberately NO `TemplateVersion` bump: the column key lives in
+// the BINDINGS, which are not part of the `Template` — `migrateTemplate`
+// could not do this on its own, and a migrator that only looks at the
+// template would leave half the work undone.
 //
-// Também não é chamado no `<DesignerProvider>`: reescrever o template do
-// consumidor na montagem é efeito colateral invisível. Quem carrega projeto
-// salvo chama isto explicitamente (ver examples/report-builder).
+// It is also not called in the `<DesignerProvider>`: rewriting the consumer's
+// template on mount is an invisible side effect. Whoever loads a saved
+// project calls this explicitly (see examples/report-builder).
 //
-// Idempotente: rodar duas vezes não muda nada, porque a segunda passada
-// encontra `content` já com `{` e só confirma o vínculo.
+// Idempotent: running it twice changes nothing, because the second pass finds
+// `content` already holding a `{` and only confirms the binding.
 export function normalizeTableColumns(
   template: Template,
   bindings: Binding[]
@@ -50,8 +50,8 @@ export function normalizeTableColumns(
       const cell = content[i];
       const col = columns[i];
 
-      // A célula já é template: ela é a autoridade do PDF, então o vínculo é
-      // que se alinha a ela — nunca o contrário.
+      // The cell is already a template: it is the PDF's authority, so the
+      // binding is what aligns to it — never the other way around.
       if (cell && cell.includes("{")) {
         if (typeof col === "string" || col === undefined) {
           columns[i] = { label: rotulo, formula: cell };
@@ -59,7 +59,7 @@ export function normalizeTableColumns(
         return;
       }
 
-      // Chave crua: a referência vira token nos dois lugares.
+      // A raw key: the reference becomes a token in both places.
       if (typeof col === "string") {
         const token = tokenFor(col);
         content[i] = token;
@@ -71,8 +71,8 @@ export function normalizeTableColumns(
     colunasNovas.set(tabela.name, columns);
     if (!mudou) return tabela;
     mudouTemplate = true;
-    // Só a linha 0 é a linha de DESIGN (a fórmula da coluna); as outras são
-    // preview e acompanham a mesma troca por índice.
+    // Only row 0 is the DESIGN row (the column's formula); the others are
+    // preview and follow the same swap by index.
     return { ...tabela, content: [content, ...tabela.content.slice(1)] };
   }
 

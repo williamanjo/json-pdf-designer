@@ -6,48 +6,48 @@ import { stripComments } from "./support/classScan";
 import { ModalShell } from "../src/components/ui/Modal";
 import { CardTitle } from "../src/components/ui/Card";
 
-// ACESSIBILIDADE — o que a 3.3.0 consertou, guardado contra volta.
+// ACCESSIBILITY — what 3.3.0 fixed, guarded against coming back.
 //
-// Três coisas independentes moram aqui:
+// Three independent things live here:
 //
-//   1. A marcação de diálogo do modal, que dá pra afirmar sem DOM (é
-//      exatamente por isso que `ModalShell` existe separado do `Modal`).
-//   2. Guards de FONTE pra operação que era só-mouse. Renomear coluna,
-//      renomear campo, selecionar campo e esconder aba existiam apenas como
-//      `onClick`/`onDoubleClick` em `<div>`/`<span>` sem tabIndex — quem
-//      navega por teclado não alcançava nenhuma delas. O guard olha a fonte
-//      porque o que importa é o TIPO DE ELEMENTO, e um teste de
-//      comportamento em jsdom passaria com um `<div role="button">` que não
-//      resolve o problema.
-//   3. Que o plugin de a11y do linter continue ligado — foi a ausência dele
-//      que deixou 25 avisos entrarem sem ninguém ver.
+//   1. The modal's dialog markup, which can be asserted without a DOM (that
+//      is exactly why `ModalShell` exists separately from `Modal`).
+//   2. SOURCE guards for operations that were mouse-only. Renaming a column,
+//      renaming a field, selecting a field and hiding a tab existed only as
+//      `onClick`/`onDoubleClick` on `<div>`/`<span>` with no tabIndex —
+//      keyboard users could reach none of them. The guard looks at the source
+//      because what matters is the ELEMENT TYPE, and a behavior test in jsdom
+//      would pass with a `<div role="button">` that does not solve the
+//      problem.
+//   3. That the linter's a11y plugin stays on — it was its absence that let
+//      25 warnings in without anyone seeing.
 
 const RAIZ = join(__dirname, "..");
-// COM os comentários removidos, sempre. Estes guards afirmam sobre o TIPO DE
-// ELEMENTO no JSX, e os comentários deste repo citam o código antigo de
-// propósito ("era um <span role=\"button\">") — o primeiro guard escrito aqui
-// falhou casando exatamente o comentário que explicava a correção.
+// WITH the comments stripped, always. These guards assert about the ELEMENT
+// TYPE in the JSX, and this repo's comments deliberately quote the old code
+// ("it used to be a <span role=\"button\">") — the first guard written here
+// failed by matching exactly the comment that explained the fix.
 const ler = (rel: string) => stripComments(readFileSync(join(RAIZ, rel), "utf8"));
-// Sem tirar comentário — pro .oxlintrc.json, onde o que interessa é o texto
-// da configuração (e o motivo escrito ao lado dela).
+// Without stripping comments — for .oxlintrc.json, where what matters is the
+// configuration's text (and the reason written next to it).
 const lerCru = (rel: string) => readFileSync(join(RAIZ, rel), "utf8");
 
 const base = { title: "Editor de fórmula", onClose: () => {}, closeLabel: "Fechar" };
 
 describe("a11y — o modal se anuncia como diálogo", () => {
   it("o painel leva role=dialog e aria-modal", () => {
-    // Sem os dois, leitor de tela não diz que abriu um diálogo e segue
-    // oferecendo a página inteira atrás do fundo escurecido.
+    // Without both, a screen reader does not say that a dialog opened and
+    // keeps offering the whole page behind the dimmed background.
     const html = renderToStaticMarkup(<ModalShell {...base}>x</ModalShell>);
     expect(html).toContain('role="dialog"');
     expect(html).toContain('aria-modal="true"');
   });
 
   it("o aria-labelledby aponta pro id do <h3> que está na tela", () => {
-    // `aria-labelledby` em vez de `aria-label={title}` justamente pra os dois
-    // não poderem divergir. O teste confere que o id REFERENCIADO é o id que
-    // o heading realmente tem — um `aria-labelledby` apontando pra nada é
-    // pior que nenhum, porque o diálogo fica sem nome nenhum.
+    // `aria-labelledby` instead of `aria-label={title}` precisely so the two
+    // cannot diverge. The test checks that the REFERENCED id is the id the
+    // heading actually has — an `aria-labelledby` pointing at nothing is worse
+    // than none, because the dialog ends up with no name at all.
     const html = renderToStaticMarkup(<ModalShell {...base}>x</ModalShell>);
     const ref = html.match(/aria-labelledby="([^"]+)"/);
     expect(ref, "o painel saiu sem aria-labelledby").not.toBeNull();
@@ -55,24 +55,24 @@ describe("a11y — o modal se anuncia como diálogo", () => {
   });
 
   it("o painel é focável por código, e não é parada de Tab", () => {
-    // `tabIndex={-1}`: painel sem controle focável dentro ainda precisa
-    // receber o foco (senão ele fica no documento atrás), mas não deve ser
-    // uma parada de Tab própria.
+    // `tabIndex={-1}`: a panel with no focusable control inside still has to
+    // receive focus (otherwise it stays on the document behind), but it must
+    // not be a Tab stop of its own.
     expect(renderToStaticMarkup(<ModalShell {...base}>x</ModalShell>)).toContain('tabindex="-1"');
   });
 
   it("o overlay não finge ser controle", () => {
-    // Ele fecha no clique, que é atalho de MOUSE — o caminho por teclado é o
-    // Escape e o "×". `role="presentation"` é o que diz isso; um
-    // `role="button"` ali seria uma parada de Tab invisível.
+    // It closes on a click, which is a MOUSE shortcut — the keyboard path is
+    // Escape and the "×". `role="presentation"` is what says so; a
+    // `role="button"` there would be an invisible Tab stop.
     expect(renderToStaticMarkup(<ModalShell {...base}>x</ModalShell>)).toContain('role="presentation"');
   });
 
   it("todo modal do pacote carrega a marcação de diálogo", () => {
-    // O `PdfPreviewModal` NÃO passa pela casca do `Modal` (a dele carrega o
-    // cálculo de zoom), então ele tinha de receber tudo isso à mão — e era o
-    // único modal do pacote que nem fechava com Escape. Guard de fonte pra um
-    // quarto modal não nascer sem nada disso.
+    // The `PdfPreviewModal` does NOT go through the `Modal` shell (its own
+    // carries the zoom computation), so it had to receive all of this by hand
+    // — and it was the only modal in the package that did not even close on
+    // Escape. A source guard so a fourth modal is not born without any of it.
     const modais = ["src/components/ui/Modal.tsx", "src/components/PdfPreviewModal.tsx"];
     for (const rel of modais) {
       const fonte = ler(rel);

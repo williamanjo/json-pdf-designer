@@ -3,23 +3,24 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// O SELETOR DE IDIOMA TROCA AS DUAS CAMADAS.
+// THE LANGUAGE PICKER SWAPS BOTH LAYERS.
 //
-// A lição de i18n da lib: o pacote traduz o que é DELE, e o `locale` que o
-// app já tem no estado alimenta os dois dicionários — o nosso e o dele. Um
-// switch, duas responsabilidades.
+// The lib's i18n lesson: the package translates what is ITS OWN, and the
+// `locale` the app already has in state feeds both dictionaries — ours and
+// theirs. One switch, two responsibilities.
 //
-// Antes desta rodada o seletor de cada example trocava só o chrome do
-// EDITOR; a casca do app ficava em português fixo. Da perspectiva de quem
-// abre o example em inglês, metade da tela não obedecia ao próprio controle.
+// Before this round each example's picker swapped only the EDITOR's chrome;
+// the app's shell stayed in hardcoded Portuguese. From the perspective of
+// someone opening the example in English, half the screen did not obey its own
+// control.
 //
-// Este guard cobre os três jeitos de isso apodrecer em silêncio:
+// This guard covers the three ways that rots silently:
 //
-//   1. Um example volta a ter texto de UI cravado (nada avisa: renderiza).
-//   2. Um dicionário fica com chave faltando num idioma (renderiza VAZIO).
-//   3. Alguém traduz o que é DADO — conteúdo de template, JSON de amostra,
-//      nome de campo. Isso não é bug de tradução, é bug de conceito: o
-//      idioma da INTERFACE não é o idioma do DOCUMENTO.
+//   1. An example goes back to hardcoded UI text (nothing warns: it renders).
+//   2. A dictionary is left missing a key in one language (it renders EMPTY).
+//   3. Someone translates what is DATA — template content, sample JSON, a
+//      field name. That is not a translation bug, it is a conceptual one: the
+//      INTERFACE's language is not the DOCUMENT's language.
 
 const RAIZ = join(__dirname, "..");
 const EX = join(RAIZ, "examples");
@@ -46,8 +47,8 @@ function arquivos(dir: string, filtro: (nome: string) => boolean): string[] {
   return out;
 }
 
-// Comentário fora antes de qualquer varredura. Os examples comentam MUITO, e
-// em português — sem o strip, todo teste abaixo acusaria prosa explicativa.
+// Comments stripped before any scan. The examples comment A LOT, and in
+// Portuguese — without the strip, every test below would flag explanatory prose.
 function semComentario(code: string): string {
   return code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
@@ -67,9 +68,9 @@ describe("examples — cada um tem dicionário próprio", () => {
 });
 
 describe("examples — tradução esquecida não compila", () => {
-  // O padrão que o briefing pede é `const en: typeof pt = { ... }`. Sem essa
-  // âncora de tipo, chave faltando vira `undefined` e renderiza VAZIO — o
-  // pior modo de falha de i18n, porque some da tela sem erro.
+  // The pattern the briefing asks for is `const en: typeof pt = { ... }`.
+  // Without that type anchor, a missing key becomes `undefined` and renders
+  // EMPTY — i18n's worst failure mode, because it vanishes with no error.
   for (const dir of exampleDirs()) {
     it(`${dir} ancora o segundo idioma no tipo do primeiro`, () => {
       const fontes = arquivos(dir, (n) => /\.tsx?$/.test(n))

@@ -3,37 +3,37 @@ import type { Dict } from "./i18n";
 import { en } from "./i18n/locales/en";
 import { bindingExpressionErrors, schemaExpressionErrors, type SchemaExpressionError } from "./expressions/schemaExpressions";
 
-// Aviso de configuração incompleta — usado no ícone de alerta da lista de
-// campos (FieldList.tsx) e nas abas do próprio painel do campo
-// (PropertyPanelChart.tsx), pra apontar ONDE mexer, não só QUE tem
-// problema. Só cobre casos que sempre são erro de verdade — tabela/texto
-// sem vínculo fica de fora de propósito (pode ser conteúdo estático
-// legítimo, não uma seção/gráfico esquecido pela metade).
+// A warning about incomplete configuration — used by the alert icon in the
+// field list (FieldList.tsx) and by the tabs of the field's own panel
+// (PropertyPanelChart.tsx), to point at WHERE to fix, not merely THAT there
+// is a problem. It only covers cases that are always a real mistake — a
+// table/text with no binding is deliberately left out (it may be legitimate
+// static content, not a half-forgotten section/chart).
 
-// Vinculado a um array (chart/table/kpi) mas alguma condição de filtro tem
-// coluna escolhida e valor em branco — filtro montado pela metade, que
-// filtraria tudo fora sem o usuário perceber.
+// Bound to an array (chart/table/kpi) but some filter condition has a chosen
+// column and a blank value — a half-built filter, which would filter
+// everything out without the user noticing.
 export function filterIncomplete(binding: Binding | undefined): boolean {
   if (!binding || (binding.type !== "chart" && binding.type !== "array" && binding.type !== "kpi")) return false;
   return (binding.filters ?? []).some((group) => group.some((cond) => cond.column && !cond.value.trim()));
 }
 
-// Expressão `{...}` (ou condição de `visibleWhen`) sintaticamente inválida em
-// qualquer campo do schema/vínculo. Este aviso existe porque a GERAÇÃO é
-// tolerante de propósito: expressão inválida resolve pra "" em vez de derrubar
-// o PDF (ver expressions/resolve.ts). Sem o aviso, o campo apareceria em
-// branco e ninguém saberia por quê — é aqui que o problema fica visível, antes
-// de gerar.
+// A syntactically invalid `{...}` expression (or `visibleWhen` condition) in
+// any field of the schema/binding. This warning exists because GENERATION is
+// deliberately tolerant: an invalid expression resolves to "" instead of
+// bringing the PDF down (see expressions/resolve.ts). Without the warning,
+// the field would show up blank and nobody would know why — this is where the
+// problem becomes visible, before generating.
 export function expressionErrors(schema: Schema, binding: Binding | undefined, t: Dict = en): SchemaExpressionError[] {
   return [...schemaExpressionErrors(schema, t), ...bindingExpressionErrors(binding, t)];
 }
 
-// Mensagem pro ícone de alerta na lista de campos — null se tá tudo certo.
+// The message for the alert icon in the field list — null if all is well.
 export function fieldWarning(schema: Schema, binding: Binding | undefined, t: Dict = en): string | null {
-  // Vem primeiro: erro de sintaxe é a única coisa aqui que já está fazendo o
-  // relatório sair errado (campo em branco), não só "configuração pela metade".
-  // Erro antes de aviso: um deles já garante campo vazio, o outro só é
-  // suspeita (chave de JSON com "/" no nome é uso legítimo).
+  // It comes first: a syntax error is the only thing here that is already
+  // making the report come out wrong (a blank field), not merely "half
+  // configured". An error before a warning: one of them guarantees an empty
+  // field, the other is only a suspicion (a JSON key with "/" is legitimate).
   const problems = expressionErrors(schema, binding, t);
   const error = problems.find((p) => p.severity === "error");
   if (error) {

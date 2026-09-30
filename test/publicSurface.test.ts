@@ -5,35 +5,37 @@ import { describe, expect, it } from "vitest";
 import * as api from "../src/index";
 import * as kit from "../src/components/ui";
 
-// Guards da SUPERFÍCIE PÚBLICA.
+// PUBLIC SURFACE guards.
 //
-// Export é promessa: uma vez publicado, tirar é breaking change. E o modo de
-// falha é assimétrico — exportar por acidente não quebra nada hoje e custa um
-// major amanhã; ESQUECER de exportar um `*Props` faz o adapter de 5 linhas do
-// consumidor não compilar, e ele não tem como saber que o tipo existe.
+// An export is a promise: once published, removing it is a breaking change.
+// And the failure mode is asymmetric — exporting by accident breaks nothing
+// today and costs a major tomorrow; FORGETTING to export a `*Props` makes the
+// consumer's 5-line adapter fail to compile, and they have no way of knowing
+// the type exists.
 //
-// Daí dois testes de naturezas diferentes:
+// Hence two tests of different natures:
 //
-//   1. Um INVENTÁRIO explícito. Adicionar ou remover export passa a ser uma
-//      edição revisada, não um efeito colateral.
-//   2. Uma REGRA: todo componente exportado leva o `*Props` dele.
+//   1. An explicit INVENTORY. Adding or removing an export becomes a reviewed
+//      edit, not a side effect.
+//   2. A RULE: every exported component brings its `*Props` along.
 
 const FONTE = readFileSync(join(__dirname, "..", "src", "index.ts"), "utf8");
-// A fonte de src/errors.ts — o inventário das classes de erro é derivado DELA
-// (e conferido contra o barrel), em vez de repetido à mão: classe nova sem
-// export vira falha, sem ninguém precisar lembrar de atualizar uma lista.
+// The source of src/errors.ts — the inventory of error classes is derived FROM
+// IT (and checked against the barrel), instead of repeated by hand: a new
+// class with no export becomes a failure, with nobody having to remember to
+// update a list.
 const LEITURA_ERRORS = readFileSync(join(__dirname, "..", "src", "errors.ts"), "utf8");
 
-// Nomes de tipo que o barrel exporta, nas TRÊS formas que o arquivo usa:
+// The type names the barrel exports, in the THREE forms the file uses:
 //
-//   export { Foo, type FooProps } from "..."     (lista mista)
-//   export type { A, B } from "..."              (lista só de tipos)
-//   export type Foo = ...                        (declaração local)
+//   export { Foo, type FooProps } from "..."     (a mixed list)
+//   export type { A, B } from "..."              (a types-only list)
+//   export type Foo = ...                        (a local declaration)
 //
-// A primeira versão deste helper era um `new RegExp("\\btype " + nome)`, e ele
-// silenciosamente NÃO casava a segunda forma — ali `type` é seguido de `{`, e
-// não do nome. O teste dos `*Props` passava (eles usam a forma mista) e só o
-// dos tipos de estilo falhava, o que foi a pista.
+// The first version of this helper was a `new RegExp("\\btype " + name)`, and
+// it silently did NOT match the second form — there `type` is followed by `{`,
+// and not by the name. The `*Props` test passed (they use the mixed form) and
+// only the styling types one failed, which was the clue.
 function exportedTypes(fonte: string): Set<string> {
   const nomes = new Set<string>();
   for (const m of fonte.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)) {
@@ -52,9 +54,9 @@ function exportedTypes(fonte: string): Set<string> {
 
 const TIPOS = exportedTypes(FONTE);
 
-// Componentes e o `*Props` que cada um TEM de levar junto.
+// Components and the `*Props` each of them HAS to bring along.
 const COMPONENTES_COM_PROPS = [
-  // Preset e peças
+  // The preset and the parts
   "Designer",
   "DesignerBindingEditor",
   "DesignerCanvas",
@@ -88,11 +90,11 @@ const COMPONENTES_COM_PROPS = [
   "Textarea",
 ];
 
-// Exportados SEM `*Props` próprio, e o porquê de cada grupo.
+// Exported WITHOUT a `*Props` of their own, and the reason for each group.
 const SEM_PROPS_PROPRIO = [
-  // `CardHeader` é um `<div>` puro — as props dele são `CardProps`.
+  // `CardHeader` is a plain `<div>` — its props are `CardProps`.
   "CardHeader",
-  // Os 21 ícones compartilham `IconProps`.
+  // The 21 icons share `IconProps`.
   "IconAlertTriangle",
   "IconArrowsHorizontal",
   "IconArrowsVertical",
@@ -114,8 +116,8 @@ const SEM_PROPS_PROPRIO = [
   "IconTrash",
   "IconUpload",
   "IconX",
-  // Provider de i18n — as props dele são `{ locale, children }`, e `Locale`
-  // já sai daqui.
+  // The i18n provider — its props are `{ locale, children }`, and `Locale`
+  // already leaves from here.
   "I18nProvider",
 ];
 
@@ -123,11 +125,11 @@ describe("superfície pública — inventário de componentes", () => {
   it("exporta exatamente os componentes declarados", () => {
     const exportados = Object.entries(api)
       .filter(([nome, v]) => {
-        // forwardRef é objeto com `$$typeof`.
+        // forwardRef is an object with a `$$typeof`.
         if (typeof v === "object" && v !== null && "$$typeof" in (v as object)) return true;
-        // PascalCase + função = componente. Fábricas e helpers ficam fora
-        // por convenção de nome (camelCase ou SCREAMING_CASE); as classes de
-        // erro terminam em "Error".
+        // PascalCase + a function = a component. Factories and helpers are left
+        // out by naming convention (camelCase or SCREAMING_CASE); the error
+        // classes end in "Error".
         return typeof v === "function" && /^[A-Z]/.test(nome) && !/Error$/.test(nome);
       })
       .map(([nome]) => nome)
@@ -292,8 +294,8 @@ describe("superfície pública — o contrato dos erros", () => {
     // Prosa é o que evita o consumidor descobrir o desenho por tentativa. Se
     // alguém mudar o desenho outra vez, este teste força reescrever o
     // comentário no mesmo PR.
-    expect(/`error\.message` de todo `throw` do pacote está em INGLÊS/.test(FONTE), "o aviso de que a mensagem é inglês saiu do src/index.ts").toBe(true);
-    expect(/NÃO case regex na mensagem/.test(FONTE), "o aviso de não casar regex saiu do src/index.ts").toBe(true);
+    expect(/`error\.message` of every `throw` in the package is in ENGLISH/.test(FONTE), "o aviso de que a mensagem é inglês saiu do src/index.ts").toBe(true);
+    expect(/Do NOT regex-match on the message/.test(FONTE), "o aviso de não casar regex saiu do src/index.ts").toBe(true);
     expect(/describePdfError/.test(FONTE), "o localizador não está documentado junto dos exports").toBe(true);
   });
 

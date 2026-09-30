@@ -1,22 +1,22 @@
-// Matemática pura de fatia de pizza/rosca — usada tanto pelo preview no
-// canvas (SVG do navegador) quanto pelo desenho real no PDF (pdf-lib
-// aceita a mesma sintaxe de path SVG via drawSvgPath), pra garantir que os
-// dois desenhem exatamente a mesma forma.
+// Pure pie/donut slice math — used both by the canvas preview (the browser's
+// SVG) and by the real drawing in the PDF (pdf-lib accepts the same SVG path
+// syntax through drawSvgPath), to guarantee that the two draw exactly the
+// same shape.
 
-// Ponto na borda de um círculo, ângulo medido a partir do topo (12h),
-// sentido horário — y cresce pra baixo (convenção SVG).
+// A point on a circle's edge, with the angle measured from the top (12
+// o'clock), clockwise — y grows downward (the SVG convention).
 export function pointOnCircle(cx: number, cy: number, r: number, angleDeg: number): { x: number; y: number } {
   const rad = (angleDeg * Math.PI) / 180;
   return { x: cx + r * Math.sin(rad), y: cy - r * Math.cos(rad) };
 }
 
-// Path de UMA fatia. innerR <= 0 -> pizza cheia (fatia vai até o centro);
-// innerR > 0 -> rosca (fatia vira um "trapézio" curvo entre os dois raios).
-// sweepDeg é sempre travado abaixo de 360° — uma fatia sozinha fechando o
-// círculo inteiro deixaria início e fim coincidindo, o que o comando de
-// arco do SVG não desenha direito (ambíguo) — só acontece quando sobra 1
-// categoria só (sem "Outros"), caso raro e sem problema visual perceptível
-// perder 0.01° do círculo.
+// The path of ONE slice. innerR <= 0 -> a full pie (the slice reaches the
+// center); innerR > 0 -> a donut (the slice becomes a curved "trapezoid"
+// between the two radii). sweepDeg is always clamped below 360° — a lone
+// slice closing the whole circle would leave the start and the end
+// coinciding, which the SVG arc command does not draw properly (ambiguous) —
+// it only happens when a single category is left (no "Others"), a rare case
+// where losing 0.01° of the circle causes no visible problem.
 export function pieSlicePath(cx: number, cy: number, outerR: number, innerR: number, startDeg: number, sweepDegRaw: number): string {
   const sweepDeg = Math.min(sweepDegRaw, 359.99);
   const endDeg = startDeg + sweepDeg;

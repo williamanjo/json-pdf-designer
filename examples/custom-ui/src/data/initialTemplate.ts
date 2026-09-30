@@ -1,12 +1,12 @@
 import type { Template, Binding } from "json-pdf-designer";
 import initialSample from "./samples/initialSample.json";
 
-// Exemplo pronto: cabeçalho fixo, tabela vinculada a "rows" (grande o
-// bastante pra paginar em 2 páginas) e rodapé com numeração "Página X de Y"
-// — os tokens {pageNumber}/{pageCount} são resolvidos por página na hora
-// de gerar, sem precisar de vínculo (funcionam direto no texto do campo).
-// É o estado inicial do app (antes de qualquer exemplo do dropdown ser
-// escolhido) — não faz parte de data/templates/ (esses são os do dropdown).
+// A ready-made example: a fixed header, a table bound to "rows" (large
+// enough to paginate across 2 pages) and a footer with "Page X of Y"
+// numbering — the {pageNumber}/{pageCount} tokens are resolved per page at
+// generation time, with no binding needed (they work directly in the field's
+// text). It is the app's initial state (before any example from the dropdown
+// is chosen) — it is not part of data/templates/ (those are the dropdown's).
 export { initialSample };
 
 export const initialTemplate: Template = {

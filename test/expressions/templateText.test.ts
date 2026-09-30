@@ -11,7 +11,8 @@ describe("tokenAtCaret", () => {
   });
 
   it("no texto literal devolve null", () => {
-    // É o que faz o autocomplete não sugerir função onde é só texto.
+    // It is what stops the autocomplete from suggesting a function where it is
+// only text.
     expect(tokenAtCaret("FAT-{fatura}", 2)).toBeNull();
     expect(tokenAtCaret("FAT-{fatura} fim", 14)).toBeNull();
     expect(tokenAtCaret("", 0)).toBeNull();
@@ -48,8 +49,8 @@ describe("braceError", () => {
   });
 
   it("acusa chave aberta e não fechada, com a posição", () => {
-    // O caso que passava batido: o resolvedor casa /\{([^{}]+)\}/g, então um
-    // "{" sem par não casa e o trecho sai como TEXTO no PDF.
+    // The case that slipped through: the resolver matches /\{([^{}]+)\}/g, so
+    // an unpaired "{" does not match and the stretch comes out as TEXT in the PDF.
     const message = braceError("FAT-{CURRENCY(total");
     expect(message).toContain("4");
     expect(message).toMatch(/never closed/i);
@@ -68,7 +69,8 @@ describe("braceError", () => {
   });
 
   it("é exatamente o caso que renderiza literal", () => {
-    // Prova de que o aviso não é teórico: sem o fechamento, o texto sai cru.
+    // Proof that the warning is not theoretical: without the close, the text
+// comes out raw.
     const data = { fatura: "123" };
     expect(renderTemplate("FAT-{fatura", data)).toBe("FAT-{fatura");
     expect(braceError("FAT-{fatura")).not.toBeNull();

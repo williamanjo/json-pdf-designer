@@ -1,20 +1,20 @@
 import type { Binding, DataSourceColumnType, DataSourceOption, Schema, SectionSchema, Template } from "../types";
 import { snapToGrid } from "../page/units";
 
-// Funções puras extraídas de Designer.tsx — só dependem dos parâmetros
-// recebidos, nunca de estado React fechado por closure. Ficam num módulo
-// .ts (não .tsx) por dois motivos: dão pra testar direto, sem montar
-// componente nenhum, e um .tsx só pode exportar componente (senão quebra
-// o Fast Refresh, ver regra oxlint react(only-export-components)) — mesmo
-// padrão de src/bindings/builders.ts e src/canvas/geometry.ts.
+// Pure functions extracted from Designer.tsx — they depend only on the
+// parameters they receive, never on React state captured by a closure. They
+// live in a .ts module (not .tsx) for two reasons: they can be tested
+// directly, without mounting any component, and a .tsx may only export
+// components (otherwise Fast Refresh breaks, see the oxlint
+// react(only-export-components) rule) — same pattern as src/bindings/builders.ts.
 
-// Enquanto isolado (Designer isolateBands), campo novo nasce dentro da
-// primeira faixa vermelha disponível (header > footer > margem esquerda >
-// direita) em vez da posição padrão no corpo — senão nasceria escondido.
-// maxHeight/maxWidth limita o tamanho padrão do schema (ex: tabela de
-// 30mm) pra não extrapolar a faixa e cair de volta pro corpo por conta
-// própria altura. `null` quando nenhuma faixa tem espaço (>2mm) pra
-// receber campo novo.
+// While isolated (Designer isolateBands), a new field is born inside the
+// first available red band (header > footer > left margin > right) instead
+// of at the default position in the body — otherwise it would be born
+// hidden. maxHeight/maxWidth caps the schema's default size (e.g. a 30mm
+// table) so it does not overflow the band and fall back into the body by
+// its own height. `null` when no band has room (>2mm) to take a new
+// field.
 export function bandSpawnPosition(
   template: Template
 ): { x: number; y: number; maxHeight?: number; maxWidth?: number } | null {
@@ -26,18 +26,18 @@ export function bandSpawnPosition(
   return null;
 }
 
-// Posição de nascimento de um campo novo (Designer.addSchema) — dois
-// modos: isolado (dentro da faixa vermelha, ver bandSpawnPosition) ou
-// normal (sempre no CENTRO da área do corpo, não empilha mais embaixo do
-// último campo). Empilhar dependia de nextFreeY olhar só campos já
-// classificados como "corpo" (classifyZone), mas essa classificação é só
-// GEOMÉTRICA: um campo de rodapé posicionado um pouco fora do
-// footerHeight configurado (ex: y menor que page.height-footerHeight)
-// conta como corpo por acidente, virava o novo "chão", e todo campo novo
-// nascia empilhado logo abaixo dele — inclusive fora da página, cada "+"
-// clicado empurrando mais pra baixo em sequência. Nascer no centro
-// elimina essa dependência: a posição do próximo campo não depende mais
-// de onde os outros campos (mal classificados ou não) já estão.
+// The birth position of a new field (Designer.addSchema) — two modes:
+// isolated (inside the red band, see bandSpawnPosition) or normal (always
+// at the CENTER of the body area, it no longer stacks below the last
+// field). Stacking depended on nextFreeY looking only at fields already
+// classified as "body" (classifyZone), but that classification is purely
+// GEOMETRIC: a footer field positioned slightly outside the configured
+// footerHeight (e.g. y less than page.height-footerHeight) counted as body
+// by accident, became the new "floor", and every new field was born stacked
+// right below it — including off the page, each "+" click pushing further
+// down in sequence. Being born at the center removes that dependency: the
+// next field's position no longer depends on where the other fields
+// (misclassified or not) already are.
 export function computeSpawnPosition(template: Template, schema: Schema, isolateBands: boolean, gridMm?: number): Schema {
   if (isolateBands) {
     const spawn = bandSpawnPosition(template);
@@ -48,8 +48,8 @@ export function computeSpawnPosition(template: Template, schema: Schema, isolate
     return placed;
   }
   const { headerHeight = 0, footerHeight = 0, marginLeft = 0, marginRight = 0, page } = template;
-  // Seção sempre nasce esticada de ponta a ponta (esquerda/direita,
-  // respeitando margem) — só a altura fica livre pra ajustar depois.
+  // A section is always born stretched edge to edge (left/right, respecting
+  // the margin) — only the height is left free to adjust afterwards.
   const isSection = schema.type === "section";
   const width = isSection ? Math.max(20, page.width - marginLeft - marginRight) : schema.width;
   const bodyTop = headerHeight;
@@ -59,13 +59,13 @@ export function computeSpawnPosition(template: Template, schema: Schema, isolate
   return { ...schema, x: snapToGrid(x, gridMm), y: snapToGrid(y, gridMm), width };
 }
 
-// Nome único pro "colar" (Ctrl+V) — determinístico primeiro (`${base}_${suffix}`),
-// só cai pro sufixo aleatório se esse já estiver em uso (ex: colar a MESMA
-// seleção duas vezes seguidas). MUTA `usedNames` (adiciona o candidato
-// escolhido) — mesmo comportamento do `freshName` original, que também
-// registrava cada nome escolhido no Set do chamador antes de seguir pro
-// próximo schema colado, pra dois campos colados juntos com o mesmo nome
-// base nunca colidirem entre si.
+// A unique name for "paste" (Ctrl+V) — deterministic first
+// (`${base}_${suffix}`), falling back to a random suffix only if that one is
+// already in use (e.g. pasting the SAME selection twice in a row). It MUTATES
+// `usedNames` (adding the chosen candidate) — the same behavior as the
+// original `freshName`, which also registered each chosen name in the
+// caller's Set before moving on to the next pasted schema, so that two fields
+// pasted together with the same base name never collide with each other.
 export function uniqueSchemaName(base: string, usedNames: Set<string>, suffix: string): string {
   let candidate = `${base}_${suffix}`;
   while (usedNames.has(candidate)) candidate = `${base}_${suffix}_${Math.random().toString(36).slice(2, 5)}`;

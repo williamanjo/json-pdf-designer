@@ -1,16 +1,16 @@
 import { formatPtBrNumber } from "../../numberFormat";
 
-// Formatadores de DATE/CURRENCY — movidos de bindings.ts sem alteração de
-// comportamento (ver dataAccess.ts para o motivo do movimento). Os comentários
-// documentam decisões que já custaram bug no passado; valem na íntegra.
+// DATE/CURRENCY formatters — moved out of bindings.ts with no behavior change
+// (see dataAccess.ts for the reason for the move). The comments document
+// decisions that have already cost a bug in the past; they stand in full.
 
-// Lê "raw" segundo um formato DADO (mesmos tokens do formato de saída) em vez
-// de deixar o `new Date(raw)` do JS adivinhar — esse adivinha separador "/"
-// como MM/DD/YYYY (americano), então uma data brasileira tipo "10/04/2025"
-// (10 de abril) virava 10 de outubro, errado e calado (sem erro nenhum, só a
-// data trocada). Só entra em jogo se o 3º arg do DATE(...) for informado; sem
-// ele, mantém o `new Date(raw)` de sempre (compatível com entrada ISO
-// "YYYY-MM-DD", que É não-ambígua e não precisa disso).
+// It reads "raw" according to a GIVEN format (the same tokens as the output
+// format) instead of letting JS's `new Date(raw)` guess — that one guesses
+// the "/" separator as MM/DD/YYYY (American), so a Brazilian date like
+// "10/04/2025" (10 April) became 10 October, wrong and silent (no error at
+// all, just the date swapped). It only comes into play if DATE(...)'s 3rd arg
+// is given; without it, the usual `new Date(raw)` stands (compatible with ISO
+// "YYYY-MM-DD" input, which IS unambiguous and does not need this).
 function parseDateWithFormat(raw: string, format: string): Date | null {
   const order: string[] = [];
   const escaped = format.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -2,33 +2,33 @@ import type { SVGAttributes } from "react";
 import { MATERIAL_ICON_GRID, MATERIAL_ICON_PATHS } from "../../materialIcons";
 import { cx } from "./cx";
 
-// Mesmo ícone (Material Symbols) desenhado tanto no seletor do painel
-// (PropertyPanelKpi.tsx) quanto no preview do canvas (FieldBox/KpiField.tsx)
-// — ícone desconhecido/"none" simplesmente não mostra nada. viewBox usa o
-// grid 960 padrão do Material Symbols (ver MATERIAL_ICON_GRID).
+// The same icon (Material Symbols) drawn both in the panel picker
+// (PropertyPanelKpi.tsx) and in the canvas preview (FieldBox/KpiField.tsx)
+// — an unknown icon, or "none", simply shows nothing. The viewBox uses
+// Material Symbols' standard 960 grid (see MATERIAL_ICON_GRID).
 //
-// `jpd-micon` e não `jpd-icon` só pra separar os dois papéis; as duas classes
-// declaram apenas `display: block` (o que o Preflight dava), e NENHUMA
-// declara tamanho — o tamanho daqui vem da prop `size`. Cuidado ao mexer: em
-// SVG2 `width`/`height` no `<svg>` são geometry properties, então uma classe
-// com `width` VENCE o atributo (medido no navegador: atributo 14 mais classe
-// de 10px renderiza 10px). Declarar tamanho na classe quebraria o `size` em
-// silêncio.
-// `SVGAttributes` como os 20 ícones de icons.tsx, e pelo mesmo motivo: este
-// componente é público desde a 3.0.0, e a regra do kit vale pra ele também —
-// `className` faz merge, `style` e o resto dos atributos passam. Não é
-// `SVGProps`, que estende `ClassAttributes` e aceitaria um `ref` que aqui não
-// vai a lugar nenhum.
+// `jpd-micon` and not `jpd-icon` only to keep the two roles apart; both
+// classes declare nothing but `display: block` (what Preflight gave), and
+// NEITHER declares a size — the size here comes from the `size` prop. Careful
+// when touching this: in SVG2 `width`/`height` on `<svg>` are geometry
+// properties, so a class with `width` BEATS the attribute (measured in the
+// browser: attribute 14 plus a 10px class renders 10px). Declaring a size in
+// the class would break `size` silently.
+// `SVGAttributes` like the 20 icons in icons.tsx, and for the same reason:
+// this component has been public since 3.0.0, and the kit's rule applies to it
+// too — `className` merges, `style` and the rest of the attributes pass
+// through. It is not `SVGProps`, which extends `ClassAttributes` and would
+// accept a `ref` that goes nowhere here.
 export type MaterialIconProps = SVGAttributes<SVGSVGElement> & {
   // Nome do glifo (chave de MATERIAL_ICON_PATHS). Desconhecido ou "none"
   // renderiza `null` em vez de um quadrado vazio.
   icon: string;
-  // Lado do quadrado, em px. Vai nos ATRIBUTOS `width`/`height` — ver o
-  // aviso acima sobre geometry properties antes de mover isto pra CSS.
+  // Side of the square, in px. It goes into the `width`/`height` ATTRIBUTES —
+  // see the warning above about geometry properties before moving this to CSS.
   //
-  // `width`/`height` são escritos DEPOIS do `...rest` de propósito: `size` é
-  // a API documentada, então um `width` solto vindo pelo rest não pode
-  // vencê-la em silêncio.
+  // `width`/`height` are written AFTER the `...rest` on purpose: `size` is the
+  // documented API, so a stray `width` arriving through the rest must not beat
+  // it silently.
   size: number;
 };
 

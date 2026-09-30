@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import type { Template, TemplatePage, Binding, Locale } from "json-pdf-designer";
 import { generatePdf, Button, IconDownload, IconFolderUp, CURRENT_TEMPLATE_VERSION, DEFAULT_MAX_PAGES } from "json-pdf-designer";
-// Preview (pdf.js) mora no entry "/preview" — peer opcional pdfjs-dist,
-// instalado por este example justamente porque ele usa o preview.
+// The preview (pdf.js) lives in the "/preview" entry — the optional peer
+// pdfjs-dist, installed by this example precisely because it uses the preview.
 import { PdfPreviewModal } from "json-pdf-designer/preview";
 import FieldTree from "./components/FieldTree";
 import DesignerPanel from "./components/DesignerPanel";
@@ -29,9 +29,10 @@ import "./App.css";
 export default function App() {
   const fieldPickerTriggerRef = useRef<(() => void) | null>(null);
   const [autosaved] = useState(loadAutosave);
-  // UM estado de idioma pras DUAS camadas: vai pro `<I18nProvider>` do editor
-  // (botões/abas/avisos do pacote) E pro dicionário da casca deste app (`tx`).
-  // Não afeta o PDF gerado — o idioma do documento é o do dado.
+  // ONE language state for the TWO layers: it goes to the editor's
+  // `<I18nProvider>` (the package's buttons/tabs/warnings) AND to this app's
+  // shell dictionary (`tx`). It does not affect the generated PDF — the
+  // document's language is the data's.
   const [locale, setLocale] = useState<Locale>("en");
   const tx = t(locale);
   const [template, setTemplate] = useState<Template>(() => ensurePages(autosaved?.template ?? initialTemplate));
@@ -44,37 +45,38 @@ export default function App() {
     if (autosaved?.sources) return extractFields(mergeSources(autosaved.sources).data);
     return extractFields(initialSample);
   });
-  // MOTIVO do erro de cada fonte, não a frase — a frase é escolhida na hora
-  // de renderizar (ver lib/sources.ts). Texto traduzido guardado no estado
-  // não reage à troca de idioma.
+  // The REASON for each source's error, not the phrase — the phrase is
+  // chosen at render time (see lib/sources.ts). Translated text held in state
+  // does not react to a language switch.
   const [errorsById, setErrorsById] = useState<Record<string, SourceProblem>>({});
-  // Guarda o erro CRU, não o `GenerationProblem` já montado, pelo mesmo
-  // motivo: o título/ação do banner é escolhido no render, com o `locale`
-  // atual, então trocar de idioma retraduz o banner que está na tela.
+  // It holds the RAW error, not the already-assembled `GenerationProblem`,
+  // for the same reason: the banner's title/action is chosen at render time,
+  // with the current `locale`, so switching language retranslates the banner
+  // already on screen.
   const [genError, setGenError] = useState<{ err: unknown } | null>(null);
   const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
   const [generating, setGenerating] = useState(false);
 
-  // Recalcula a cada render: é varredura de string sobre o template em memória,
-  // barata o suficiente pra não valer memo — e assim o painel reage na hora em
-  // que alguém digita uma expressão torta.
+  // Recomputed on every render: it is a string scan over the in-memory
+  // template, cheap enough not to be worth a memo — and that way the panel
+  // reacts the moment someone types a crooked expression.
   const problems = templateProblems(template, bindings, locale);
 
   useUndoRedo(template, bindings, setTemplate, setBindings);
   useAutosave(template, bindings, sources);
 
-  // `template.pages` sempre existe e não é vazio (garantido por
-  // ensurePages em todo lugar que troca `template` inteiro) — clampa o
-  // índice pra nunca apontar fora do array (ex: depois de remover a última
-  // aba selecionada, ou carregar um projeto/exemplo com menos páginas).
+  // `template.pages` always exists and is never empty (guaranteed by
+  // ensurePages everywhere the whole `template` is swapped) — it clamps the
+  // index so it never points outside the array (e.g. after removing the last
+  // selected tab, or loading a project/example with fewer pages).
   const pages = template.pages!;
   const safeActivePageIndex = Math.min(activePageIndex, pages.length - 1);
   const activePage = pages[safeActivePageIndex];
 
-  // Repassa pro <Designer> (via DesignerPanel) só a página ATIVA — Designer
-  // não sabe que existem outras páginas, só edita a que recebeu. Grava de
-  // volta em template.pages[safeActivePageIndex], preservando o resto do
-  // Template intacto (inclusive as outras páginas).
+  // It forwards only the ACTIVE page to the <Designer> (through
+  // DesignerPanel) — the Designer does not know other pages exist, it only
+  // edits the one it received. It writes back into
+  // template.pages[safeActivePageIndex], keeping the rest of the Template intact.
   function setActivePageTemplate(update: React.SetStateAction<Template>) {
     setTemplate((prev) => {
       const prevPages = prev.pages!;
@@ -86,7 +88,7 @@ export default function App() {
 
   function handleAddPage() {
     setTemplate((prev) => ({ ...prev, pages: [...prev.pages!, blankPage()] }));
-    setActivePageIndex(pages.length); // nova página vai pro final
+    setActivePageIndex(pages.length); // a new page goes to the end
   }
 
   function handleRemovePage(index: number) {
@@ -95,9 +97,9 @@ export default function App() {
     setActivePageIndex((prevIndex) => Math.max(0, prevIndex >= index ? prevIndex - 1 : prevIndex));
   }
 
-  // Só recalcula a lista de campos quando o usuário clicar em "Resync
-  // campos" — assim ele pode colar um JSON grande sem a lista ficar
-  // piscando a cada tecla digitada.
+  // It only recomputes the field list when the user clicks "Resync fields" —
+  // that way they can paste a large JSON without the list flickering on every
+  // keystroke.
   function handleResync() {
     const { data, errorsById: nextErrors } = mergeSources(sources);
     setFields(extractFields(data));
@@ -111,8 +113,9 @@ export default function App() {
       const { data, errorsById: nextErrors } = mergeSources(sources);
       setErrorsById(nextErrors);
       const fontBytes = await loadDefaultFont();
-      // `maxPages` explícito, no default do pacote: deixa claro que existe um
-      // teto e que estourá-lo dá PageLimitError em vez de um PDF truncado.
+      // An explicit `maxPages`, at the package's default: it makes clear that a
+      // ceiling exists and that going past it gives a PageLimitError instead
+      // of a truncated PDF.
       const bytes = await generatePdf(template, data, bindings, { fontBytes, maxPages: DEFAULT_MAX_PAGES });
       setPreviewBytes(bytes);
     } catch (err) {
@@ -133,15 +136,15 @@ export default function App() {
         setActivePageIndex(0);
         setGenError(null);
       })
-      // parseProjectFile já chama migrateTemplate; um formato mais novo que
-      // este build entende chega aqui como erro, e vira a mesma mensagem
-      // acionável de qualquer outra falha.
+      // parseProjectFile already calls migrateTemplate; a format newer than this
+      // build understands arrives here as an error, and becomes the same
+      // actionable message as any other failure.
       .catch((err: unknown) => setGenError({ err }));
   }
 
-  // Exemplos prontos — cada um troca template/binding E a fonte de dados
-  // pro JSON de exemplo dele, já sincroniza a lista de campos (fields) sem
-  // precisar clicar "Resync".
+  // Ready-made examples — each one swaps template/binding AND the data source
+  // for its own sample JSON, already syncing the field list (fields) without
+  // having to click "Resync".
   function handleLoadExample(key: string) {
     const example = EXAMPLES[key];
     if (!example) return;
@@ -160,10 +163,11 @@ export default function App() {
       <header className="flex items-center justify-between bg-slate-900 px-5 py-3 text-white shadow-sm">
         <h1 className="flex items-baseline gap-2 text-lg font-semibold">
           {tx.appTitle}
-          {/* Versão do FORMATO do template (não do pacote) — o que um projeto
-              salvo carrega, e o que o migrateTemplate normaliza ao carregar.
-              Os NÚMEROS vêm do pacote; só a moldura da frase é traduzida, e
-              numa função só (não concatenada no JSX) porque a ordem muda. */}
+          {/* The template FORMAT's version (not the package's) — what a saved
+              project carries, and what migrateTemplate normalizes on load.
+              The NUMBERS come from the package; only the sentence's frame is
+              translated, and in a single function (not concatenated in the
+              JSX) because the order changes. */}
           <span className="text-[10px] font-normal text-white/50" title={tx.formatBadgeTitle}>
             {tx.formatBadge(CURRENT_TEMPLATE_VERSION, DEFAULT_MAX_PAGES)}
           </span>
@@ -175,7 +179,7 @@ export default function App() {
             onChange={(e) => setLocale(e.target.value as Locale)}
             title={tx.localeTitle}
           >
-            {/* Nome de idioma NÃO se traduz: cada um fica no próprio idioma. */}
+            {/* A language's name is NOT translated: each stays in its own language. */}
             <option value="en" className="text-slate-900">English</option>
             <option value="pt-BR" className="text-slate-900">Português</option>
           </select>
@@ -190,9 +194,9 @@ export default function App() {
             <option value="" className="text-slate-900">
               {tx.loadExample}
             </option>
-            {/* `ex.label` NÃO é traduzido: é o nome do documento de exemplo
-                ("Lei Kandir", "Boletim de Turma") — conteúdo, não interface.
-                O relatório continua em português com a UI em inglês. */}
+            {/* `ex.label` is NOT translated: it is the sample document's name
+                ("Lei Kandir", "Boletim de Turma") — content, not interface.
+                The report stays in Portuguese with the UI in English. */}
             {Object.entries(EXAMPLES).map(([key, ex]) => (
               <option key={key} value={key} className="text-slate-900">
                 {ex.label}
@@ -213,10 +217,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* Sem `err.message` cru: describeGenerationError delega pro
-          `describePdfError` do pacote, que devolve título + o que fazer + de
-          quem é a culpa, classificado por `code` — no idioma de AGORA, não no
-          de quando o erro aconteceu. */}
+      {/* No raw `err.message`: describeGenerationError delegates to the
+          package's `describePdfError`, which returns a title + what to do +
+          whose fault it is, classified by `code` — in the language of NOW, not
+          of when the error happened. */}
       {genError && (
         <GenerationErrorBanner
           locale={locale}
@@ -238,9 +242,9 @@ export default function App() {
           <ProblemsPanel
             locale={locale}
             problems={problems}
-            // O <Designer> é dono da seleção (não há prop pra dirigi-la de
-            // fora), então o clique navega até a PÁGINA do campo — é o mais
-            // longe que dá pra levar hoje.
+            // The <Designer> owns the selection (there is no prop to drive it from
+            // outside), so the click navigates to the field's PAGE — which is
+            // as far as it can be taken today.
             onGoTo={(pageIndex) => setActivePageIndex(pageIndex)}
           />
           <FieldTree

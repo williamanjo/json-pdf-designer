@@ -1,16 +1,16 @@
 import type { JsonSource } from "../components/DataSourcePanel";
 
-// Por que CÓDIGO e não frase: o erro de uma fonte fica guardado em estado
-// (App.tsx::errorsById) até o próximo resync/gerar. Se guardássemos a frase
-// já traduzida, trocar o idioma deixaria a mensagem antiga na tela, em
-// português, embaixo de uma interface em inglês. Guardando o código, quem
-// traduz é o render (DataSourcePanel) e a troca é instantânea.
+// Why a CODE and not a phrase: a source's error is held in state
+// (App.tsx::errorsById) until the next resync/generate. If we held the already
+// translated phrase, switching the language would leave the old message on
+// screen, in Portuguese, under an interface in English. Holding the code, what
+// translates is the render (DataSourcePanel) and the switch is instant.
 export type SourceErrorCode = "invalidJson" | "notAnObject";
 
-// Junta N fontes JSON num objeto só, nível superior — em caso de chave
-// repetida, a fonte mais pra baixo na lista vence. Erro de uma fonte
-// (JSON inválido, ou não é objeto) não impede as outras de entrar na
-// mescla; só fica de fora e aparece marcada.
+// It merges N JSON sources into a single object, at the top level — on a
+// repeated key, the source further down the list wins. An error in one source
+// (invalid JSON, or not an object) does not stop the others from entering the
+// merge; it is simply left out and shown marked.
 export function mergeSources(sources: JsonSource[]): {
   data: Record<string, unknown>;
   errorsById: Record<string, SourceErrorCode>;

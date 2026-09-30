@@ -9,7 +9,7 @@ import { DataTypeFields } from "./DataTypeFields";
 import { useUiComponents } from "../ui/useUiComponents";
 
 export type FormulaTarget = {
-  // Como o alvo é chamado no título ("coluna Fatura", "linha de totais, 3").
+  // How the target is named in the title ("Invoice column", "totals row, 3").
   label: string;
   value: string;
   onSave: (next: string) => void;
@@ -20,51 +20,51 @@ export type FormulaTarget = {
 type Props = {
   target: FormulaTarget;
   sources: FieldSources;
-  // Só a fórmula de coluna de tabela mostra o seletor "Tipo de dado" — é o
-  // único alvo que resolve por linha e cujo formato `parseColumnFormula`
-  // sabe decompor.
+  // Only a table column formula shows the "Data type" picker — it is the
+  // only target that resolves per row and whose format `parseColumnFormula`
+  // knows how to decompose.
   showDataType?: boolean;
   onClose: () => void;
 };
 
-// Onde o valor do campo é escrito: campos vinculados à esquerda, editor
-// multilinha com autocomplete no centro, validação ao vivo.
+// Where a field's value is written: bound fields on the left, a multiline
+// editor with autocomplete in the center, live validation.
 //
-// O editor é UM só, e o que ele mostra é o valor do campo como ele é — com as
-// chaves, já preenchido com o que estava lá. Não há "compor de um lado e
-// adicionar do outro": quem abre o ƒx quer mexer no que existe, e um segundo
-// campo só criava a dúvida de qual dos dois vale.
+// There is ONE editor, and what it shows is the field's value as it is —
+// with the braces, already filled in with whatever was there. There is no
+// "compose on one side and append on the other": whoever opens the ƒx wants
+// to work on what exists, and a second field only raised the question of
+// which of the two wins.
 //
-// Existe porque compor expressão num Input de uma linha dentro de uma sidebar
-// de 320px é digitar às cegas: nada dizia quais caminhos de dado existem, e os
-// defeitos que apareceram na prática (`{fatura /}`, que virou nome de chave e
-// renderizou vazio; `{CURRENCY(total` sem fechar, que sai impresso como texto)
-// eram erros de digitação que uma composição assistida evita antes de
-// acontecer.
+// It exists because composing an expression in a one-line Input inside a
+// 320px sidebar is typing blind: nothing told you which data paths exist,
+// and the defects that showed up in practice (`{fatura /}`, which became a
+// key name and rendered empty; `{CURRENCY(total` left unclosed, which comes
+// out printed as text) were typos that assisted composition prevents.
 //
-// Toda a lógica que erra fácil (onde a palavra começa, o que sobra do texto
-// depois de aceitar uma sugestão, onde as chaves abrem e fecham) mora em
-// módulo puro e testado — expressions/suggest.ts e expressions/templateText.ts.
-// Este arquivo é casca.
+// All the logic that is easy to get wrong (where the word starts, what is
+// left of the text after accepting a suggestion, where the braces open and
+// close) lives in pure, tested modules — expressions/suggest.ts and
+// expressions/templateText.ts. This file is a shell.
 export function FormulaModal({ target, sources, showDataType, onClose }: Props) {
   const t = useT();
   const { Button, Modal, Textarea } = useUiComponents();
   const areaRef = useRef<HTMLTextAreaElement>(null);
-  // Rascunho: nada é gravado até o "Salvar".
+  // Draft: nothing is saved until "Save".
   const [draft, setDraft] = useState(target.value);
   const [caret, setCaret] = useState(target.value.length);
   const [activeIndex, setActiveIndex] = useState(0);
   const [suggestOpen, setSuggestOpen] = useState(false);
-  // Aba da lista da esquerda. Começa nos campos do item quando há um: é o
-  // escopo de quem está editando uma linha, o caso mais comum.
+  // Tab of the left-hand list. It starts on the item's fields when there is
+  // one: that is the scope of whoever is editing a row, the common case.
   const [fieldsTab, setFieldsTab] = useState<"item" | "arrays">(sources.item ? "item" : "arrays");
 
-  // O `{...}` em que o caret está, se estiver em algum. É o que separa "estou
-  // escrevendo expressão" de "estou escrevendo texto literal".
+  // The `{...}` the caret is in, if it is in one at all. That is what
+  // separates "I am writing an expression" from "I am writing literal text".
   const span = tokenAtCaret(draft, caret);
 
-  // Chave desbalanceada vem primeiro: com uma aberta, o resolvedor nem vê o
-  // trecho como token, então validar a expressão de dentro não diria nada.
+  // An unbalanced brace comes first: with one left open the resolver does not
+  // even see the stretch as a token, so validating what is inside says nothing.
   const braces = braceError(draft, t);
   const syntax = braces ? null : templateExpressionErrors(draft, t)[0]?.message;
   const suspicious = braces || syntax ? null : templateSuspiciousOperators(draft, t)[0]?.message;
@@ -73,9 +73,9 @@ export function FormulaModal({ target, sources, showDataType, onClose }: Props) 
   const suggestions = suggestOpen && span ? suggestAt(span.inner, caret - span.start) : [];
   const active = suggestions[Math.min(activeIndex, suggestions.length - 1)];
 
-  // Escreve no textarea e reposiciona o caret. O `setSelectionRange` tem de
-  // rodar DEPOIS do React pintar o valor novo, senão o navegador devolve o
-  // cursor pro fim — daí o requestAnimationFrame.
+  // Writes into the textarea and repositions the caret. `setSelectionRange`
+  // has to run AFTER React paints the new value, otherwise the browser sends
+  // the cursor back to the end — hence the requestAnimationFrame.
   function write(text: string, nextCaret: number) {
     setDraft(text);
     setCaret(nextCaret);
@@ -87,8 +87,8 @@ export function FormulaModal({ target, sources, showDataType, onClose }: Props) 
     });
   }
 
-  // Aplica uma edição feita SOBRE o conteúdo de dentro das chaves, e recompõe
-  // o valor inteiro em volta dela.
+  // Applies an edit made OVER the content inside the braces, and recomposes
+  // the whole value around it.
   function writeInsideSpan(result: { text: string; caret: number }) {
     if (!span) return;
     write(draft.slice(0, span.start) + result.text + draft.slice(span.end), span.start + result.caret);
@@ -119,15 +119,15 @@ export function FormulaModal({ target, sources, showDataType, onClose }: Props) 
       return;
     }
     if (e.key === "Escape") {
-      // Fecha a lista sem fechar o modal — o Escape do Modal só age no
-      // segundo toque, porque este para a propagação.
+      // Closes the list without closing the modal — the Modal's Escape only
+      // acts on the second press, because this one stops propagation.
       e.stopPropagation();
       setSuggestOpen(false);
     }
   }
 
-  // Clique num campo da lista: dentro das chaves entra o caminho nu, fora
-  // delas entra já embrulhado — ali `total` seria só a palavra "total".
+  // Clicking a field in the list: inside the braces the bare path goes in,
+  // outside them it arrives wrapped — there `total` would be the word "total".
   function insertField(path: string) {
     if (span) {
       writeInsideSpan(insertAtCaret(span.inner, caret - span.start, path));

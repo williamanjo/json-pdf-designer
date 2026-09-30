@@ -18,32 +18,32 @@ const data = {
 const run = (src: string, d: unknown = data) => evaluateToString(parse(src), d);
 
 describe("os quatro defeitos do motor anterior, como regressão", () => {
-  // Estes quatro são o motivo de a AST existir. Cada um produzia número
-  // errado ou exceção num template plausível de relatório.
+  // These four are the reason the AST exists. Each produced a wrong number
+  // or an exception in a plausible report template.
 
   it("precedência de operador: `a + b * c` é 14, não 20", () => {
-    // O motor anterior dobrava da esquerda pra direita, como calculadora de
-    // bolso: (2 + 3) * 4 = 20. Número errado, sem erro nenhum.
+    // The previous engine folded left to right, like a pocket calculator:
+    // (2 + 3) * 4 = 20. A wrong number, with no error at all.
     expect(run("a + b * c")).toBe("14");
   });
 
   it("agrupamento por parêntese: `(a + b) * c` é 20, não 0", () => {
-    // O motor anterior não reconhecia `(` no início: o regex de chamada de
-    // função não casava, a aritmética não sabia agrupar, e o resultado virava
-    // 0 em silêncio.
+    // The previous engine did not recognize a leading `(`: the function call
+    // regex did not match, the arithmetic did not know how to group, and the
+    // result silently became 0.
     expect(run("(a + b) * c")).toBe("20");
   });
 
   it('texto em conta aritmética dá vazio, não exceção: `"x" + 1`', () => {
-    // O motor anterior entrava em recursão infinita e estourava no limite de
-    // profundidade, com uma mensagem sobre "aninhamento" que não tinha nada a
-    // ver com o problema.
+    // The previous engine went into infinite recursion and blew up on the
+    // depth limit, with a message about "nesting" that had nothing to do with
+    // the problem.
     expect(run('"x" + 1')).toBe("");
   });
 
   it("divisão por zero dá vazio, não exceção: `a / zero`", () => {
-    // Mesma recursão infinita do caso acima — e este é uma entrada
-    // perfeitamente plausível (denominador que zera numa linha).
+    // The same infinite recursion as the case above — and this one is a
+    // perfectly plausible input (a denominator that hits zero on some row).
     expect(run("a / zero")).toBe("");
   });
 });
@@ -67,7 +67,7 @@ describe("aritmética", () => {
   });
 
   it("arredonda ruído de ponto flutuante sem cortar precisão real", () => {
-    expect(run("12 * 22.9")).toBe("274.8"); // não 274.79999999999995
+    expect(run("12 * 22.9")).toBe("274.8"); // not 274.79999999999995
     expect(run("1 / 3")).toBe("0.333333");
   });
 });
@@ -122,14 +122,15 @@ describe("funções", () => {
 
   it("DATE: default DD/MM/YYYY, e o 3º argumento evita a leitura americana", () => {
     expect(run('DATE("2026-07-01")')).toBe("01/07/2026");
-    // Sem o formato de entrada, o new Date() do JS leria 10/04 como outubro.
+    // Without the input format, JS's new Date() would read 10/04 as October.
     expect(run('DATE("10/04/2025", "DD/MM/YYYY", "DD/MM/YYYY")')).toBe("10/04/2025");
     expect(run('DATE("10/04/2025", "MM-YYYY", "DD/MM/YYYY")')).toBe("04-2025");
   });
 
   it("IF é preguiçoso — o ramo não escolhido não é avaliado", () => {
-    // Se o ramo `senão` fosse avaliado, um path que não resolve traria vazio
-    // ou pior; o teste garante que o `então` é o único caminho percorrido.
+    // If the `else` branch were evaluated, a path that does not resolve would
+    // bring back empty or worse; the test guarantees the `then` is the only
+    // path walked.
     expect(run("IF(a > 1, a, nada.profundo.demais)")).toBe("2");
     expect(run("IF(a > 5, nada.profundo.demais, b)")).toBe("3");
   });
@@ -141,8 +142,8 @@ describe("funções", () => {
   });
 
   it("função desconhecida dá vazio, não erro (degrada em campo em branco)", () => {
-    // Template escrito para uma versão mais nova do pacote não derruba a
-    // geração inteira.
+    // A template written for a newer version of the package does not bring the
+    // whole generation down.
     expect(run("FOO(a)")).toBe("");
   });
 
@@ -169,8 +170,8 @@ describe("path", () => {
 
 describe("tipos intermediários", () => {
   it("evaluate preserva número como número (a base da precedência correta)", () => {
-    // O motor anterior devolvia string em todo nível e reconvertia; é daí que
-    // vinham os bugs de conta.
+    // The previous engine returned a string at every level and reconverted;
+    // that is where the arithmetic bugs came from.
     expect(evaluate(parse("a + b"), data)).toBe(5);
     expect(typeof evaluate(parse("SUM(itens.t)"), data)).toBe("number");
   });
@@ -178,9 +179,9 @@ describe("tipos intermediários", () => {
 
 describe("registry de funções", () => {
   it("cobre exatamente os nomes que a UI oferece em CUSTOM_FIELD_FUNCTIONS", () => {
-    // A lista alimenta os botões de "inserir função" do painel. Adicionar
-    // função lá sem implementar aqui (ou o contrário) falha no CI em vez de
-    // virar um botão que produz campo vazio.
+    // The list feeds the panel's "insert function" buttons. Adding a function
+    // there without implementing it here (or the other way around) fails in CI
+    // instead of becoming a button that produces an empty field.
     expect(FUNCTION_NAMES.slice().sort()).toEqual(CUSTOM_FIELD_FUNCTIONS.map((f) => f.name).sort());
   });
 });

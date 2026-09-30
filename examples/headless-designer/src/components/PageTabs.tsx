@@ -4,25 +4,25 @@ import type { ShellDict } from "../i18n";
 type Props = {
   pages: TemplatePage[];
   activeIndex: number;
-  // Dicionário da CASCA: "Página N" é rótulo desta barra de abas, que o
-  // pacote não tem (lá as abas de página não existem — `pages` é só um array
-  // no `Template`). O `t.tabBar.page` do pacote é o nome da ABA DE
-  // PROPRIEDADES da página, outro conceito; usá-lo aqui seria pior que
-  // traduzir à mão.
+  // The SHELL's dictionary: "Page N" is a label of this tab bar, which the
+  // package does not have (there the page tabs do not exist — `pages` is only
+  // an array in the `Template`). The package's `t.tabBar.page` is the name of
+  // the page's PROPERTIES TAB, another concept; using it here would be worse
+  // than translating by hand.
   tt: ShellDict;
   onSelect: (index: number) => void;
   onAdd: () => void;
   onRemove: (index: number) => void;
 };
 
-// Abas de página — cada uma é uma TemplatePage independente dentro do MESMO
-// Template (ver lib/pages.ts). Rótulo é sempre a posição no array ("Page N" /
-// "Página N"), não um nome guardado — evita nome desatualizado depois de
-// remover uma aba do meio.
+// Page tabs — each one is an independent TemplatePage inside the SAME
+// Template (see lib/pages.ts). The label is always the position in the array
+// ("Page N" / "Página N"), not a stored name — which avoids a stale name after
+// removing a tab from the middle.
 //
-// Aqui as abas não estão "acima do <Designer>": elas trocam a página que o
-// NOSSO canvas desenha (App.tsx::activePage). O motor não sabe de abas
-// nenhuma — `pages` é só um array no Template, e generatePdf gera todas.
+// Here the tabs are not "above the <Designer>": they swap the page OUR canvas
+// draws (App.tsx::activePage). The engine knows nothing about tabs — `pages`
+// is only an array in the Template, and generatePdf generates them all.
 export default function PageTabs({ pages, activeIndex, tt, onSelect, onAdd, onRemove }: Props) {
   return (
     <div className="page-tabs">

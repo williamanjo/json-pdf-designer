@@ -3,36 +3,36 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// Guarda as promessas de EMPACOTAMENTO de cada entry point — as que só
-// quebrariam no `npm install` de outra pessoa, nunca aqui:
+// It guards each entry point's PACKAGING promises — the ones that would only
+// break in someone else's `npm install`, never here:
 //
-// - "json-pdf-designer/server" roda num backend Node sem React nenhum"
-// - "importar o entry principal não obriga a instalar o pdfjs-dist"
+// - "json-pdf-designer/server" runs in a Node backend with no React at all"
+// - "importing the main entry does not force installing pdfjs-dist"
 //
-// As duas dependem da mesma coisa: certos pacotes NÃO podem ser
-// alcançáveis a partir de certos arquivos. Todos eles são peer
-// dependencies OPCIONAIS (ver package.json), então um import no arquivo
-// errado não dá erro de build aqui — só aparece como dependência
-// faltando, ou como ~35MB/8MB instalados sem pedir, no projeto de quem
-// consome. Daí a varredura de código-fonte: pega o vazamento no PR.
+// Both depend on the same thing: certain packages must NOT be reachable from
+// certain files. All of them are OPTIONAL peer dependencies (see
+// package.json), so an import in the wrong file causes no build error here —
+// it only shows up as a missing dependency, or as ~35MB/8MB installed without
+// asking, in the consumer's project. Hence the source scan: it catches the
+// leak in the PR.
 //
-// Ver docs/ARCHITECTURE.md, "How the boundary is enforced", pros outros
-// dois guardas (o example no-preview e a checagem do tarball na CI).
+// See docs/ARCHITECTURE.md, "How the boundary is enforced", for the other two
+// guards (the no-preview example and CI's tarball check).
 
 const SRC = resolve(__dirname, "../src");
 
-// Só os specifiers relativos interessam pra andar no grafo — dependência
-// externa não puxa código nosso de volta pra dentro.
+// Only relative specifiers matter for walking the graph — an external
+// dependency does not pull our code back in.
 //
-// O `(?!type[\s{])` ignora statements type-only (`import type {...} from`,
-// `export type {...} from`): eles são APAGADOS na compilação, então não
-// viram import no bundle nem no .d.ts (o tsup inlineia os tipos locais).
-// Sem essa exceção o teste dava falso positivo em `src/server.ts`, que faz
-// `export type { Locale, Dict } from "./i18n"` — e o ./i18n/index.ts
-// reexporta o I18nProvider, que é React. Nada disso chega no dist/server.*
-// (conferido: zero menção a react lá). Já `import { type X } from "m"`
-// (type inline) CONTINUA valendo como aresta: o TS mantém o import do
-// módulo, só tira o especificador.
+// The `(?!type[\s{])` ignores type-only statements (`import type {...} from`,
+// `export type {...} from`): they are ERASED at compile time, so they become
+// neither an import in the bundle nor in the .d.ts (tsup inlines the local
+// types). Without that exception the test gave a false positive on
+// `src/server.ts`, which does `export type { Locale, Dict } from "./i18n"` —
+// and ./i18n/index.ts re-exports the I18nProvider, which is React. None of
+// that reaches dist/server.* (checked: zero mention of react there). An
+// `import { type X } from "m"` (inline type), on the other hand, STILL counts
+// as an edge: TS keeps the module import, it only drops the specifier.
 const IMPORT_RE = /(?:^|\n)\s*(?:import|export)\s+(?!type[\s{])[^;'"]*?from\s*["']([^"']+)["']/g;
 const BARE_IMPORT_RE = /(?:^|\n)\s*import\s*["']([^"']+)["']/g;
 

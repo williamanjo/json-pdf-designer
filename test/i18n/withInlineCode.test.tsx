@@ -2,10 +2,10 @@ import { Fragment, isValidElement, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { withInlineCode } from "../../src/i18n/withInlineCode";
 
-// withInlineCode devolve um ReactNode (na prática, um array de elementos
-// <Fragment>/<code>) — sem @testing-library/react no projeto, inspeciona a
-// estrutura do array direto (tipo/props de cada elemento) em vez de montar
-// no DOM.
+// withInlineCode returns a ReactNode (in practice, an array of
+// <Fragment>/<code> elements) — with no @testing-library/react in the project,
+// it inspects the array's structure directly (each element's type/props)
+// instead of mounting it in the DOM.
 function asArray(node: ReactNode): ReactNode[] {
   expect(Array.isArray(node)).toBe(true);
   return node as ReactNode[];

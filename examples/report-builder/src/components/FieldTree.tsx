@@ -26,16 +26,16 @@ function rowClasses(field: FieldNode): string {
   return "border-slate-200 bg-slate-50";
 }
 
-// Árvore de campos: uma seção fixa "Variáveis nativas" (tokens sintéticos
-// tipo pageNumber, sempre disponíveis) + os campos do JSON de verdade,
-// agrupados por DataSource (cada array vira um grupo cujas colunas são
-// filhos individuais, arrastáveis/clicáveis cada uma — ver
-// lib/jsonExplorer.ts::buildFieldTree). Grupos "de pasta" comuns (objeto
-// aninhado, ex: "carta") não têm ação própria, só organizam.
+// The field tree: a fixed "Native variables" section (synthetic tokens such
+// as pageNumber, always available) + the real JSON's fields, grouped by
+// DataSource (each array becomes a group whose columns are individual
+// children, each draggable/clickable — see
+// lib/jsonExplorer.ts::buildFieldTree). Ordinary "folder" groups (a nested
+// object, e.g. "carta") have no action of their own, they only organize.
 //
-// Cada linha de campo é arrastável (mesmo contrato de sempre: o FieldNode
-// inteiro serializado no dataTransfer, pro DesignerPanel ler no "drop") e,
-// quando `onAdd` é passado (modal "sem arrastar"), tem um botão "+".
+// Each field row is draggable (the usual contract: the whole FieldNode
+// serialized into the dataTransfer, for the DesignerPanel to read on "drop")
+// and, when `onAdd` is passed (the "without dragging" modal), has a "+" button.
 export default function FieldTree({ locale, fields, onAdd, onOpenPicker }: Props) {
   const tx = t(locale);
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());

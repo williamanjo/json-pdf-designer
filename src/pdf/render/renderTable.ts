@@ -19,26 +19,26 @@ const DEFAULT_FOOTER_COLOR = rgb(0, 0, 0);
 const BODY_FONT_SIZE = 9;
 const HEAD_FONT_SIZE = 9;
 
-// Métricas moram em ../tableMetrics.ts (sem pdf-lib, pro layout poder usar).
-// Reexportadas daqui porque há quem já importe por este caminho.
+// The metrics live in ../tableMetrics.ts (no pdf-lib, so the layout can use
+// them). Re-exported from here because some code already imports this path.
 export { TABLE_ROW_HEIGHT_MM, tableRowsPerSlice } from "../tableMetrics";
 
 type HAlign = "left" | "center" | "right";
 type VAlign = "top" | "middle" | "bottom";
 
-// "#rrggbb"/"#rgb" -> Color do pdf-lib — undefined (fora do try) cai no
-// default de quem chamou, pra templates antigos sem essas cores continuar
-// exatamente iguais.
+// "#rrggbb"/"#rgb" -> a pdf-lib Color — undefined (outside the try) falls
+// back to the caller's default, so old templates without those colors stay
+// exactly the same.
 function hexToColor(hex: string | undefined): Color | undefined {
   const c = parseHex(hex);
   return c ? rgb(c.r, c.g, c.b) : undefined;
 }
 
-// Resolve as cores/tamanhos/alinhamentos de cabeçalho/corpo/rodapé —
-// override do schema (schema.headBackgroundColor etc.) com fallback pro
-// default embutido de cada bloco. Extraído de drawTableSlice pra função
-// pura (sem depender de nada além do schema), reaproveitável/testável à
-// parte.
+// Resolves the colors/sizes/alignments of the header/body/footer — the
+// schema's override (schema.headBackgroundColor and so on) with a fallback to
+// each block's built-in default. Extracted from drawTableSlice into a pure
+// function (depending on nothing but the schema), reusable/testable on its
+// own.
 function resolveTableStyles(schema: TableSchema): {
   headBg: Color;
   headColor: Color;
@@ -79,10 +79,10 @@ function resolveTableStyles(schema: TableSchema): {
   };
 }
 
-// Trunca o texto da célula, mede a largura resultante e calcula a posição
-// final (x, y absolutos) já alinhada dentro da célula — extraído de
-// drawRow pra função à parte (usada tanto pro texto de célula quanto,
-// futuramente, por qualquer outro bloco de texto alinhado numa caixa).
+// Truncates the cell's text, measures the resulting width and computes the
+// final position (absolute x, y) already aligned inside the cell — extracted
+// from drawRow into a function of its own (used both for the cell text and,
+// in future, by any other block of text aligned in a box).
 function cellTextPosition(
   cellX: number,
   cursorY: number,
@@ -102,21 +102,20 @@ function cellTextPosition(
   return { x, y, truncated };
 }
 
-// Desenha (opcionalmente) cabeçalho + um bloco de linhas começando no topo
-// (topYPt, sistema pdf-lib com origem embaixo-esquerda) indo pra baixo.
-// Usada tanto pra tabela de página única quanto por fatia, quando pagina
-// em várias páginas. Retorna o Y (pt) da base da última linha desenhada,
-// pra caller saber onde a fatia terminou.
+// Draws (optionally) the header + a block of rows starting at the top (topYPt,
+// pdf-lib's coordinate system with the origin at the bottom left) going
+// downward. Used both for a single-page table and per slice, when it paginates
+// across several pages. It returns the Y (pt) of the base of the last row
+// drawn, so the caller knows where the slice ended.
 //
-// `isLastSlice` (default true — seguro pros call-sites que nunca paginam,
-// tabela solta em header/footer/margem) diz se ESTA chamada é a última
-// fatia de verdade da tabela inteira — usado só pra decidir onde os
-// cantos arredondados de BAIXO (bodyBorderRadius/footerBorderRadius) se
-// aplicam: corpo/rodapé só arredondam o fundo na fatia REALMENTE final
-// (senão uma tabela de 3 páginas ficaria com "cantos arredondados" no meio
-// dela). O cabeçalho arredonda o TOPO toda vez que É desenhado (repetir em
-// toda página, se `repeatHeader`, é esperado repetir o arredondamento
-// também) — não depende de `isLastSlice`.
+// `isLastSlice` (default true — safe for the call sites that never paginate, a
+// loose table in a header/footer/margin) says whether THIS call is really the
+// table's last slice — used only to decide where the BOTTOM rounded corners
+// (bodyBorderRadius/footerBorderRadius) apply: the body/footer only round
+// their background on the REALLY final slice (otherwise a 3-page table would
+// have "rounded corners" in its middle). The header rounds the TOP every time
+// it IS drawn (repeating on every page, if `repeatHeader`, is expected to
+// repeat the rounding too) — it does not depend on `isLastSlice`.
 export function drawTableSlice(
   page: PDFPage,
   font: PDFFont,
@@ -126,14 +125,14 @@ export function drawTableSlice(
   topYPt: number,
   widthPt: number,
   includeHead = true,
-  // Linha de totais — só desenha se informada (chamador decide QUANDO,
-  // ex: só na última fatia de uma tabela que pagina — ver generate.ts).
+  // The totals row — it only draws if it was given (the caller decides WHEN,
+  // e.g. only on the last slice of a table that paginates — see generate.ts).
   footerRow?: string[],
   isLastSlice = true
 ): number {
-  // Envolve a função INTEIRA: os três caminhos de tabela (corpo, faixa
-  // repetida, aninhada numa seção) passam por aqui, então um lugar só cobre
-  // todos. O provedor de texto é lazy — só roda se já houve erro.
+  // It wraps the ENTIRE function: the three table paths (body, repeated band,
+  // nested in a section) all go through here, so one place covers them all.
+  // The text provider is lazy — it only runs if there has already been an error.
   return withGlyphContext(
     schema.name,
     () => [...schema.head, ...rows.flat(), ...(footerRow ?? [])],
@@ -191,26 +190,26 @@ function drawTableSliceInner(
     borderColor,
   } = resolveTableStyles(schema);
 
-  // Tabela TEM rodapé (em alguma fatia, não necessariamente esta) — corpo
-  // nunca arredonda o próprio canto de baixo quando isso é verdade (quem
-  // fecha o canto de baixo é o rodapé, ver headBorderRadius/
-  // bodyBorderRadius/footerBorderRadius em types/schema.ts).
+  // The table HAS a footer (in some slice, not necessarily this one) — the
+  // body never rounds its own bottom corner when that is true (what closes the
+  // bottom corner is the footer, see headBorderRadius/bodyBorderRadius/
+  // footerBorderRadius in types/schema.ts).
   const tableHasFooter = Boolean(schema.footer && schema.footer.length > 0);
 
   function radiiOrZero(r: TableCornerRadii | undefined): { tl: number; tr: number; bl: number; br: number } {
     return { tl: mmToPt(r?.topLeft ?? 0), tr: mmToPt(r?.topRight ?? 0), bl: mmToPt(r?.bottomLeft ?? 0), br: mmToPt(r?.bottomRight ?? 0) };
   }
 
-  // Fundo (se houver) + moldura da linha — quando algum canto é
-  // arredondado, desenha os DOIS (preenchimento e contorno) num `drawSvgPath`
-  // só, senão o contorno reto de cada célula (desenhado à parte, no loop de
-  // colunas abaixo) ficaria "espiando" quadrado por baixo do preenchimento
-  // arredondado (bug real reportado: cantos pareciam retos mesmo com
-  // borderRadius definido). Sem NENHUM canto arredondado, continua um
-  // `drawRectangle` reto de sempre (ou nada, se não tiver cor de fundo) —
-  // regressão intacta. Retorna se desenhou a moldura arredondada, pro loop
-  // de colunas saber se ainda precisa desenhar a borda de fora de cada
-  // célula (não precisa — só os divisores internos entre colunas).
+  // The background (if any) + the row's frame — when some corner is
+  // rounded, it draws BOTH (the fill and the outline) in a single
+  // `drawSvgPath`, otherwise each cell's straight outline (drawn separately,
+  // in the column loop below) would "peek" square out from under the rounded
+  // fill (a real reported bug: corners looked straight even with borderRadius
+  // set). With NO rounded corner at all, it stays the usual straight
+  // `drawRectangle` (or nothing, if there is no background color) — the
+  // regression is intact. It returns whether it drew the rounded frame, so the
+  // column loop knows whether it still has to draw each cell's outer border
+  // (it does not — only the internal dividers between columns).
   function drawRowFrame(
     y: number,
     width: number,
@@ -234,9 +233,9 @@ function drawTableSliceInner(
     return false;
   }
 
-  // Fundo/cor/tamanho: override por coluna (mais específico) > estilo da
-  // linha toda (header/valor/rodapé, campos da tabela acima) > default
-  // embutido. Rodapé não tem override por coluna, só linha toda.
+  // Background/color/size: a per-column override (more specific) > the whole
+  // row's style (header/value/footer, the table fields above) > the built-in
+  // default. The footer has no per-column override, only the whole row.
   function drawRow(
     cells: string[],
     variant: "head" | "body" | "footer",
@@ -246,12 +245,12 @@ function drawTableSliceInner(
   ) {
     cursorY -= rowHeightPt;
     const rowWidthPt = colOffsetsPt[colCount - 1] + colWidthsPt[colCount - 1];
-    // Cada bloco só arredonda o(s) canto(s) que fazem sentido pra ELE —
-    // cabeçalho é sempre o topo (nunca o próprio fundo, o corpo desenha
-    // logo abaixo); rodapé é sempre a base (nunca o próprio topo); corpo
-    // só arredonda a base, e só na linha REALMENTE final (allowBottomRadius),
-    // nunca o topo (o cabeçalho já cobre isso). Ver comentário de
-    // TableCornerRadii em types/schema.ts.
+    // Each block only rounds the corner(s) that make sense for IT — the
+    // header is always the top (never its own bottom, the body draws right
+    // below it); the footer is always the base (never its own top); the body
+    // only rounds the base, and only on the REALLY final row
+    // (allowBottomRadius), never the top (the header already covers that). See
+    // the TableCornerRadii comment in types/schema.ts.
     const corners =
       allowTopRadius || allowBottomRadius
         ? variant === "head"
@@ -280,11 +279,11 @@ function drawTableSliceInner(
           : variant === "footer"
             ? footerColor
             : colorOrDefault(colStyle?.cellTextColor, bodyColor);
-      // Override por coluna é a única coisa que ainda desenha um retângulo
-      // POR CÉLULA — a cor "de linha toda" (default de cabeçalho/corpo) já
-      // sai no fundo da própria linha (drawRowBackground acima), pra não
-      // desenhar 2x a mesma cor E pra não "re-quadrar" um canto arredondado
-      // por cima dele com N retângulos retos, um por coluna.
+      // A per-column override is the only thing that still draws a rectangle
+      // PER CELL — the "whole row" color (the header/body default) already
+      // comes out in the row's own background (drawRowBackground above), so as
+      // not to draw the same color twice AND not to "re-square" a rounded
+      // corner over it with N straight rectangles, one per column.
       const cellBg =
         variant === "head" ? hexToColor(colStyle?.headBackgroundColor) : variant === "body" ? hexToColor(colStyle?.cellBackgroundColor) : undefined;
       if (cellBg) {
@@ -293,13 +292,13 @@ function drawTableSliceInner(
       const text = cells[c] ?? "";
       const { x, y, truncated } = cellTextPosition(cellX, cursorY, colWidth, rowHeightPt, align, vAlign, text, font, fontSize, CELL_PADDING_PT);
       page.drawText(truncated, { x, y, size: fontSize, font, color: textColor });
-      // Quando a linha teve o contorno externo já desenhado arredondado
-      // (drawRowFrame acima), NÃO redesenha um retângulo reto de 4 lados
-      // por cima dele (era exatamente isso que deixava o canto parecendo
-      // quadrado mesmo com o preenchimento arredondado) — só o divisor
-      // interno entre colunas, reto mesmo (não faz parte do contorno
-      // externo). Sem arredondamento nenhum, comportamento idêntico a
-      // antes: retângulo reto de sempre, célula por célula.
+      // When the row already had its outer outline drawn rounded (drawRowFrame
+      // above), it does NOT redraw a straight 4-sided rectangle over it (that
+      // was exactly what left the corner looking square even with a rounded
+      // fill) — only the internal divider between columns, straight as it
+      // should be (it is not part of the outer outline). With no rounding at
+      // all, the behavior is identical to before: the usual straight
+      // rectangle, cell by cell.
       if (roundedFrame) {
         if (c < colCount - 1) {
           page.drawLine({

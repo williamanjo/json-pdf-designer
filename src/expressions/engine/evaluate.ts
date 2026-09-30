@@ -19,23 +19,23 @@ export function stringify(value: Value): string {
 }
 
 function toNumber(value: Value): number {
-  // Number("") é 0 — de propósito, e é o comportamento de sempre: um path que
-  // não resolve entra numa conta como 0, então `{naoexiste + a}` dá o valor de
-  // `a` em vez de vazio.
+  // Number("") is 0 — on purpose, and it is the long-standing behavior: a path
+  // that does not resolve enters an arithmetic expression as 0, so
+  // `{doesnotexist + a}` gives the value of `a` instead of empty.
   return typeof value === "number" ? value : Number(value);
 }
 
-// Regra de verdade/falsidade do formato, usada pela condição do {IF(...)}, por
-// AND/OR/NOT e por `visibleWhen`: vazio, "0" e "false" (sem diferenciar
-// maiúsculas) contam como falso; qualquer outra coisa como verdadeiro.
+// The format's truthiness rule, used by the {IF(...)} condition, by AND/OR/NOT
+// and by `visibleWhen`: empty, "0" and "false" (case-insensitive) count as
+// false; anything else as true.
 export function isTruthy(value: Value): boolean {
   const s = stringify(value).trim().toLowerCase();
   return s !== "" && s !== "0" && s !== "false";
 }
 
-// Ruído de ponto flutuante (ex: 12 * 22.9 -> 274.79999999999995) arredondado
-// sem cortar precisão de verdade — 6 casas decimais cobre qualquer conta com
-// dinheiro/quantidade, e a string final não carrega o lixo binário.
+// Floating point noise (e.g. 12 * 22.9 -> 274.79999999999995) rounded off
+// without cutting real precision — 6 decimal places cover any money/quantity
+// arithmetic, and the final string does not carry the binary garbage.
 function roundFloatNoise(n: number): number {
   return Math.round(n * 1e6) / 1e6;
 }
@@ -46,9 +46,9 @@ export function evaluate(expr: Expr, data: unknown): Value {
       return expr.value;
 
     case "number":
-      // Devolve o TEXTO que o autor escreveu: `{2.50}` renderiza "2.50", não
-      // "2.5". Numa conta, `toNumber` coage — que é exatamente o que o motor
-      // anterior fazia.
+      // It returns the TEXT the author wrote: `{2.50}` renders "2.50", not
+      // "2.5". In arithmetic, `toNumber` coerces — which is exactly what the
+      // previous engine did.
       return expr.text;
 
     case "path":
@@ -57,13 +57,13 @@ export function evaluate(expr: Expr, data: unknown): Value {
     case "binary": {
       const left = toNumber(evaluate(expr.left, data));
       const right = toNumber(evaluate(expr.right, data));
-      // Operando que não é número (texto de verdade), ou divisão por zero:
-      // devolve vazio, a convenção do formato pra "não deu pra resolver".
+      // An operand that is not a number (real text), or a division by zero:
+      // it returns empty, the format's convention for "could not resolve".
       //
-      // O motor anterior ESTOURAVA nos dois casos — `{"x" + 1}` e
-      // `{a / zero}` batiam no limite de profundidade, porque a aritmética
-      // falhava, devolvia null, e o fallback reprocessava a mesma string em
-      // recursão infinita. Vazio é o que sempre se pretendeu.
+      // The previous engine BLEW UP in both cases — `{"x" + 1}` and
+      // `{a / zero}` hit the depth limit, because the arithmetic failed,
+      // returned null, and the fallback reprocessed the same string in
+      // infinite recursion. Empty is what was always intended.
       if (Number.isNaN(left) || Number.isNaN(right)) return "";
       if (expr.op === "/" && right === 0) return "";
       switch (expr.op) {
@@ -85,8 +85,8 @@ export function evaluate(expr: Expr, data: unknown): Value {
     }
 
     case "logical": {
-      // Curto-circuito, igual JS: `{existe AND existe.campo == "x"}` não
-      // avalia o lado direito quando o esquerdo é falso.
+      // Short-circuit, like JS: `{exists AND exists.field == "x"}` does not
+      // evaluate the right side when the left one is false.
       const left = isTruthy(evaluate(expr.left, data));
       if (expr.op === "AND") return left && isTruthy(evaluate(expr.right, data)) ? "true" : "false";
       return left || isTruthy(evaluate(expr.right, data)) ? "true" : "false";
@@ -97,10 +97,10 @@ export function evaluate(expr: Expr, data: unknown): Value {
 
     case "call": {
       const fn = FUNCTIONS[expr.name];
-      // Função desconhecida devolve vazio, não erro — mesmo comportamento de
-      // sempre. Um template escrito para uma versão mais nova do pacote
-      // (função que ainda não existe aqui) degrada num campo em branco em vez
-      // de derrubar a geração inteira.
+      // An unknown function returns empty, not an error — the same behavior as
+      // ever. A template written for a newer version of the package (a
+      // function that does not exist here yet) degrades to a blank field
+      // instead of bringing the whole generation down.
       if (!fn) return "";
       const ctx: FnContext = {
         data,

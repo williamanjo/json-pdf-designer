@@ -1,21 +1,21 @@
 import type { Schema, SectionSchema, TableSchema } from "../../types";
 
-// Um item do corpo, na ordem em que aparece na página — tabela e seção
-// paginam de verdade (podem consumir várias fatias/repetições, inclusive
-// virando página); uma "row" (texto/imagem/gráfico/indicador) não pagina
-// sozinha, só ocupa a própria altura no fluxo. Uma "row" pode ter mais de
-// um schema — todo campo (não tabela/seção) que compartilha o MESMO y
-// autorado vira uma linha só (ver buildBodyItems em bodyLayout.ts),
-// preservando o X de cada um: sem isso, dois campos lado a lado (ex: dois
-// indicadores de KPI na mesma linha) cascateariam um embaixo do outro,
-// porque o fluxo sequencial reescreve o Y de cada item pelo cursor — sem
-// essa junção, cada um vira seu próprio "próximo item da sequência" e
-// perde a posição relativa aos vizinhos da mesma linha.
+// One body item, in the order it appears on the page — a table and a section
+// paginate for real (they may consume several slices/repetitions, including
+// turning the page); a "row" (text/image/chart/kpi) does not paginate on its
+// own, it only takes up its own height in the flow. A "row" may have more than
+// one schema — every field (not a table/section) sharing the SAME authored y
+// becomes a single line (see buildBodyItems in bodyLayout.ts), preserving each
+// one's X: without that, two fields side by side (e.g. two KPI cards on the
+// same line) would cascade one below the other, because the sequential flow
+// rewrites each item's Y from the cursor — without that joining, each becomes
+// its own "next item in the sequence" and loses its position relative to its
+// neighbors on the same line.
 export type BodyItem =
   | { kind: "table"; schema: TableSchema }
   | { kind: "section"; schema: SectionSchema }
   | { kind: "row"; schemas: Schema[]; y: number; height: number };
 
-// Forma comum de "onde/quanto espaço" um BodyItem ocupa no fluxo — usada
-// por boundsOf (retorno) e gapAfter (parâmetros), em bodyLayout.ts.
+// The common shape of "where/how much space" a BodyItem takes in the flow —
+// used by boundsOf (return) and gapAfter (parameters), in bodyLayout.ts.
 export type FlowBounds = { y: number; height: number };

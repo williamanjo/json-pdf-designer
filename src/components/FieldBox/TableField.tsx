@@ -11,9 +11,9 @@ type Props = {
   editing: boolean;
   onUpdate?: (patch: Partial<Schema>) => void;
   onStopEditing?: () => void;
-  // Zoom atual do canvas (PageCanvas.tsx) — só usado pro handle de
-  // redimensionar coluna (converte delta de mouse em px de TELA pra mm
-  // real, mesmo motivo do `zoom` que KpiField.tsx já recebe).
+  // Current canvas zoom (PageCanvas.tsx) — used only by the column resize
+  // handle (it converts a mouse delta in SCREEN px into real mm, same
+  // reason as the `zoom` KpiField.tsx already receives).
   zoom?: number;
 };
 
@@ -40,12 +40,12 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
     if (e.key === "Escape") onStopEditing?.();
   }
 
-  // Modo de edição (double-click) libera a tabela toda, mas mostrar
-  // TODAS as células como <input> de uma vez faz cada uma exibir a
-  // fórmula crua junto (ex: "{CURRENCY(tarFatura, "R$", 2)}") — poluído e
-  // estoura a grid (ver cellClipStyle). Só a célula com foco (clicada)
-  // vira input com a fórmula crua; as outras ficam como texto limpo
-  // (displayCell), igual fora do modo de edição.
+  // Editing mode (double-click) unlocks the whole table, but showing ALL
+  // cells as <input> at once makes each of them display its raw formula
+  // too (e.g. "{CURRENCY(tarFatura, "R$", 2)}") — cluttered, and it
+  // overflows the grid (see cellClipStyle). Only the focused cell (the one
+  // clicked) becomes an input with the raw formula; the others stay as
+  // clean text (displayCell), just like outside editing mode.
   const [focusedCell, setFocusedCell] = useState<{ row: "body" | "footer"; ri: number; ci: number } | null>(null);
 
   const headBg = schema.headBackgroundColor ?? "#0284c7";
@@ -54,8 +54,8 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
   const footerColor = schema.footerTextColor ?? "#000000";
   const hasFooter = Boolean(schema.footer && schema.footer.length > 0);
 
-  // Alinhamento por bloco (cabeçalho/corpo/rodapé) — ausente = esquerda/
-  // meio, igual sempre foi (mesmos defaults de pdf/render/renderTable.ts).
+  // Alignment per block (header/body/footer) — absent means left/middle,
+  // as it always was (same defaults as pdf/render/renderTable.ts).
   const headAlign = schema.headAlign ?? "left";
   const headVAlign = schema.headVerticalAlign ?? "middle";
   const bodyAlign = schema.bodyAlign ?? "left";
@@ -63,19 +63,19 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
   const footerAlign = schema.footerAlign ?? "left";
   const footerVAlign = schema.footerVerticalAlign ?? "middle";
   function vAlignCss(v: "top" | "middle" | "bottom"): React.CSSProperties["verticalAlign"] {
-    return v; // valores batem 1:1 com CSS vertical-align pra célula de tabela
+    return v; // values map 1:1 to CSS vertical-align for a table cell
   }
 
-  // Largura por coluna, em mm (fonte única da verdade, mesma função pura
-  // que pdf/render/renderTable.ts usa em pt) e já convertida pra px pro CSS —
-  // ausente em tudo = divisão igual de sempre.
+  // Width per column, in mm (single source of truth, the same pure function
+  // pdf/render/renderTable.ts uses in pt) and already converted to px for the
+  // CSS — absent everywhere means the usual equal split.
   const colWidthsMm = resolveColumnWidthsMm(schema.columnWidths, schema.head.length, schema.width);
   const colWidthsPx = colWidthsMm.map(mmToPx);
 
-  // Arrasta o divisor entre a coluna `index` e a seguinte — ajusta as DUAS
-  // (delta oposto), mantendo a largura TOTAL da tabela constante, igual
-  // uma planilha. Wiring do arrasto via startDragGesture (mesmo padrão de
-  // KpiField.tsx); a matemática de clamp/giveback vive em resizeColumnPair.
+  // Drags the divider between column `index` and the next one — it adjusts
+  // BOTH (opposite deltas), keeping the table's TOTAL width constant, like
+  // a spreadsheet. Drag wiring goes through startDragGesture (same pattern
+  // as KpiField.tsx); the clamp/giveback math lives in resizeColumnPair.
   function startColumnResize(index: number, e: React.MouseEvent) {
     e.preventDefault();
     if (!onUpdate) return;
@@ -94,12 +94,12 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
     });
   }
 
-  // Aproximação visual de cantos arredondados — o canvas não precisa ser
-  // pixel-perfeito (o PDF gerado, via pdf/render/renderTable.ts, é a fonte da
-  // verdade); um `overflow: hidden` recorta os 4 cantos da MOLDURA
-  // inteira de uma vez, já que aqui (ao contrário do PDF) não tem como
-  // "só" o cabeçalho ou "só" o rodapé terem fundo colorido recortado sem
-  // recortar o resto junto — suficiente pra dar a mesma ideia no editor.
+  // A visual approximation of rounded corners — the canvas does not have
+  // to be pixel-perfect (the generated PDF, via pdf/render/renderTable.ts,
+  // is the source of truth); an `overflow: hidden` clips all 4 corners of
+  // the WHOLE frame at once, since here (unlike in the PDF) there is no way
+  // for "only" the header or "only" the footer to have a clipped colored
+  // background without clipping the rest too — enough for the same idea.
   const bottomRadii = hasFooter ? schema.footerBorderRadius : schema.bodyBorderRadius;
   const wrapperRadiusPx = {
     borderTopLeftRadius: mmToPx(schema.headBorderRadius?.topLeft ?? 0),
@@ -110,10 +110,10 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
 
   return (
     <div className="jpd-table__wrap" style={wrapperRadiusPx}>
-      {/* `table-layout: fixed` e o recorte por célula vivem no CSS
-          (.jpd-fieldtable / .jpd-table__cell) — ver o comentário lá: sem eles
-          uma célula de rodapé com token comprido alarga a coluna e estoura a
-          tabela pra fora da grid do campo. */}
+      {/* `table-layout: fixed` and the per-cell clipping live in the CSS
+          (.jpd-fieldtable / .jpd-table__cell) — see the comment there: without
+          them a footer cell holding a long token widens the column and pushes
+          the table outside the field's grid. */}
       <table className="jpd-fieldtable">
         <thead>
           <tr>
@@ -158,11 +158,11 @@ export function TableField({ schema, editing, onUpdate, onStopEditing, zoom = 1 
             const banded = ri % 2 === 1;
             const bandColor = schema.bodyBandColor;
             return (
-              // TRÊS estados, não dois: linha não zebrada não tem nada; zebrada
-              // com cor do schema usa a cor (inline, que vence a @layer);
-              // zebrada sem cor cai no zebrado embutido, que agora vem do
-              // [data-banded] no CSS. Trocar isto por só `data-banded` mataria
-              // o caminho da cor do schema.
+              // THREE states, not two: a non-banded row gets nothing; a banded row
+              // with a schema color uses that color (inline, which beats the
+              // @layer); a banded row without a color falls back to the
+              // built-in banding, which now comes from [data-banded] in CSS.
+              // Using `data-banded` alone would kill the schema-color path.
               <tr key={ri} className="jpd-table__row" data-banded={banded || undefined} style={bandColor && banded ? { backgroundColor: bandColor } : undefined}>
                 {row.map((cell, ci) => {
                   const colStyle = schema.columnStyles?.[ci];

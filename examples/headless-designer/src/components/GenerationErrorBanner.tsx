@@ -4,36 +4,36 @@ import type { ShellDict } from "../i18n";
 
 type Props = {
   problem: GenerationProblem;
-  // Dicionário da CASCA, e agora ele carrega MENOS do que carregava: os
-  // rótulos em volta ("problema no dado", "ver detalhe") continuam nossos,
-  // mas o título e a ação de cada falha vêm dentro do `problem` — resolvidos
-  // pelo pacote pros erros dele, pelo `failures.*` da casca pros nossos.
+  // The SHELL's dictionary, and it now carries LESS than it used to: the
+  // labels around it ("a problem in the data", "see detail") are still ours,
+  // but each failure's title and action come inside the `problem` — resolved
+  // by the package for its errors, by the shell's `failures.*` for ours.
   tt: ShellDict;
   onDismiss: () => void;
 };
 
-// Banner de falha de geração.
+// The generation failure banner.
 //
-// O que este componente NÃO faz mais, e é a mudança que importa: ele não
-// escolhe texto. Antes tinha um `switch` sobre nove códigos com dois casos
-// especiais (o teto de páginas e o caractere fora da fonte carregavam um
-// `titleArg` pra interpolar), e cada código precisava de entrada em
-// `genErrors` nos dois idiomas — nove títulos e nove ações mantidos aqui,
-// duplicando o que o pacote já sabia dizer.
+// What this component no longer does, and it is the change that matters: it
+// does not choose text. It used to have a `switch` over nine codes with two
+// special cases (the page ceiling and the character outside the font carried a
+// `titleArg` to interpolate), and each code needed an entry in `genErrors` in
+// both languages — nine titles and nine actions maintained here, duplicating
+// what the package already knew how to say.
 //
-// Na 3.0.0 `describePdfError` devolve `{ code, blame, title, action?, field?,
-// detail }` com título e ação JÁ LOCALIZADOS, então a interpolação (e o
-// `titleArg` que existia só pra ela) mora do lado de quem tem o número. Aqui
-// sobrou render.
+// In 3.0.0 `describePdfError` returns `{ code, blame, title, action?, field?,
+// detail }` with the title and action ALREADY LOCALIZED, so the interpolation
+// (and the `titleArg` that existed only for it) lives on the side that has the
+// number. What is left here is rendering.
 //
-// A tradução continua acontecendo na RENDERIZAÇÃO, não no `catch`: o estado do
-// App guarda o erro CRU e chama `describeGenerationError(err, locale)` ao
-// renderizar, então trocar o idioma com o banner aberto retraduz o banner sem
-// gerar o PDF de novo.
+// The translation still happens at RENDER time, not in the `catch`: the App's
+// state holds the RAW error and calls `describeGenerationError(err, locale)`
+// while rendering, so switching the language with the banner open retranslates
+// the banner without generating the PDF again.
 export default function GenerationErrorBanner({ problem, tt, onDismiss }: Props) {
   const [showDetail, setShowDetail] = useState(false);
-  // `blame: "package"` é a única culpa que pinta o banner de outra cor: é a
-  // que diz "não é o seu template, é bug nosso".
+  // `blame: "package"` is the only blame that paints the banner another
+  // color: it is the one that says "it is not your template, it is our bug".
   const isBug = problem.blame === "package";
 
   return (

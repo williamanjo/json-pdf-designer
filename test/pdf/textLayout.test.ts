@@ -47,8 +47,8 @@ describe("alignY", () => {
 });
 
 describe("truncateToWidth", () => {
-  // widthOfTextAtSize proporcional ao comprimento (NÃO constante), pra
-  // truncamento de verdade ser exercitado — cada caractere "pesa" 5.
+  // widthOfTextAtSize proportional to the length (NOT constant), so real
+  // truncation is exercised — each character "weighs" 5.
   const fakeFont = { widthOfTextAtSize: (text: string) => text.length * 5 } as unknown as PDFFont;
 
   it("returns the text unchanged when it already fits maxWidth", () => {

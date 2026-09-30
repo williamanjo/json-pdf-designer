@@ -1,42 +1,42 @@
-// Coluna de tabela: chave crua do JSON, ou coluna calculada (rótulo fixo +
-// fórmula avaliada por linha, path relativo ao item do array).
+// A table column: a raw JSON key, or a calculated column (a fixed label + a
+// formula evaluated per row, with a path relative to the array's item).
 export type TableColumn = string | { label: string; formula: string };
 
 export type ChartFilterOp = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "contains";
 
-// Uma condição de filtro do gráfico — compara `column` (chave do item do
-// array vinculado) contra `value` usando `op`. Comparação numérica quando
-// os dois lados dão pra converter em número (ver bindings.ts), senão texto
-// (case-insensitive) — "contains" é sempre texto.
+// One of the chart's filter conditions — it compares `column` (a key of the
+// bound array's item) against `value` using `op`. A numeric comparison when
+// both sides can be converted to a number (see bindings.ts), otherwise text
+// (case-insensitive) — "contains" is always text.
 export type ChartFilterCondition = { column: string; op: ChartFilterOp; value: string };
 
-// Um grupo é uma lista de condições combinadas com E (todas precisam bater).
+// A group is a list of conditions combined with AND (all of them must match).
 export type ChartFilterGroup = ChartFilterCondition[];
 
 export type KpiAggregation = "sum" | "count" | "avg" | "min" | "max";
 
 export type Binding =
   | { schemaName: string; type: "scalar"; path: string }
-  // Vínculo de uma TableSchema — path aponta pro array, columns mapeia
-  // cada coluna da tabela (chave crua ou {label,formula} calculada por
-  // linha). `filters` (opcional) — mesmo formato do chart (grupos OU de
-  // condições E) — item só vira linha se bater em pelo menos um grupo
-  // inteiro; sem filtro nenhum, toda linha entra (comportamento de sempre).
+  // A TableSchema's binding — path points at the array, columns maps each of
+  // the table's columns (a raw key or a {label,formula} calculated per row).
+  // `filters` (optional) — the same format as the chart (OR groups of AND
+  // conditions) — an item only becomes a row if it matches at least one whole
+  // group; with no filter at all, every row comes in (the usual behavior).
   | { schemaName: string; type: "array"; path: string; columns: TableColumn[]; filters?: ChartFilterGroup[] }
   | { schemaName: string; type: "keyvalue"; paths: string[] }
   | { schemaName: string; type: "template"; template: string }
-  // Vínculo de uma SectionSchema — path aponta pro array a repetir. Os
-  // campos DENTRO da seção têm seus próprios vínculos nesta mesma lista
-  // (por nome), resolvidos contra cada ITEM do array, não o documento
-  // inteiro — ver generate.ts.
+  // A SectionSchema's binding — path points at the array to repeat. The
+  // fields INSIDE the section have their own bindings in this same list (by
+  // name), resolved against each ITEM of the array, not against the whole
+  // document — see generate.ts.
   | { schemaName: string; type: "section"; path: string }
-  // Vínculo de uma ChartSchema — path aponta pro array a agregar;
-  // labelColumn é a chave do rótulo de cada fatia/barra, valueColumn a
-  // chave numérica somada por rótulo (ex: "valor" ou "quantidade").
-  // `filters` (opcional) — lista de GRUPOS combinados com OU; dentro de
-  // cada grupo, as condições combinam com E. Item do array só entra na
-  // agregação se bater em pelo menos um grupo inteiro (ou sem filtro
-  // nenhum = todo mundo entra, comportamento de sempre).
+  // A ChartSchema's binding — path points at the array to aggregate;
+  // labelColumn is the key of each slice/bar's label, valueColumn the numeric
+  // key summed per label (e.g. "amount" or "quantity"). `filters` (optional) —
+  // a list of GROUPS combined with OR; inside each group, the conditions
+  // combine with AND. An item of the array only enters the aggregation if it
+  // matches at least one whole group (or with no filter at all = everyone
+  // comes in, the usual behavior).
   | {
       schemaName: string;
       type: "chart";
@@ -45,12 +45,12 @@ export type Binding =
       valueColumn: string;
       filters?: ChartFilterGroup[];
     }
-  // Vínculo de uma KpiSchema — path aponta pro array a agregar; valueColumn
-  // é a coluna numérica somada/mediada/etc (ignorada quando
-  // aggregation === "count", que só conta as linhas filtradas). Sem esse
-  // vínculo, o KPI resolve `value` como template livre de sempre (ver
-  // bindings.ts) — presente, ele manda: `value` vira o resultado calculado,
-  // o template do campo é ignorado.
+  // A KpiSchema's binding — path points at the array to aggregate;
+  // valueColumn is the numeric column summed/averaged/etc (ignored when
+  // aggregation === "count", which only counts the filtered rows). Without
+  // this binding, the KPI resolves `value` as the usual free template (see
+  // bindings.ts) — when present, it rules: `value` becomes the computed
+  // result, and the field's template is ignored.
   | {
       schemaName: string;
       type: "kpi";

@@ -79,8 +79,8 @@ describe("visibleWhen — campo", () => {
 
 describe("visibleWhen — efeito no fluxo", () => {
   it("campo escondido numa linha com vizinho visível deixa o buraco (a linha continua)", () => {
-    // Dois campos no MESMO Y são uma "row" — os vizinhos precisam do lugar
-    // deles, então a linha mantém a altura.
+    // Two fields at the SAME Y are one "row" — the neighbors need their
+    // place, so the line keeps its height.
     const t: Template = {
       page: A4,
       schemas: [
@@ -92,8 +92,8 @@ describe("visibleWhen — efeito no fluxo", () => {
     const layout = layoutOf(t, {});
     const placements = layout.pages[0].placements;
     expect(placements.map((p) => p.schema.name)).toEqual(["dir", "abaixo"]);
-    // "abaixo" fica onde ficaria sem esconder nada: 40 + 10 (altura da linha)
-    // + 10 (gap autorado até y=60) = 60.
+    // "below" ends up where it would be with nothing hidden: 40 + 10 (the
+    // line's height) + 10 (the gap authored up to y=60) = 60.
     expect(placements[1].yMm).toBe(60);
   });
 
@@ -115,9 +115,9 @@ describe("visibleWhen — efeito no fluxo", () => {
         .pages[0].placements.find((p) => p.schema.name === name)!.yMm;
 
     expect(y(semEsconder, "abaixo")).toBe(60);
-    // A linha do meio tem 10mm de altura. Escondendo-a, "abaixo" sobe
-    // exatamente 10mm — os dois gaps autorados (10mm de cada lado) continuam
-    // valendo, só a altura do item escondido é devolvida.
+    // The middle line is 10mm tall. Hiding it, "below" moves up exactly 10mm
+    // — the two authored gaps (10mm on each side) still hold, only the hidden
+    // item's height is given back.
     expect(y(t, "abaixo")).toBe(50);
   });
 

@@ -1,23 +1,23 @@
 import type { SVGAttributes } from "react";
 import { cx } from "./cx";
 
-// Ícones inline (sem dependência externa) — stroke consistente 1.8, 16x16.
+// Inline icons (no external dependency) — a consistent 1.8 stroke, 16x16.
 //
-// `SVGAttributes` e não só `{ className }`: dá pra passar `aria-hidden`,
-// `onClick`, `style`, `focusable` etc. E de propósito NÃO é `SVGProps`, que
-// estende `ClassAttributes` e portanto aceitaria um `ref` que aqui não vai a
-// lugar nenhum — o tipo mentiria.
+// `SVGAttributes` and not merely `{ className }`: it allows `aria-hidden`,
+// `onClick`, `style`, `focusable` and so on. And deliberately NOT `SVGProps`,
+// which extends `ClassAttributes` and would therefore accept a `ref` that goes
+// nowhere here — the type would be lying.
 export type IconProps = SVGAttributes<SVGSVGElement>;
 
-// `jpd-icon` entra no BASE, não em cada call site.
+// `jpd-icon` goes on the BASE, not on each call site.
 //
-// O `display: block` de todo <svg> inline vinha do Preflight do Tailwind
-// (`img,svg,video,canvas { display:block; vertical-align:middle }`). Sem ele,
-// o svg volta a ser inline-baseline e ganha um vão de descendente embaixo —
-// dentro de linha flex isso desalinha o ícone do texto em ~2px, em cada um
-// dos ~23 lugares que usam ícone, incluindo o `<IconX/>` dentro dos botões
-// do kit. Consertar aqui é uma linha; consertar por call site seriam 23
-// oportunidades de esquecer uma.
+// The `display: block` of every inline <svg> used to come from Tailwind's
+// Preflight (`img,svg,video,canvas { display:block; vertical-align:middle }`).
+// Without it the svg goes back to inline-baseline and gains a descender gap
+// below it — inside a flex row that misaligns the icon from the text by ~2px,
+// in each of the ~23 places that use an icon, including the `<IconX/>` inside
+// the kit's buttons. Fixing it here is one line; fixing it per call site would
+// be 23 opportunities to forget one.
 const base = { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
 export function IconPlus({ className, ...rest }: IconProps) {
@@ -52,10 +52,10 @@ export function IconX({ className, ...rest }: IconProps) {
   );
 }
 
-// Lápis — "editar o rótulo disto". Existe porque a única forma de renomear
-// era duplo clique, que é gesto de mouse: sem um alvo focável, quem navega
-// por teclado não tinha operação nenhuma (ver o botão em
-// PropertyPanel/PropertyPanelTable.tsx e em FieldList.tsx).
+// A pencil — "edit the label of this". It exists because the only way to
+// rename was a double click, which is a mouse gesture: with no focusable
+// target, keyboard users had no operation at all (see the button in
+// PropertyPanel/PropertyPanelTable.tsx and in FieldList.tsx).
 export function IconPencil({ className, ...rest }: IconProps) {
   return (
     <svg {...base} {...rest} className={cx("jpd-icon", className)}>
@@ -160,8 +160,8 @@ export function IconDots({ className, ...rest }: IconProps) {
   );
 }
 
-// Material Symbols "lock"/"lock_open_right" — preenchido, viewBox próprio
-// (não usa `base`, que é pensado pra ícones em traço/stroke).
+// Material Symbols "lock"/"lock_open_right" — filled, with its own viewBox
+// (it does not use `base`, which is meant for stroke icons).
 export function IconLock({ className, ...rest }: IconProps) {
   return (
     <svg width={14} height={14} viewBox="0 -960 960 960" fill="currentColor" {...rest} className={cx("jpd-icon", className)}>
@@ -196,8 +196,8 @@ export function IconLockOpen({ className, ...rest }: IconProps) {
   );
 }
 
-// Aviso — campo faltando alguma coisa (vínculo com o JSON, condição de
-// filtro sem valor etc.) na lista de campos, ver FieldList.tsx.
+// Warning — a field missing something (a binding to the JSON, a filter
+// condition with no value and so on) in the field list, see FieldList.tsx.
 export function IconAlertTriangle({ className, ...rest }: IconProps) {
   return (
     <svg {...base} {...rest} className={cx("jpd-icon", className)}>

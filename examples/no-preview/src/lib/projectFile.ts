@@ -1,46 +1,47 @@
 import type { Binding, Template } from "json-pdf-designer";
 import { migrateTemplate } from "json-pdf-designer";
 
-// Exporta template + vínculos como um JSON pra baixar — "projeto" no
-// sentido de "dá pra recarregar depois" (ver parseProjectFile).
+// It exports the template + bindings as a JSON to download — a "project" in
+// the sense of "it can be loaded back later" (see parseProjectFile).
 export function downloadProjectFile(template: Template, bindings: Binding[]) {
   const payload = { template, bindings };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  // Nome do arquivo BAIXADO: é dado que sai do app, não rótulo de interface —
-  // fica igual nos dois idiomas, como "relatorio.pdf" (App.tsx).
+  // The DOWNLOADED file's name: it is data leaving the app, not an interface
+  // label — it stays the same in both languages, like "relatorio.pdf" (App.tsx).
   a.download = "projeto-relatorio.json";
   a.click();
   URL.revokeObjectURL(url);
 }
 
-// Lê e valida um arquivo de projeto exportado por downloadProjectFile —
-// mesma validação de forma do loadAutosave (ver hooks/useAutosave.ts):
-// sem isso, um JSON editado à mão (ou de uma versão antiga incompatível)
-// passava direto pro estado tipado e quebrava o Designer mais na frente,
-// sem erro claro na hora do import.
-// As quatro recusas são NOSSAS (o pacote não tem conceito de "arquivo de
-// projeto"), e cada uma carrega uma CHAVE, nunca a frase.
+// It reads and validates a project file exported by downloadProjectFile —
+// the same shape validation as loadAutosave (see hooks/useAutosave.ts):
+// without it, a hand-edited JSON (or one from an old incompatible version)
+// went straight into the typed state and broke the Designer further along,
+// with no clear error at import time.
+// The four refusals are OURS (the package has no concept of a "project
+// file"), and each carries a KEY, never the phrase.
 //
-// Guardar a frase aqui foi um bug de verdade: ela era montada no momento da
-// rejeição, ficava congelada no idioma daquele instante, e trocar o seletor
-// com o banner aberto não retraduzia nada. A chave viaja; o texto sai do
-// dicionário no render.
+// Holding the phrase here was a real bug: it was built at the moment of the
+// rejection, stayed frozen in the language of that instant, and switching the
+// picker with the banner open retranslated nothing. The key travels; the text
+// comes from the dictionary at render time.
 export type ProjectFileProblem = "missingTemplate" | "bindingsNotAList" | "malformed" | "unreadable";
 
 export class ProjectFileError extends Error {
-  // Campo declarado e atribuído à mão, e não `constructor(readonly problem)`:
-  // o tsconfig destes examples liga `erasableSyntaxOnly`, que proíbe
-  // parameter property (ela EMITE código, então não é sintaxe apagável). O
-  // pacote usa a forma curta porque não liga essa flag.
+  // The field is declared and assigned by hand, and not
+  // `constructor(readonly problem)`: these examples' tsconfig turns on
+  // `erasableSyntaxOnly`, which forbids a parameter property (it EMITS code,
+  // so it is not erasable syntax). The package uses the short form because it
+  // does not turn that flag on.
   readonly problem: ProjectFileProblem;
 
   constructor(problem: ProjectFileProblem) {
-    // `message` em inglês, como todo `throw` do pacote: é diagnóstico de log,
-    // não texto de tela. Quem mostra pro usuário é o describeGenerationError,
-    // que lê `problem` e pega a frase traduzida.
+    // `message` in English, like every `throw` in the package: it is a log
+    // diagnostic, not screen text. What shows it to the user is
+    // describeGenerationError, which reads `problem` and takes the translated
     super(`Invalid project file: ${problem}`);
     this.name = "ProjectFileError";
     this.problem = problem;

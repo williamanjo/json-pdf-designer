@@ -3,59 +3,60 @@ import type { Locale, PdfErrorBlame, PdfProblem } from "json-pdf-designer";
 import { t, type ShellDict } from "../i18n";
 import { ProjectFileError, type ProjectFileProblem } from "./projectFile";
 
-// Tradução de uma falha em algo que diz o que FAZER — e a divisão de trabalho
-// entre o pacote e este app.
+// Translating a failure into something that says what to DO — and the
+// division of labor between the package and this app.
 //
-// O PACOTE classifica e localiza o que é DELE. `describePdfError(err, dict)`
-// devolve `{ code, blame, title, action?, field?, detail }` já no idioma
-// pedido, ou `null` quando o erro não é dele. `code` é string literal (18
-// códigos + "expression"), `blame` é "data" | "template" | "config" |
-// "package" — e é o `blame` que decide o tom do banner, do mesmo jeito que
-// num backend ele decidiria entre 413/400 e 500.
+// THE PACKAGE classifies and localizes what is ITS OWN.
+// `describePdfError(err, dict)` returns `{ code, blame, title, action?,
+// field?, detail }` already in the language asked for, or `null` when the
+// error is not its own. `code` is a string literal (18 codes + "expression"),
+// `blame` is "data" | "template" | "config" | "package" — and it is `blame`
+// that decides the banner's tone, in the same way it would decide between
+// 413/400 and 500 in a backend.
 //
-// ESTE APP só faz três coisas em cima disso:
-//   1. trata os erros que são DELE (ProjectFileError — o pacote não sabe que
-//      o formato `{ template, bindings }` existe);
-//   2. substitui a AÇÃO de um código onde ele sabe mais que o pacote (a de
-//      `expression` aponta pro painel desta casca, que o pacote não conhece);
-//   3. preenche a ação quando o pacote não tem uma (os códigos de `blame:
-//      "package"` não têm — a ação é reportar, e o link do repo é escolha de
-//      quem monta o app).
+// THIS APP only does three things on top of that:
+//   1. it handles the errors that are ITS OWN (ProjectFileError — the package
+//      does not know the `{ template, bindings }` format exists);
+//   2. it replaces the ACTION of one code where it knows more than the package
+//      (the one for `expression` points at this shell's panel, which the
+//      package does not know about);
+//   3. it fills in the action when the package has none (the `blame:
+//      "package"` codes do not have one — the action is to report it, and the
+//      repo's link is a choice of whoever builds the app).
 //
-// O QUE SAIU DAQUI, e por que isso era um bug: até esta rodada a
-// classificação era `instanceof` em três classes MAIS seis regexes casando a
-// frase do erro em português (`/tamanho inválido/`, `/Paginação travada/`...).
-// O pacote passou a lançar `message` em inglês, com classe e `code`
-// estruturado — então nenhuma daquelas regexes casava mais, e TODA falha
-// classificada caía no ramo "erro inesperado", em silêncio. Casar texto de
-// mensagem sempre foi frágil; `code` é o contrato que substitui isso.
+// WHAT LEFT HERE, and why that was a bug: until this round the classification
+// was an `instanceof` on three classes PLUS six regexes matching the error's
+// phrase in Portuguese (`/tamanho inválido/`, `/Paginação travada/`...). The
+// package started throwing `message` in English, with a class and a structured
+// `code` — so none of those regexes matched any more, and EVERY classified
+// failure fell into the "unexpected error" branch, silently. Matching message
+// text was always fragile; `code` is the contract that replaces it.
 //
-// A função é chamada no RENDER (App.tsx), não no `catch`: o estado guarda o
-// erro CRU e a frase é montada a cada render, então trocar de idioma com o
-// banner aberto retraduz o banner.
+// The function is called in the RENDER (App.tsx), not in the `catch`.
 
 export type GenerationProblem = {
-  // Título curto — o que aconteceu.
+  // A short title — what happened.
   title: string;
-  // O que a pessoa faz agora. Opcional porque pode não haver ação útil: nos
-  // dois códigos de bug do pacote a "ação" é reportar, e o título já diz.
+  // What the person does now. Optional because there may be no useful
+  // action: in the package's two bug codes the "action" is to report it, and
+  // the title already says so.
   action?: string;
-  // Culpa de quem: muda o tom da UI e, num servidor, o status HTTP. É o
-  // `blame` DO PACOTE, não uma derivação nossa — antes este campo era uma
-  // união em português ("dado" | "template" | ...) que a gente atribuía à mão
-  // em cada ramo, o que é uma segunda fonte de verdade pra divergir da dele.
+  // Whose fault it is: it changes the UI's tone and, on a server, the HTTP
+  // status. It is THE PACKAGE's `blame`, not a derivation of ours — this field
+  // used to be a union in Portuguese ("dado" | "template" | ...) that we
+  // assigned by hand in each branch, which is a second source of truth.
   blame: PdfErrorBlame;
-  // Campo do template envolvido, quando o erro sabe qual.
+  // The template field involved, when the error knows which one.
   field?: string;
-  // Mensagem original, pra quem quiser o detalhe cru. NÃO traduzida: é
-  // diagnóstico de desenvolvedor (inglês, por convenção de biblioteca) e é o
-  // que se cola num relato de bug.
+  // The original message, for whoever wants the raw detail. NOT translated:
+  // it is a developer diagnostic (English, by library convention) and it is
+  // what gets pasted into a bug report.
   detail: string;
 };
 
-// As quatro recusas de arquivo de projeto (lib/projectFile.ts). O `switch` no
-// código — e não na frase — é o que garante que uma recusa nova apareça aqui:
-// sem `case`, o TypeScript recusa o retorno.
+// The four project file refusals (lib/projectFile.ts). The `switch` on the
+// code — and not on the phrase — is what guarantees a new refusal shows up
+// here: with no `case`, TypeScript refuses the return.
 function projectFileTitle(d: ShellDict, problem: ProjectFileProblem): string {
   switch (problem) {
     case "missingTemplate":
@@ -69,28 +70,29 @@ function projectFileTitle(d: ShellDict, problem: ProjectFileProblem): string {
   }
 }
 
-// A AÇÃO — o único lugar onde este example ainda escreve texto pra erro do
-// pacote, e só em dois casos, os dois por falta de API e não por gosto.
+// The ACTION — the only place where this example still writes text for a
+// package error, and only in two cases, both for a missing API and not out of
+// taste.
 //
-// O `default` é deliberado: código novo no pacote entra com o título E a ação
-// dele, já localizados, sem passar por aqui. Trocar isso por um `switch`
-// exaustivo obrigaria este arquivo a ter uma frase própria por código — que é
-// exatamente a duplicação que a rodada anterior criou e esta desfaz.
+// The `default` is deliberate: a new code in the package comes in with ITS
+// title AND ITS action, already localized, without passing through here.
+// Replacing it with an exhaustive `switch` would force this file to have a
+// phrase of its own per code — exactly the duplication the previous round
 function actionFor(problem: PdfProblem, d: ShellDict): string | undefined {
   switch (problem.code) {
-    // O pacote diz "corrija a expressão no template — <erro de sintaxe>".
-    // Está certo, mas ele não sabe que esta casca tem um painel que já lista
-    // cada expressão quebrada e em que página está; mandar a pessoa pra lá é
-    // mais útil que mandar procurar. O nome do painel sai do MESMO dicionário
-    // que desenha o cabeçalho dele, então nunca aponta pra um painel com
-    // outro nome.
+    // The package says "fix the expression in the template — <syntax
+    // error>". That is right, but it does not know this shell has a panel that
+    // already lists every broken expression and which page it is on; sending
+    // the person there is more useful than sending them looking. The panel's
+    // name comes from the SAME dictionary that draws its header, so it never
+    // points at a panel under another name.
     case "expression":
       return d.expressionAction(d.problemsTitle);
     default:
-      // `action` ausente = bug do pacote (paginationStalled,
-      // templateMigrationMissing): não há o que a pessoa conserte, e o pacote
-      // de propósito não chuta um link de repositório. Quem monta o app sabe
-      // onde reportar, então a frase é nossa.
+      // An absent `action` = a package bug (paginationStalled,
+      // templateMigrationMissing): there is nothing for the person to fix, and
+      // the package deliberately does not guess a repository link. Whoever
+      // builds the app knows where to report, so the phrase is ours.
       return problem.action ?? (problem.blame === "package" ? d.reportBugAction : undefined);
   }
 }
@@ -98,23 +100,24 @@ function actionFor(problem: PdfProblem, d: ShellDict): string | undefined {
 export function describeGenerationError(err: unknown, locale: Locale): GenerationProblem {
   const d = t(locale);
 
-  // Erro NOSSO, primeiro: `describePdfError` devolveria `null` pra ele e a
-  // recusa de um arquivo de projeto viraria "erro inesperado" — que é errado
-  // duas vezes, porque nem é inesperado nem é do pacote.
+  // OUR error first: `describePdfError` would return `null` for it and a
+  // refused project file would become "unexpected error" — which is wrong
+  // twice, because it is neither unexpected nor the package's.
   if (err instanceof ProjectFileError) {
     return {
       title: projectFileTitle(d, err.problem),
       action: d.projectAction,
-      // A pessoa entregou um arquivo que não serve: o que muda pra dar certo
-      // é o arquivo, não o template que está aberto no editor.
+      // The person handed over a file that will not do: what has to change for
+      // this to work is the file, not the template open in the editor.
       blame: "data",
       detail: err.message,
     };
   }
 
-  // Tudo o que é do pacote: uma chamada, título e ação já no idioma da casca.
-  // `dictFor` é o `useT()` que funciona como VALOR — isto roda fora da árvore
-  // React (e também é chamado do render, sem provider por perto).
+  // Everything that belongs to the package: one call, with the title and
+  // action already in the shell's language. `dictFor` is the `useT()` that
+  // works as a VALUE — this runs outside the React tree (and is also called
+  // from the render, with no provider around).
   const problem = describePdfError(err, dictFor(locale));
 
   if (problem) {
@@ -127,10 +130,10 @@ export function describeGenerationError(err: unknown, locale: Locale): Generatio
     };
   }
 
-  // `null` = não é erro do pacote nem nosso. Um `fetch` que falhou ao buscar
-  // a fonte (lib/font.ts), uma quota de storage, um TypeError de dentro de
-  // uma dependência. Genérico HONESTO: não inventamos título pra falha que
-  // não conhecemos, e o detalhe cru fica um clique de distância.
+  // `null` = it is neither the package's error nor ours. A `fetch` that
+  // failed while getting the font (lib/font.ts), a storage quota, a TypeError
+  // from inside a dependency. An HONEST generic: we do not invent a title for
+  // a failure we do not know, and the raw detail is one click away.
   return {
     title: d.genericTitle,
     action: d.genericAction,

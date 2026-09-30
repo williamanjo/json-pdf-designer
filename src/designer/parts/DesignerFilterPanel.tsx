@@ -12,28 +12,28 @@ export type DesignerFilterPanelProps = {
   className?: string;
   style?: CSSProperties;
   whenTab?: TabGate;
-  // Cabeçalho com o nome do campo e o aviso de seleção múltipla — o mesmo
-  // do DesignerPropertyPanel, porque no `Designer.tsx` os dois viviam
-  // dentro do MESMO `<div className="jpd-sidebar__panel">`.
+  // A header with the field's name and the multiple-selection warning — the
+  // same one as DesignerPropertyPanel, because in `Designer.tsx` the two
+  // lived inside the SAME `<div className="jpd-sidebar__panel">`.
   header?: boolean;
   parts?: { banner?: PartStyle };
 };
 
-// Peça posicionável: o filtro de linhas do vínculo do campo selecionado.
+// A placeable part: the row filter of the selected field's binding.
 //
-// Uma das duas peças que o examples/headless-designer disse ter tido de
-// abrir mão (a outra é DesignerBindingEditor).
+// One of the two parts examples/headless-designer said it had to give up
+// (the other is DesignerBindingEditor).
 //
-// Três estados, e o primeiro renderiza `null` porque o campo simplesmente
-// não tem filtro nenhum pra mostrar:
+// Three states, and the first renders `null` because the field simply has no
+// filter to show:
 //
-//   sem seleção / tipo que não filtra  -> null
-//   filtra, mas ainda sem vínculo      -> dica ("vincule primeiro")
-//   filtra e tem vínculo de array      -> <FilterTab>
+//   no selection / a type that does not filter  -> null
+//   filters, but still has no binding           -> a hint ("bind it first")
+//   filters and has an array binding            -> <FilterTab>
 //
-// A dica FICA (em vez de virar null) porque ali a ausência é ACIONÁVEL: o
-// campo aceita filtro, só falta o vínculo. É a mesma distinção que a barra
-// de abas faz com `filtroWarning`.
+// The hint STAYS (instead of becoming null) because there the absence is
+// ACTIONABLE: the field accepts a filter, it is only missing the binding. It
+// is the same distinction the tab bar makes with `filtroWarning`.
 export function DesignerFilterPanel({ whenTab, ...rest }: DesignerFilterPanelProps) {
   if (!useTabGate(whenTab)) return null;
   return <DesignerFilterPanelBody {...rest} />;
@@ -47,9 +47,9 @@ function DesignerFilterPanelBody({ className, style, header = true, parts }: Omi
 
   if (!selected || !(FILTERABLE_TYPES as readonly string[]).includes(selected.type)) return null;
 
-  // O par tipo-de-campo × tipo-de-vínculo tem de casar: um gráfico com
-  // vínculo de `array` (possível, se o usuário trocou o tipo do vínculo
-  // depois) não tem as colunas que o FilterTab espera.
+  // The field-type × binding-type pair has to match: a chart with an `array`
+  // binding (possible, if the user changed the binding's type afterwards)
+  // does not have the columns FilterTab expects.
   const pareado =
     (selected.type === "chart" && selectedBinding?.type === "chart") ||
     (selected.type === "table" && selectedBinding?.type === "array") ||

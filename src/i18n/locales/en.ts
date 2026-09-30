@@ -1,9 +1,9 @@
-// Dicionário canônico (inglês, idioma default) — a FORMA (chaves/tipos das
-// funções) daqui é o contrato que pt-BR.ts precisa implementar (ver
-// `Dict` abaixo). Só texto de UI (botões, abas, placeholders, avisos) —
-// NUNCA o que o PDF gerado renderiza (isso é conteúdo do usuário/JSON,
-// formatado por {DATE(...)}/{CURRENCY(...)} em bindings.ts, alheio ao
-// idioma do designer).
+// The canonical dictionary (English, the default language) — the SHAPE (the
+// keys/types of the functions) here is the contract pt-BR.ts has to
+// implement (see `Dict` below). UI text only (buttons, tabs, placeholders,
+// warnings) — NEVER what the generated PDF renders (that is user/JSON
+// content, formatted by {DATE(...)}/{CURRENCY(...)} in bindings.ts, and
+// unrelated to the designer's language).
 export const en = {
   tabBar: {
     fields: "Fields",
@@ -13,8 +13,8 @@ export const en = {
     page: "Page",
     inspector: "Inspector",
     dragToReorder: "Drag to reorder tabs",
-    // Setas de rolagem da barra de abas — só aparecem quando as abas não
-    // cabem na largura do painel.
+    // The tab bar's scroll arrows — they only appear when the tabs do not
+    // fit the panel's width.
     scrollTabsLeft: "Scroll tabs left",
     scrollTabsRight: "Scroll tabs right",
     pinAria: (label: string) => `Pin tab ${label} as hidden`,

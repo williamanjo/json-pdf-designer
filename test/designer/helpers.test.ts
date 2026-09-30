@@ -97,9 +97,9 @@ describe("computeSpawnPosition", () => {
     // bandSpawnPosition -> { x: 5+2, y: 2, maxHeight: 10-3=7 }
     expect(result.x).toBe(7);
     expect(result.y).toBe(2);
-    // altura original (20) excede maxHeight (7) -> trava em 7
+    // the original height (20) exceeds maxHeight (7) -> clamps to 7
     expect(result.height).toBe(7);
-    // sem maxWidth nessa faixa (é a de header) -> largura não muda
+    // no maxWidth in that band (it is the header's) -> the width does not change
     expect(result.width).toBe(80);
   });
 
@@ -118,7 +118,7 @@ describe("computeSpawnPosition", () => {
     const template = makeTemplate({ headerHeight: 30 });
     const schema = makeText({ width: 80, height: 5 });
     const result = computeSpawnPosition(template, schema, true);
-    // maxHeight = 30-3 = 27, altura original 5 é menor -> mantém 5
+    // maxHeight = 30-3 = 27, the original height 5 is smaller -> it keeps 5
     expect(result.height).toBe(5);
   });
 
@@ -133,8 +133,8 @@ describe("computeSpawnPosition", () => {
     const template = makeTemplate({ headerHeight: 0, footerHeight: 0, marginLeft: 0, marginRight: 0 });
     const schema = makeText({ width: 80, height: 10 });
     const result = computeSpawnPosition(template, schema, false);
-    // corpo: bodyTop=0, bodyBottom=297; x centralizado = (210-80)/2=65 -> snapToGrid(65)=65
-    // y centralizado = (297-10)/2=143.5 -> snapToGrid(143.5)=145 (múltiplo de 5 mais próximo)
+    // body: bodyTop=0, bodyBottom=297; centered x = (210-80)/2=65 -> snapToGrid(65)=65
+    // centered y = (297-10)/2=143.5 -> snapToGrid(143.5)=145 (the nearest multiple of 5)
     expect(result.x).toBe(65);
     expect(result.y).toBe(145);
     expect(result.width).toBe(80);
@@ -192,9 +192,9 @@ describe("uniqueSchemaName", () => {
 
   it("continua tentando até achar um sufixo aleatório livre (retry em cadeia)", () => {
     const collisionValue = 0.111111;
-    // Mesma fórmula do candidato aleatório em uniqueSchemaName — calculada
-    // aqui em runtime (não "chutada" à mão) pra garantir que bate exatamente
-    // com o que a primeira (e segunda) tentativa aleatória vai produzir.
+    // The same formula as the random candidate in uniqueSchemaName —
+    // computed here at runtime (not "guessed" by hand) to guarantee it matches
+    // exactly what the first (and second) random attempt will produce.
     const collisionCandidate = `campo_copia_${collisionValue.toString(36).slice(2, 5)}`;
     const usedNames = new Set<string>(["campo_copia", collisionCandidate]);
     const values = [collisionValue, collisionValue, 0.999999];

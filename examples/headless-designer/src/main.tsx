@@ -1,22 +1,22 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-// SÓ O RESET, sem o tema — e este é o único example que faz isso.
+// THE RESET ONLY, without the theme — and this is the only example that does so.
 //
-// `json-pdf-designer/reset.css` é o subconjunto SEM APARÊNCIA do
-// `theme.css`: ele devolve o que o Preflight do Tailwind dava de graça até a
-// 2.x (`box-sizing`, `margin: 0` em heading/parágrafo/lista, `font: inherit`
-// em controle, `svg { display: block }`, `code` monoespaçado) e mais nada.
-// Zero cor, zero espaçamento, zero borda.
+// `json-pdf-designer/reset.css` is the APPEARANCE-FREE subset of `theme.css`:
+// it gives back what Tailwind's Preflight gave for free up to 2.x
+// (`box-sizing`, `margin: 0` on headings/paragraphs/lists, `font: inherit` on
+// controls, `svg { display: block }`, monospaced `code`) and nothing else.
+// Zero color, zero spacing, zero borders.
 //
-// Serve porque este app não renderiza o `<Designer>`: ele monta o editor
-// próprio e do pacote usa só o `<PdfPreview>`, cuja superfície são QUATRO
-// nomes (`.jpd-error`, `.jpd-error--md`, `.jpd-preview__count` e o token
-// `--jpd-shadow-page-preview`). Escrever a aparência desses quatro à mão são
-// as ~5 regras no fim do index.css — barato. Para o editor INTEIRO o custo
-// seria outro: ver `examples/custom-ui`, que paga ~190 classes.
+// It serves because this app does not render the `<Designer>`: it assembles
+// its own editor and from the package uses only `<PdfPreview>`, whose surface
+// is FOUR names (`.jpd-error`, `.jpd-error--md`, `.jpd-preview__count` and the
+// `--jpd-shadow-page-preview` token). Writing those four's appearance by hand
+// is the ~5 rules at the end of index.css — cheap. For the WHOLE editor the
+// cost would be another matter: see `examples/custom-ui`, which pays ~190 classes.
 //
-// Quem quer a aparência pronta importa `json-pdf-designer/theme.css`, que já
-// inclui este reset por dentro — uma linha, e nada a escrever.
+// Whoever wants the ready-made appearance imports `json-pdf-designer/theme.css`,
+// which already includes this reset — one line, and nothing to write.
 import "json-pdf-designer/reset.css";
 import "./index.css";
 import App from "./App.tsx";

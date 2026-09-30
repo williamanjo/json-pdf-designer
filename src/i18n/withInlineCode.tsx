@@ -1,15 +1,15 @@
 import { Fragment, type ReactNode } from "react";
 
-// Textos de ajuda do dicionário marcam trecho de código com `backtick` (ex:
-// "use `{campo}` direto") — troca por <code> de verdade na hora de
-// renderizar, sem precisar quebrar cada frase em pedaços de JSX no
-// dicionário (que ficaria ilegível e frágil de traduzir).
+// The dictionary's help texts mark a stretch of code with a `backtick` (e.g.
+// "use `{field}` directly") — it is swapped for a real <code> at render time,
+// without having to break each sentence into pieces of JSX in the dictionary
+// (which would be unreadable and fragile to translate).
 //
-// A classe `jpd-code` não é decoração: até 2.1.1 este <code> saía SEM classe
-// e herdava a monoespaçada do Preflight do Tailwind (`code,kbd,samp,pre {
-// font-family: <mono> }`), que vinha embutido no dist/style.css. Sem o
-// Preflight, <code> nu volta pra fonte do navegador em alguns temas e o
-// trecho marcado deixa de parecer código.
+// The `jpd-code` class is not decoration: up to 2.1.1 this <code> came out
+// WITH NO class and inherited the monospace from Tailwind's Preflight
+// (`code,kbd,samp,pre { font-family: <mono> }`), which was embedded in
+// dist/style.css. Without Preflight, a bare <code> falls back to the browser
+// font in some themes and the marked stretch stops looking like code.
 export function withInlineCode(text: string): ReactNode {
   const parts = text.split(/(`[^`]+`)/g);
   return parts.map((part, i) =>

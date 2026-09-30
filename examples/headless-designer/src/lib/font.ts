@@ -1,20 +1,20 @@
 import interTtfUrl from "../assets/inter-regular.ttf?url";
 
-// Fonte custom pro PDF gerado (fontkit, via json-pdf-designer) — Inter cobre
-// acentuação/unicode bem mais completo que o Helvetica padrão do pdf-lib.
-// TTF de verdade (não .woff2) — testamos descomprimir o .woff2 do
-// @fontsource/inter em tempo de execução (via wawoff2/WASM) e travava
-// infinitamente em navegador real (funcionava certinho em Node, então é
-// específico do WASM rodando em browser). Pra não depender disso, o
-// arquivo já vem convertido pra TTF de uma vez só — ver histórico do
-// commit pra como gerar de novo (decompress do wawoff2, rodado em Node).
+// A custom font for the generated PDF (fontkit, through json-pdf-designer) —
+// Inter covers accents/unicode far more completely than pdf-lib's standard
+// Helvetica. A real TTF (not a .woff2) — we tried decompressing
+// @fontsource/inter's .woff2 at runtime (through wawoff2/WASM) and it hung
+// forever in a real browser (it worked fine in Node, so it is specific to WASM
+// running in a browser). So as not to depend on that, the file comes already
+// converted to TTF once and for all — see the commit history for how to
+// regenerate it (wawoff2's decompress, run in Node).
 let cached: Promise<ArrayBuffer> | null = null;
 
-// Falha em BUSCAR o asset — distinta dos erros de fonte DO PACOTE, que são
-// todos sobre bytes que chegaram e o fontkit recusou. Aqui os bytes nem
-// chegaram: build sem o .ttf, deploy com base path errado, disco. É erro
-// NOSSO, então `describePdfError` devolve `null` e o texto sai do dicionário
-// da casca (ver lib/generationError.ts).
+// A failure to FETCH the asset — distinct from THE PACKAGE's font errors,
+// which are all about bytes that arrived and fontkit refused. Here the bytes
+// did not even arrive: a build without the .ttf, a deploy with the wrong base
+// path, the disk. It is OUR error, so `describePdfError` returns `null` and
+// the text comes from the shell's dictionary (see lib/generationError.ts).
 export class FontAssetError extends Error {
   constructor(detail: string) {
     super(`Could not load the bundled font: ${detail}`);

@@ -12,8 +12,8 @@ type Props = {
   onChangeSources: (sources: JsonSource[]) => void;
   onResync: () => void;
   fieldCount: number;
-  // Código, não frase: a tradução acontece na renderização, aqui embaixo —
-  // ver o comentário em lib/sources.ts.
+  // Code, not a phrase: the translation happens at render time, just below
+  // — see the comment in lib/sources.ts.
   errorsById: Record<string, SourceErrorCode>;
   locale: Locale;
 };
@@ -22,21 +22,20 @@ function nameFromFile(file: File): string {
   return file.name.replace(/\.json$/i, "");
 }
 
-// Uma ou mais fontes de JSON — cada arquivo/bloco colado vira uma entrada;
-// na hora de gerar (App.tsx), todas são mescladas (nível superior, último
-// sobrescreve em caso de chave repetida) num objeto só antes de vincular
-// campo. "Resync" atualiza a lista de campos disponíveis com base nessa
-// mescla.
+// One or more JSON sources — each file/pasted block becomes an entry; at
+// generation time (App.tsx), all of them are merged (top level, the last one
+// wins on a repeated key) into a single object before binding a field.
+// "Resync" updates the list of available fields based on that merge.
 //
-// Casca em CSS puro (`.app-*`, ver index.css) — este example não tem
-// pipeline de Tailwind. Os ÍCONES vêm do pacote: são SVG em
-// `currentColor`, então herdam a cor do botão que os embrulha.
+// The shell is plain CSS (`.app-*`, see index.css) — this example has no
+// Tailwind pipeline. The ICONS come from the package: they are SVG in
+// `currentColor`, so they inherit the color of the button wrapping them.
 export default function DataSourcePanel({ sources, onChangeSources, onResync, fieldCount, errorsById, locale }: Props) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
-  // NOMES dos arquivos que falharam, não a frase pronta: o estado guarda dado
-  // e a frase sai do dicionário na renderização, então trocar de idioma
-  // retraduz o aviso que já está na tela.
+  // The NAMES of the files that failed, not the finished phrase: the state
+  // holds data and the phrase comes from the dictionary at render time, so
+  // switching language retranslates the warning already on screen.
   const [failedFiles, setFailedFiles] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ui = t(locale);
@@ -50,16 +49,16 @@ export default function DataSourcePanel({ sources, onChangeSources, onResync, fi
     });
   }
 
-  // Lê TODOS os arquivos do lote antes de chamar onChangeSources uma vez só
-  // — disparar um onChangeSources por arquivo dentro do forEach fazia cada
-  // callback de onload capturar o MESMO `sources` (stale closure), então
-  // soltar 2+ arquivos de uma vez só mantinha o último (cada um sobrescrevia
-  // o anterior em vez de acumular).
+  // It reads ALL the files of the batch before calling onChangeSources once —
+  // firing one onChangeSources per file inside the forEach made each onload
+  // callback capture the SAME `sources` (a stale closure), so dropping 2+
+  // files at once kept only the last one (each overwrote the previous instead
+  // of accumulating).
   //
-  // O `.then(ok, falha)` de duas pontas (em vez de `Promise.allSettled`)
-  // preserva QUAL arquivo falhou — o `reason` de um settled rejeitado não
-  // sabe de qual promise veio, e sem o nome não há como montar o aviso na
-  // hora de renderizar.
+  // The two-armed `.then(ok, failure)` (instead of `Promise.allSettled`)
+  // preserves WHICH file failed — a rejected settled's `reason` does not know
+  // which promise it came from, and without the name there is no way to build
+  // the warning at render time.
   async function addFilesAsSources(files: FileList) {
     setFailedFiles([]);
     const results = await Promise.all(

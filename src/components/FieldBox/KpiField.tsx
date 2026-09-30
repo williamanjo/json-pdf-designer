@@ -7,30 +7,30 @@ import { startDragGesture } from "../../canvas/dragGesture";
 
 type Props = {
   schema: KpiSchema;
-  // Card já selecionado (seleção única) — só então um sub-elemento
-  // DESTRAVADO pode ser arrastado (ver onMouseDown abaixo). Sem isso, um
-  // clique simples ainda seleciona o sub-elemento (onSelectElement),
-  // só não inicia arrasto.
+  // Card already selected (single selection) — only then can an UNLOCKED
+  // sub-element be dragged (see onMouseDown below). Without this, a plain
+  // click still selects the sub-element (onSelectElement), it simply does
+  // not start a drag.
   selected?: boolean;
-  // Zoom atual do canvas (PageCanvas.tsx) — os deltas de mousemove chegam
-  // em px de TELA, sem escala; dividir por `zoom` antes de converter pra
-  // mm evita que o elemento "fuja" do cursor em qualquer zoom != 100%
-  // (mesmo motivo do `scale={zoom}` que o <Rnd> do campo inteiro recebe).
+  // Current canvas zoom (PageCanvas.tsx) — mousemove deltas arrive in
+  // SCREEN px, unscaled; dividing by `zoom` before converting to mm keeps
+  // the element from "running away" from the cursor at any zoom != 100%
+  // (same reason as the `scale={zoom}` the whole field's <Rnd> receives).
   zoom?: number;
   selectedElement?: KpiElementKey | null;
   onSelectElement?: (el: KpiElementKey) => void;
   onUpdate?: (patch: Partial<KpiSchema>) => void;
 };
 
-// Um sub-elemento (ícone/título/valor/legenda) — posição absoluta (mm→px)
-// em vez de flex, pra bater ponto a ponto com render/renderKpi.ts (que usa a MESMA
-// posição padrão, ver kpi/card.ts). onMouseDown sempre foca o elemento
-// (onSelectElement); só inicia arrasto de verdade quando o card já tá
-// selecionado E o elemento está destravado (cadeado na aba Campos) —
-// nada de duplo clique/modo de edição, e sem <Rnd> aninhado: só
-// stopPropagation (mesmo princípio de TextField.tsx/TableField.tsx) +
-// um loop manual de mousemove/mouseup, igual o próprio
-// examples/headless-designer faz pro handle de redimensionar.
+// One sub-element (icon/title/value/subtitle) — absolutely positioned (mm→px)
+// instead of flex, so it matches render/renderKpi.ts point for point (which uses
+// the SAME default position, see kpi/card.ts). onMouseDown always focuses the
+// element (onSelectElement); it only starts a real drag once the card is
+// already selected AND the element is unlocked (the padlock on the Fields
+// tab) — no double click, no editing mode, and no nested <Rnd>: only
+// stopPropagation (same principle as TextField.tsx/TableField.tsx) plus
+// a manual mousemove/mouseup loop, exactly as examples/headless-designer
+// itself does for its resize handle.
 function ElementBox({
   el,
   xMm,
@@ -57,12 +57,12 @@ function ElementBox({
       className="jpd-kpi__box"
       data-draggable={draggable || undefined}
       data-focused={focused || undefined}
-      // Só a POSIÇÃO fica inline (mm→px, tem de bater ponto a ponto com
-      // render/renderKpi.ts); cursor e contorno de foco são dois estados
-      // fixos e viraram data-*. O `cursor` daqui pode morar no CSS (ao
-      // contrário do <Rnd> em PageCanvas): o inline `cursor: move` do
-      // react-rnd está no elemento ANCESTRAL, e valor herdado perde de uma
-      // regra que casa no próprio elemento.
+      // Only the POSITION stays inline (mm→px, it has to match
+      // render/renderKpi.ts point for point); cursor and focus outline are two
+      // fixed states and became data-*. The `cursor` here can live in CSS
+      // (unlike the <Rnd> in PageCanvas): react-rnd's inline `cursor: move`
+      // is on the ANCESTOR element, and an inherited value loses to a rule
+      // that matches the element itself.
       style={{ left: mmToPx(xMm), top: mmToPx(yMm), maxWidth: Math.max(maxWidthPx, 10) }}
     >
       {children}

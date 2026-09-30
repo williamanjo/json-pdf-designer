@@ -2,14 +2,14 @@ import { useEffect } from "react";
 import type { Template, Binding } from "json-pdf-designer";
 import type { JsonSource } from "../components/DataSourcePanel";
 
-// Autosave no navegador — F5/fechar aba sem querer não perde o que tava
-// sendo editado. Só template/bindings/sources (o resto é derivado). Falha
-// silenciosa se localStorage não existir/estiver cheio (aba anônima etc) —
-// é conveniência, não deve travar o app.
-// Chave própria deste example: os cinco rodam em portas diferentes do MESMO
-// localhost, e localStorage é por origem (host:porta) — mas quem publica os
-// cinco juntos no GitHub Pages compartilha a origem, e aí uma chave só
-// deixaria o autosave de um app sobrescrever o do outro.
+// Autosave in the browser — an accidental F5/tab close does not lose what was
+// being edited. Only template/bindings/sources (the rest is derived). It fails
+// silently if localStorage does not exist/is full (a private tab and so on) —
+// it is a convenience, it must not break the app.
+// A key of this example's own: the five run on different ports of the SAME
+// localhost, and localStorage is per origin (host:port) — but whoever
+// publishes the five together on GitHub Pages shares the origin, and then a
+// single key would let one app's autosave overwrite another's.
 const AUTOSAVE_KEY = "no-preview:autosave-v1";
 
 export type AutosavedState = { template: Template; bindings: Binding[]; sources: JsonSource[] };
@@ -26,15 +26,15 @@ export function loadAutosave(): AutosavedState | null {
   }
 }
 
-// Salva a cada mudança (debounced) — cobre F5 sem querer, aba fechada sem
-// clicar em "Salvar projeto" etc.
+// It saves on every change (debounced) — it covers an accidental F5, a tab
+// closed without clicking "Save project" and so on.
 export function useAutosave(template: Template, bindings: Binding[], sources: JsonSource[]) {
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
         localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ template, bindings, sources }));
       } catch {
-        // localStorage cheio/bloqueado — autosave é conveniência, não trava o app.
+        // localStorage full/blocked — autosave is a convenience, it does not break the app.
       }
     }, 500);
     return () => clearTimeout(timer);

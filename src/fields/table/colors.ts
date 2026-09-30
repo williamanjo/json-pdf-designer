@@ -1,15 +1,15 @@
-// Paletas prontas de tabela (cabeçalho + linha alternada/"zebrada" + borda)
-// — mesma ideia de TableSchema.colorPalette que ChartSchema.colorPalette já
-// usa (ver chartColors.ts), só que pra tabela em vez de gráfico: nome fixo,
-// resolvido pra um conjunto de cores prontas; "custom" cai pros campos
-// manuais de sempre (headBackgroundColor/headTextColor/bodyBandColor/
-// borderColor). Inspirado no seletor "Formatar como Tabela" do Excel
-// (grupos Claro/Médio/Escuro, cada um com algumas cores-base).
+// Ready-made table palettes (header + alternating/"banded" row + border) —
+// the same idea for TableSchema.colorPalette that ChartSchema.colorPalette
+// already uses (see chartColors.ts), only for a table instead of a chart: a
+// fixed name, resolved into a set of ready-made colors; "custom" falls back
+// to the usual manual fields (headBackgroundColor/headTextColor/
+// bodyBandColor/borderColor). Inspired by Excel's "Format as Table" picker
+// (Light/Medium/Dark groups, each with a few base colors).
 export type TableStylePreset = {
   headBackgroundColor: string;
   headTextColor: string;
-  // Cor da linha alternada (índice de linha ímpar, 0-based) — a linha par
-  // fica com bodyBackgroundColor de sempre (branco/transparente se ausente).
+  // The alternating row's color (an odd row index, 0-based) — the even row
+  // keeps the usual bodyBackgroundColor (white/transparent when absent).
   bandColor: string;
   borderColor: string;
 };
@@ -38,9 +38,9 @@ export const TABLE_PALETTES = {
 } as const;
 
 export type TableStylePresetName = keyof typeof TABLE_PALETTES;
-// "custom" não é uma entrada de TABLE_PALETTES — sinal pra usar os campos
-// manuais (headBackgroundColor/headTextColor/bodyBandColor/columnStyles...
-// de sempre) em vez de um preset. Fica junto no mesmo seletor mesmo assim.
+// "custom" is not an entry of TABLE_PALETTES — it is a signal to use the
+// manual fields (the usual headBackgroundColor/headTextColor/bodyBandColor/
+// columnStyles...) instead of a preset. It sits in the same picker all the same.
 export type TablePaletteName = TableStylePresetName | "custom";
 
 export const TABLE_PALETTE_GROUPS: { label: string; names: TableStylePresetName[] }[] = [

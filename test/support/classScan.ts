@@ -1,17 +1,17 @@
 import { readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-// Varredura de classe sobre o FONTE, compartilhada pelos guards da migração
-// (test/noTailwind.test.ts e, quando o theme.css existir, o diff
-// classe-usada x classe-estilizada).
+// A class scan over the SOURCE, shared by the migration's guards
+// (test/noTailwind.test.ts and, once theme.css exists, the
+// class-used x class-styled diff).
 //
-// POR QUE TEXTO E NÃO AST: o repo não tem parser de TS nas devDeps, e o que
-// os guards precisam saber ("que tokens de classe este arquivo escreve") é
-// respondível por texto com precisão suficiente — desde que se remova
-// comentário primeiro. Isso NÃO é opcional aqui: este repo comenta muito e
-// cita nome de classe em prosa (PaletteSwatches.tsx tem "h-4 w-4", "gap-1" e
-// "h-3.5 w-3.5" dentro de comentário), então varrer sem remover comentário
-// gera falso positivo garantido.
+// WHY TEXT AND NOT AN AST: the repo has no TS parser in its devDeps, and what
+// the guards need to know ("which class tokens does this file write") is
+// answerable by text with enough precision — as long as comments are stripped
+// first. That is NOT optional here: this repo comments a lot and quotes class
+// names in prose (PaletteSwatches.tsx has "h-4 w-4", "gap-1" and "h-3.5 w-3.5"
+// inside a comment), so scanning without stripping comments guarantees a false
+// positive.
 
 const SRC = join(__dirname, "..", "..", "src");
 
@@ -31,8 +31,8 @@ export function relativeToSrc(file: string): string {
   return relative(SRC, file).split(sep).join("/");
 }
 
-// Remove comentário de linha e de bloco. Strings que CONTÊM "//" (ex: uma
-// URL) sobrevivem porque a varredura respeita delimitador de string.
+// Removes line and block comments. Strings that CONTAIN "//" (a URL, for
+// instance) survive because the scan respects string delimiters.
 export function stripComments(code: string): string {
   let out = "";
   let i = 0;
@@ -63,12 +63,11 @@ export function stripComments(code: string): string {
     }
     if (c === "/" && code[i + 1] === "*") {
       i += 2;
-      // Preserva o newline de cada linha consumida. Sem isto, todo número de
-      // linha reportado depois de um comentário de BLOCO vem deslocado pra
-      // trás — e o deslocamento acumula arquivo abaixo. Num repo tão
-      // comentado quanto este o erro é grande (medido: 282 em vez de 289 no
-      // Designer.tsx), e quem navega pelo output do teste edita a linha
-      // errada.
+      // It preserves the newline of each consumed line. Without this, every line
+      // number reported after a BLOCK comment comes out shifted backwards — and
+      // the shift accumulates down the file. In a repo as commented as this one
+      // the error is large (measured: 282 instead of 289 in Designer.tsx), and
+      // whoever navigates by the test's output edits the wrong line.
       while (i < code.length && !(code[i] === "*" && code[i + 1] === "/")) {
         if (code[i] === "\n") out += "\n";
         i++;
@@ -84,9 +83,9 @@ export function stripComments(code: string): string {
 
 export type Literal = { value: string; line: number };
 
-// Toda string literal do arquivo (aspas simples, duplas e template). Em
-// template literal, `${...}` é substituído por espaço — o que sobra são os
-// pedaços estáticos, que é justamente o que interessa.
+// Every string literal in the file (single quotes, double quotes and
+// templates). In a template literal, `${...}` is replaced by a space — what is
+// left are the static pieces, which is exactly what matters.
 export function stringLiterals(codeWithoutComments: string): Literal[] {
   const out: Literal[] = [];
   const code = codeWithoutComments;
@@ -139,9 +138,9 @@ export function stringLiterals(codeWithoutComments: string): Literal[] {
   return out;
 }
 
-// String literais em posição de CLASSE: dentro de `className={...}` /
-// `className="..."`, dentro de uma chamada `cx(...)`, e em constante de
-// módulo cujo nome termina em `Cls` (o padrão que já existia no kit:
+// String literals in CLASS position: inside `className={...}` /
+// `className="..."`, inside a `cx(...)` call, and in a module constant whose
+// name ends in `Cls` (the pattern that already existed in the kit:
 // `controlCls`, `sizeCls`, `variantCls`).
 export function classLiterals(codeWithoutComments: string): Literal[] {
   const code = codeWithoutComments;
@@ -197,7 +196,7 @@ export function classLiterals(codeWithoutComments: string): Literal[] {
       }
       pushRegion(start, i + 1);
     } else {
-      // constante de uma string só: `const controlCls = "..."`
+      // a single-string constant: `const controlCls = "..."`
       const end = code.indexOf(";", i);
       pushRegion(i, end === -1 ? code.length : end);
     }
@@ -210,17 +209,17 @@ export function tokensOf(literal: string): string[] {
   return literal.split(/\s+/).filter(Boolean);
 }
 
-// Forma de classe semântica aceita: jpd-block, jpd-block__element,
-// jpd-block--modifier, jpd-block__element--modifier. Um nível de elemento só.
+// The accepted semantic class shapes: jpd-block, jpd-block__element,
+// jpd-block--modifier, jpd-block__element--modifier. One element level only.
 export const JPD_CLASS = /^jpd-[a-z0-9]+(?:-[a-z0-9]+)*(?:__[a-z0-9]+(?:-[a-z0-9]+)*)?(?:--[a-z0-9]+(?:-[a-z0-9]+)*)?$/;
 
 const TW_COLORS =
   "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black|current|transparent|inherit";
 
-// Formas de utilitária Tailwind. Cada uma ancorada em início/fim de token pra
-// não casar palavra solta em texto de UI.
+// Tailwind utility shapes. Each one anchored at a token boundary so it does
+// not match a loose word in UI text.
 export const TW_SHAPES: RegExp[] = [
-  // espaçamento: p-2, px-2.5, -mt-1, my-0.5
+  // spacing: p-2, px-2.5, -mt-1, my-0.5
   /^-?(?:[a-z-]+:)*(?:p|m)[xytblrse]?-(?:\[[^\]]+\]|\d+(?:\.\d+)?|px|auto)$/,
   // cor: bg-slate-100, text-sky-600/50, border-gray-600, ring-sky-300
   new RegExp(`^(?:[a-z-]+:)*(?:bg|text|border|ring|outline|fill|stroke|divide|from|via|to|decoration|placeholder|caret|accent|shadow)-(?:${TW_COLORS})(?:-\\d{2,3})?(?:/\\d{1,3})?$`),

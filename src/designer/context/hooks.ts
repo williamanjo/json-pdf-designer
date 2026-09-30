@@ -15,30 +15,30 @@ import {
 } from "./contexts";
 import { bulkEditOf, fieldListSchemasOf, tabWarningsOf } from "./derived";
 
-// Hooks de acesso e hooks SELETORES. Ficam num .ts porque não exportam
-// componente — regra oxlint react(only-export-components), mesmo split de
-// três arquivos que src/i18n/ usa.
+// Access hooks and SELECTOR hooks. They live in a .ts because they export no
+// component — the oxlint react(only-export-components) rule, the same
+// three-file split src/i18n/ uses.
 //
-// A diferença entre os dois grupos importa:
+// The difference between the two groups matters:
 //
-//   acesso   — `useDesignerData()` e cia. Devolvem o value do contexto cru.
-//   seletor  — `useDesignerSelectedSchema()` e cia. DERIVAM do value.
+//   access   — `useDesignerData()` and friends. They return the raw value.
+//   selector — `useDesignerSelectedSchema()` and friends. They DERIVE from it.
 //
-// Derivado é seletor, e não entrada de contexto, porque cada peça paga só
-// pelo que ela lê. Se `selected`/`bulkEditActive`/`fieldListSchemas`
-// morassem no contexto de dados, o value trocaria de identidade sempre que
-// QUALQUER um deles mudasse, e toda peça que lê dados re-renderizaria por
-// causa de um derivado que ela nem usa.
+// A derivation is a selector, and not a context entry, because each part pays
+// only for what it reads. If `selected`/`bulkEditActive`/`fieldListSchemas`
+// lived in the data context, the value would change identity whenever ANY of
+// them changed, and every part that reads data would re-render because of a
+// derivation it does not even use.
 
 function required<T>(value: T | null, hook: string): T {
   if (value === null) {
-    // Mensagem nomeando o provider, e não um `null` silencioso: peça do
-    // designer sem estado não tem comportamento de fallback nenhum — ela
-    // simplesmente não renderizaria, e o desenvolvedor ficaria olhando um
-    // buraco na tela sem pista de por quê.
-    // Inglês, como todo `throw` do pacote (ver o topo de src/errors.ts): isto
-    // é erro de COMPOSIÇÃO React, lido por quem escreve o código, e não passa
-    // por describePdfError — não há nada pra o usuário final fazer.
+    // A message naming the provider, and not a silent `null`: a designer part
+    // with no state has no fallback behavior at all — it simply would not
+    // render, and the developer would be staring at a hole on screen with no
+    // clue why.
+    // English, like every `throw` in the package (see the top of src/errors.ts):
+    // this is a React COMPOSITION error, read by whoever writes the code, and
+    // it does not go through describePdfError — nothing for an end user to do.
     throw new Error(`${hook} needs a <DesignerProvider> above it. <Designer> already mounts one; a standalone piece needs its own.`);
   }
   return value;

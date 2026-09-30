@@ -1,37 +1,37 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Este example existe pra provar UMA coisa: o <Designer> não é indivisível.
-// Ele monta o <DesignerProvider> na mão e posiciona as peças num layout que
-// o preset não sabe fazer — toolbar em cima, lista à esquerda, painel à
-// direita, e NENHUMA barra de abas.
+// This example exists to prove ONE thing: the <Designer> is not indivisible.
+// It assembles the <DesignerProvider> by hand and places the parts in a layout
+// the preset cannot produce — a toolbar on top, a list on the left, a panel on
+// the right, and NO tab bar.
 //
-// A ausência da barra de abas é o teste de verdade: sem ela, as peças que
-// dentro do <Designer> viveriam em abas diferentes (lista, as duas metades
-// do painel de propriedades, vínculo, filtro, página, inspetor) têm de
-// renderizar TODAS ao mesmo tempo — 9 instâncias no DOM de uma vez. Só
-// funciona porque o gate por aba é opt-in (`whenTab`) — se ele fosse o
-// default, este layout mostraria uma peça e apagaria as outras oito.
+// The absence of the tab bar is the real test: without it, the parts that
+// inside the <Designer> would live in different tabs (the list, the two halves
+// of the property panel, the binding, the filter, the page, the inspector)
+// have to render ALL at the same time — 9 instances in the DOM at once. It
+// only works because the per-tab gate is opt-in (`whenTab`) — if it were the
+// default, this layout would show one part and erase the other eight.
 //
-// As únicas abas na tela são as de PÁGINA (components/PageTabs.tsx), que
-// são estado deste app: elas trocam qual página do documento o canvas
-// mostra, não qual painel aparece.
+// The only tabs on screen are the PAGE ones (components/PageTabs.tsx), which
+// are this app's state: they swap which page of the document the canvas shows,
+// not which panel appears.
 //
-// Sem plugin de Tailwind: a casca é CSS puro (src/index.css) e o editor vem
-// de "json-pdf-designer/theme.css".
+// No Tailwind plugin: the shell is plain CSS (src/index.css) and the editor
+// comes from "json-pdf-designer/theme.css".
 export default defineConfig({
-  // Relativo — funciona em qualquer subpath do GitHub Pages
-  // (playground/composed-layout/) sem hardcodar o nome do repo.
+  // Relative — it works on any GitHub Pages subpath
+  // (playground/composed-layout/) without hardcoding the repo's name.
   base: "./",
   plugins: [react()],
   server: {
-    // 5173/5174/5175/5176 já são dos outros quatro examples.
+    // 5173/5174/5175/5176 already belong to the other four examples.
     port: 5177,
   },
-  // json-pdf-designer é uma dependência "file:" linkada (symlink) pro
-  // pacote pai — sem isso o Vite pode resolver "react" a partir do
-  // node_modules dele em vez do node_modules deste app, carregando duas
-  // cópias de React (erro "Invalid hook call").
+  // json-pdf-designer is a "file:" dependency linked (a symlink) to the
+  // parent package — without this Vite may resolve "react" from ITS
+  // node_modules instead of this app's, loading two copies of React (the
+  // "Invalid hook call" error).
   resolve: {
     dedupe: ["react", "react-dom"],
   },

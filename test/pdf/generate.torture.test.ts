@@ -9,16 +9,16 @@ import { sectionLargerThanPageTemplate } from "./fixtures/sectionLargerThanPage"
 import { missingDataTemplate } from "./fixtures/missingData";
 import { emojiTemplate, ptBrAccentsTemplate } from "./fixtures/unicodeText";
 
-// "Golden"/torture tests — diferente dos testes unitários de
-// render/renderTable.test.ts/pagination.test.ts (que verificam uma função isolada
-// com uma página falsa), estes rodam o pipeline `generatePdf` INTEIRO com
-// templates propositalmente extremos, e verificam propriedades ESTRUTURAIS
-// do PDF de verdade (via pdf-lib real, não uma página falsa) — pega
-// regressão que só aparece quando as peças rodam juntas (ex: uma função
-// isolada "correta" mas que trava/gera saída inválida quando encadeada com
-// o resto do pipeline). Sem snapshot de imagem/pixel — geração de PNG a
-// partir de PDF já se mostrou inviável neste ambiente em sessões
-// anteriores; validação aqui é por contagem de página/exceção, não visual.
+// "Golden"/torture tests — unlike the unit tests in render/renderTable.test.ts/
+// pagination.test.ts (which check an isolated function with a fake page),
+// these run the WHOLE `generatePdf` pipeline with deliberately extreme
+// templates, and check STRUCTURAL properties of the real PDF (through real
+// pdf-lib, not a fake page) — they catch a regression that only appears when
+// the pieces run together (e.g. an isolated function that is "correct" but
+// hangs/produces invalid output when chained with the rest of the pipeline).
+// No image/pixel snapshot — generating a PNG from a PDF already proved
+// unworkable in this environment in earlier sessions; validation here is by
+// page count/exception, not visual.
 
 describe("generatePdf — torture tests (pipeline inteiro, casos extremos)", () => {
   it("tabela vazia (0 linhas) não trava e ainda desenha o cabeçalho", async () => {
@@ -30,8 +30,8 @@ describe("generatePdf — torture tests (pipeline inteiro, casos extremos)", () 
   it("tabela com 600 linhas quebra em várias páginas de verdade, sem travar", async () => {
     const bytes = await generatePdf(hugeTableTemplate(600), {}, []);
     const doc = await PDFDocument.load(bytes);
-    // ~7 linhas por página (TABLE_ROW_HEIGHT_MM=7mm) menos cabeçalho — 600
-    // linhas certamente cruzam bem mais de uma dúzia de páginas físicas.
+    // ~7 rows per page (TABLE_ROW_HEIGHT_MM=7mm) minus the header — 600 rows
+    // certainly cross well over a dozen physical pages.
     expect(doc.getPageCount()).toBeGreaterThan(10);
   }, 20000);
 
@@ -39,9 +39,9 @@ describe("generatePdf — torture tests (pipeline inteiro, casos extremos)", () 
     const { template, data, bindings } = sectionLargerThanPageTemplate();
     const bytes = await generatePdf(template, data, bindings);
     const doc = await PDFDocument.load(bytes);
-    // 2 repetições, cada uma maior que 1 página — pelo menos 2 páginas,
-    // e um teto sensato (o guard de segurança em generate.ts para em 20000
-    // iterações, mas não deveria nem chegar perto disso aqui).
+    // 2 repetitions, each larger than 1 page — at least 2 pages, and a
+    // sensible ceiling (the safety guard in generate.ts stops at 20000
+    // iterations, but it should not come anywhere near that here).
     expect(doc.getPageCount()).toBeGreaterThanOrEqual(2);
     expect(doc.getPageCount()).toBeLessThan(100);
   }, 20000);
@@ -60,23 +60,23 @@ describe("generatePdf — torture tests (pipeline inteiro, casos extremos)", () 
   });
 
   it("emoji sem fonte customizada lança um erro reconhecível (fronteira documentada, não regressão silenciosa)", async () => {
-    // Fronteira DELIBERADA: WinAnsi não cobre emoji, e descartar o caractere
-    // em silêncio seria pior — um relatório é documento assinado. Este teste
-    // existe pra travar isso: se um dia passar a NÃO lançar, a documentação
-    // sobre "use fontBytes pra unicode completo" precisa de revisão.
+    // A DELIBERATE boundary: WinAnsi does not cover emoji, and silently
+    // dropping the character would be worse — a report is a signed document.
+    // This test exists to pin that: if one day it stops throwing, the
+    // documentation about "use fontBytes for full unicode" needs a review.
     //
-    // A mensagem agora é nossa (UnsupportedGlyphError), não o "WinAnsi cannot
-    // encode …" cru do pdf-lib, que não dizia QUAL campo nem o que fazer.
+    // The message is now ours (UnsupportedGlyphError), not pdf-lib's raw
+    // "WinAnsi cannot encode …", which said neither WHICH field nor what to do.
     await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(UnsupportedGlyphError);
     await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(/Field "texto_emoji"/);
     await expect(generatePdf(emojiTemplate(), {}, [])).rejects.toThrow(/U\+1F389|fontBytes/);
   });
 
   it("caractere de CONTROLE no dado NÃO derruba o documento (vira espaço)", async () => {
-    // O oposto do caso acima, e o mais comum em dado real: um LF vindo de um
-    // textarea, endereço com quebra, import de CSV. Controle não tem glifo em
-    // fonte NENHUMA, então trocar por espaço é a única renderização possível —
-    // não é perda de conteúdo.
+    // The opposite of the case above, and the more common one in real data: an
+    // LF coming from a textarea, an address with a line break, a CSV import. A
+    // control character has no glyph in ANY font, so replacing it with a space
+    // is the only possible rendering — it is not a loss of content.
     const template: Template = {
       page: { width: 210, height: 297 },
       schemas: [

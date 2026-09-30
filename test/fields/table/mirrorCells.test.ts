@@ -4,10 +4,11 @@ import type { Binding } from "../../../src/types";
 
 type ArrayBinding = Extract<Binding, { type: "array" }>;
 
-// A célula da tabela É a fórmula da coluna — `generate.ts` resolve a linha a
-// partir de `schema.content`. Editar a célula no canvas gravava só o content,
-// e o painel "ƒx" seguia mostrando a fórmula antiga do vínculo: dois valores
-// pra mesma coisa, com o do painel sendo o que NÃO sai no PDF.
+// The table cell IS the column's formula — `generate.ts` resolves the row
+// from `schema.content`. Editing the cell on the canvas wrote only the
+// content, and the "ƒx" panel kept showing the binding's old formula: two
+// values for the same thing, with the panel's being the one that does NOT
+// come out in the PDF.
 
 const HEAD = ["Fatura", "Vencto.", "Total"];
 
@@ -26,7 +27,7 @@ describe("mirrorCellsToArrayBinding", () => {
       "{CURRENCY(total)}",
     ]);
     expect(columns?.[0]).toEqual({ label: "Fatura", formula: "FAT-{fatura /}" });
-    // As colunas que não mudaram ficam idênticas — incluindo a coluna crua.
+    // The columns that did not change stay identical — including the raw column.
     expect(columns?.[1]).toBe("vencto");
     expect(columns?.[2]).toEqual({ label: "Total", formula: "{CURRENCY(total)}" });
   });
@@ -48,10 +49,10 @@ describe("mirrorCellsToArrayBinding", () => {
       "{vencto}",
       "{CURRENCY(total)}",
     ]);
-    // Sem fórmula, sobra o path cru por trás da célula anterior — e
-    // "FAT-{fatura}" não é um token isolado, então `extractColumnPath` não
-    // decompõe e o fallback é o cabeçalho. Mesma cadeia do ƒx
-    // (computeColumnFormulaCell), de propósito.
+    // With no formula, what is left is the raw path behind the previous cell
+    // — and "FAT-{fatura}" is not a lone token, so `extractColumnPath` does
+    // not decompose it and the fallback is the header. The same chain as the
+    // ƒx (computeColumnFormulaCell), on purpose.
     expect(columns?.[0]).toBe("Fatura");
   });
 

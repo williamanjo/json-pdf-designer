@@ -1,10 +1,10 @@
-// Separa por vírgula só no nível "de fora" — nem dentro de aspas (ex:
-// CONCAT(a, ", ", b) não deve quebrar na vírgula literal do separador) nem
-// dentro de parênteses aninhados (ex: coluna calculada
-// "Total (R$)=CURRENCY(SUM(rows.total), \"R$\")" não deve quebrar na
-// vírgula do SUM(...) por fora). Substitui as antigas splitArgs/
-// splitTopLevel/splitFormulaArgs (cada uma só cobria metade do caso) por
-// uma única implementação que respeita os dois ao mesmo tempo.
+// Splits on commas at the "outer" level only — neither inside quotes (e.g.
+// CONCAT(a, ", ", b) must not break on the literal comma) nor inside nested
+// parentheses (e.g. the calculated column
+// "Total (R$)=CURRENCY(SUM(rows.total), \"R$\")" must not break on the
+// comma of the inner SUM(...)). Replaces the old splitArgs/splitTopLevel/
+// splitFormulaArgs (each covered only half the case) with a single
+// implementation that respects both at once.
 export function splitDelimited(raw: string): string[] {
   const parts: string[] = [];
   let current = "";

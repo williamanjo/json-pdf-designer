@@ -4,19 +4,19 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// Guards da DOCUMENTAÇÃO.
+// DOCUMENTATION guards.
 //
-// Prosa apodrece em silêncio: nada falha quando um doc passa a mentir. E dois
-// itens específicos aqui não são prosa — eles QUEBRAM O BUILD do site, e o
-// build do site não roda no `npm test`:
+// Prose rots silently: nothing fails when a doc starts lying. And two specific
+// items here are not prose — they BREAK THE SITE BUILD, and the site build
+// does not run in `npm test`:
 //
-//   `website/docusaurus.config.js` tem `onBrokenLinks: "throw"`. Uma entrada
-//   de sidebar apontando pra doc deletado ABORTA o `docusaurus build`. E o id
-//   de doc é compartilhado entre locales, então um espelho pt-BR órfão faz o
-//   sidebar de pt-BR divergir do de inglês.
+//   `website/docusaurus.config.js` has `onBrokenLinks: "throw"`. A sidebar
+//   entry pointing at a deleted doc ABORTS `docusaurus build`. And a doc id is
+//   shared between locales, so an orphan pt-BR mirror makes the pt-BR sidebar
+//   diverge from the English one.
 //
-// Estes testes rodam no `npm test`, que roda no `prepublishOnly` — então o
-// erro aparece antes de publicar, e não no deploy.
+// These tests run in `npm test`, which runs in `prepublishOnly` — so the error
+// shows up before publishing, and not at deploy time.
 
 const RAIZ = join(__dirname, "..");
 const DOCS_EN = join(RAIZ, "website", "docs");
@@ -29,17 +29,16 @@ function paginas(dir: string): string[] {
     .sort();
 }
 
-// O sidebar virou ANINHADO (1 doc + 6 categorias), e a leitura por regex que
-// existia aqui não sobrevive a isso por dois motivos independentes:
+// The sidebar became NESTED (1 doc + 6 categories), and the regex reading
+// that used to live here does not survive that for two independent reasons:
 //
-//   - `[([\s\S]*?)]` é non-greedy, então parava no PRIMEIRO `]` — que agora
-//     é o fechamento do `items:` da primeira categoria, não o do sidebar;
-//   - toda string entre aspas virava "id de doc", então os rótulos
-//     ("Getting started", "category", "Reference") seriam acusados de página
-//     inexistente.
+//   - `[([\s\S]*?)]` is non-greedy, so it stopped at the FIRST `]` — which is
+//     now the close of the first category's `items:`, not the sidebar's;
+//   - every quoted string became a "doc id", so the labels ("Getting started",
+//     "category", "Reference") would be reported as non-existent pages.
 //
-// Ler o arquivo de verdade elimina as duas classes de erro de uma vez, e é o
-// mesmo objeto que o Docusaurus consome — não uma aproximação dele.
+// Reading the real file eliminates both classes of error at once, and it is
+// the same object Docusaurus consumes — not an approximation of it.
 function ehCategoria(n: unknown): n is { type: "category"; label: string; items: unknown[] } {
   return typeof n === "object" && n !== null && (n as { type?: string }).type === "category";
 }
@@ -63,7 +62,7 @@ function coletaRotulos(nos: unknown[], fora: string[]): void {
   }
 }
 
-// `sidebars.js` é ESM com `export default`; vitest importa direto.
+// `sidebars.js` is ESM with `export default`; vitest imports it directly.
 const sidebarModulo = (await import(pathToFileURL(join(RAIZ, "website", "sidebars.js")).href)) as {
   default: { docsSidebar: unknown[] };
 };
@@ -85,9 +84,9 @@ describe("website — o sidebar e as páginas concordam", () => {
   const ids = idsDoSidebar();
 
   it("nenhum id aparece em duas categorias", () => {
-    // Página em dois lugares do sidebar não é erro pro Docusaurus: ele
-    // simplesmente desenha ela duas vezes, e a navegação anterior/próxima
-    // fica ambígua.
+    // A page in two places of the sidebar is not an error for Docusaurus: it
+    // simply draws it twice, and the previous/next navigation becomes
+    // ambiguous.
     const vistos = new Set<string>();
     const repetidos = ids.filter((id) => (vistos.has(id) ? true : (vistos.add(id), false)));
     expect(repetidos, `id repetido no sidebar:\n  ${repetidos.join("\n  ")}`).toEqual([]);
@@ -342,8 +341,8 @@ function headingsDe(texto: string): Set<string> {
 }
 
 describe("docs — link com âncora aponta pra heading que existe", () => {
-  // Só markdown do repo (não o website — lá o Docusaurus já tem
-  // `onBrokenLinks: "throw"`, que é um guard melhor que este).
+  // The repo's markdown only (not the website — there Docusaurus already has
+  // `onBrokenLinks: "throw"`, which is a better guard than this one).
   const fontes = [
     "README.md",
     "README_pt-BR.md",

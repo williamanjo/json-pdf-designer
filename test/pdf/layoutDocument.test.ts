@@ -8,21 +8,22 @@ import { hugeTableTemplate } from "./fixtures/hugeTable";
 import { emptyTableTemplate } from "./fixtures/emptyTable";
 import { sectionLargerThanPageTemplate } from "./fixtures/sectionLargerThanPage";
 
-// `layoutDocument` decide TODA a paginação numa travessia só, e o render
-// consome a decisão. Estes testes olham a decisão em si — coisa que um teste
-// sobre o PDF gerado não consegue fazer: em que página cada campo caiu,
-// quantas linhas em cada fatia de tabela, quantas repetições de seção por
-// página.
+// `layoutDocument` decides ALL the pagination in a single traversal, and the
+// render consumes the decision. These tests look at the decision itself —
+// something a test about the generated PDF cannot do: which page each field
+// landed on, how many rows in each table slice, how many section repetitions
+// per page.
 
 function layoutOf(template: Template, data: unknown = {}, bindings: Binding[] = []): LayoutDocument {
   return layoutDocument(template, data, bindings, buildInputs(data, bindings));
 }
 
-// Resumo estável de um LayoutDocument, para snapshot. É o "golden test" que
-// de fato funciona neste projeto: comparar BYTES de PDF é inviável (o pdf-lib
-// escreve CreationDate/IDs não-determinísticos, então os bytes mudam a cada
-// run), e snapshot de pixel já se mostrou inviável no ambiente. Isto é
-// determinístico, legível no diff do PR e cobre exatamente o que importa.
+// A stable summary of a LayoutDocument, for a snapshot. It is the "golden
+// test" that actually works in this project: comparing PDF BYTES is
+// unworkable (pdf-lib writes non-deterministic CreationDate/IDs, so the bytes
+// change on every run), and a pixel snapshot already proved unworkable in this
+// environment. This is deterministic, legible in the PR's diff and covers
+// exactly what matters.
 function summarize(layout: LayoutDocument): string {
   return layout.pages
     .map((page, i) => {

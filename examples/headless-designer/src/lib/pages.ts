@@ -1,12 +1,12 @@
 import type { Template, TemplatePage } from "json-pdf-designer/server";
 import { uid } from "./uid";
 
-// Todo Template manipulado pelo report-builder passa por aqui antes de
-// virar estado — garante `pages` sempre presente e não-vazio, mesmo pra um
-// Template "antigo" (autosave/projeto salvo antes das abas de página
-// existirem, ou um exemplo pronto que nunca usou `pages`). generatePdf/
-// Designer já toleram `pages` ausente sozinhos, mas a UI de abas do
-// report-builder precisa de um array pra iterar.
+// Every Template the report-builder handles passes through here before
+// becoming state — it guarantees `pages` is always present and non-empty, even
+// for an "old" Template (an autosave/project saved before the page tabs
+// existed, or a ready-made example that never used `pages`). generatePdf/
+// Designer already tolerate an absent `pages` on their own, but the
+// report-builder's tab UI needs an array to iterate.
 export function ensurePages(template: Template): Template & { pages: TemplatePage[] } {
   if (template.pages && template.pages.length > 0) {
     return template as Template & { pages: TemplatePage[] };

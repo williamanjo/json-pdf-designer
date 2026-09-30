@@ -1,26 +1,26 @@
-// Geometria do canvas próprio deste example.
+// The geometry of this example's own canvas.
 //
-// Fica num `.ts` e não dentro do `Canvas.tsx` por causa da regra
-// `react(only-export-components)` do oxlint: um arquivo de componente que
-// também exporta constante/função quebra o Fast Refresh. É a mesma razão do
-// split de três arquivos em `src/i18n/` no pacote (context.tsx /
-// contextValue.ts / hooks.ts), e do `canvasGeometry.ts` lá.
+// It lives in a `.ts` and not inside `Canvas.tsx` because of oxlint's
+// `react(only-export-components)` rule: a component file that also exports a
+// constant/function breaks Fast Refresh. It is the same reason as the
+// three-file split in the package's `src/i18n/` (context.tsx /
+// contextValue.ts / hooks.ts), and as `canvasGeometry.ts` there.
 //
-// O `App.tsx` usa `GRID_MM`/`snap` pra posicionar campo novo, e o
-// `Canvas.tsx` usa todas as quatro no arrasto/redimensionamento — então elas
-// já eram compartilhadas entre dois componentes de verdade.
+// `App.tsx` uses `GRID_MM`/`snap` to position a new field, and `Canvas.tsx`
+// uses all four in the drag/resize — so they were already shared between two
+// real components.
 
-// Escala fixa do canvas (px por mm) — só pra desenhar a página em tela num
-// tamanho razoável; não tem relação com o PDF gerado (que usa pt de verdade
-// via pdf-lib, dentro de generatePdf).
+// The canvas's fixed scale (px per mm) — only to draw the page on screen at
+// a reasonable size; it has no relation to the generated PDF (which uses real
+// pt through pdf-lib, inside generatePdf).
 export const PX_PER_MM = 3;
 
 export const MIN_WIDTH_MM = 15;
 export const MIN_HEIGHT_MM = 8;
 
-// Grade de 5mm — mesmo passo do <Designer> (arrastar/redimensionar trava
-// nela por padrão). Sem isso, campo novo nasce sempre no mesmo x/y e fica
-// empilhado exatamente em cima do anterior.
+// A 5mm grid — the same step as the <Designer> (dragging/resizing snaps to
+// it by default). Without it, a new field is always born at the same x/y and
+// ends up stacked exactly on top of the previous one.
 export const GRID_MM = 5;
 
 export function snap(mm: number): number {

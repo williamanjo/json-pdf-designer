@@ -1,17 +1,18 @@
-// Gera e baixa, sem preview nenhum — e, principalmente, SEM pdfjs-dist
-// instalado (ver README.md desta pasta). Importa só do entry principal
-// "json-pdf-designer"; nada de "json-pdf-designer/preview".
+// It generates and downloads, with no preview at all — and, above all,
+// WITHOUT pdfjs-dist installed (see this folder's README.md). It imports only
+// from the main entry "json-pdf-designer"; nothing from
+// "json-pdf-designer/preview".
 //
-// Os recursos são os mesmos do examples/report-builder — fontes de dados,
-// explorador de campos, exemplos prontos, undo/redo, autosave, projeto em
-// arquivo, múltiplas páginas, painel de problemas, erro de geração
-// traduzido, seletor de idioma — MENOS o preview de PDF, que é proibido
-// aqui por design. O que muda é a casca: CSS puro com variáveis `--app-*`
-// nos dois temas, e o editor montado pelo `<Designer>` preset.
+// The features are the same as examples/report-builder — data sources, a field
+// explorer, ready-made examples, undo/redo, autosave, a project file, multiple
+// pages, a problems panel, a translated generation error, a language picker —
+// MINUS the PDF preview, which is forbidden here by design. What changes is
+// the shell: plain CSS with `--app-*` variables in both themes, and the editor
+// assembled by the `<Designer>` preset.
 //
-// O seletor de idioma troca DUAS camadas com o mesmo valor: o editor (pelo
-// prop `locale` do `<Designer>`) e a casca deste app (pelo `t(locale)` de
-// src/i18n.ts). Nada de segundo estado nem segundo seletor — ver README.md.
+// The language picker swaps TWO layers with the same value: the editor
+// (through the `<Designer>`'s `locale` prop) and this app's shell (through
+// src/i18n.ts's `t(locale)`). No second state and no second picker.
 import { useEffect, useRef, useState } from "react";
 import type { Binding, Locale, Template, TemplatePage } from "json-pdf-designer";
 import { CURRENT_TEMPLATE_VERSION, DEFAULT_MAX_PAGES, downloadPdf, generatePdf, withInlineCode } from "json-pdf-designer";
@@ -33,28 +34,29 @@ import { templateProblems } from "./lib/templateProblems";
 import { uid } from "./lib/uid";
 import { initialBindings, initialSample, initialTemplate } from "./data/initialTemplate";
 import { EXAMPLES } from "./data/templates";
-// Dicionário da CASCA — o mesmo `locale` do estado alimenta ele e o
-// `<Designer>`. Ver o comentário grande de src/i18n.ts.
+// The SHELL's dictionary — the same `locale` from state feeds it and the
+// `<Designer>`. See the long comment in src/i18n.ts.
 import { t } from "./i18n";
 
-// O tema é UM atributo no `<html>`, e ele dirige o editor E esta casca:
-// o `theme.css` do pacote redefine os `--jpd-*` sob `[data-jpd-theme="dark"]`,
-// e as variáveis `--app-*` do index.css seguem a mesma chave.
+// The theme is ONE attribute on the `<html>`, and it drives the editor AND
+// this shell: the package's `theme.css` redefines the `--jpd-*` under
+// `[data-jpd-theme="dark"]`, and index.css's `--app-*` variables follow the
+// same key.
 //
-// `.dark` também funciona, como alias do 2.x. Usamos o atributo porque é o
-// hook documentado.
+// `.dark` works too, as a 2.x alias. We use the attribute because it is the
+// documented hook.
 //
-// Sem media query de propósito: o pacote não vira light-only porque o SO está
-// escuro, e nem escuro porque o SO está. Quem quiser seguir o SO lê
-// `matchMedia("(prefers-color-scheme: dark)")` e escreve o atributo — o que
-// este example faz é justamente deixar a decisão explícita.
+// Deliberately no media query: the package does not turn light-only because
+// the OS is dark, nor dark because the OS is. Whoever wants to follow the OS
+// reads `matchMedia("(prefers-color-scheme: dark)")` and writes the attribute
+// — what this example does is precisely to keep the decision explicit.
 type Tema = "light" | "dark";
 const TEMA_KEY = "no-preview:tema";
 
-// Idioma inicial da UI (editor + casca). Constante de módulo porque o
-// inicializador do `useState` de `fields` já precisa dele — ele roda ANTES da
-// linha que declara o estado de `locale`, e ler a variável ali dentro daria
-// ReferenceError.
+// The UI's initial language (editor + shell). A module constant because the
+// `useState` initializer for `fields` already needs it — it runs BEFORE the
+// line that declares the `locale` state, and reading the variable in there
+// would give a ReferenceError.
 const LOCALE_INICIAL: Locale = "pt-BR";
 
 function temaInicial(): Tema {
@@ -64,8 +66,8 @@ function temaInicial(): Tema {
   } catch {
     // modo privado / storage bloqueado — segue no default
   }
-  // Default DESTE example é escuro: é a única coisa no repo que exercita o
-  // dark do editor, então ele começa nesse modo.
+  // THIS example's default is dark: it is the only thing in the repo that
+  // exercises the editor's dark mode, so it starts in that mode.
   return "dark";
 }
 
@@ -94,46 +96,47 @@ export default function App() {
     return extractFields(initialSample);
   });
   const [errorsById, setErrorsById] = useState<Record<string, SourceErrorCode>>({});
-  // O erro CRU, não a mensagem já formada. `describeGenerationError` roda na
-  // renderização (abaixo), então trocar o idioma com o banner aberto
-  // retraduz o banner na hora — guardar o texto pronto o congelaria no
-  // idioma em que a falha aconteceu.
+  // The RAW error, not the already-formed message. `describeGenerationError`
+  // runs at render time (below), so switching the language with the banner open
+  // retranslates the banner on the spot — holding the finished text would
+  // freeze it in the language the failure happened in.
   const [genErrorRaw, setGenErrorRaw] = useState<{ err: unknown } | null>(null);
   const [generating, setGenerating] = useState(false);
-  // Nome do último arquivo baixado — o único "recibo" que este example pode
-  // dar, já que não há preview pra confirmar visualmente o que saiu.
+  // The name of the last downloaded file — the only "receipt" this example
+  // can give, since there is no preview to visually confirm what came out.
   const [lastDownload, setLastDownload] = useState<string | null>(null);
-  // Idioma da UI: alimenta o `<Designer locale>` (botões/abas/avisos do
-  // editor) E o `t(locale)` da casca. Um seletor, dois dicionários — e não
-  // afeta o PDF gerado, que é documento, não interface.
+  // The UI's language: it feeds the `<Designer locale>` (the editor's
+  // buttons/tabs/warnings) AND the shell's `t(locale)`. One picker, two
+  // dictionaries — and it does not affect the generated PDF, which is a
+  // document, not an interface.
   const [locale, setLocale] = useState<Locale>(LOCALE_INICIAL);
   const s = t(locale);
 
-  // Falha de geração já TRADUZIDA (ver lib/generationError.ts) — não a
-  // mensagem crua do erro. O pacote exporta os erros como classes justamente
-  // pra isso; o `locale` escolhe o idioma do texto acionável.
+  // The generation failure already TRANSLATED (see lib/generationError.ts) —
+  // not the error's raw message. The package exports the errors as classes
+  // precisely for this; the `locale` chooses the actionable text's language.
   const genError = genErrorRaw ? describeGenerationError(genErrorRaw.err, locale) : null;
 
-  // Recalcula a cada render: é varredura de string sobre o template em memória,
-  // barata o suficiente pra não valer memo — e assim o painel reage na hora em
-  // que alguém digita uma expressão torta.
+  // Recomputed on every render: it is a string scan over the in-memory
+  // template, cheap enough not to be worth a memo — and that way the panel
+  // reacts the moment someone types a crooked expression.
   const problems = templateProblems(template, bindings, locale);
 
   useUndoRedo(template, bindings, setTemplate, setBindings);
   useAutosave(template, bindings, sources);
 
-  // `template.pages` sempre existe e não é vazio (garantido por
-  // ensurePages em todo lugar que troca `template` inteiro) — clampa o
-  // índice pra nunca apontar fora do array (ex: depois de remover a última
-  // aba selecionada, ou carregar um projeto/exemplo com menos páginas).
+  // `template.pages` always exists and is never empty (guaranteed by
+  // ensurePages everywhere the whole `template` is swapped) — it clamps the
+  // index so it never points outside the array (e.g. after removing the last
+  // selected tab, or loading a project/example with fewer pages).
   const pages = template.pages!;
   const safeActivePageIndex = Math.min(activePageIndex, pages.length - 1);
   const activePage = pages[safeActivePageIndex];
 
-  // Repassa pro <Designer> (via DesignerPanel) só a página ATIVA — Designer
-  // não sabe que existem outras páginas, só edita a que recebeu. Grava de
-  // volta em template.pages[safeActivePageIndex], preservando o resto do
-  // Template intacto (inclusive as outras páginas).
+  // It forwards only the ACTIVE page to the <Designer> (through
+  // DesignerPanel) — the Designer does not know other pages exist, it only
+  // edits the one it received. It writes back into
+  // template.pages[safeActivePageIndex], keeping the rest of the Template intact.
   function setActivePageTemplate(update: React.SetStateAction<Template>) {
     setTemplate((prev) => {
       const prevPages = prev.pages!;
@@ -145,7 +148,7 @@ export default function App() {
 
   function handleAddPage() {
     setTemplate((prev) => ({ ...prev, pages: [...prev.pages!, blankPage()] }));
-    setActivePageIndex(pages.length); // nova página vai pro final
+    setActivePageIndex(pages.length); // a new page goes to the end
   }
 
   function handleRemovePage(index: number) {
@@ -154,9 +157,9 @@ export default function App() {
     setActivePageIndex((prevIndex) => Math.max(0, prevIndex >= index ? prevIndex - 1 : prevIndex));
   }
 
-  // Só recalcula a lista de campos quando o usuário clicar em "Resync
-  // campos" — assim ele pode colar um JSON grande sem a lista ficar
-  // piscando a cada tecla digitada.
+  // It only recomputes the field list when the user clicks "Resync fields" —
+  // that way they can paste a large JSON without the list flickering on every
+  // keystroke.
   function handleResync() {
     const { data, errorsById: nextErrors } = mergeSources(sources);
     setFields(extractFields(data));
@@ -171,15 +174,15 @@ export default function App() {
       const { data, errorsById: nextErrors } = mergeSources(sources);
       setErrorsById(nextErrors);
       const fontBytes = await loadDefaultFont();
-      // O ponto do example: generatePdf devolve os bytes e downloadPdf
-      // entrega o arquivo. Nenhum passo intermediário renderiza o PDF na
-      // tela, então nada aqui precisa do pdf.js. Quem quiser conferir
-      // margens antes de baixar usa o <PdfPreviewModal> de
-      // "json-pdf-designer/preview" (e aí sim instala o pdfjs-dist).
+      // The example's point: generatePdf returns the bytes and downloadPdf
+      // hands over the file. No intermediate step renders the PDF on screen,
+      // so nothing here needs pdf.js. Whoever wants to check the margins
+      // before downloading uses the <PdfPreviewModal> from
+      // "json-pdf-designer/preview" (and then does install pdfjs-dist).
       //
-      // `maxPages` explícito, no default do pacote: deixa claro que existe
-      // um teto e que estourá-lo dá PageLimitError em vez de um PDF
-      // truncado.
+      // An explicit `maxPages`, at the package's default: it makes clear that
+      // a ceiling exists and that going past it gives a PageLimitError instead
+      // of a truncated PDF.
       const bytes = await generatePdf(template, data, bindings, { fontBytes, maxPages: DEFAULT_MAX_PAGES });
       const name = "relatorio.pdf";
       downloadPdf(bytes, name);

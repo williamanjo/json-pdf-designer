@@ -12,18 +12,18 @@ type Props = {
   onSelect: (id: string, additive?: boolean) => void;
   onRemove: (id: string) => void;
   onToggleLock: (id: string) => void;
-  // Só aparecem na linha selecionada — junto do cadeado/lixeira, que já
-  // agem sem precisar abrir o editor do campo.
+  // They only show up on the selected row — next to the padlock/trash, which
+  // already act without having to open the field editor.
   onBringToFront?: (id: string) => void;
   onSendToBack?: (id: string) => void;
-  // Pra detectar campo com problema de configuração — sem vínculo com o
-  // JSON, ou vinculado mas com algo incompleto (ver fieldWarning abaixo).
+  // To spot a field with a configuration problem — not bound to the JSON, or
+  // bound but incomplete in some way (see fieldWarning below).
   bindings?: Binding[];
-  // Renomear (nome do schema) — qualquer tipo de campo, ver Designer.tsx
-  // `renameSchema` (remapeia bindings.schemaName junto).
+  // Rename (the schema name) — any field type, see Designer.tsx
+  // `renameSchema` (it remaps bindings.schemaName along with it).
   onRename?: (id: string, newName: string) => void;
-  // Sub-elementos de KPI (ícone/título/valor/legenda) — só aparecem
-  // quando o KPI é o ÚNICO campo selecionado (ver Designer.tsx).
+  // KPI sub-elements (icon/title/value/subtitle) — they only appear when
+  // the KPI is the ONLY selected field (see Designer.tsx).
   selectedKpiElement?: KpiElementKey | null;
   onSelectKpiElement?: (el: KpiElementKey) => void;
   onChangeSchema?: (id: string, patch: Partial<Schema>) => void;
@@ -31,15 +31,15 @@ type Props = {
 
 const KPI_ELEMENTS: KpiElementKey[] = ["icon", "title", "value", "subtitle"];
 
-// Lista de todo campo já colocado na página — clique seleciona (abre o
-// Field Edit logo abaixo); cadeado trava/destrava mover/redimensionar no
-// canvas (continua editável pelo painel); lixeira remove direto, sem
-// precisar selecionar primeiro; o lápis (ou duplo clique no nome)
-// renomeia. Um KPI selecionado sozinho ganha 4 sub-linhas (ícone/título/valor/legenda) —
-// clique foca (Estilo contextual, ver PropertyPanelKpi.tsx), cadeado
-// destrava arrastar no canvas (nasce travado, ver KpiField.tsx), e um
-// botão adiciona/remove o sub-elemento (title/value/subtitle viram
-// opcionais, icon já tinha "nenhum").
+// The list of every field already placed on the page — a click selects it
+// (opening Field Edit just below); the padlock locks/unlocks move/resize on
+// the canvas (it stays editable from the panel); the trash removes it
+// directly, without having to select it first; the pencil (or a double click
+// on the name) renames it. A KPI selected on its own gains 4 sub-rows
+// (icon/title/value/subtitle) — a click focuses one (contextual Style, see
+// PropertyPanelKpi.tsx), the padlock unlocks dragging on the canvas (it is
+// born locked, see KpiField.tsx), and a button adds/removes the sub-element
+// (title/value/subtitle become optional, icon already had "none").
 export function FieldList({
   schemas,
   selectedIds,
@@ -73,15 +73,15 @@ export function FieldList({
   const itemRefs = useRef(new Map<string, HTMLDivElement>());
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
-  // Mesma razão (e mesmo gotcha do `onFocus`) do rename de coluna em
-  // PropertyPanel/PropertyPanelTable.tsx — ver o comentário longo lá.
+  // Same reason (and same `onFocus` gotcha) as the column rename in
+  // PropertyPanel/PropertyPanelTable.tsx — see the long comment there.
   const selecionarAoAbrir = useCallback((el: HTMLInputElement | null) => el?.select(), []);
-  // Mesmo campo pode continuar "o último selecionado" por vários renders
-  // seguidos (ex: editando o valor dele, que muda `schemas` a cada tecla)
-  // — depender desse ID (primitivo, só muda quando a SELEÇÃO muda de
-  // verdade) em vez do array `selectedIds` (referência nova a cada
-  // render) evita rolar a lista de volta toda hora, brigando com quem
-  // rolou manualmente pra ver outra coisa enquanto edita.
+  // The same field can stay "the last selected one" across several renders
+  // in a row (e.g. while editing its value, which changes `schemas` on
+  // every keystroke) — depending on this ID (a primitive, it only changes
+  // when the SELECTION really changes) instead of on the `selectedIds`
+  // array (a new reference on every render) avoids scrolling the list back
+  // all the time, fighting whoever scrolled by hand to look at something else.
   const lastSelectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
   useEffect(() => {
     if (lastSelectedId) itemRefs.current.get(lastSelectedId)?.scrollIntoView({ block: "nearest" });
@@ -116,11 +116,11 @@ export function FieldList({
             else itemRefs.current.delete(schema.id);
           }}
           onClick={(e) => onSelect(schema.id, e.ctrlKey || e.metaKey)}
-          // A linha inteira continua clicável — é conveniência de MOUSE, e
-          // tirar isso encolheria o alvo pro tamanho do nome. Mas ela não é o
-          // controle ACESSÍVEL da seleção: esse é o <button> do nome logo
-          // abaixo, que o Tab alcança e o leitor de tela anuncia. Daí
-          // `role="presentation"` aqui — a linha é layout, não widget.
+          // The whole row stays clickable — that is a MOUSE convenience, and
+          // removing it would shrink the target down to the size of the name.
+          // But the row is not the ACCESSIBLE control for selection: that is
+          // the <button> holding the name just below, which Tab reaches and a
+          // screen reader announces. Hence `role="presentation"` here.
           role="presentation"
           className="jpd-fieldrow"
           data-selected={isSelected || undefined}
@@ -151,12 +151,12 @@ export function FieldList({
                   }}
                 />
               ) : (
-                // <button>, não <span>: selecionar um campo era operação
-                // EXCLUSIVA de mouse — a linha tinha `onClick` e nada na
-                // lista era focável além dos botões de ação, então quem
-                // navega por teclado não conseguia selecionar campo nenhum.
-                // `stopPropagation` porque o `onClick` da linha faria a mesma
-                // seleção de novo.
+                // A <button>, not a <span>: selecting a field used to be a
+                // MOUSE-ONLY operation — the row had `onClick` and nothing in
+                // the list was focusable beyond the action buttons, so anyone
+                // navigating by keyboard could not select a field at all.
+                // `stopPropagation` because the row's `onClick` would make
+                // the same selection a second time.
                 <button
                   type="button"
                   className="jpd-rowname"
@@ -183,9 +183,9 @@ export function FieldList({
               <IconBringToFront />
             </Button>
           )}
-          {/* Via focável pro rename. O `onDoubleClick` no nome continua, mas
-              ele é gesto de mouse sobre um `<span>` sem tabIndex — sem este
-              botão, quem navega por teclado não tem como renomear campo. */}
+          {/* A focusable path to rename. The `onDoubleClick` on the name stays,
+              but it is a mouse gesture over a `<span>` with no tabIndex —
+              without this button, keyboard users cannot rename a field. */}
           {onRename && renamingId !== schema.id && (
             <Button
               variant="ghost"
@@ -221,9 +221,9 @@ export function FieldList({
                 <li
                   key={el}
                   onClick={(e) => { e.stopPropagation(); onSelectKpiElement?.(el); }}
-                  // Mesmo desenho da linha de cima: o <li> segue clicável por
-                  // conveniência de mouse, e o alvo ACESSÍVEL é o botão do
-                  // rótulo — focar sub-elemento de KPI também era só-mouse.
+                  // Same design as the row above: the <li> stays clickable as a mouse
+                  // convenience, and the ACCESSIBLE target is the label
+                  // button — focusing a KPI sub-element was mouse-only too.
                   role="presentation"
                   className="jpd-fieldrow jpd-fieldrow--sub"
                   data-selected={focused || undefined}

@@ -1,11 +1,11 @@
-// Entrypoint alternativo pra quem só quer gerar PDF no backend (Node) —
-// generatePdf(template, data, bindings) roda em cima de pdf-lib puro, sem
-// nenhuma dependência de DOM/browser. `.` (index.ts) reexporta TUDO isso
-// mais o Designer/PdfPreview/PdfPreviewModal/componentes de UI (React) —
-// como tudo sai do MESMO módulo compilado, importar só `generatePdf` de
-// `.` ainda carrega `react`/`react-dom` como peer dep. Esse arquivo espelha
-// só o subconjunto sem React de `./index.ts`, pra quem importa
-// "json-pdf-designer/server" nunca precisar instalar react/react-dom.
+// An alternative entrypoint for whoever only wants to generate a PDF in the
+// backend (Node) — generatePdf(template, data, bindings) runs on top of plain
+// pdf-lib, with no DOM/browser dependency at all. `.` (index.ts) re-exports
+// ALL of this plus the Designer/PdfPreview/PdfPreviewModal/UI components
+// (React) — since it all comes out of the SAME compiled module, importing only
+// `generatePdf` from `.` still loads `react`/`react-dom` as a peer dep. This
+// file mirrors only the React-free subset of `./index.ts`, so that whoever
+// imports "json-pdf-designer/server" never has to install react/react-dom.
 export type {
   PageSize,
   BaseSchema,
@@ -67,28 +67,28 @@ export {
   materialIconLabels,
   type MaterialIconName,
 } from "./materialIcons";
-// downloadPdf fica de fora (usa document/Blob — só faz sentido no browser).
+// downloadPdf is left out (it uses document/Blob — browser-only).
 export { generatePdf, type GeneratePdfOptions } from "./pdf/generate";
 export { migrateTemplate, CURRENT_TEMPLATE_VERSION } from "./template";
 
-// COLUNA DE TABELA, sem React envolvido.
+// TABLE COLUMN, with no React involved.
 //
-// `tokenFor` é a única regra de "como uma chave vira token", e
-// `normalizeTableColumns` converte coluna de chave crua em `{label, formula}`
-// num template+bindings já salvos. Saem daqui, e não só do entry principal,
-// porque normalizar acervo é trabalho de backend/script tanto quanto de
-// editor — e nenhuma das duas toca em React.
+// `tokenFor` is the single rule for "how a key becomes a token", and
+// `normalizeTableColumns` converts a raw-key column into `{label, formula}` in
+// an already-saved template+bindings. They leave from here, and not only from
+// the main entry, because normalizing an existing corpus is backend/script
+// work as much as editor work — and neither of the two touches React.
 export { segmentFor, tokenFor } from "./fields/table/columnFormula";
 export { normalizeTableColumns } from "./fields/table/normalizeColumns";
-// Erros de geração: `error.message` é INGLÊS (diagnóstico de desenvolvedor —
-// log, stack, Sentry), toda falha é uma CLASSE com dados estruturados e um
-// `code` de string literal, e `describePdfError(err, dictFor(locale))` dá o
-// texto de usuário final localizado. Ver o comentário longo em src/index.ts e
-// docs: "Modos de falha".
+// Generation errors: `error.message` is ENGLISH (a developer diagnostic — the
+// log, the stack, Sentry), every failure is a CLASS with structured data and a
+// string-literal `code`, and `describePdfError(err, dictFor(locale))` gives the
+// localized end-user text. See the long comment in src/index.ts and the docs:
+// "Failure modes".
 //
-// Tudo daqui é o MESMO módulo do entry principal — `src/errors.ts` importa só
-// o tipo `Dict` e a hierarquia de expressão, nada de React nem de pdf-lib, que
-// é o que deixa o localizador sair no build /server.
+// Everything here is the SAME module as the main entry — `src/errors.ts`
+// imports only the `Dict` type and the expression hierarchy, no React and no
+// pdf-lib, which is what lets the localizer ship in the /server build.
 export {
   describePdfError,
   isPdfError,
@@ -123,9 +123,9 @@ export { DEFAULT_MAX_PAGES } from "./pdf/layout/layoutDocument";
 export { ExpressionError, ExpressionSyntaxError, ExpressionDepthError } from "./expressions/errors";
 
 
-// Validação de expressão — um backend usa isto pra recusar um template com
-// expressão inválida ANTES de salvar, em vez de descobrir na hora de gerar
-// (quando o campo já sai vazio, ver expressions/resolve.ts).
+// Expression validation — a backend uses this to refuse a template with an
+// invalid expression BEFORE saving, instead of finding out at generation time
+// (when the field already comes out empty, see expressions/resolve.ts).
 export { expressionError, templateExpressionErrors } from "./expressions/resolve";
 export { suspiciousOperator, templateSuspiciousOperators } from "./expressions/suspicious";
 export { ALL_SUGGESTIONS, applySuggestion, insertAtCaret, suggestAt, wordAtCaret } from "./expressions/suggest";
@@ -133,7 +133,7 @@ export type { Suggestion } from "./expressions/suggest";
 export { braceError, tokenAtCaret } from "./expressions/templateText";
 export type { TokenSpan } from "./expressions/templateText";
 export { expressionErrors } from "./fieldWarnings";
-// Dicionário como valor, pra chamar fieldWarning fora de um componente React.
+// The dictionary as a value, to call fieldWarning outside a React component.
 export { dictFor } from "./i18n/dictionaries";
 export type { SchemaExpressionError } from "./expressions/schemaExpressions";
 export { makeChartSchema, makeKpiSchema, makeSectionColumnPair } from "./schemaFactory";

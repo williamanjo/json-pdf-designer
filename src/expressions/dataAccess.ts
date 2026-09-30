@@ -1,19 +1,19 @@
 import type { ChartFilterOp } from "../types";
 
-// Acesso ao dado e comparação de valores — as peças que TANTO o motor de
-// expressões QUANTO os vínculos (filtros de chart/tabela/KPI) usam.
+// Data access and value comparison — the pieces that BOTH the expression
+// engine AND the bindings (chart/table/KPI filters) use.
 //
-// Mora aqui, e não em bindings.ts, só por causa de ciclo de import: o
-// bindings.ts passou a importar o motor de expressões, então o motor não pode
-// importar de volta o bindings.ts. As implementações são as mesmas de antes,
-// movidas sem alteração de comportamento.
+// It lives here, and not in bindings.ts, only because of an import cycle:
+// bindings.ts started importing the expression engine, so the engine cannot
+// import bindings.ts back. The implementations are the same as before, moved
+// with no behavior change.
 
-// Busca `path` ("a.b.c") em `obj` ignorando maiúsculas/minúsculas em cada
-// pedaço — JSON de sistema legado costuma vir com chave em caixa diferente
-// da que o template escreveu.
-// Caminha por SEGMENTOS já divididos. Existe separado porque um segmento pode
-// conter ponto (`{["a.b"]}`), e aí dividir a string aqui dentro desfaria
-// justamente a distinção que os brackets fizeram.
+// Looks `path` ("a.b.c") up in `obj` ignoring case on each piece — legacy
+// system JSON usually arrives with keys in a different case from the one the
+// template wrote.
+// It walks ALREADY SPLIT segments. It exists separately because a segment may
+// contain a dot (`{["a.b"]}`), and splitting the string in here would undo
+// exactly the distinction the brackets made.
 export function getCaseInsensitiveSegments(obj: unknown, segments: string[]): unknown {
   if (segments.length === 0) return obj;
   let cur = obj;
@@ -28,31 +28,31 @@ export function getCaseInsensitiveSegments(obj: unknown, segments: string[]): un
   return cur;
 }
 
-// Forma por STRING, mantida porque ~6 chamadores fora do motor de expressão
-// (KPI, gráfico, filtros) guardam o caminho como texto com pontos. Aqui o
-// ponto separa, que é o contrato de sempre pra esses campos.
+// The STRING form, kept because ~6 callers outside the expression engine
+// (KPI, chart, filters) store the path as dotted text. Here the dot separates,
+// which is the long-standing contract for those fields.
 export function getCaseInsensitive(obj: unknown, path: string): unknown {
   if (!path) return obj;
   return getCaseInsensitiveSegments(obj, path.split("."));
 }
 
-// "campo/valor ausente" -> "" — regra repetida em todo lugar que serializa um
-// valor cru do JSON pra string de saída (path não bate, ou bate em
+// "missing field/value" -> "" — a rule repeated everywhere a raw JSON value
+// is serialized into an output string (the path does not match, or it matches
 // null/undefined).
 export function stringifyOrEmpty(v: unknown): string {
   return v === undefined || v === null ? "" : String(v);
 }
 
-// Normaliza um item de array pra Record antes de indexar por chave — item pode
-// não ser objeto (string solta, número, null) num array "sujo"; nesse caso
-// trata como sem nenhuma chave, em vez de deixar o indexamento explodir.
+// Normalizes an array item into a Record before indexing it by key — an item
+// may not be an object (a loose string, a number, null) in a "dirty" array;
+// in that case it is treated as having no keys, instead of blowing up.
 export function asRecord(item: unknown): Record<string, unknown> {
   return item && typeof item === "object" ? (item as Record<string, unknown>) : {};
 }
 
-// "rows.total_amount" -> array "rows" + coluna "total_amount" (sempre o último
-// pedaço depois do ponto). Usada tanto pra extrair números
-// (numbersFromArrayPath) quanto pra só contar itens (COUNT).
+// "rows.total_amount" -> the "rows" array + the "total_amount" column (always
+// the last piece after the dot). Used both to extract numbers
+// (numbersFromArrayPath) and to merely count items (COUNT).
 export function splitArrayPath(rawPath: string): { arrayPath: string; column: string } {
   const lastDot = rawPath.lastIndexOf(".");
   return {
@@ -61,9 +61,9 @@ export function splitArrayPath(rawPath: string): { arrayPath: string; column: st
   };
 }
 
-// "rows.total_amount" -> os números da coluna "total_amount" do array "rows".
-// Item não-numérico é descartado (não vira 0), pra uma linha suja não puxar a
-// média pra baixo.
+// "rows.total_amount" -> the numbers of the "total_amount" column of the
+// "rows" array. A non-numeric item is discarded (it does not become 0), so
+// one dirty row does not drag the average down.
 export function numbersFromArrayPath(data: unknown, rawPath: string): number[] {
   const { arrayPath, column } = splitArrayPath(rawPath);
   const arr = getCaseInsensitive(data, arrayPath);
@@ -71,15 +71,15 @@ export function numbersFromArrayPath(data: unknown, rawPath: string): number[] {
   return arr.map((item) => Number(column ? asRecord(item)[column] : item)).filter((n) => !Number.isNaN(n));
 }
 
-// Compara o valor cru (`raw`) contra `value` (sempre string) segundo `op`.
-// Number(...) dos dois lados quando possível (compara como número — "10" > "9"
-// numérico, não lexicográfico); cai pra texto case-insensitive quando um dos
-// dois não é número, ou sempre pra "contains". gt/gte/lt/lte exigem os dois
-// lados numéricos — não bate se não der (nunca filtra tudo por engano/tipo
-// errado, só não bate).
+// Compares the raw value (`raw`) against `value` (always a string) according
+// to `op`. Number(...) on both sides when possible (comparing as numbers —
+// "10" > "9" numerically, not lexicographically); it falls back to
+// case-insensitive text when either side is not a number, and always for
+// "contains". gt/gte/lt/lte require both sides to be numeric — they do not
+// match otherwise (it never filters everything out by mistake, it simply
+// does not match).
 //
-// Usada pelos filtros de chart/tabela/KPI e pela comparação do {IF(...)} —
-// mesma regra nos dois, de propósito.
+// Used by the chart/table/KPI filters and by the {IF(...)} comparison.
 export function compareValues(raw: unknown, op: ChartFilterOp, value: string): boolean {
   if (op === "contains") return String(raw ?? "").toLowerCase().includes(value.toLowerCase());
   const numRaw = Number(raw);

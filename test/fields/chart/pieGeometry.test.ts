@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { pieSlicePath, pointOnCircle } from "../../../src/fields/chart/pieGeometry";
 
 describe("pointOnCircle", () => {
-  // Ângulo medido a partir do topo (12h), sentido horário, y cresce pra baixo.
+  // The angle is measured from the top (12 o'clock), clockwise, y grows downward.
   const cx = 10;
   const cy = 20;
   const r = 5;

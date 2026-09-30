@@ -2,10 +2,10 @@ import { createContext } from "react";
 import { en } from "./locales/en";
 import type { Locale } from "./types";
 
-// Default = inglês — quem usa um componente exportado direto (PdfPreview,
-// FieldList...) SEM <Designer>/<I18nProvider> por cima ainda vê texto
-// certo, só que sempre em inglês (não dá pra adivinhar preferência sem
-// alguém decidir explicitamente). Em arquivo próprio — fast-refresh do
-// Vite reclama de misturar Context/hook com componente no mesmo arquivo
-// (ver context.tsx/hooks.ts).
+// The default is English — whoever uses an exported component directly
+// (PdfPreview, FieldList...) WITHOUT a <Designer>/<I18nProvider> above still
+// sees the right text, only always in English (a preference cannot be
+// guessed without someone deciding explicitly). In a file of its own — Vite's
+// fast refresh complains about mixing a Context/hook with a component in the
+// same file (see context.tsx/hooks.ts).
 export const I18nContext = createContext<{ locale: Locale; t: typeof en }>({ locale: "en", t: en });

@@ -12,6 +12,12 @@
 
 **Desenhe um relatório PDF no navegador e gere ele em qualquer lugar.**
 
+**[Abra o playground](https://williamanjo.github.io/json-pdf-designer/playground/)** — arraste um campo para a pagina, ligue ele a uma chave do JSON, baixe o PDF.
+Sem instalar nada.
+
+<!-- GIF: 10s — arrasta um campo, vincula ao JSON, gera. Coloque como
+     docs/demo.gif e troque este comentario pela tag de imagem. -->
+
 Editor visual de relatórios para React — canvas com arrastar/redimensionar,
 campos vinculados a uma fonte de dados JSON, seções repetidas (faixa de
 dados / master-detail), tabelas com colunas calculadas e totais, gráficos,

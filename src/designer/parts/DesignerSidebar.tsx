@@ -21,21 +21,21 @@ export type DesignerSidebarProps = {
   };
 };
 
-// Peça de CONVENIÊNCIA: a sidebar inteira, do jeito que o `<Designer>`
-// monta — barra de abas em cima, e o conteúdo da aba ativa embaixo, numa
-// caixa que colapsa no duplo clique.
+// A CONVENIENCE part: the whole sidebar, the way the `<Designer>` assembles
+// it — a tab bar on top, and the active tab's content below, in a box that
+// collapses on a double click.
 //
-// É a ÚNICA peça que importa outras peças (invariante guardado por
-// partBoundaries.test.ts). Existe porque reproduzir o gate de aba de sete
-// blocos na mão é chato e fácil de errar — mas é só açúcar: quem quer outro
-// layout monta as peças direto, com o `whenTab` que quiser (ou sem nenhum).
+// It is the ONLY part that imports other parts (an invariant guarded by
+// partBoundaries.test.ts). It exists because reproducing the seven-block tab
+// gate by hand is tedious and easy to get wrong — but it is only sugar:
+// whoever wants another layout mounts the parts directly, with whatever
+// `whenTab` they like (or none at all).
 //
-// O COLAPSO mora só aqui, e não em cada peça. O truque do `<TabPanel>` é um
-// grid `1fr`→`0fr`, que exige um pai `flex column` com `min-block-size: 0` —
-// uma peça avulsa não garante isso, então ela animaria errado em silêncio em
-// vez de degradar. A barra de abas ESCREVE o flag (duplo clique) e a sidebar
-// LÊ: usar `<DesignerTabBar>` sem sidebar deixa o duplo clique sem efeito
-// visível, o que é o comportamento correto pra quem não tem o que colapsar.
+// THE COLLAPSE lives only here, and not in each part. The `<TabPanel>` trick
+// is a grid `1fr`→`0fr`, which requires a `flex column` parent with
+// `min-block-size: 0` — a standalone part does not guarantee that, so it
+// would animate wrongly in silence instead of degrading. The tab bar WRITES
+// the flag (double click) and the sidebar READS it.
 export function DesignerSidebar({ className, style, parts }: DesignerSidebarProps) {
   const { Card, TabPanel } = useUiComponents();
   const { sidebarCollapsed } = useDesignerUi();
@@ -46,16 +46,16 @@ export function DesignerSidebar({ className, style, parts }: DesignerSidebarProp
     <Card className={cx("jpd-sidebar", className)} data-part="sidebar" style={style}>
       <DesignerTabBar className={tabBar.className} style={tabBar.style} />
       <TabPanel collapsed={sidebarCollapsed} className={panel.className} style={panel.style}>
-        {/* A aba "Campos" tem DOIS blocos irmãos, e eles são irmãos de
-            propósito: o gap de 8px do `.jpd-tabpanel__body` separa a lista
-            do rodapé de ações. Embrulhar os dois num nível a mais colapsaria
-            esse gap. */}
+        {/* The "Fields" tab has TWO sibling blocks, and they are siblings on
+            purpose: the 8px gap of `.jpd-tabpanel__body` separates the list
+            from the action footer. Wrapping the two in one more level would
+            collapse that gap. */}
         <DesignerFieldList whenTab="campos" />
         <DesignerToolbar whenTab="campos" />
 
-        {/* Duas instâncias do MESMO painel, uma por metade. É exatamente o
-            que o `section` existe pra permitir — e dentro da sidebar só uma
-            aba está ativa, então só uma renderiza. */}
+        {/* Two instances of the SAME panel, one per half. It is exactly what
+            `section` exists to allow — and inside the sidebar only one tab is
+            active, so only one of them renders. */}
         <DesignerPropertyPanel whenTab="dados" section="dados" />
         <DesignerPropertyPanel whenTab="estilo" section="estilo" />
         <DesignerFilterPanel whenTab="filtro" />

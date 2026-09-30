@@ -8,12 +8,12 @@ import type { ExampleDefinition } from "./types";
 
 export type { ExampleDefinition } from "./types";
 
-// Exemplos prontos do dropdown "Carregar exemplo…" — cada um troca
-// template/binding E a fonte de dados pro JSON de exemplo dele. Cada
-// template/binding mora no próprio arquivo (./kandir.ts, ./recibo.ts...),
-// esse índice só monta o mapa que o dropdown itera. Tipo Record (não
-// inferido) de propósito — App.tsx indexa por chave dinâmica
-// (EXAMPLES[key], key vindo do <select>).
+// The ready-made examples of the "Load example…" dropdown — each one swaps
+// template/binding AND the data source for its own sample JSON. Each
+// template/binding lives in its own file (./kandir.ts, ./recibo.ts...), and
+// this index only builds the map the dropdown iterates. A Record type (not
+// inferred) on purpose — App.tsx indexes it by a dynamic key (EXAMPLES[key],
+// with key coming from the <select>).
 export const EXAMPLES: Record<string, ExampleDefinition> = {
   kandir: kandirExample,
   recibo: reciboExample,

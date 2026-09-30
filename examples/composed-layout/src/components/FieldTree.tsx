@@ -25,21 +25,21 @@ function rowKind(field: FieldNode): string {
   return "";
 }
 
-// Árvore de campos: uma seção fixa "Variáveis nativas" (tokens sintéticos
-// tipo pageNumber, sempre disponíveis) + os campos do JSON de verdade,
-// agrupados por DataSource (cada array vira um grupo cujas colunas são
-// filhos individuais, arrastáveis/clicáveis cada uma — ver
-// lib/jsonExplorer.ts::buildFieldTree). Grupos "de pasta" comuns (objeto
-// aninhado, ex: "empresa") não têm ação própria, só organizam.
+// The field tree: a fixed "Native variables" section (synthetic tokens such
+// as pageNumber, always available) + the real JSON's fields, grouped by
+// DataSource (each array becomes a group whose columns are individual
+// children, each draggable/clickable — see lib/jsonExplorer.ts::buildFieldTree).
+// Ordinary "folder" groups (a nested object, e.g. "empresa") have no action of
+// their own, they only organize.
 //
-// Cada linha de campo é arrastável (o FieldNode inteiro serializado no
-// dataTransfer, pro `onCanvasDrop` do DesignerProvider ler no "drop") e,
-// quando `onAdd` é passado, tem um botão "+" pra adicionar sem arrastar.
+// Each field row is draggable (the whole FieldNode serialized into the
+// dataTransfer, for the DesignerProvider's `onCanvasDrop` to read on "drop")
+// and, when `onAdd` is passed, has a "+" button to add it without dragging.
 export default function FieldTree({ fields, onAdd, locale }: Props) {
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
   const ui = t(locale);
-  // "Campos" é palavra do PACOTE (é o rótulo do painel de campos dele) —
-  // vem de `dictFor`, e só o "do JSON" é nosso.
+  // "Fields" is the PACKAGE's word (it is the label of its field panel) — it
+  // comes from `dictFor`, and only the "from the JSON" is ours.
   const pacote = dictFor(locale);
 
   function onDragStart(e: React.DragEvent<HTMLDivElement>, field: FieldNode) {

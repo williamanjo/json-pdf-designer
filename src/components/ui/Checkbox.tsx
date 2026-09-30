@@ -2,21 +2,21 @@ import { forwardRef, type InputHTMLAttributes, type ReactNode } from "react";
 import { cx, readPart, type PartStyle } from "./cx";
 
 export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "children"> & {
-  /** Texto ao lado da caixa. O <label> embrulha os dois, então clicar no texto marca. */
+  /** Text next to the box. The <label> wraps both, so clicking the text ticks it. */
   label: ReactNode;
   parts?: { root?: PartStyle; label?: PartStyle };
 };
 
-// Caixa de marcar com rótulo.
+// A checkbox with a label.
 //
-// NOVO na 3.0.0, e não é conveniência: eram três `<input type="checkbox">`
-// CRUS dentro de PropertyPanelTable.tsx. Sem um componente, um consumidor
-// que substitua todos os primitivos do kit pelos dele (ver
-// UiComponentsProvider) ficaria com três checkbox nativos no meio do design
-// system próprio — o kit tinha um buraco por inspeção.
+// NEW in 3.0.0, and not a convenience: they were three RAW
+// `<input type="checkbox">` inside PropertyPanelTable.tsx. Without a
+// component, a consumer who replaces every primitive of the kit with their
+// own (see UiComponentsProvider) would be left with three native checkboxes
+// in the middle of their own design system — the kit had a hole by inspection.
 //
-// O estado marcado NÃO tem `data-*`: `:checked` é pseudo-classe nativa. Regra
-// da migração — onde o navegador já expõe o estado, não espelha em atributo.
+// The checked state has NO `data-*`: `:checked` is a native pseudo-class. The
+// migration rule — where the browser already exposes the state, do not mirror it.
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
   { label, className, parts, ...rest },
   ref

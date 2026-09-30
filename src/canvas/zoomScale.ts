@@ -1,16 +1,16 @@
-// ESCALA DE ZOOM DO CANVAS, num arquivo só de valores.
+// CANVAS ZOOM SCALE, in a file that holds nothing but values.
 //
-// Estava dentro do PageCanvas.tsx. Saiu por dois motivos, na ordem em que
-// importam:
+// It used to live inside PageCanvas.tsx. It moved out for two reasons, in
+// the order that matters:
 //
-//   1. O contexto de zoom (src/designer/context/zoom.tsx) clampa com os
-//      MESMOS números. Duas cópias divergiriam no dia em que alguém mexesse
-//      numa delas, e o sintoma seria a barra do consumidor deixando passar
-//      um valor que o canvas depois recusa — ou o contrário.
-//   2. Exportar constante de um arquivo que também exporta componente
-//      derruba a regra `react(only-export-components)` do oxlint (fast
-//      refresh só funciona quando o arquivo exporta apenas componentes). É a
-//      mesma razão do split de três arquivos em src/i18n/.
+//   1. The zoom context (src/designer/context/zoom.tsx) clamps with the SAME
+//      numbers. Two copies would diverge the day someone touched one of
+//      them, and the symptom would be the consumer's slider letting a value
+//      through that the canvas then refuses — or the other way around.
+//   2. Exporting a constant from a file that also exports a component breaks
+//      oxlint's `react(only-export-components)` rule (fast refresh only works
+//      when a file exports components only). Same reason as the three-file
+//      split in src/i18n/.
 
 export const ZOOM_MIN = 0.25;
 export const ZOOM_MAX = 3;
@@ -21,26 +21,26 @@ export const ZOOM_STEP = 0.1;
  * vira ZOOM_MIN, e **NaN vira 1** (100%).
  */
 export function clampZoom(z: number): number {
-  // O caso NaN não é teórico e não é cosmético. `Math.max(0.25, NaN)` é NaN,
-  // e o NaN SOBREVIVE ao `Math.min` — então sem esta linha um zoom NaN
-  // chegava em `transform: scale(NaN)` e a folha inteira desaparecia, sem
-  // erro no console e sem nada no DOM parecendo errado.
+  // The NaN case is not theoretical and it is not cosmetic. `Math.max(0.25,
+  // NaN)` is NaN, and the NaN SURVIVES `Math.min` — so without this line a
+  // NaN zoom reached `transform: scale(NaN)` and the whole sheet vanished,
+  // with no console error and nothing in the DOM looking wrong.
   //
-  // Dois caminhos reais até aqui: `fitWidth()` sobre uma página cujo `width`
-  // é NaN (o mesmo template torto que dá InvalidPageSizeError na geração), e
-  // a barra que o consumidor desenha passando `Number(campoVazio)`.
+  // Two real paths get here: `fitWidth()` over a page whose `width` is NaN
+  // (the same broken template that raises InvalidPageSizeError on
+  // generation), and the slider the consumer draws passing `Number(empty)`.
   //
-  // Volta 1, e não ZOOM_MIN, porque NaN significa "não há valor" — e o
-  // resultado menos surpreendente pra isso é 100%, que deixa a folha
-  // legível. ZOOM_MIN transformaria um erro de digitação num selo de 25%.
-  // `Infinity` continua clampando pro máximo, que é o comportamento certo:
-  // ali existe valor, ele só é grande.
+  // It falls back to 1, not to ZOOM_MIN, because NaN means "there is no
+  // value" — and the least surprising result for that is 100%, which keeps
+  // the sheet readable. ZOOM_MIN would turn a typo into a 25% stamp.
+  // `Infinity` still clamps to the maximum, which is the right behavior:
+  // there a value does exist, it is merely large.
   if (Number.isNaN(z)) return 1;
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
 }
 
-// Régua (16px) + respiro (32px) descontados do viewport ao "ajustar
-// largura/altura". Mora aqui, e não nos dois chamadores, porque o
-// `fitTo` do PageCanvas e o `fitWidth()` do contexto têm que chegar no MESMO
-// zoom — senão o resultado depende de qual botão a pessoa clicou.
+// Ruler (16px) plus breathing room (32px) subtracted from the viewport on
+// "fit width/height". It lives here, and not in the two callers, because
+// PageCanvas's `fitTo` and the context's `fitWidth()` have to land on the
+// SAME zoom — otherwise the result depends on which button was clicked.
 export const ZOOM_FIT_INSET_PX = 16 + 32;

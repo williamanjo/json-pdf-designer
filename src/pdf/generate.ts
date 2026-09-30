@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import type { PDFFont, PDFImage, PDFPage } from "pdf-lib";
-// A build browser do fontkit só exporta nomeado (sem default) — import
-// default quebra no bundler do app consumidor (Vite/Rollup).
+// fontkit's browser build only exports named (no default) — a default import
+// breaks in the consumer app's bundler (Vite/Rollup).
 import * as fontkit from "fontkit";
 import type { Binding, Template } from "../types";
 import { buildInputs } from "../bindings/bindings";
@@ -19,37 +19,37 @@ import { evaluateConditionLenient } from "../expressions/resolve";
 import { BackgroundImageUnreadableError, InvalidPageSizeError } from "../errors";
 
 export type GeneratePdfOptions = {
-  // Teto de páginas físicas do documento — default DEFAULT_MAX_PAGES (5000).
-  // Estourá-lo lança PageLimitError em vez de devolver um PDF truncado. Suba
-  // se você gera relatório gigante de propósito e tem memória pra isso.
+  // The document's physical page ceiling — default DEFAULT_MAX_PAGES (5000).
+  // Going past it throws PageLimitError instead of returning a truncated PDF.
+  // Raise it if you generate a giant report on purpose and have memory for it.
   maxPages?: number;
-  // Bytes de uma fonte TTF/OTF/WOFF/WOFF2 (ex: baixados do @fontsource/inter)
-  // pra acentuação/unicode completos. Sem isso, cai no Helvetica padrão do
-  // pdf-lib (WinAnsi — cobre a maioria dos acentos do português, mas não tudo).
+  // The bytes of a TTF/OTF/WOFF/WOFF2 font (e.g. downloaded from
+  // @fontsource/inter) for full accents/unicode. Without it, it falls back to
+  // pdf-lib's standard Helvetica (WinAnsi — it covers most Portuguese accents).
   fontBytes?: Uint8Array | ArrayBuffer;
 };
 
-// Dados extras vistos só pelos campos repetidos (header/footer/margem) —
-// {pageNumber} e {pageCount} funcionam como qualquer outro token de
-// template ({caminho.do.json}), só que resolvidos de novo a cada página
-// em vez de uma vez só (por isso não passam pelo buildInputs, que roda
-// antes da paginação existir).
+// Extra data seen only by the repeating fields (header/footer/margin) —
+// {pageNumber} and {pageCount} work like any other template token
+// ({path.in.the.json}), except they are resolved again on every page instead
+// of only once (which is why they do not go through buildInputs, which runs
+// before pagination exists).
 function pageData(data: unknown, pageNumber: number, pageCount: number): unknown {
   const base = data && typeof data === "object" && !Array.isArray(data) ? data : {};
   return { ...base, pageNumber, pageCount };
 }
 
-// Tipo do parâmetro FROUXO de propósito (`page?`, `unknown` nos campos), e
-// isso é o ponto: `migrateTemplate` recebe `unknown` — template vem de banco,
-// de arquivo, de API, editado à mão. O `TemplatePage` diz que `page` existe e
-// que os lados são `number`, mas em runtime pode não ser nada disso. Tipar
-// estreito aqui faria o TypeScript considerar as checagens redundantes e
-// convidaria alguém a apagá-las.
+// The parameter's type is deliberately LOOSE (`page?`, `unknown` on the
+// fields), and that is the point: `migrateTemplate` receives `unknown` — a
+// template comes from a database, a file, an API, hand-edited. `TemplatePage`
+// says `page` exists and that the sides are `number`, but at runtime it may be
+// none of that. Typing it narrowly here would make TypeScript consider the
+// checks redundant and invite someone to delete them.
 function assertFinitePageSize(pageDef: { id: string; page?: { width?: unknown; height?: unknown } }): void {
-  // `?? {}` porque `page` pode simplesmente NÃO EXISTIR. Antes isto era
-  // `const { width, height } = pageDef.page`, então ESTA função — que é o
-  // guard — estourava um TypeError cru sobre a entrada que ela existe pra
-  // recusar.
+  // `?? {}` because `page` may simply NOT EXIST. This used to be
+  // `const { width, height } = pageDef.page`, so THIS function — which is the
+  // guard — threw a raw TypeError about the very input it exists to refuse.
+  // The destructuring ran before any check could.
   const { width, height } = pageDef.page ?? {};
   if (
     typeof width !== "number" ||
@@ -59,36 +59,36 @@ function assertFinitePageSize(pageDef: { id: string; page?: { width?: unknown; h
     width <= 0 ||
     height <= 0
   ) {
-    // `Number(...)` só pra preencher os campos do erro: ausente e "banana"
-    // viram NaN, que é o que a mensagem precisa dizer ("esperado dois números
-    // finitos maiores que zero"). A DECISÃO acima não coage nada — string
-    // "210" continua sendo recusada, como era antes.
+    // `Number(...)` only to fill in the error's fields: absent and "banana"
+    // both become NaN, which is what the message has to say ("expected two
+    // finite numbers greater than zero"). The DECISION above coerces nothing —
+    // the string "210" is still refused, as it was before.
     throw new InvalidPageSizeError(pageDef.id, Number(width), Number(height));
   }
 }
 
-// Visibilidade condicional de um campo de faixa repetida. O corpo é filtrado
-// pelo layout; as faixas só aqui, porque a condição delas pode depender do
-// número da página.
+// The conditional visibility of a repeating band's field. The body is
+// filtered by the layout; the bands only here, because their condition may
+// depend on the page number.
 function isRepeatingVisible(schema: { visibleWhen?: string }, pageScopedData: unknown): boolean {
   const condition = schema.visibleWhen?.trim();
   if (!condition) return true;
   return evaluateConditionLenient(condition, pageScopedData, true);
 }
 
-// Fundo (letterhead) — a mesma imagem embutida uma vez, desenhada em toda
-// página gerada, sempre por baixo do resto.
+// The background (letterhead) — the same image embedded once, drawn on every
+// generated page, always beneath everything else.
 function drawBackground(page: PDFPage, background: PDFImage | null, pageWidthPt: number, pageHeightPt: number) {
   if (background) page.drawImage(background, { x: 0, y: 0, width: pageWidthPt, height: pageHeightPt });
 }
 
-// Desenha UMA página física a partir do que o layout já decidiu. Nenhuma
-// decisão de paginação acontece aqui — `layoutDocument` (layout/layoutDocument.ts)
-// já resolveu onde cada coisa cai e com que valor; este laço só põe no papel.
+// Draws ONE physical page from what the layout has already decided. No
+// pagination decision happens here — `layoutDocument` (layout/layoutDocument.ts)
+// has already resolved where everything falls; this loop only puts it on paper.
 //
-// `pageNumber`/`pageCount` chegam prontos porque o layout terminou antes do
-// primeiro traço: é o que faz {pageNumber}/{pageCount} sair certo já na página
-// 1 sem precisar de uma segunda travessia só pra contar.
+// `pageNumber`/`pageCount` arrive ready because the layout finished before the
+// first stroke: that is what makes {pageNumber}/{pageCount} come out right on
+// page 1 without needing a second traversal just to count.
 async function renderLayoutPage(
   doc: PDFDocument,
   font: PDFFont,
@@ -102,21 +102,21 @@ async function renderLayoutPage(
   pageCount: number
 ): Promise<void> {
   const { pageDef, repeatingSchemas, placements } = layoutPage;
-  // Tamanho de página é estrutural: não há default sensato pra adivinhar, e o
-  // pdf-lib devolveria um TypeError opaco ("`width` must be of type `number`,
-  // but was actually of type `NaN`") sem dizer de qual página. Um NaN aqui vem
-  // de template montado por código (`width: Number(input)`) — JSON não
-  // representa NaN.
+  // Page size is structural: there is no sensible default to guess, and pdf-lib
+  // would return an opaque TypeError ("`width` must be of type `number`, but
+  // was actually of type `NaN`") without saying which page. A NaN here comes
+  // from a template built by code (`width: Number(input)`) — JSON does not
+  // represent NaN.
   assertFinitePageSize(pageDef);
   const pageWidthPt = mmToPt(pageDef.page.width);
   const pageHeightPt = mmToPt(pageDef.page.height);
 
-  // Uma imagem de fundo por página-DESIGN, embutida uma vez e reusada em todas
-  // as páginas físicas dela (o cache é por data URI, então duas páginas-design
-  // com o mesmo fundo também compartilham).
+  // One background image per DESIGN page, embedded once and reused on all of
+  // its physical pages (the cache is keyed by data URI, so two design pages
+  // with the same background share it too).
   let background: PDFImage | null = null;
   if (pageDef.backgroundImage) {
-    // `null` = fundo de página, que não tem nome de campo.
+    // `null` = the page background, which has no field name.
     assertImageWithinSizeLimit(pageDef.backgroundImage, null);
     const cached = backgroundCache.get(pageDef.backgroundImage);
     if (cached) {
@@ -125,10 +125,10 @@ async function renderLayoutPage(
       try {
         background = await doc.embedPng(pageDef.backgroundImage);
       } catch {
-        // O pdf-lib/pako lança uma STRING crua aqui ("The input is not a PNG
-        // file!"), não um Error — então `catch (e) { e.message }` de quem chama
-        // dava `undefined`. Mesmo tratamento que drawImageField já dava ao
-        // campo de imagem.
+        // pdf-lib/pako throws a raw STRING here ("The input is not a PNG
+        // file!"), not an Error — so the caller's `catch (e) { e.message }`
+        // gave `undefined`. The same handling drawImageField already gave to
+        // the image field.
         throw new BackgroundImageUnreadableError();
       }
       backgroundCache.set(pageDef.backgroundImage, background);
@@ -147,14 +147,14 @@ async function renderLayoutPage(
     drawField: (target, schema, value) => drawFieldOfType(fieldCtx, target, schema, value),
   };
 
-  // Faixas repetidas (cabeçalho/rodapé/margem) — resolvidas AQUI, e não no
-  // layout, porque {pageNumber}/{pageCount} só existem depois que o layout
-  // terminou. Nenhum campo do corpo depende desses tokens, então o corpo já
-  // chega com valor pronto.
+  // Repeating bands (header/footer/margin) — resolved HERE, and not in the
+  // layout, because {pageNumber}/{pageCount} only exist once the layout has
+  // finished. No body field depends on those tokens, so the body already
+  // arrives with its value ready.
   for (const schema of repeatingSchemas) {
-    // Faixas repetidas também respeitam visibleWhen. Resolvido aqui, e não no
-    // layout, porque a condição pode usar {pageNumber}/{pageCount} — ex:
-    // esconder um aviso na última página com `pageNumber != pageCount`.
+    // Repeating bands honor visibleWhen too. Resolved here, and not in the
+    // layout, because the condition may use {pageNumber}/{pageCount} — e.g.
+    // hiding a notice on the last page with `pageNumber != pageCount`.
     if (!isRepeatingVisible(schema, pageData(data, pageNumber, pageCount))) continue;
     if (schema.type !== "text") {
       await drawFieldOfType(fieldCtx, page, schema, inputs[schema.name]);
@@ -179,9 +179,9 @@ async function drawPlacement(
   sectionCtx: SectionDrawContext
 ): Promise<void> {
   if (placement.kind === "field") {
-    // Só o Y vem do fluxo; o X fica exatamente onde foi desenhado no editor —
-    // é isso que preserva uma grade de campos lado a lado em vez de cascatear
-    // um embaixo do outro.
+    // Only the Y comes from the flow; the X stays exactly where it was drawn in
+    // the editor — that is what preserves a grid of fields side by side
+    // instead of cascading one below the other.
     await drawFieldOfType(fieldCtx, page, { ...placement.schema, y: placement.yMm }, placement.value);
     return;
   }
@@ -205,70 +205,71 @@ async function drawPlacement(
   await drawSectionInstance(sectionCtx, page, placement.schema, placement.item, placement.index + 1, placement.yMm);
 }
 
-// Gera o PDF final: resolve os vínculos contra o JSON real (buildInputs, já
-// existente e sem nenhuma dependência de motor de PDF) e desenha cada
-// schema no formato certo. Roda 100% no navegador (pdf-lib é JS puro).
+// Generates the final PDF: it resolves the bindings against the real JSON
+// (buildInputs, which already existed and has no dependency on a PDF engine)
+// and draws each schema in the right format. It runs 100% in the browser
+// (pdf-lib is plain JS).
 //
-// Paginação: um campo do corpo entra automaticamente no cabeçalho/rodapé
-// (repete em toda página) quando sua posição Y cai dentro da faixa
-// headerHeight/footerHeight — sem campo de "zona" no schema, é só a
-// posição. TODO item do corpo (tabela, seção repetida, texto, imagem) é
-// processado em UMA sequência só, ordenada por Y: quando um termina, o
-// próximo continua logo abaixo (mesma página ou nova, o que couber) — como
-// se fosse um bloco só emendado. Tabela e seção podem consumir várias
-// fatias/repetições (inclusive página nova) até acabar; texto/imagem só
-// ocupa a própria altura autorada. Isso já cobre título/legenda ENTRE duas
-// tabelas, texto antes/depois de uma seção etc — a posição relativa entre
-// itens é sempre preservada (mesmo gap autorado no editor), mesmo que algo
-// anterior tenha crescido (seção mestre-detalhe) ou mudado de página.
+// Pagination: a body field automatically joins the header/footer (repeating
+// on every page) when its Y position falls inside the headerHeight/
+// footerHeight band — with no "zone" field in the schema, it is only the
+// position. EVERY body item (table, repeated section, text, image) is
+// processed in ONE sequence, ordered by Y: when one ends, the next continues
+// right below it (the same page or a new one, whichever fits) — as if it were
+// one continuous block. A table and a section may consume several slices or
+// repetitions until they run out; text/image only takes up its own authored
+// height. That already covers a title/caption BETWEEN two tables, text
+// before/after a section and so on — the relative position between items is
+// always preserved (the same gap authored in the editor), even if something
+// earlier grew (a master-detail section) or changed page.
 //
-// Multi-página: `template.pages` (opcional) deixa desenhar várias páginas-
-// design DIFERENTES num PDF só, com numeração contínua entre elas — mesmo
-// PDFDocument/font embed, sem gerar/mesclar PDFs separados (ver
-// normalizePageDefs em layout/pageLayout.ts, renderPageDef acima). Um
-// Template sem `pages` (todo template de hoje) vira um array de 1, passando
-// pelo mesmíssimo caminho.
+// Multi-page: `template.pages` (optional) allows drawing several DIFFERENT
+// design pages in one PDF, with continuous numbering between them — the same
+// PDFDocument/font embed, without generating/merging separate PDFs (see
+// normalizePageDefs in layout/pageLayout.ts, renderPageDef above). A Template
+// with no `pages` (every template today) becomes an array of 1, through
+// exactly the same path.
 export async function generatePdf(
   rawTemplate: Template,
   data: unknown,
   bindings: Binding[],
   options: GeneratePdfOptions = {}
 ): Promise<Uint8Array> {
-  // Ponto único: todo template que gera PDF passa por aqui, venha de banco,
-  // arquivo ou do <Designer> em memória. Um template já na versão corrente
-  // atravessa sem custo (nenhuma migração é aplicada).
+  // A single point: every template that generates a PDF goes through here,
+  // whether it comes from a database, a file or the in-memory <Designer>. A
+  // template already at the current version passes through at no cost.
   const template = migrateTemplate(rawTemplate);
 
-  // TAMANHO DE PÁGINA É VALIDADO AQUI, antes do layout — e não só no render.
+  // PAGE SIZE IS VALIDATED HERE, before the layout — and not only at render.
   //
-  // O guard morava dentro do `renderLayoutPage`, que roda DEPOIS do
-  // `layoutDocument`. E o layout lê o tamanho direto (`bodyLayout.ts` faz
-  // `pageDef.page.height - footerHeight`), então um template cujo `page` não
-  // existe estourava `TypeError: Cannot read properties of undefined
-  // (reading 'height')` dentro do layout, antes de o guard ter chance.
+  // The guard used to live inside `renderLayoutPage`, which runs AFTER
+  // `layoutDocument`. And the layout reads the size directly (`bodyLayout.ts`
+  // does `pageDef.page.height - footerHeight`), so a template whose `page`
+  // does not exist threw `TypeError: Cannot read properties of undefined
+  // (reading 'height')` inside the layout, before the guard had a chance.
   //
-  // O efeito colateral era pior que a mensagem feia: `describePdfError`
-  // devolve `null` pra um TypeError, porque ele não é um erro nosso. Então o
-  // consumidor classificava como `blame: "package"` — "não é culpa sua,
-  // reporte" — uma falha que era do TEMPLATE dele. Exatamente a confusão que
-  // a superfície de erro tipada existe pra acabar.
+  // The side effect was worse than the ugly message: `describePdfError`
+  // returns `null` for a TypeError, because it is not an error of ours. So the
+  // consumer classified as `blame: "package"` — "not your fault, report it" —
+  // a failure that belonged to THEIR template. Exactly the confusion the typed
+  // error surface exists to put an end to.
   //
-  // Validar TODAS as páginas de uma vez, e não sob demanda, também é de
-  // propósito: quem carrega um arquivo quer saber que a página 7 está torta
-  // antes de esperar a geração das seis primeiras.
-  // Sobre `normalizePageDefs` e não `template.pages`: `pages` é OPCIONAL —
-  // ausente ou vazio, os campos planos do template viram a página implícita
-  // (ver layout/pageLayout.ts). Validar o array cru pularia justamente o
-  // template de página única, que é o caso mais comum, e é o mesmo conjunto
-  // de páginas que o layout vai percorrer daqui a três linhas.
+  // Validating ALL the pages at once, and not on demand, is also deliberate:
+  // whoever loads a file wants to know that page 7 is malformed before waiting
+  // for the first six to generate.
+  // About `normalizePageDefs` and not `template.pages`: `pages` is OPTIONAL —
+  // absent or empty, the template's flat fields become the implicit page (see
+  // layout/pageLayout.ts). Validating the raw array would skip precisely the
+  // single-page template, which is the most common case, and it is the same
+  // set of pages the layout will walk three lines from here.
   for (const pageDef of normalizePageDefs(template)) assertFinitePageSize(pageDef);
   const doc = await PDFDocument.create();
   let font: PDFFont;
   if (options.fontBytes) {
-    // @types/fontkit e o tipo interno do pdf-lib pra Fontkit divergem um
-    // pouco na forma exata do retorno de create() — incompatibilidade de
-    // tipos conhecida entre os dois pacotes, não um erro de fato (funciona
-    // certinho em runtime).
+    // @types/fontkit and pdf-lib's internal type for Fontkit diverge slightly
+    // on the exact shape of create()'s return — a known type incompatibility
+    // between the two packages, not an actual error (it works fine at
+    // runtime).
     doc.registerFontkit(fontkit as unknown as Parameters<typeof doc.registerFontkit>[0]);
     const sfntBytes = await normalizeFontBytes(options.fontBytes);
     font = await doc.embedFont(sfntBytes);
@@ -276,15 +277,15 @@ export async function generatePdf(
     font = await doc.embedFont(StandardFonts.Helvetica);
   }
 
-  // buildInputs/imageCache dependem só de data+bindings (globais no
-  // Template inteiro, não por página) — computados uma vez, reusados por
-  // todas as páginas-design.
+  // buildInputs/imageCache depend only on data+bindings (global to the whole
+  // Template, not per page) — computed once, reused by every design page.
+  // Nothing about them varies with the page being drawn.
   const inputs = buildInputs(data, bindings);
   const imageCache = new Map<string, PDFImage>();
 
-  // Uma travessia só decide TODA a paginação, de todas as páginas-design.
-  // `pages.length` é a contagem de páginas — não uma estimativa que precise
-  // concordar com o desenho depois.
+  // A single traversal decides ALL the pagination, of every design page.
+  // `pages.length` is the page count — not an estimate that has to agree with
+  // the drawing afterwards.
   const layout = layoutDocument(template, data, bindings, inputs, { maxPages: options.maxPages });
   const backgroundCache = new Map<string, PDFImage>();
 

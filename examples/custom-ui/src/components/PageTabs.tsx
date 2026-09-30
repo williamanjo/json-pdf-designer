@@ -10,15 +10,15 @@ type Props = {
   locale: Locale;
 };
 
-// Abas acima do Designer — cada uma é uma TemplatePage independente dentro
-// do MESMO Template (ver lib/pages.ts). Rótulo é sempre a posição no array
-// ("Página N" / "Page N"), não um nome guardado — evita nome desatualizado
-// depois de reordenar/remover uma aba do meio.
+// Tabs above the Designer — each one is an independent TemplatePage inside
+// the SAME Template (see lib/pages.ts). The label is always the position in
+// the array ("Página N" / "Page N"), not a stored name — which avoids a stale
+// name after reordering/removing a tab from the middle.
 //
-// Estas abas são da CASCA, não do editor: as classes são `.page-tab*` de
-// src/index.css, não as `.jpd-tab` que o <Designer> usa por dentro. As duas
-// barras de abas ficam empilhadas na tela (página aqui, propriedades lá
-// dentro), e é de propósito que não pareçam a mesma coisa.
+// These tabs belong to the SHELL, not to the editor: the classes are
+// `.page-tab*` from src/index.css, not the `.jpd-tab` the <Designer> uses
+// internally. The two tab bars sit stacked on screen (the page one here, the
+// properties one in there), and it is deliberate that they do not look alike.
 export default function PageTabs({ pages, activeIndex, onSelect, onAdd, onRemove, locale }: Props) {
   const d = t(locale);
   return (
@@ -26,9 +26,9 @@ export default function PageTabs({ pages, activeIndex, onSelect, onAdd, onRemove
       {pages.map((p, i) => (
         <div key={p.id} className={i === activeIndex ? "page-tab is-active" : "page-tab"}>
           <button type="button" className="page-tab-label" onClick={() => onSelect(i)}>
-            {/* A palavra "página" vem do dicionário DO PACOTE (ver
-                i18n.ts::pageLabel) — a aba "Página" do painel de propriedades
-                logo abaixo usa a mesma, e duas cópias iam dessincronizar. */}
+            {/* The word "page" comes from the PACKAGE's dictionary (see
+                i18n.ts::pageLabel) — the "Page" tab of the property panel just
+                below uses the same one, and two copies would fall out of sync. */}
             {pageLabel(locale, i + 1)}
           </button>
           {pages.length > 1 && (

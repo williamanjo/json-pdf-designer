@@ -1,19 +1,19 @@
-// Path SVG de um retângulo com cantos arredondados (0 a 4 raios
-// independentes), pra usar com `page.drawSvgPath` do pdf-lib — que não tem
-// uma forma "rounded rect" pronta. Substitui os dois `roundedRectPath`/
-// `roundedCornersPath` que existiam duplicados (uniforme em render/renderKpi.ts,
-// por-canto em render/renderTable.ts): mesmo algoritmo, mesma saída exata pros dois
-// casos (ver comentário de clamp abaixo).
+// The SVG path of a rectangle with rounded corners (0 to 4 independent radii),
+// to use with pdf-lib's `page.drawSvgPath` — which has no ready-made "rounded
+// rect" shape. It replaces the two duplicated `roundedRectPath`/
+// `roundedCornersPath` (uniform in render/renderKpi.ts, per-corner in
+// render/renderTable.ts): the same algorithm, the same exact output for both
+// cases (see the clamp comment below).
 //
-// Coordenadas locais (0,0) = canto superior-esquerdo, y cresce pra baixo
-// (convenção SVG).
+// Local coordinates (0,0) = the top-left corner, y grows downward (the SVG
+// convention).
 export type RectCornerRadii = { tl: number; tr: number; bl: number; br: number };
 
 export function roundedRectPath(width: number, height: number, radii: number | RectCornerRadii): string {
-  // Cada raio é limitado a metade do lado menor, pra não estourar a forma
-  // — `Math.min(width, height) / 2` (usado aqui) é matematicamente
-  // idêntico a `Math.min(radius, width / 2, height / 2)` (fórmula antiga
-  // do render/renderKpi.ts): min(width/2, height/2) === min(width, height) / 2.
+  // Each radius is capped at half the shorter side, so as not to overflow
+  // the shape — `Math.min(width, height) / 2` (used here) is mathematically
+  // identical to `Math.min(radius, width / 2, height / 2)` (render/renderKpi.ts's
+  // old formula): min(width/2, height/2) === min(width, height) / 2.
   const half = Math.min(width, height) / 2;
   const r: RectCornerRadii = typeof radii === "number" ? { tl: radii, tr: radii, bl: radii, br: radii } : radii;
   const tl = Math.max(0, Math.min(r.tl, half));

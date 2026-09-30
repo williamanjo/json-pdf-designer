@@ -3,35 +3,35 @@ import { getCaseInsensitive } from "../../expressions/dataAccess";
 import { resolveNestedTableRows } from "../resolvers";
 import { TABLE_ROW_HEIGHT_MM } from "../tableMetrics";
 
-// Medição de seção repetida (data band / mestre-detalhe) — quantas
-// repetições e quanto cada uma ocupa. Vive em layout/ e não em
-// render/renderSection.ts porque é matemática pura: nenhuma destas funções
-// precisa de PDFPage, e todas são necessárias ANTES de desenhar qualquer
-// coisa (é o layout que decide onde cada repetição cai). O
-// render/renderSection.ts ficou só com o desenho.
+// Measuring a repeated section (data band / master-detail) — how many
+// repetitions and how much each one takes. It lives in layout/ and not in
+// render/renderSection.ts because it is pure math: none of these functions
+// needs a PDFPage, and all of them are needed BEFORE drawing anything (it is
+// the layout that decides where each repetition falls). render/renderSection.ts
+// was left with the drawing only.
 
-// Campos membros de uma seção — qualquer schema do template com sectionId
-// apontando pra ela (ver PageCanvas.tsx: arrastar em cima absorve, arrastar
-// pra fora limpa).
+// A section's member fields — any schema in the template whose sectionId
+// points at it (see PageCanvas.tsx: dragging onto it absorbs, dragging out
+// clears).
 export function sectionMembersOf(pageDef: TemplatePage, section: SectionSchema): Schema[] {
   return pageDef.schemas.filter((s) => s.sectionId === section.id);
 }
 
-// Crescimento (mm) de UMA tabela membro além do próprio placeholder, pro item
-// atual — nunca negativo (não encolhe abaixo do desenhado). Conta a linha de
-// totais (footer) como +1 linha extra, se houver.
+// The growth (mm) of ONE member table beyond its own placeholder, for the
+// current item — never negative (it does not shrink below what was drawn). It
+// counts the totals row (footer) as +1 extra row, if there is one.
 export function tableGrowth(tableMember: TableSchema, item: unknown, bindings: Binding[]): number {
   const rows = resolveNestedTableRows(tableMember, item, bindings);
   const footerRows = tableMember.footer && tableMember.footer.length > 0 ? 1 : 0;
-  const actualHeight = (rows.length + 1 + footerRows) * TABLE_ROW_HEIGHT_MM; // +1 = linha de cabeçalho
+  const actualHeight = (rows.length + 1 + footerRows) * TABLE_ROW_HEIGHT_MM; // +1 = the header row
   return Math.max(0, actualHeight - tableMember.height);
 }
 
-// Altura real desta repetição da seção pro item atual — a altura autorada
-// (section.height) serve de mínimo; a soma do crescimento de TODAS as tabelas
-// membro (mestre-detalhe) é o quanto falta caber a mais, já que cada uma
-// empurra pra baixo tudo que vem depois dela (ver drawSectionInstance) — com 1
-// tabela só é só o crescimento dela mesma.
+// The real height of this repetition of the section for the current item —
+// the authored height (section.height) serves as a minimum; the sum of the
+// growth of ALL member tables (master-detail) is how much more has to fit,
+// since each one pushes down everything that comes after it (see
+// drawSectionInstance) — with only 1 table it is just that table's growth.
 export function sectionInstanceHeight(pageDef: TemplatePage, section: SectionSchema, item: unknown, bindings: Binding[]): number {
   let totalGrowth = 0;
   for (const member of sectionMembersOf(pageDef, section)) {
@@ -41,8 +41,8 @@ export function sectionInstanceHeight(pageDef: TemplatePage, section: SectionSch
   return section.height + totalGrowth;
 }
 
-// Itens do array vinculado a uma seção — sem vínculo, desenha 1 instância só
-// com o conteúdo de design (preview), igual à tabela sem vínculo.
+// The items of the array bound to a section — with no binding, it draws a
+// single instance with the design content (a preview), like an unbound table.
 export function resolveSectionItems(sectionSchema: SectionSchema, bindings: Binding[], data: unknown): unknown[] {
   const binding = bindings.find(
     (b): b is Extract<Binding, { type: "section" }> => b.schemaName === sectionSchema.name && b.type === "section"

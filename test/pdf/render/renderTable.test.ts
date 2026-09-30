@@ -3,10 +3,10 @@ import type { PDFFont, PDFPage } from "pdf-lib";
 import { drawTableSlice } from "../../../src/pdf/render/renderTable";
 import type { TableSchema } from "../../../src/types";
 
-// drawTableSlice só chama drawText/drawRectangle/drawSvgPath no `page`
-// recebido — um objeto falso que só grava as chamadas é suficiente pra
-// testar posição/presença sem montar um PDFDocument de verdade (mesma
-// técnica já usada em test/pdf/render/renderKpi.test.ts).
+// drawTableSlice only calls drawText/drawRectangle/drawSvgPath on the `page`
+// it receives — a fake object that only records the calls is enough to test
+// position/presence without assembling a real PDFDocument (the same technique
+// already used in test/pdf/render/renderKpi.test.ts).
 function makeFakePage() {
   const texts: { text: string; x: number; y: number; size: number }[] = [];
   const rects: { x: number; y: number; width: number; height: number; borderColor?: unknown }[] = [];
@@ -29,8 +29,8 @@ function makeFakePage() {
   return { page: page as unknown as PDFPage, texts, rects, paths, lines };
 }
 
-// Largura 0 pra qualquer texto — simplifica a conta de alinhamento (não é
-// o texto real desenhado que estes testes verificam, só posição).
+// Width 0 for any text — it simplifies the alignment arithmetic (it is not the
+// real text drawn that these tests check, only the position).
 const fakeFont = { widthOfTextAtSize: () => 0 } as unknown as PDFFont;
 
 const MM_TO_PT = 72 / 25.4;
@@ -56,11 +56,11 @@ describe("drawTableSlice", () => {
     const { page, texts, rects, paths } = makeFakePage();
     const schema = baseSchema();
     drawTableSlice(page, fakeFont, schema, schema.content, 0, 100, 200);
-    // head: 1 retângulo de fundo (linha toda) + 2 bordas de célula = 3
-    // body: sem bodyBackgroundColor -> só as 2 bordas de célula
-    expect(paths.length).toBe(0); // sem borderRadius nenhum, nunca usa drawSvgPath
+    // head: 1 background rectangle (the whole row) + 2 cell borders = 3
+    // body: with no bodyBackgroundColor -> only the 2 cell borders
+    expect(paths.length).toBe(0); // with no borderRadius at all, it never uses drawSvgPath
     expect(rects.length).toBe(1 /* fundo head */ + 2 /* bordas head */ + 2 /* bordas body */);
-    // texto da célula head[0] alinhado à esquerda: x = 0 (col 0) + padding
+    // the text of cell head[0] aligned left: x = 0 (col 0) + padding
     expect(texts[0].x).toBeCloseTo(CELL_PADDING_PT);
   });
 
@@ -73,16 +73,17 @@ describe("drawTableSlice", () => {
     const { page, rects } = makeFakePage();
     const schema = baseSchema({ borderColor: "#ff0000" });
     drawTableSlice(page, fakeFont, schema, schema.content, 0, 100, 200);
-    // toda borda reta (célula por célula, já que não tem canto arredondado)
-    // usa a MESMA cor resolvida do schema, não mais a constante cinza fixa —
-    // o único rect SEM borderColor é o fundo do cabeçalho (fill, sem borda).
+    // every straight border (cell by cell, since there is no rounded corner)
+    // uses the SAME color resolved from the schema, no longer the fixed gray
+    // constant — the only rect WITHOUT a borderColor is the header's
+    // background (a fill, with no border).
     const borders = rects.filter((r) => r.borderColor);
-    expect(borders.length).toBe(4); // 2 células do head + 2 do body
+    expect(borders.length).toBe(4); // 2 cells of the head + 2 of the body
     borders.forEach((r) => expect(r.borderColor).toEqual({ type: "RGB", red: 1, green: 0, blue: 0 }));
     expect(borders[0].borderColor).not.toEqual(defaultColor);
 
-    // com arredondamento, a borda também sai vermelha — no `drawSvgPath`
-    // (moldura) e no divisor interno entre colunas (`drawLine`).
+    // with rounding, the border comes out red too — in the `drawSvgPath`
+    // (the frame) and in the internal divider between columns (`drawLine`).
     const { page: roundedPage, paths, lines } = makeFakePage();
     const roundedSchema = baseSchema({ borderColor: "#ff0000", headBorderRadius: { topLeft: 3, topRight: 3 } });
     drawTableSlice(roundedPage, fakeFont, roundedSchema, roundedSchema.content, 0, 100, 200);
@@ -96,7 +97,7 @@ describe("drawTableSlice", () => {
     const { page, texts } = makeFakePage();
     const schema = baseSchema({ columnWidths: [30, undefined] }); // col 0 = 30mm, col 1 = resto
     drawTableSlice(page, fakeFont, schema, schema.content, 0, 100, 200);
-    // texto da head[1] começa em x = 30mm (convertido pt) + padding
+    // the text of head[1] starts at x = 30mm (converted to pt) + padding
     const expectedX = 30 * MM_TO_PT + CELL_PADDING_PT;
     expect(texts[1].x).toBeCloseTo(expectedX, 1);
   });
@@ -120,16 +121,16 @@ describe("drawTableSlice", () => {
     expect(paths.length).toBe(1);
     expect(paths[0].borderColor).toBeDefined();
     expect(paths[0].borderWidth).toBe(0.5);
-    // linha do cabeçalho (arredondada): sem retângulo de borda por célula,
-    // só o divisor interno entre as 2 colunas (1 linha reta)
-    expect(rects.length).toBe(2 /* bordas do body (não arredondado) */);
+    // the header's row (rounded): no per-cell border rectangle, only the
+    // internal divider between the 2 columns (1 straight line)
+    expect(rects.length).toBe(2 /* the body's borders (not rounded) */);
     expect(lines.length).toBe(1);
   });
 
   it("bodyBorderRadius só arredonda a última linha da última fatia (isLastSlice)", () => {
-    // precisa de uma cor de fundo pro corpo pra ter ALGO a arredondar —
-    // sem bodyBackgroundColor não há preenchimento nenhum (nem retângulo
-    // reto, nem arredondado).
+    // it needs a background color for the body to have SOMETHING to round —
+    // with no bodyBackgroundColor there is no fill at all (neither straight
+    // nor rounded).
     const schema = baseSchema({ bodyBackgroundColor: "#ffffff", bodyBorderRadius: { bottomLeft: 3, bottomRight: 3 } });
     const { page: notLast, paths: pathsNotLast } = makeFakePage();
     drawTableSlice(notLast, fakeFont, schema, schema.content, 0, 100, 200, true, undefined, false);

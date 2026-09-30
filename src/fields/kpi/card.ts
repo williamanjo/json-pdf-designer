@@ -1,48 +1,48 @@
-// REGRAS DO CARTÃO DE KPI: defaults, raio de canto, e a posição/estado de
-// cada sub-elemento (título, valor, legenda, ícone).
+// THE KPI CARD'S RULES: defaults, corner radius, and the position/state of
+// each sub-element (title, value, subtitle, icon).
 //
-// Era `src/kpiFormat.ts`, na raiz. O nome descrevia UM de treze exports — o
-// resto é geometria e manipulação de sub-elemento, nada de formatação. E o
-// KPI era o único tipo de campo sem pasta própria, enquanto `chart/` tinha
-// três arquivos; a assimetria não tinha razão.
+// It used to be `src/kpiFormat.ts`, at the root. The name described ONE of
+// thirteen exports — the rest is geometry and sub-element handling, nothing
+// to do with formatting. And the KPI was the only field type without a folder
+// of its own, while `chart/` had three files; the asymmetry had no reason.
 
 import type { KpiElementKey, KpiElementOffset, KpiSchema } from "../../types";
 import { ptToMm } from "../../page/units";
 import type { Dict } from "../../i18n";
 
-// Defaults compartilhados entre o preview no canvas (components/FieldBox/KpiField.tsx)
-// e o desenho real no PDF (pdf/render/renderKpi.ts) — mesmo valor nos dois lugares
-// pra preview bater com o PDF gerado quando o schema não define um tamanho.
+// Defaults shared between the canvas preview (components/FieldBox/KpiField.tsx)
+// and the real drawing in the PDF (pdf/render/renderKpi.ts) — the same value in both
+// places so the preview matches the generated PDF when the schema sets no size.
 export const DEFAULT_KPI_TITLE_FONT_SIZE = 8;
 export const DEFAULT_KPI_VALUE_FONT_SIZE = 20;
 export const DEFAULT_KPI_SUBTITLE_FONT_SIZE = 8;
 export const DEFAULT_KPI_ICON_SIZE = 14;
-// Aproxima o raio fixo de 8pt que o cartão sempre teve, no tamanho padrão
-// de um KPI novo (ver makeKpiSchema em schemaFactory.ts, 55x35mm).
+// It approximates the fixed 8pt radius the card always had, at the default
+// size of a new KPI (see makeKpiSchema in schemaFactory.ts, 55x35mm).
 export const DEFAULT_KPI_BORDER_RADIUS_PERCENT = 16;
 
-// Raio de canto (mesma unidade de width/height, mm no canvas ou pt no PDF)
-// a partir de uma porcentagem — 0% = canto reto, 100% = "pílula" (metade
-// do lado menor do cartão). Percentual em vez de valor fixo pra escalar
-// com o tamanho do cartão em vez de ficar sempre o mesmo tanto de mm/pt.
+// Corner radius (the same unit as width/height, mm on the canvas or pt in
+// the PDF) out of a percentage — 0% = a square corner, 100% = a "pill" (half
+// the card's shorter side). A percentage instead of a fixed value so it
+// scales with the card's size rather than staying the same amount of mm/pt.
 export function kpiBorderRadius(percent: number, width: number, height: number): number {
   return (percent / 100) * (Math.min(width, height) / 2);
 }
 
-// Mesma folga de sempre ao redor do conteúdo do cartão (PADDING_PT em
-// pdf/render/renderKpi.ts), só que em mm — usada aqui pra calcular a posição
-// PADRÃO (sem offset customizado) de cada sub-elemento, em mm. render/renderKpi.ts
-// mantém sua própria conta em pt pro caso sem offset (idêntica de sempre,
-// não refatorada, pra não arriscar regressão) — esta função é a posição
-// default usada pelo CANVAS (KpiField.tsx, sempre) e pelo PDF só quando
-// há um offset customizado (ver render/renderKpi.ts).
+// The same padding around the card's content as always (PADDING_PT in
+// pdf/render/renderKpi.ts), only in mm — used here to compute the DEFAULT
+// position (with no custom offset) of each sub-element, in mm. render/renderKpi.ts
+// keeps its own arithmetic in pt for the offset-free case (identical to what it
+// always was, not refactored, so as not to risk a regression) — this function
+// is the default position used by the CANVAS (KpiField.tsx, always) and by the
+// PDF only when there is a custom offset (see render/renderKpi.ts).
 const PADDING_MM = ptToMm(8);
 
-// Posição (canto superior-esquerdo, mm relativo ao cartão) de cada
-// sub-elemento QUANDO NENHUM offset customizado foi definido — ícone no
-// canto superior-direito, título no superior-esquerdo, valor centralizado
-// verticalmente à esquerda, legenda no canto inferior-esquerdo (mesmo
-// layout visual de sempre, ver pdf/render/renderKpi.ts).
+// The position (top-left corner, in mm relative to the card) of each
+// sub-element WHEN NO custom offset has been set — the icon at the top
+// right, the title at the top left, the value centered vertically on the
+// left, the subtitle at the bottom left (the same visual layout as always,
+// see pdf/render/renderKpi.ts).
 export function defaultKpiElementPositions(
   schema: KpiSchema,
   sizesMm: Record<KpiElementKey, number>
@@ -56,11 +56,11 @@ export function defaultKpiElementPositions(
   };
 }
 
-// Helpers pequenos e puros compartilhados entre KpiField.tsx (canvas),
-// FieldList.tsx (cadeado/adicionar-remover na aba Campos) e
-// PropertyPanelKpi.tsx (Estilo contextual) — uma leitura/escrita só do
-// nome de campo certo (`<el>Offset`/`<el>Locked`) por sub-elemento, em vez
-// de cada arquivo reimplementar o mesmo switch.
+// Small pure helpers shared between KpiField.tsx (the canvas),
+// FieldList.tsx (the padlock/add-remove on the Fields tab) and
+// PropertyPanelKpi.tsx (the contextual Style) — a single read/write of the
+// right field name (`<el>Offset`/`<el>Locked`) per sub-element, instead of
+// each file reimplementing the same switch.
 export function kpiElementPresent(schema: KpiSchema, el: KpiElementKey): boolean {
   if (el === "icon") return schema.icon !== "none";
   if (el === "title") return schema.title !== undefined;
@@ -75,8 +75,8 @@ export function kpiElementOffset(schema: KpiSchema, el: KpiElementKey): KpiEleme
   return schema.subtitleOffset;
 }
 
-// Ausente/`true` = travado (default seguro, igual o cadeado do campo
-// inteiro) — só `false` explícito destrava o arrasto (ver KpiField.tsx).
+// Absent/`true` = locked (a safe default, like the padlock of the whole
+// field) — only an explicit `false` unlocks dragging (see KpiField.tsx).
 export function kpiElementLocked(schema: KpiSchema, el: KpiElementKey): boolean {
   if (el === "icon") return schema.iconLocked !== false;
   if (el === "title") return schema.titleLocked !== false;
@@ -98,10 +98,10 @@ export function kpiElementLockedPatch(el: KpiElementKey, locked: boolean): Parti
   return { subtitleLocked: locked };
 }
 
-// Valor padrão pra "readicionar" um sub-elemento removido (botão "+" na
-// aba Campos, ver FieldList.tsx, e botão "Adicionar" na aba Estilo, ver
-// PropertyPanelKpi.tsx) — mesmo default de sempre por tipo, título/legenda
-// usam o rótulo traduzido (ver i18n) como texto de placeholder inicial.
+// The default value for "re-adding" a removed sub-element (the "+" button on
+// the Fields tab, see FieldList.tsx, and the "Add" button on the Style tab,
+// see PropertyPanelKpi.tsx) — the same default per type as always, with
+// title/subtitle using the translated label (see i18n) as initial placeholder.
 export function kpiElementRestorePatch(el: KpiElementKey, t: Dict): Partial<KpiSchema> {
   if (el === "icon") return { icon: "bar_chart" };
   if (el === "title") return { title: t.kpi.title };

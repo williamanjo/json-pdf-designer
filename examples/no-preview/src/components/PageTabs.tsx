@@ -7,20 +7,20 @@ type Props = {
   onSelect: (index: number) => void;
   onAdd: () => void;
   onRemove: (index: number) => void;
-  // O MESMO `locale` do <Designer> (ver App.tsx).
+  // The SAME `locale` as the <Designer> (see App.tsx).
   locale: Locale;
 };
 
-// Abas acima do Designer — cada uma é uma TemplatePage independente dentro
-// do MESMO Template (ver lib/pages.ts). Rótulo é sempre a posição no array
-// ("Página N"), não um nome guardado — evita nome desatualizado depois de
-// reordenar/remover uma aba do meio.
+// Tabs above the Designer — each one is an independent TemplatePage inside
+// the SAME Template (see lib/pages.ts). The label is always the position in
+// the array ("Page N"), not a stored name — which avoids a stale name after
+// reordering/removing a tab from the middle.
 //
-// ATENÇÃO: estas abas ficam DENTRO do `.app-main`, o mesmo container do
-// <Designer>. Por isso cada botão aqui carrega a própria classe `.app-*`
-// em vez de depender de uma regra `.app-main button { ... }`, que
-// alcançaria (e venceria) todo botão do editor — ver o comentário grande
-// do src/index.css.
+// CAREFUL: these tabs sit INSIDE `.app-main`, the same container as the
+// <Designer>. That is why each button here carries its own `.app-*` class
+// instead of relying on an `.app-main button { ... }` rule, which would reach
+// (and beat) every button in the editor — see the long comment in
+// src/index.css.
 export default function PageTabs({ pages, activeIndex, onSelect, onAdd, onRemove, locale }: Props) {
   const s = t(locale);
   return (

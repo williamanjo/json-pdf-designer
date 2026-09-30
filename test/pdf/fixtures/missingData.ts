@@ -1,8 +1,8 @@
 import type { Binding, Template } from "../../../src/types";
 
-// Vínculos apontando pra paths que NÃO existem no dado real (campo ausente,
-// null, array vinculado que não é array) — nenhum deve travar/lançar,
-// só renderizar vazio/fallback, igual documentado em cada resolver.
+// Bindings pointing at paths that do NOT exist in the real data (a missing
+// field, null, a bound array that is not an array) — none of them should hang
+// or throw, only render empty/a fallback, as documented on each resolver.
 export function missingDataTemplate(): { template: Template; data: unknown; bindings: Binding[] } {
   const template: Template = {
     page: { width: 210, height: 297 },
@@ -47,10 +47,10 @@ export function missingDataTemplate(): { template: Template; data: unknown; bind
     ],
   };
   const bindings: Binding[] = [
-    // "pedido.total" existe mas é null — resolveArg/getCaseInsensitive
-    // devem tratar como ausente, não lançar.
+    // "pedido.total" exists but is null — resolveArg/getCaseInsensitive have
+    // to treat it as absent, not throw.
     { schemaName: "tabela_sem_array", type: "array", path: "naoExisteNoDado", columns: ["A", "B"] },
   ];
-  const data = { pedido: { total: null } }; // "cliente" nem existe; "pedido.total" existe e é null.
+  const data = { pedido: { total: null } }; // "cliente" does not even exist; "pedido.total" exists and is null.
   return { template, data, bindings };
 }

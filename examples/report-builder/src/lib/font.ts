@@ -1,20 +1,20 @@
 import interTtfUrl from "../assets/inter-regular.ttf?url";
 
-// Fonte custom pro PDF gerado (fontkit, via json-pdf-designer) — Inter cobre
-// acentuação/unicode bem mais completo que o Helvetica padrão do pdf-lib.
-// TTF de verdade (não .woff2) — testamos descomprimir o .woff2 do
-// @fontsource/inter em tempo de execução (via wawoff2/WASM) e travava
-// infinitamente em navegador real (funcionava certinho em Node, então é
-// específico do WASM rodando em browser). Pra não depender disso, o
-// arquivo já vem convertido pra TTF de uma vez só — ver histórico do
-// commit pra como gerar de novo (decompress do wawoff2, rodado em Node).
+// A custom font for the generated PDF (fontkit, through json-pdf-designer) —
+// Inter covers accents/unicode far more completely than pdf-lib's standard
+// Helvetica. A real TTF (not a .woff2) — we tried decompressing
+// @fontsource/inter's .woff2 at runtime (through wawoff2/WASM) and it hung
+// forever in a real browser (it worked fine in Node, so it is specific to WASM
+// running in a browser). So as not to depend on that, the file comes already
+// converted to TTF once and for all — see the commit history for how to
+// regenerate it (wawoff2's decompress, run in Node).
 let cached: Promise<ArrayBuffer> | null = null;
 
-// Falha de carregar o ASSET de fonte DESTE example. O pacote não sabe nada
-// disso (`describePdfError` devolve `null` pra ela, ver lib/generationError.ts),
-// então ela tem CLASSE própria — pelo mesmo motivo que o pacote tem as dele:
-// dá pra classificar sem casar texto de mensagem. A `message` fica em inglês,
-// como as do pacote, porque é a camada técnica que vai pro console.
+// A failure to load THIS example's font ASSET. The package knows nothing
+// about it (`describePdfError` returns `null` for it, see
+// lib/generationError.ts), so it has a CLASS of its own — for the same reason
+// the package has its own: it can be classified without matching message text.
+// The `message` stays in English, like the package's, because it is the
 export class FontLoadError extends Error {
   constructor(reason: string) {
     super(`Could not load the bundled font asset (src/assets/inter-regular.ttf): ${reason}`);

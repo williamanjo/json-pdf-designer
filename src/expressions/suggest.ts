@@ -1,30 +1,30 @@
 import { CUSTOM_FIELD_FUNCTIONS } from "../bindings/bindings";
 import type { Dict } from "../i18n";
 
-// Autocomplete do editor de expressão (FormulaModal.tsx), em módulo puro.
+// Autocomplete for the expression editor (FormulaModal.tsx), in a pure module.
 //
-// Puro por necessidade e não por gosto: o projeto não tem
-// @testing-library/react (ver o topo de test/i18n/withInlineCode.test.tsx),
-// então o que não estiver fora do componente não tem como ser testado. Aqui
-// mora a parte que erra fácil — onde a palavra começa, o que sobra do texto
-// depois de aceitar uma sugestão, onde o caret para.
+// Pure out of necessity and not out of taste: the project has no
+// @testing-library/react (see the top of test/i18n/withInlineCode.test.tsx),
+// so whatever is not outside the component has no way of being tested. Here
+// lives the part that is easy to get wrong — where the word starts, what is
+// left of the text after accepting a suggestion, where the caret stops.
 
 export type Suggestion = {
   kind: "function" | "operator";
-  // Como aparece na lista.
+  // How it appears in the list.
   name: string;
-  // O que entra no texto. Função abre parêntese; operador leva espaço.
+  // What goes into the text. A function opens a parenthesis; an operator takes a space.
   insert: string;
-  // Chave do exemplo e da dica no dicionário (só função). A sugestão carrega
-  // a CHAVE, não o texto: `suggestAt` é puro e não recebe idioma; quem
-  // desenha a lista tem o `t` à mão e resolve lá (ver FormulaModal.tsx).
+  // The key of the example and the hint in the dictionary (functions only).
+  // The suggestion carries the KEY, not the text: `suggestAt` is pure and
+  // receives no language; whoever draws the list has `t` at hand (FormulaModal).
   hintKey?: keyof Dict["fieldFunctions"];
 };
 
-// Os operadores por palavra do formato. Ficam aqui e não em tokenize.ts
-// porque ali a lista é do LEXER (com a regra de espaço nos dois lados); esta
-// é da UI, e as duas mudariam juntas se um operador novo aparecesse — o
-// teste garante que continuam batendo.
+// The format's word operators. They live here and not in tokenize.ts because
+// there the list belongs to the LEXER (with the whitespace-on-both-sides
+// rule); this one belongs to the UI, and the two would change together if a
+// new operator appeared — the test guarantees they keep matching.
 const WORD_OPERATORS = ["AND", "OR", "NOT"] as const;
 
 const FUNCTION_SUGGESTIONS: Suggestion[] = CUSTOM_FIELD_FUNCTIONS.map((fn) => ({
@@ -67,26 +67,26 @@ function insideString(text: string, caret: number): boolean {
 
 export function suggestAt(text: string, caret: number): Suggestion[] {
   if (insideString(text, caret)) return [];
-  // Sem palavra parcial no caret, nada é sugerido — nem a lista inteira.
-  // Sugerir 14 itens só por o cursor estar num campo vazio (ou logo depois de
-  // um "(" ) é ruído que tapa o editor; a lista aparece quando se digita uma
-  // letra, e some sozinha depois de "(" ou ",".
+  // With no partial word at the caret, nothing is suggested — not even the
+  // whole list. Suggesting 14 items just because the cursor is in an empty
+  // field (or right after a "(" ) is noise that covers the editor; the list
+  // appears when a letter is typed, and goes away by itself after "(" or ",".
   const { word } = wordAtCaret(text, caret);
   if (!word) return [];
   const prefix = word.toUpperCase();
   return ALL_SUGGESTIONS.filter((s) => s.name.startsWith(prefix));
 }
 
-// Insere `insert` no caret, trocando a palavra parcial que estava sendo
-// digitada. Devolve onde o caret deve ficar — sem isso o cursor pula pro fim
-// do texto e digitar continua no lugar errado.
+// Inserts `insert` at the caret, replacing the partial word being typed. It
+// returns where the caret should end up — without that the cursor jumps to
+// the end of the text and typing carries on in the wrong place.
 export function applySuggestion(text: string, caret: number, suggestion: Suggestion): { text: string; caret: number } {
   const { start } = wordAtCaret(text, caret);
   let insert = suggestion.insert;
-  // Operador só é operador cercado de espaço dos DOIS lados (tokenize.ts).
-  // Garantir o espaço da esquerda aqui é o que impede o autocomplete de
-  // produzir exatamente o defeito que `suspiciousOperator` avisa: um
-  // `total AND` encostado vira nome de chave, não operação.
+  // An operator is only an operator when surrounded by whitespace on BOTH
+  // sides (tokenize.ts). Guaranteeing the left-hand space here is what stops
+  // the autocomplete from producing exactly the defect `suspiciousOperator`
+  // warns about: a `total AND` sitting against the text becomes a key name.
   if (suggestion.kind === "operator" && start > 0 && !/\s/.test(text[start - 1])) {
     insert = ` ${insert}`;
   }

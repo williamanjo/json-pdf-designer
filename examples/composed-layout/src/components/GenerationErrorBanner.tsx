@@ -11,11 +11,11 @@ type Props = {
   locale: Locale;
 };
 
-// A CULPA (`blame`) é o enum do PACOTE — quatro valores, os mesmos que um
-// backend usaria pra escolher entre 4xx e 500. O pacote não localiza esse
-// RÓTULO (ele é uma etiqueta de UI, e nem toda UI mostra), então a tradução é
-// nossa. `switch` exaustivo: valor novo no enum do pacote para de compilar
-// aqui, em vez de renderizar vazio.
+// The BLAME is the PACKAGE's enum — four values, the same ones a backend
+// would use to choose between 4xx and 500. The package does not localize that
+// LABEL (it is a UI tag, and not every UI shows it), so the translation is
+// ours. An exhaustive `switch`: a new value in the package's enum stops
+// compiling here, instead of rendering empty.
 function blameLabel(ui: Ui, blame: GenerationProblem["blame"]): string {
   switch (blame) {
     case "data":
@@ -29,14 +29,14 @@ function blameLabel(ui: Ui, blame: GenerationProblem["blame"]): string {
   }
 }
 
-// Banner de falha de geração, logo abaixo do header. O ponto: a mensagem vem
-// de `describeGenerationError`, que delega a classificação a
-// `describePdfError` do pacote (`code` + `blame` estruturados) em vez de olhar
-// `err.message`. É a mesma decisão que um backend toma pra escolher entre 413,
-// 400 e 500.
+// The generation failure banner, right below the header. The point: the
+// message comes from `describeGenerationError`, which delegates the
+// classification to the package's `describePdfError` (a structured `code` +
+// `blame`) instead of looking at `err.message`. It is the same decision a
+// backend makes when choosing between 413, 400 and 500.
 //
-// Substituiu o `.app-error` de uma linha que este example tinha antes (que
-// mostrava `err.message` direto).
+// It replaced the one-line `.app-error` this example had before (which showed
+// `err.message` directly).
 export default function GenerationErrorBanner({ problem, onDismiss, locale }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const isBug = problem.blame === "package";

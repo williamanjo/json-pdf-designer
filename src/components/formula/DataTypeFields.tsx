@@ -3,24 +3,24 @@ import { buildColumnFormula, parseColumnFormula } from "../../fields/table/colum
 import { useUiComponents } from "../ui/useUiComponents";
 
 type Props = {
-  // A fórmula inteira, como texto — a mesma string que vai pro campo.
+  // The whole formula, as text — the same string that goes into the field.
   formula: string;
   onChange: (formula: string) => void;
-  // Placeholder do caminho: o nome da coluna, quando há um.
+  // Path placeholder: the column name, when there is one.
   pathPlaceholder?: string;
 };
 
-// O bloco "Tipo de dado": um seletor de função e os argumentos dela
-// (símbolo, casas decimais, formato de data), derivados da PRÓPRIA fórmula.
+// The "Data type" block: a function picker and its arguments (symbol,
+// decimal places, date format), derived from the formula ITSELF.
 //
-// Movido de PropertyPanelTable, sem mudar comportamento, quando o ƒx passou
-// a abrir o modal (FormulaModal.tsx). A diferença é só quem recebe a escrita:
-// antes ia direto pro binding a cada tecla, agora vai pro rascunho do modal e
-// só o "Salvar" comita.
+// Moved out of PropertyPanelTable, with no behavior change, when the ƒx
+// started opening the modal (FormulaModal.tsx). The only difference is who
+// receives the write: it used to go straight to the binding on every
+// keystroke, now it goes to the modal draft and only "Save" commits.
 //
-// Só aparece pra fórmula "limpa" (vazia, `{path}` nu, ou UMA chamada de
-// função) — `parseColumnFormula` devolve "raw" pra `FAT-{fatura}` e coisas
-// misturadas, e não há como decompor isso num seletor sem perder o prefixo.
+// It only appears for a "clean" formula (empty, a bare `{path}`, or ONE
+// function call) — `parseColumnFormula` returns "raw" for `FAT-{fatura}` and
+// anything mixed, which cannot be decomposed without losing the prefix.
 export function DataTypeFields({ formula, onChange, pathPlaceholder }: Props) {
   const t = useT();
   const { Input, Select } = useUiComponents();

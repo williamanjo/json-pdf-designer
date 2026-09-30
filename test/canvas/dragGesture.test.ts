@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startDragGesture } from "../../src/canvas/dragGesture";
 
-// Sem jsdom no projeto (ver test/i18n/withInlineCode.test.tsx) — o
-// ambiente padrão do vitest aqui é "node", que não tem `window` global.
-// startDragGesture só precisa de um EventTarget com
-// addEventListener/removeEventListener/dispatchEvent, então um
-// EventTarget nativo do Node (disponível desde o Node 15) serve de
-// stand-in fiel pro `window` real do browser.
+// There is no jsdom in the project (see test/i18n/withInlineCode.test.tsx) —
+// vitest's default environment here is "node", which has no global `window`.
+// startDragGesture only needs an EventTarget with
+// addEventListener/removeEventListener/dispatchEvent, so Node's native
+// EventTarget (available since Node 15) serves as a faithful stand-in for the
+// browser's real `window`.
 function fakeMouseEvent(clientX: number, clientY: number) {
   return {
     stopPropagation: vi.fn(),

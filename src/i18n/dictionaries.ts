@@ -2,19 +2,19 @@ import { en, type Dict } from "./locales/en";
 import { ptBR } from "./locales/pt-BR";
 import type { Locale } from "./types";
 
-// Mapa locale -> dicionário. Em arquivo próprio (não em context.tsx) porque é
-// um VALOR puro, sem React: assim o `/server` e um backend podem importar sem
-// arrastar react pro grafo — a fronteira que test/entryBoundaries.test.ts
-// guarda.
+// The locale -> dictionary map. In a file of its own (not in context.tsx)
+// because it is a pure VALUE, with no React: that way `/server` and a backend
+// can import it without dragging react into the graph — the boundary
+// test/entryBoundaries.test.ts guards.
 export const DICTIONARIES: Record<Locale, Dict> = { en, "pt-BR": ptBR };
 
-// O dicionário de um locale, fora de qualquer componente.
+// A locale's dictionary, outside any component.
 //
-// Existe porque `fieldWarning(schema, binding, t)` é API pública e precisa de um
-// `Dict`, mas o único jeito de obter um era o hook `useT()` — inútil pra quem
-// valida um template num backend, ou em qualquer código fora da árvore React.
-// Dentro de um componente, prefira `useT()`: ele respeita o `<I18nProvider>`
-// em volta, enquanto isto exige escolher o locale na mão.
+// It exists because `fieldWarning(schema, binding, t)` is public API and needs
+// a `Dict`, but the only way to get one was the `useT()` hook — useless for
+// anyone validating a template in a backend, or in any code outside the React
+// tree. Inside a component, prefer `useT()`: it honors the `<I18nProvider>`
+// around it, while this one requires choosing the locale by hand.
 export function dictFor(locale: Locale): Dict {
   return DICTIONARIES[locale] ?? en;
 }
