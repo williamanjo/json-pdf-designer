@@ -1,5 +1,7 @@
 # json-pdf-designer
 
+<p align="center"><img src="docs/banner-pt-BR.jpg" alt="json-pdf-designer: monte o relatório no navegador, ligue ao JSON e gere o PDF" width="100%"></p>
+
 [![npm version](https://img.shields.io/npm/v/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
 [![npm downloads](https://img.shields.io/npm/dm/json-pdf-designer.svg)](https://www.npmjs.com/package/json-pdf-designer)
 [![CI](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml/badge.svg)](https://github.com/williamanjo/json-pdf-designer/actions/workflows/ci.yml)
